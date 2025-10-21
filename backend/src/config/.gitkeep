@@ -1,0 +1,5 @@
+# Pasta para arquivos de configuração
+# - database.ts (MongoDB)
+# - swagger.ts (Swagger/OpenAPI)
+# - logger.ts (Winston)
+

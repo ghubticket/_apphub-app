@@ -1,0 +1,6 @@
+# Pasta para middlewares
+# - authMiddleware.ts (validação JWT)
+# - roleMiddleware.ts (verificação de roles)
+# - validationMiddleware.ts (validação de dados)
+# - errorMiddleware.ts (tratamento de erros)
+

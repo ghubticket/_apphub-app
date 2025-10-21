@@ -1,0 +1,7 @@
+# Pasta para lógica de negócio
+# - paymentService.ts (Mercado Pago)
+# - qrcodeService.ts (Geração e validação)
+# - emailService.ts (Resend)
+# - uploadService.ts (Cloudinary)
+# - pdfService.ts (Geração de PDFs)
+

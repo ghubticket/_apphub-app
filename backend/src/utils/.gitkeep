@@ -1,0 +1,6 @@
+# Pasta para funções utilitárias
+# - validators.ts (validações customizadas)
+# - helpers.ts (funções auxiliares)
+# - constants.ts (constantes do sistema)
+# - errors.ts (classes de erro customizadas)
+
