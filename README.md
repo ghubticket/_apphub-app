@@ -109,6 +109,7 @@ ROI: 3 meses (payback)
 - **MongoDB Atlas** (cloud, free tier M0 → M10 depois)
 - **Mongoose** (ODM)
 - **JWT** para autenticação (Passport.js)
+- **Swagger/OpenAPI** para documentação da API
 - **node-cache** (cache em memória → Redis na Fase 2)
 - **Mercado Pago SDK** para pagamentos
 - **Resend** para envio de emails
@@ -312,7 +313,7 @@ O banco de dados MongoDB organiza as informações em 4 coleções principais:
 Todas as coleções possuem campos de auditoria (`createdAt`, `updatedAt`) e relacionamentos via ObjectId do MongoDB.
 
 ---
-
+  
 
 ## 🚀 Scripts e Comandos
 
@@ -416,6 +417,214 @@ eventhub/
 
 Nota: Sem Docker, sem monorepo complexo - simplicidade máxima no MVP!
 ```
+
+---
+
+## 📚 API Documentation com Swagger
+
+### O Que é Swagger?
+Swagger é uma ferramenta que gera documentação interativa da API automaticamente. Você pode **testar todos os endpoints diretamente no navegador**, sem precisar do Postman!
+
+### Como Usar
+
+**1. Acessar a documentação:**
+```
+http://localhost:3001/api-docs
+```
+
+**2. Testar um endpoint (exemplo: Login):**
+1. Acesse http://localhost:3001/api-docs
+2. Procure por `POST /api/auth/login`
+3. Clique em "Try it out"
+4. Preencha o JSON:
+   ```json
+   {
+     "email": "admin@eventhub.com",
+     "password": "SuaSenha123!"
+   }
+   ```
+5. Clique em "Execute"
+6. Veja a resposta com o token JWT!
+
+**3. Usar o token em endpoints protegidos:**
+1. Copie o token da resposta do login
+2. Clique no botão "Authorize" (🔒 no topo da página)
+3. Cole o token: `Bearer seu-token-aqui`
+4. Agora você pode testar endpoints protegidos!
+
+### Setup no Backend
+
+**Instalar dependências:**
+```bash
+npm install swagger-ui-express swagger-jsdoc @types/swagger-ui-express @types/swagger-jsdoc
+```
+
+**Configurar Swagger (backend/src/config/swagger.ts):**
+```typescript
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+
+const options = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'EventHub API',
+      version: '1.0.0',
+      description: 'API REST para gestão de eventos e venda de ingressos',
+    },
+    servers: [
+      {
+        url: 'http://localhost:3001',
+        description: 'Desenvolvimento',
+      },
+      {
+        url: 'https://api.eventhub.com',
+        description: 'Produção',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Token JWT obtido no login',
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }],
+  },
+  apis: ['./src/routes/*.ts'], // Documentação inline nas rotas
+};
+
+export const swaggerSpec = swaggerJsdoc(options);
+```
+
+**Adicionar no servidor (backend/src/server.ts):**
+```typescript
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
+
+// Rota da documentação
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'EventHub API Docs',
+  customCss: '.swagger-ui .topbar { display: none }', // Remove barra do Swagger
+}));
+```
+
+### Exemplo: Documentar Endpoint de Login
+
+**No arquivo de rotas (backend/src/routes/auth.routes.ts):**
+```typescript
+/**
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     summary: Login do usuário
+ *     description: Autentica o usuário e retorna token JWT
+ *     tags:
+ *       - Autenticação
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: admin@eventhub.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: SenhaSegura123!
+ *     responses:
+ *       200:
+ *         description: Login realizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                       enum: [master, admin, financeiro, leitor]
+ *       401:
+ *         description: Credenciais inválidas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Email ou senha incorretos
+ */
+router.post('/login', authController.login);
+```
+
+### Endpoints Principais para Documentar no MVP
+
+**Autenticação:**
+- `POST /api/auth/register` - Criar conta
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Dados do usuário logado
+
+**Eventos:**
+- `GET /api/events` - Listar eventos
+- `GET /api/events/:id` - Detalhes do evento
+- `POST /api/events` - Criar evento (admin)
+- `PUT /api/events/:id` - Editar evento (admin)
+- `DELETE /api/events/:id` - Deletar evento (admin)
+
+**Ingressos:**
+- `GET /api/events/:eventId/tickets` - Listar tipos de ingresso
+- `POST /api/events/:eventId/tickets` - Criar tipo de ingresso (admin)
+
+**Pedidos:**
+- `POST /api/orders` - Criar pedido (comprar ingresso)
+- `GET /api/orders/:id` - Detalhes do pedido
+- `GET /api/orders/my-orders` - Meus pedidos
+
+**Validação:**
+- `POST /api/validation/check` - Validar QR Code
+
+### Vantagens do Swagger vs Postman
+
+**Swagger:**
+- ✅ Documentação sempre atualizada (vive no código)
+- ✅ Interface web pronta
+- ✅ Time frontend vê facilmente como usar a API
+- ✅ Grátis e integrado
+
+**Postman:**
+- ✅ Mais features (testes automatizados, ambientes)
+- ✅ Salva histórico de requests
+- ❌ Collection separada do código (pode desatualizar)
+
+**Recomendação:** Use **Swagger para documentação** + **Postman para testes complexos** (se precisar)
+
 ---
 
 ## 🔧 Configuração e Deploy
@@ -522,7 +731,7 @@ Sinais para fazer upgrade:
 *Monitoramento avançado (Grafana, Prometheus) na Fase 3*
 
 ---
-  
+
 ## 🛡️ Segurança Avançada
 ### QR Code Security - Como Funciona
 
@@ -556,6 +765,7 @@ Sinais para fazer upgrade:
 **Backend:**
 - [ ] Setup Node.js + TypeScript + Express
 - [ ] MongoDB Atlas configurado
+- [ ] Swagger/OpenAPI configurado (documentação da API)
 - [ ] Sistema de autenticação JWT + roles
 - [ ] CRUD completo de eventos e ingressos
 - [ ] Integração Mercado Pago (Pix/Cartão)
@@ -801,14 +1011,15 @@ Este é um projeto proprietário desenvolvido para eventos de pagode.
 
 ### Desenvolvimento
 - **Backend API**: http://localhost:3001
+- **Swagger (API Docs)**: http://localhost:3001/api-docs 📚
 - **Frontend**: http://localhost:3000
 - **Dashboard Admin**: http://localhost:3000/dashboard
 - **QR Reader**: http://localhost:3000/leitor
 
 ### Documentação
-- **PREMISSAS.md**: Documento principal do projeto (leitura obrigatória)
+- **PREMISSAS.md**: Documento principal do projeto (leitura obrigatória!)
 - **ARCHITECTURE.md**: Detalhes técnicos de implementação
-- **API Docs**: http://localhost:3001/api-docs (Swagger - a implementar)
+- **Swagger UI**: http://localhost:3001/api-docs - Teste todos os endpoints aqui!
 
 ### Serviços Externos
 - **MongoDB Atlas**: https://cloud.mongodb.com
@@ -852,11 +1063,29 @@ Este é um projeto proprietário desenvolvido para eventos de pagode.
 
 ## 🎓 Próximos Passos
 
-1. ✅ Ler **PREMISSAS.md** completamente
+### Setup Inicial
+1. ✅ Ler **PREMISSAS.md** completamente (30-45 min)
 2. ✅ Configurar ambiente de desenvolvimento
-3. ✅ Criar contas nos serviços (MongoDB Atlas, Mercado Pago, etc)
+   - Node.js 18+ e npm
+   - Git
+   - VS Code (ou sua IDE favorita)
+3. ✅ Criar contas nos serviços:
+   - MongoDB Atlas (free tier)
+   - Mercado Pago (conta de desenvolvedor)
+   - Resend (free tier)
+   - Cloudinary (free tier)
+   - Railway ou Render (free tier)
+
+### Desenvolvimento
 4. ✅ Setup do repositório (backend + frontend)
-5. ✅ Começar Fase 1 - MVP (6-8 semanas)
+5. ✅ Configurar Swagger para testar API
+6. ✅ Começar Fase 1 - MVP (6-8 semanas)
+
+### Testando a API
+Depois de rodar o backend:
+- Acesse http://localhost:3001/api-docs
+- Teste o login e outros endpoints direto no navegador!
+- Use o botão "Authorize" para adicionar o token JWT
 
 ---
 
