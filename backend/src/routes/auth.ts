@@ -1,4 +1,20 @@
 import { Router, Request, Response } from 'express';
+import {
+  register,
+  login,
+  logout,
+  getMe,
+  updateProfile,
+  changePassword
+} from '../controllers/authController';
+import { authenticate, authorize } from '../middleware/auth';
+import { validate } from '../middleware/validation';
+import {
+  registerSchema,
+  loginSchema,
+  updateProfileSchema,
+  changePasswordSchema
+} from '../middleware/schemas';
 
 const router = Router();
 
@@ -74,14 +90,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/register', (req: Request, res: Response) => {
-  // TODO: Implementar registro de usuário
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint em desenvolvimento',
-    errors: ['Registro de usuário será implementado em breve'],
-  });
-});
+router.post('/register', validate(registerSchema), register);
 
 /**
  * @swagger
@@ -145,14 +154,7 @@ router.post('/register', (req: Request, res: Response) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/login', (req: Request, res: Response) => {
-  // TODO: Implementar login
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint em desenvolvimento',
-    errors: ['Login será implementado em breve'],
-  });
-});
+router.post('/login', validate(loginSchema), login);
 
 /**
  * @swagger
@@ -185,14 +187,7 @@ router.post('/login', (req: Request, res: Response) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/logout', (req: Request, res: Response) => {
-  // TODO: Implementar logout
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint em desenvolvimento',
-    errors: ['Logout será implementado em breve'],
-  });
-});
+router.post('/logout', authenticate, logout);
 
 /**
  * @swagger
@@ -224,13 +219,123 @@ router.post('/logout', (req: Request, res: Response) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/me', (req: Request, res: Response) => {
-  // TODO: Implementar obtenção de dados do usuário
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint em desenvolvimento',
-    errors: ['Obtenção de dados do usuário será implementado em breve'],
-  });
-});
+router.get('/me', authenticate, getMe);
+
+/**
+ * @swagger
+ * /auth/profile:
+ *   put:
+ *     summary: Atualizar perfil do usuário
+ *     description: Atualiza os dados do perfil do usuário logado
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "João Silva"
+ *               phone:
+ *                 type: string
+ *                 example: "(11) 99999-9999"
+ *               cpf:
+ *                 type: string
+ *                 example: "123.456.789-00"
+ *     responses:
+ *       200:
+ *         description: Perfil atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Perfil atualizado com sucesso"
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Token inválido ou expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.put('/profile', authenticate, validate(updateProfileSchema), updateProfile);
+
+/**
+ * @swagger
+ * /auth/change-password:
+ *   put:
+ *     summary: Alterar senha do usuário
+ *     description: Altera a senha do usuário logado
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *               - confirmPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: "senhaAtual123"
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: "novaSenha123"
+ *               confirmPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: "novaSenha123"
+ *     responses:
+ *       200:
+ *         description: Senha alterada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Senha alterada com sucesso"
+ *       400:
+ *         description: Dados inválidos ou senha atual incorreta
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Token inválido ou expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.put('/change-password', authenticate, validate(changePasswordSchema), changePassword);
 
 export default router;
