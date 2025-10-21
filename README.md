@@ -3,7 +3,6 @@
 > Plataforma completa de venda de ingressos e controle de acesso com QR Code para eventos de pagode. Sistema próprio que elimina taxas de plataformas externas (~25%) e oferece controle total sobre vendas e dados dos clientes.
 
 ---
-
 ## 📋 Documentação do Projeto
 
 **⚠️ IMPORTANTE:** Este projeto segue as especificações do arquivo **[PREMISSAS.md](./PREMISSAS.md)** que contém:
@@ -61,10 +60,8 @@ Com Sistema Próprio:
 ECONOMIA: ~R$ 60.000/ano ✅
 ROI: 3 meses (payback)
 ```
-
 ---
 
-  
 
 ## 🎯 Visão Geral do Sistema
 
@@ -76,8 +73,6 @@ ROI: 3 meses (payback)
 - **Sistema de validação** em tempo real no portão
 - **Dashboard administrativo** para gestão completa
 - **Relatórios financeiros** e analytics
-
-  
 
 ### 🚀 Funcionalidades Principais
 
@@ -175,17 +170,10 @@ ROI: 3 meses (payback)
 Fase 2: Adicionar Redis para cache
 Fase 3: Sistema offline nos tablets
 ```
-
-  
-
 ---
 
-  
-
 ## 🔐 Sistema de Segurança
-
 ### Autenticação e Autorização
-  
 O sistema possui 4 níveis de acesso:
 - **Master**: Acesso total ao sistema
 - **Admin**: Gestão de eventos e ingressos
@@ -195,23 +183,13 @@ O sistema possui 4 níveis de acesso:
 Cada role possui permissões específicas sobre recursos (eventos, ingressos, usuários, relatórios).
 
 ### Proteções Implementadas
-
-  
-
 - **HTTPS obrigatório** com certificados SSL
-
 - **HttpOnly cookies** para tokens
-
 - **CSRF protection** com tokens únicos
-
 - **Rate limiting** por IP e usuário
-
 - **SQL/NoSQL injection** protection
-
 - **XSS protection** com sanitização
-
 - **CORS** configurado adequadamente
-
   
 
 ### QR Code Security
@@ -231,129 +209,72 @@ O sistema garante que:
 
 ---
 
-  
-
 ## 📊 Fluxo do Sistema
 
-  
-
 ### 1. Dashboard Administrativo
-
-  
 
 **Login e Controle de Acesso:**
 
 ```
-
 Usuário Master → Acesso total
 
 ├── Gerenciar usuários e permissões
-
 ├── Criar/editar eventos
-
 ├── Configurar ingressos
-
 └── Relatórios e analytics
 
-  
-
 Admin → Gestão de eventos
-
 ├── Criar/editar eventos
-
 ├── Gerenciar ingressos
-
 └── Visualizar relatórios
 
-  
-
 Financeiro → Controle financeiro
-
 ├── Relatórios de vendas
-
 ├── Controle de pagamentos
-
 └── Analytics financeiros
 
-  
-
 Leitor → Apenas visualização
-
 └── Dashboard de monitoramento
 
 ```
-
-  
-
 ### 2. Gestão de Eventos
 
-  
-
 **Criação de Evento:**
-
 - Upload de foto/logo
-
 - Descrição detalhada
-
 - Local e endereço
-
 - Data e horário
-
 - Configurações de acesso
 
-  
-
 **Gestão de Ingressos:**
-
 - Tipos de ingresso (Normal, VIP, Meia-entrada)
-
 - Preços e quantidades
-
 - Limite por CPF
-
 - Período de venda
-
 - Configurações especiais
 
-  
-
 ### 3. Fluxo de Compra (Futuro)
-
-  
 
 ```
 
 Cliente → Seleciona evento → Escolhe ingressos →
-
 Preenche dados → Pagamento → Geração QR Code →
-
 Confirmação por email
 
 ```
-
-  
 
 ### 4. Sistema de Validação
 
   
 
 **QR Code Reader:**
-
 - Scanner em tempo real
-
 - Validação de hash
-
 - Verificação de expiração
-
 - Controle de uso único
-
 - Log de acessos
 
-  
-
 ---
-
-  
 
 ## 🗄️ Estrutura do Banco de Dados
 
@@ -392,7 +313,6 @@ Todas as coleções possuem campos de auditoria (`createdAt`, `updatedAt`) e rel
 
 ---
 
-  
 
 ## 🚀 Scripts e Comandos
 
@@ -438,11 +358,7 @@ npm run lint         # ESLint
 - Backup automático configurado
 - Retenção: 7 dias (free tier) ou mais (pago)
 
-  
-
 ---
-
-  
 
 ## 📁 Estrutura do Projeto (Simplificada para MVP)
 
@@ -500,12 +416,7 @@ eventhub/
 
 Nota: Sem Docker, sem monorepo complexo - simplicidade máxima no MVP!
 ```
-
-  
-
 ---
-
-  
 
 ## 🔧 Configuração e Deploy
 
@@ -563,12 +474,7 @@ NEXT_PUBLIC_MP_PUBLIC_KEY=APP_USR-seu-public-key
 # URLs
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
-
-  
-
 ---
-
-  
 
 ## 📈 Performance e Escalabilidade
 
@@ -615,16 +521,9 @@ Sinais para fazer upgrade:
 
 *Monitoramento avançado (Grafana, Prometheus) na Fase 3*
 
-  
-
 ---
-
   
-
 ## 🛡️ Segurança Avançada
-
-  
-
 ### QR Code Security - Como Funciona
 
 **Geração do QR Code:**
