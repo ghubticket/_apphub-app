@@ -50,10 +50,10 @@ export type Config = {
 }
 
 const themeConfig: Config = {
-  templateName: 'Vuexy',
+  templateName: '5521',
   homePageUrl: '/home',
-  settingsCookieName: 'vuexy-mui-next-demo-1',
-  mode: 'system', // 'system', 'light', 'dark'
+  settingsCookieName: '5521-dashboard-settings',
+  mode: 'light', // 'system', 'light', 'dark'
   skin: 'default', // 'default', 'bordered'
   semiDark: false, // true, false
   layout: 'vertical', // 'vertical', 'collapsed', 'horizontal'

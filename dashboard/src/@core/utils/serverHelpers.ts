@@ -20,21 +20,13 @@ export const getSettingsFromCookie = async (): Promise<Settings> => {
 }
 
 export const getMode = async () => {
-  const settingsCookie = await getSettingsFromCookie()
-
-  // Get mode from cookie or fallback to theme config
-  const _mode = settingsCookie.mode || themeConfig.mode
-
-  return _mode
+  // Force light mode
+  return 'light'
 }
 
 export const getSystemMode = async (): Promise<SystemMode> => {
-  const cookieStore = await cookies()
-  const mode = await getMode()
-
-  const colorPrefCookie = (cookieStore.get('colorPref')?.value || 'light') as SystemMode
-
-  return (mode === 'system' ? colorPrefCookie : mode) || 'light'
+  // Force light mode
+  return 'light'
 }
 
 export const getServerMode = async () => {

@@ -20,29 +20,28 @@ import '@assets/iconify-icons/generated-icons.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 
 export const metadata = {
-  title: 'Vuexy - MUI Next.js Admin Dashboard Template',
-  description:
-    'Vuexy - MUI Next.js Admin Dashboard Template - is the most developer friendly & highly customizable Admin Dashboard Template based on MUI v5.'
+    title: '5521 Dashboard - Sistema de Gestão de Eventos',
+    description: 'Dashboard administrativo da 5521 - A mais carioca do mundo. Sistema completo para gestão de eventos, tickets e validação de ingressos.'
 }
 
 const RootLayout = async (props: ChildrenType) => {
-  const { children } = props
+    const { children } = props
 
-  // Vars
+    // Vars
 
-  const systemMode = await getSystemMode()
-  const direction = 'ltr'
+    const systemMode = await getSystemMode()
+    const direction = 'ltr'
 
-  return (
-    <html id='__next' lang='en' dir={direction} suppressHydrationWarning>
-      <body className='flex is-full min-bs-full flex-auto flex-col'>
-        <InitColorSchemeScript attribute='data' defaultMode={systemMode} />
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </body>
-    </html>
-  )
+    return (
+        <html id='__next' lang='en' dir={direction} suppressHydrationWarning>
+            <body className='flex is-full min-bs-full flex-auto flex-col'>
+                <InitColorSchemeScript attribute='data' defaultMode='light' />
+                <AuthProvider>
+                    {children}
+                </AuthProvider>
+            </body>
+        </html>
+    )
 }
 
 export default RootLayout

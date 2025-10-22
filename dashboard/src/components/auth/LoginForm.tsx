@@ -87,11 +87,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     }
 
     return (
-        <CardContent>
-            <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
-                Selecione seu tipo de acesso
-            </Typography>
-
+        <CardContent className='p-0'>
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
                     {error}
@@ -109,20 +105,15 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                         <MenuItem value="ADMIN">
                             <Box>
                                 <Typography variant="body1" fontWeight="bold">
-                                    👑 ADMIN
+                                    👑 Administrador
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Acesso total ao dashboard
-                                </Typography>
+                                
                             </Box>
                         </MenuItem>
                         <MenuItem value="TURMA">
                             <Box>
                                 <Typography variant="body1" fontWeight="bold">
-                                    📱 TURMA
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Leitor de QR codes
+                                    📱  QR Code
                                 </Typography>
                             </Box>
                         </MenuItem>
@@ -151,31 +142,23 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                     autoComplete="current-password"
                 />
 
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            checked={formData.rememberMe}
-                            onChange={handleCheckboxChange}
-                        />
-                    }
-                    label="Lembrar de mim"
-                />
-
                 <Button
                     type="submit"
                     fullWidth
                     variant="contained"
                     disabled={isLoading}
-                    sx={{ mt: 2, mb: 2 }}
+                    sx={{ 
+                        mt: 2, 
+                        mb: 2,
+                        color: 'white',
+                    }}
                 >
                     {isLoading ? (
-                        <CircularProgress size={24} />
+                        <CircularProgress size={24} color="inherit" />
                     ) : (
                         'Entrar'
                     )}
                 </Button>
-
-                <Divider sx={{ my: 2 }} />
             </form>
         </CardContent>
     )
