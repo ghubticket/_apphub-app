@@ -6,7 +6,7 @@ export interface IUser extends Document {
     name: string;
     email: string;
     password: string;
-    role: 'client' | 'organizer' | 'validator';
+    role: 'ADMIN' | 'TURMA';
     phone?: string;
     cpf?: string;
     isActive: boolean;
@@ -49,10 +49,10 @@ const userSchema = new Schema<IUser>(
         role: {
             type: String,
             enum: {
-                values: ['client', 'organizer', 'validator'],
-                message: 'Role deve ser: client, organizer ou validator',
+                values: ['ADMIN', 'TURMA'],
+                message: 'Role deve ser: ADMIN ou TURMA',
             },
-            default: 'client',
+            default: 'TURMA',
         },
         phone: {
             type: String,

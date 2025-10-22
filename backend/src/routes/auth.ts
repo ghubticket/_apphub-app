@@ -52,8 +52,8 @@ const router = Router();
  *                 description: "Senha do usuário (mínimo 6 caracteres)"
  *               role:
  *                 type: string
- *                 enum: [client, organizer, validator]
- *                 example: "client"
+ *                 enum: [ADMIN, TURMA]
+ *                 example: "TURMA"
  *                 description: "Tipo de usuário"
  *     responses:
  *       201:

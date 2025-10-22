@@ -58,7 +58,7 @@ setupSwagger(app);
 // ====================================
 
 // Rotas de autenticação
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 
 /**
  * @swagger

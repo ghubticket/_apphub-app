@@ -137,7 +137,7 @@ export const authorizeOwnerOrAdmin = (req: Request, res: Response, next: NextFun
 
     const resourceUserId = req.params.userId || req.params.id;
     const isOwner = req.user._id.toString() === resourceUserId;
-    const isAdmin = req.user.role === 'organizer' || req.user.role === 'validator';
+    const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'TURMA';
 
     if (!isOwner && !isAdmin) {
         return res.status(403).json({
