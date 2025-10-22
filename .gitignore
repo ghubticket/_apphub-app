@@ -1,0 +1,168 @@
+# ===========================================
+# EVENTHUB - GITIGNORE UNIFICADO
+# ===========================================
+
+# ===========================================
+# DEPENDENCIES
+# ===========================================
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnp
+.pnp.js
+
+# ===========================================
+# ENVIRONMENT VARIABLES
+# ===========================================
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.example
+.env*.local
+
+# ===========================================
+# BUILD OUTPUTS
+# ===========================================
+# Backend
+dist/
+build/
+out/
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt/
+
+# Vuepress
+.vuepress/dist/
+
+# Vite
+.vite/
+
+# ===========================================
+# LOGS
+# ===========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ===========================================
+# TESTING
+# ===========================================
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# ===========================================
+# CACHE & TEMPORARY FILES
+# ===========================================
+.cache/
+.parcel-cache/
+.turbo/
+.next/
+.nuxt/
+.vite/
+.tmp/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ===========================================
+# RUNTIME DATA
+# ===========================================
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ===========================================
+# IDE & EDITORS
+# ===========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ===========================================
+# OS SPECIFIC
+# ===========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===========================================
+# BACKEND SPECIFIC
+# ===========================================
+# Node.js
+.npm/
+.node_repl_history
+*.tgz
+.yarn-integrity
+
+# ===========================================
+# FRONTEND SPECIFIC
+# ===========================================
+# Next.js
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel/
+
+# ===========================================
+# DASHBOARD SPECIFIC
+# ===========================================
+# Vuexy - Ignorar pastas de versões
+dashboard/nextjs-version/
+dashboard/nextjs-version/typescript-version/
+
+# Iconify generated files
+src/assets/iconify-icons/generated-icons.js
+src/assets/iconify-icons/generated-icons.css
+
+# ===========================================
+# DATABASE
+# ===========================================
+# MongoDB
+*.db
+*.sqlite
+*.sqlite3
+
+# DynamoDB
+.dynamodb/
+
+# ===========================================
+# SERVERLESS
+# ===========================================
+.serverless/
+.vercel/
+
+# ===========================================
+# MISC
+# ===========================================
+*.pem
+.fusebox/
+.tern-port
+.vscode-test/
