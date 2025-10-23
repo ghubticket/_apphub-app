@@ -27,6 +27,7 @@ export type VerticalMenuItemDataType = Omit<
     icon?: string
     prefix?: ReactNode | ChipProps
     suffix?: ReactNode | ChipProps
+    auth?: string[]
   }
 export type VerticalSubMenuDataType = Omit<VerticalSubMenuProps, 'children' | 'icon' | 'prefix' | 'suffix'> & {
   children: VerticalMenuDataType[]

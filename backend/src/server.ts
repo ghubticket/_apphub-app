@@ -1,10 +1,12 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import rateLimit from 'express-rate-limit';
 import { connectDatabase } from './config/database';
 import { setupSwagger } from './config/swagger';
+import { generalRateLimit } from './middleware/rateLimiting';
+import { authenticateWithCookies } from './middleware/cookies';
 import authRoutes from './routes/auth';
 
 // Carregar variáveis de ambiente
@@ -29,16 +31,11 @@ app.use(
     })
 );
 
-// Rate Limiting Global - Proteção contra DDoS básico
-const limiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutos
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // 100 requests por janela
-    message: 'Muitas requisições deste IP, tente novamente mais tarde.',
-    standardHeaders: true,
-    legacyHeaders: false,
-});
+// Cookie Parser - Para ler cookies
+app.use(cookieParser());
 
-app.use(limiter);
+// Rate Limiting Global - Proteção contra DDoS
+app.use(generalRateLimit);
 
 // ====================================
 // Middlewares de Parsing
@@ -52,6 +49,13 @@ app.use(express.urlencoded({ extended: true }));
 // ====================================
 
 setupSwagger(app);
+
+// ====================================
+// Middleware de Autenticação
+// ====================================
+
+// Cookie authentication middleware
+app.use(authenticateWithCookies);
 
 // ====================================
 // Rotas

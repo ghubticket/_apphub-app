@@ -5,7 +5,12 @@ import {
   logout,
   getMe,
   updateProfile,
-  changePassword
+  changePassword,
+  refreshToken,
+  getActiveSessions,
+  invalidateSession,
+  invalidateAllSessions,
+  getSessionStats
 } from '../controllers/authController';
 import { authenticate, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validation';
@@ -15,6 +20,7 @@ import {
   updateProfileSchema,
   changePasswordSchema
 } from '../middleware/schemas';
+import { authRateLimit, refreshRateLimit, sensitiveRateLimit } from '../middleware/rateLimiting';
 
 const router = Router();
 
@@ -90,7 +96,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/register', validate(registerSchema), register);
+router.post('/register', authRateLimit, validate(registerSchema), register);
 
 /**
  * @swagger
@@ -154,7 +160,59 @@ router.post('/register', validate(registerSchema), register);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/login', validate(loginSchema), login);
+router.post('/login', authRateLimit, validate(loginSchema), login);
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Renovar access token
+ *     description: Renova o access token usando o refresh token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                 description: "Refresh token válido"
+ *     responses:
+ *       200:
+ *         description: Token renovado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Token renovado com sucesso"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     accessToken:
+ *                       type: string
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     expiresIn:
+ *                       type: number
+ *                       example: 900
+ *       401:
+ *         description: Refresh token inválido ou expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/refresh', refreshRateLimit, refreshToken);
 
 /**
  * @swagger
@@ -336,6 +394,164 @@ router.put('/profile', authenticate, validate(updateProfileSchema), updateProfil
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/change-password', authenticate, validate(changePasswordSchema), changePassword);
+router.put('/change-password', sensitiveRateLimit, authenticate, validate(changePasswordSchema), changePassword);
+
+/**
+ * @swagger
+ * /auth/sessions:
+ *   get:
+ *     summary: Listar sessões ativas do usuário
+ *     description: Retorna todas as sessões ativas do usuário logado
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de sessões ativas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       deviceInfo:
+ *                         type: object
+ *                       lastActivity:
+ *                         type: string
+ *                         format: date-time
+ *                       isActive:
+ *                         type: boolean
+ *       401:
+ *         description: Token inválido ou expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/sessions', authenticate, getActiveSessions);
+
+/**
+ * @swagger
+ * /auth/sessions/{sessionId}:
+ *   delete:
+ *     summary: Invalidar sessão específica
+ *     description: Invalida uma sessão específica do usuário
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão a ser invalidada
+ *     responses:
+ *       200:
+ *         description: Sessão invalidada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Sessão invalidada com sucesso"
+ *       404:
+ *         description: Sessão não encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Token inválido ou expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/sessions/:sessionId', authenticate, invalidateSession);
+
+/**
+ * @swagger
+ * /auth/sessions/all:
+ *   delete:
+ *     summary: Invalidar todas as sessões
+ *     description: Invalida todas as sessões ativas do usuário
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Todas as sessões foram invalidadas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Todas as sessões foram invalidadas com sucesso"
+ *       401:
+ *         description: Token inválido ou expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/sessions/all', authenticate, invalidateAllSessions);
+
+/**
+ * @swagger
+ * /auth/stats:
+ *   get:
+ *     summary: Obter estatísticas de sessões (apenas ADMIN)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Estatísticas obtidas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalSessions:
+ *                       type: number
+ *                     activeSessions:
+ *                       type: number
+ *                     totalUsers:
+ *                       type: number
+ *                     todayLogins:
+ *                       type: number
+ *       401:
+ *         description: Token inválido ou expirado
+ *       403:
+ *         description: Acesso negado - apenas ADMIN
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/stats', authenticate, isAdmin, getSessionStats);
 
 export default router;

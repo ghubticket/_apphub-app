@@ -11,6 +11,7 @@ export interface IUser extends Document {
     cpf?: string;
     isActive: boolean;
     lastLogin?: Date;
+    refreshToken?: string;
     createdAt: Date;
     updatedAt: Date;
 
@@ -76,6 +77,10 @@ const userSchema = new Schema<IUser>(
         },
         lastLogin: {
             type: Date,
+        },
+        refreshToken: {
+            type: String,
+            select: false, // Não incluir refresh token por padrão nas consultas
         },
     },
     {

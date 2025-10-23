@@ -166,3 +166,5 @@ src/assets/iconify-icons/generated-icons.css
 .fusebox/
 .tern-port
 .vscode-test/
+backend/env.example
+dashboard/env.example

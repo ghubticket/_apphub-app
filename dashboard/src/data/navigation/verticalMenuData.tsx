@@ -3,14 +3,27 @@ import type { VerticalMenuDataType } from '@/types/menuTypes'
 
 const verticalMenuData = (): VerticalMenuDataType[] => [
   {
-    label: 'Home',
-    href: '/home',
-    icon: 'tabler-smart-home'
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: 'tabler-dashboard'
   },
   {
-    label: 'About',
-    href: '/about',
-    icon: 'tabler-info-circle'
+    label: 'Admin',
+    href: '/admin',
+    icon: 'tabler-settings',
+    auth: ['ADMIN']
+  },
+  {
+    label: 'QR Reader',
+    href: '/qr-reader',
+    icon: 'tabler-qrcode',
+    auth: ['TURMA']
+  },
+  {
+    label: 'Configurações',
+    href: '/configuracoes',
+    icon: 'tabler-settings-2',
+    auth: ['ADMIN']
   }
 ]
 
