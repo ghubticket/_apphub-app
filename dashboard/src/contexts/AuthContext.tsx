@@ -38,21 +38,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check if user is authenticated
     const isAuthenticated = !!user
 
-    // Load user from cookies on mount
+    // Load user from localStorage on mount
     useEffect(() => {
         const loadUser = async () => {
             try {
-                const authData = getAuthFromCookies()
+                console.log('Loading user from localStorage...')
+                const storedUser = localStorage.getItem('apphub_user')
+                const storedAccessToken = localStorage.getItem('apphub_access_token')
+                const storedRefreshToken = localStorage.getItem('apphub_refresh_token')
 
-                if (authData.isAuthenticated && authData.user && authData.accessToken && authData.refreshToken) {
-                    setUser(authData.user)
-                    setAccessToken(authData.accessToken)
-                    setRefreshToken(authData.refreshToken)
+                console.log('Stored data:', {
+                    user: storedUser ? 'exists' : 'null',
+                    accessToken: storedAccessToken ? 'exists' : 'null',
+                    refreshToken: storedRefreshToken ? 'exists' : 'null'
+                })
+
+                if (storedUser && storedAccessToken && storedRefreshToken) {
+                    console.log('Setting user data from localStorage')
+                    setUser(JSON.parse(storedUser))
+                    setAccessToken(storedAccessToken)
+                    setRefreshToken(storedRefreshToken)
+                } else {
+                    console.log('No valid auth data found in localStorage')
                 }
             } catch (error) {
-                console.error('Error loading user from cookies:', error)
-                clearAuthCookies()
+                console.error('Error loading user from localStorage:', error)
+                localStorage.removeItem('apphub_user')
+                localStorage.removeItem('apphub_access_token')
+                localStorage.removeItem('apphub_refresh_token')
             } finally {
+                console.log('Setting loading to false')
                 setIsLoading(false)
             }
         }
@@ -60,7 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         loadUser()
     }, [])
 
-    // Auto-refresh token every 10 minutes
+    // Auto-refresh token every 3 hours (4h - 1h buffer)
     useEffect(() => {
         if (!refreshToken || !user) return
 
@@ -71,12 +86,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 console.error('Auto-refresh failed:', error)
                 logout()
             }
-        }, 10 * 60 * 1000) // 10 minutes
+        }, 3 * 60 * 60 * 1000) // 3 hours
 
         return () => clearInterval(refreshInterval)
     }, [refreshToken, user])
 
-    // Inactivity timeout - logout after 30 minutes of inactivity
+    // Inactivity timeout - logout after 4 hours of inactivity
     useEffect(() => {
         if (!user) return
 
@@ -85,9 +100,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const resetInactivityTimer = () => {
             clearTimeout(inactivityTimer)
             inactivityTimer = setTimeout(() => {
-                console.log('User inactive for 30 minutes, logging out...')
+                console.log('User inactive for 4 hours, logging out...')
                 logout()
-            }, 30 * 60 * 1000) // 30 minutes
+            }, 4 * 60 * 60 * 1000) // 4 hours
         }
 
         // Reset timer on user activity
@@ -136,14 +151,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 expiresIn: responseData.data.expiresIn * 1000 // Convert to milliseconds
             }
 
-            // Store user data and tokens in secure cookies
-            setAuthCookies({
-                accessToken: authData.token,
-                refreshToken: authData.refreshToken,
-                user: authData.user,
-                sessionId: responseData.data.sessionId,
-                expiresIn: responseData.data.expiresIn
-            })
+            // Store user data and tokens in localStorage
+            localStorage.setItem('apphub_user', JSON.stringify(authData.user))
+            localStorage.setItem('apphub_access_token', authData.token)
+            localStorage.setItem('apphub_refresh_token', authData.refreshToken)
 
             setUser(authData.user)
             setAccessToken(authData.token)
@@ -178,22 +189,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const responseData = await response.json()
             const newAccessToken = responseData.data.accessToken
 
-      // Update stored access token in cookies
-      updateAccessToken(newAccessToken, 900) // 15 minutes
-      setAccessToken(newAccessToken)
+            // Update stored access token in localStorage
+            localStorage.setItem('apphub_access_token', newAccessToken)
+            setAccessToken(newAccessToken)
         } catch (error) {
             console.error('Refresh token error:', error)
             throw error
         }
     }
 
-  // Logout function
-  const logout = () => {
-    clearAuthCookies()
-    setUser(null)
-    setAccessToken(null)
-    setRefreshToken(null)
-  }
+    // Logout function
+    const logout = () => {
+        localStorage.removeItem('apphub_user')
+        localStorage.removeItem('apphub_access_token')
+        localStorage.removeItem('apphub_refresh_token')
+        setUser(null)
+        setAccessToken(null)
+        setRefreshToken(null)
+    }
 
     // Check if user has specific permission
     const hasPermission = (permission: keyof RolePermissions): boolean => {

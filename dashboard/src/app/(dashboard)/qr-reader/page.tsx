@@ -28,6 +28,14 @@ interface QRScanResult {
 }
 
 const QRReaderPage: React.FC = () => {
+    return (
+        <ProtectedRoute requiredRole="TURMA">
+            <QRReaderContent />
+        </ProtectedRoute>
+    )
+}
+
+const QRReaderContent: React.FC = () => {
     const [scanResult, setScanResult] = useState<QRScanResult | null>(null)
     const [isScanning, setIsScanning] = useState(false)
     const [manualCode, setManualCode] = useState('')

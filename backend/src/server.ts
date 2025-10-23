@@ -7,7 +7,8 @@ import { connectDatabase } from './config/database';
 import { setupSwagger } from './config/swagger';
 import { generalRateLimit } from './middleware/rateLimiting';
 import { authenticateWithCookies } from './middleware/cookies';
-import authRoutes from './routes/auth';
+import authRoutes from './routes/auth'
+import healthRoutes from './routes/health';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -23,10 +24,13 @@ const PORT = process.env.PORT || 3001;
 // Helmet - Headers de segurança
 app.use(helmet());
 
-// CORS - Permitir requisições do frontend
+// CORS - Permitir requisições do frontend e dashboard
 app.use(
     cors({
-        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+        origin: [
+            process.env.FRONTEND_URL || 'http://localhost:3000',
+            process.env.DASHBOARD_URL || 'http://localhost:3000'
+        ],
         credentials: true,
     })
 );
@@ -63,6 +67,9 @@ app.use(authenticateWithCookies);
 
 // Rotas de autenticação
 app.use('/api/auth', authRoutes);
+
+// Rotas de health check
+app.use('/api/health', healthRoutes);
 
 /**
  * @swagger

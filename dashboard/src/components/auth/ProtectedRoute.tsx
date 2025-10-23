@@ -23,18 +23,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const router = useRouter()
 
   useEffect(() => {
+    console.log('ProtectedRoute - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated, 'user:', user)
+    
     if (!isLoading) {
       if (!isAuthenticated) {
+        console.log('Not authenticated, redirecting to login')
         router.push(fallbackPath)
         return
       }
 
       if (requiredRole && user?.role !== requiredRole) {
+        console.log('Role mismatch, redirecting to unauthorized')
         router.push('/unauthorized')
         return
       }
 
       if (requiredPermission && !hasPermission(requiredPermission as any)) {
+        console.log('Permission denied, redirecting to unauthorized')
         router.push('/unauthorized')
         return
       }

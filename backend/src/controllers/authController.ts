@@ -130,7 +130,7 @@ export const login = async (req: Request, res: Response) => {
         user.lastLogin = new Date();
         await user.save();
 
-        // Gerar access token (15 minutos)
+        // Gerar access token (4 horas para desenvolvimento)
         const accessToken = jwt.sign(
             {
                 userId: String(user._id),
@@ -139,7 +139,7 @@ export const login = async (req: Request, res: Response) => {
                 type: 'access'
             },
             process.env.JWT_SECRET!,
-            { expiresIn: '15m' }
+            { expiresIn: '4h' }
         );
 
         // Gerar refresh token (7 dias)

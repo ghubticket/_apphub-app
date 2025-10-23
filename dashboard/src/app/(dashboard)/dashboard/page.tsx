@@ -27,19 +27,16 @@ const DashboardPage: React.FC = () => {
         }
     }, [user, router])
 
-    if (!user) {
-        return null
-    }
-
-    // Show appropriate dashboard based on role
-    switch (user.role) {
-        case 'ADMIN':
-            return <AdminDashboard />
-        case 'TURMA':
-            return <QRReaderPage />
-        default:
-            return null
-    }
+    return (
+        <ProtectedRoute>
+            {user && (
+                <>
+                    {user.role === 'ADMIN' && <AdminDashboard />}
+                    {user.role === 'TURMA' && <QRReaderPage />}
+                </>
+            )}
+        </ProtectedRoute>
+    )
 }
 
 export default DashboardPage

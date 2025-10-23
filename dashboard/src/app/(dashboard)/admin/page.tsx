@@ -1,298 +1,346 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import {
-    Box,
     Grid,
     Card,
     CardContent,
     Typography,
-    Button,
-    Chip,
+    Box,
     Avatar,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemAvatar,
-    Divider,
-    Paper
+    Chip,
+    Button,
+    IconButton,
+    Tooltip,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Alert,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material'
 import {
-  Event,
-  ConfirmationNumber as Ticket,
-  People,
-  TrendingUp,
-  QrCode,
-  Settings,
-  BarChart
+    People,
+    Computer,
+    LocationOn,
+    AccessTime,
+    Security,
+    Refresh,
+    Logout,
+    Warning,
+    TrendingUp,
+    Event,
+    QrCode
 } from '@mui/icons-material'
-import ProtectedRoute from '@/components/auth/ProtectedRoute'
+// Usando componentes do template em vez de recharts direto
 import { useAuth } from '@/contexts/AuthContext'
-// Logo import removed - using image directly
+import { getApiUrl } from '@/config/env'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
+// Gráficos removidos devido a conflitos de versão
+import StatsCard from '@/components/cards/StatsCard'
+import InfoCard from '@/components/cards/InfoCard'
+import ModernStatsCard from '@/components/cards/ModernStatsCard'
+import WebsiteAnalyticsCard from '@/components/cards/WebsiteAnalyticsCard'
+import ApiStatusCard from '@/components/cards/ApiStatusCard'
+import ApexChart from '@/components/charts/ApexChart'
+import SessionsTable from '@/components/tables/SessionsTable'
 
-const AdminDashboard: React.FC = () => {
+interface SessionData {
+    _id: string
+    deviceInfo: {
+        userAgent: string
+        ip: string
+        device: string
+        browser: string
+        os: string
+    }
+    isActive: boolean
+    createdAt: string
+    lastActivity: string
+    user: {
+        _id: string
+        name: string
+        email: string
+        role: string
+    }
+}
+
+interface SessionStats {
+    totalSessions: number
+    activeSessions: number
+    totalUsers: number
+    todayLogins: number
+}
+
+const AdminPage = () => {
     const { user } = useAuth()
+    const [sessions, setSessions] = useState<SessionData[]>([])
+    const [stats, setStats] = useState<SessionStats>({
+        totalSessions: 0,
+        activeSessions: 0,
+        totalUsers: 0,
+        todayLogins: 0
+    })
+    const [loading, setLoading] = useState(true)
+    const [selectedSession, setSelectedSession] = useState<SessionData | null>(null)
+    const [confirmDialog, setConfirmDialog] = useState(false)
 
-    const stats = [
+    // Dados para Website Analytics
+    const analyticsData = [
         {
-            title: 'Eventos Ativos',
-            value: '12',
-            icon: <Event />,
-            color: 'primary',
-            change: '+2 esta semana'
+            title: "Website Analytics",
+            subtitle: "Total 28.5% Conversion Rate",
+            metrics: [
+                { label: "Sessions", value: "28%" },
+                { label: "Leads", value: "1.2k" },
+                { label: "Page Views", value: "3.1k" },
+                { label: "Conversions", value: "12%" }
+            ]
         },
         {
-            title: 'Ingressos Vendidos',
-            value: '1,247',
-            icon: <Ticket />,
-            color: 'success',
-            change: '+15% vs mês passado'
-        },
-        {
-            title: 'Usuários Ativos',
-            value: '3,891',
-            icon: <People />,
-            color: 'info',
-            change: '+8% vs mês passado'
-        },
-        {
-            title: 'Receita Total',
-            value: 'R$ 45.230',
-            icon: <TrendingUp />,
-            color: 'warning',
-            change: '+23% vs mês passado'
+            title: "Website Analytics",
+            subtitle: "Total 28.5% Conversion Rate",
+            metrics: [
+                { label: "Spend", value: "12h" },
+                { label: "Order", value: "127" },
+                { label: "Order Size", value: "18" },
+                { label: "Items", value: "2.3k" }
+            ]
         }
     ]
 
-    const recentEvents = [
-        {
-            id: 1,
-            name: 'Festival de Música 2024',
-            date: '2024-03-15',
-            tickets: 150,
-            sold: 89,
-            status: 'active'
+    // Configuração do gráfico ApexCharts
+    const chartOptions = {
+        chart: {
+            type: 'area',
+            height: 350,
+            toolbar: {
+                show: false
+            }
         },
-        {
-            id: 2,
-            name: 'Workshop de Tecnologia',
-            date: '2024-03-20',
-            tickets: 50,
-            sold: 50,
-            status: 'soldout'
+        colors: ['#7367F0'],
+        dataLabels: {
+            enabled: false
         },
+        stroke: {
+            curve: 'smooth',
+            width: 2
+        },
+        xaxis: {
+            categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']
+        },
+        yaxis: {
+            title: {
+                text: 'Sessions'
+            }
+        },
+        grid: {
+            borderColor: '#e7eef7'
+        }
+    }
+
+    const chartSeries = [
         {
-            id: 3,
-            name: 'Conferência de Negócios',
-            date: '2024-03-25',
-            tickets: 200,
-            sold: 45,
-            status: 'active'
+            name: 'Sessions',
+            data: [30, 40, 35, 50, 49, 60, 70]
         }
     ]
 
-    const quickActions = [
+    // Dados das APIs para monitoramento (versão simplificada)
+    const apiServices = [
         {
-            title: 'Criar Evento',
-            description: 'Adicionar novo evento',
-            icon: <Event />,
-            color: 'primary'
+            id: 'backend-api',
+            name: 'Backend API',
+            url: getApiUrl('/health/simple'),
+            status: 'online' as const,
+            description: 'API principal do sistema'
         },
         {
-            title: 'Gerenciar Ingressos',
-            description: 'Configurar tipos e preços',
-            icon: <Ticket />,
-            color: 'success'
-        },
-        {
-            title: 'Relatórios',
-            description: 'Ver analytics e vendas',
-            icon: <BarChart />,
-            color: 'info'
-        },
-        {
-            title: 'Configurações',
-            description: 'Ajustar sistema',
-            icon: <Settings />,
-            color: 'warning'
+            id: 'database',
+            name: 'Database',
+            url: getApiUrl('/health/db'),
+            status: 'online' as const,
+            description: 'Conexão com banco de dados'
         }
     ]
+
+
+    // ProtectedRoute já verifica se é admin
+
+    // Carregar dados das sessões
+    const loadSessions = async () => {
+        try {
+            setLoading(true)
+            const accessToken = localStorage.getItem('apphub_access_token')
+
+            const response = await fetch(`${getApiUrl('')}/auth/sessions`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                console.log('📊 Dados recebidos:', data)
+                console.log('👥 Sessões:', data.data)
+                setSessions(data.data || [])
+            } else {
+                const errorText = await response.text()
+                console.error('❌ Erro ao carregar sessões:', response.status, errorText)
+            }
+        } catch (error) {
+            console.error('Erro ao carregar sessões:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Carregar estatísticas
+    const loadStats = async () => {
+        try {
+            const accessToken = localStorage.getItem('apphub_access_token')
+
+            const response = await fetch(`${getApiUrl('')}/auth/stats`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setStats(data.data || {})
+            } else {
+                console.error('Erro ao carregar estatísticas:', response.status, response.statusText)
+            }
+        } catch (error) {
+            console.error('Erro ao carregar estatísticas:', error)
+        }
+    }
+
+    // Encerrar sessão específica
+    const handleLogoutSession = async (sessionId: string) => {
+        try {
+            const response = await fetch(`${getApiUrl('')}/auth/sessions/${sessionId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            })
+
+            if (response.ok) {
+                await loadSessions()
+                setConfirmDialog(false)
+                setSelectedSession(null)
+            }
+        } catch (error) {
+            console.error('Erro ao encerrar sessão:', error)
+        }
+    }
+
+    // Encerrar todas as sessões
+    const handleLogoutAllSessions = async () => {
+        try {
+            const response = await fetch(`${getApiUrl('')}/auth/sessions/all`, {
+                method: 'DELETE',
+                credentials: 'include'
+            })
+
+            if (response.ok) {
+                await loadSessions()
+                setConfirmDialog(false)
+                setSelectedSession(null)
+            }
+        } catch (error) {
+            console.error('Erro ao encerrar todas as sessões:', error)
+        }
+    }
+
+    useEffect(() => {
+        loadSessions()
+        loadStats()
+    }, [])
 
     return (
         <ProtectedRoute requiredRole="ADMIN">
-            <Box className="ts-vertical-layout-content" sx={{ p: 3 }}>
-                {/* Header */}
-                <Box sx={{ mb: 4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <img src="/images/5521.png" alt="5521 Logo" className="h-12 w-auto brightness-0 invert" />
-                        <Box sx={{ ml: 2 }}>
-                            <Typography variant="h4" gutterBottom>
-                                👑 Dashboard Administrativo
-                            </Typography>
-                            <Typography variant="body1" color="text.secondary">
-                                Bem-vindo, {user?.name}! Gerencie seus eventos e acompanhe as métricas.
-                            </Typography>
-                        </Box>
-                    </Box>
-                </Box>
+            <Box sx={{ p: 0 }}>
+                <Typography variant="h4" sx={{ mb: 3, color: 'black' }}>
+                    Contro de Acessos - 5521
+                </Typography>
 
-                {/* Stats Cards */}
+
+                {/* Cards de Estatísticas - Template Style */}
                 <Grid container spacing={3} sx={{ mb: 4 }}>
-                    {stats.map((stat, index) => (
-                        <Grid item xs={12} sm={6} md={3} key={index}>
-                            <Card className="ts-card-root">
-                                <CardContent className="ts-card-content">
-                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                        <Avatar sx={{ bgcolor: `${stat.color}.main`, mr: 2 }}>
-                                            {stat.icon}
-                                        </Avatar>
-                                        <Box>
-                                            <Typography variant="h4" component="div">
-                                                {stat.value}
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {stat.title}
-                                            </Typography>
-                                        </Box>
-                                    </Box>
-                                    <Chip
-                                        label={stat.change}
-                                        color={stat.color as any}
-                                        size="small"
-                                        variant="outlined"
-                                    />
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    ))}
-                </Grid>
-
-                <Grid container spacing={3}>
-                    {/* Recent Events */}
-                    <Grid item xs={12} md={8}>
-                        <Card className="ts-card-root">
-                            <CardContent className="ts-card-content">
-                                <Typography variant="h6" gutterBottom>
-                                    Eventos Recentes
-                                </Typography>
-                                <List>
-                                    {recentEvents.map((event, index) => (
-                                        <React.Fragment key={event.id}>
-                                            <ListItem>
-                                                <ListItemAvatar>
-                                                    <Avatar sx={{ bgcolor: 'primary.main' }}>
-                                                        <Event />
-                                                    </Avatar>
-                                                </ListItemAvatar>
-                                                <ListItemText
-                                                    primary={event.name}
-                                                    secondary={
-                                                        <Box>
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {event.date} • {event.sold}/{event.tickets} ingressos vendidos
-                                                            </Typography>
-                                                            <Chip
-                                                                label={event.status === 'active' ? 'Ativo' : 'Esgotado'}
-                                                                color={event.status === 'active' ? 'success' : 'error'}
-                                                                size="small"
-                                                                sx={{ mt: 0.5 }}
-                                                            />
-                                                        </Box>
-                                                    }
-                                                />
-                                                <Button size="small" variant="outlined">
-                                                    Ver Detalhes
-                                                </Button>
-                                            </ListItem>
-                                            {index < recentEvents.length - 1 && <Divider />}
-                                        </React.Fragment>
-                                    ))}
-                                </List>
-                            </CardContent>
-                        </Card>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <StatsCard
+                            title="Sessões Ativas"
+                            subtitle="Agora"
+                            stats={stats.activeSessions.toString()}
+                            avatarIcon="tabler-users"
+                            avatarColor="primary"
+                            chipText="Online"
+                            chipColor="success"
+                        />
                     </Grid>
 
-                    {/* Quick Actions */}
-                    <Grid item xs={12} md={4}>
-                        <Card className="ts-card-root">
-                            <CardContent className="ts-card-content">
-                                <Typography variant="h6" gutterBottom>
-                                    Ações Rápidas
-                                </Typography>
-                                <Grid container spacing={2}>
-                                    {quickActions.map((action, index) => (
-                                        <Grid item xs={12} key={index}>
-                                            <Paper
-                                                sx={{
-                                                    p: 2,
-                                                    cursor: 'pointer',
-                                                    '&:hover': {
-                                                        bgcolor: 'action.hover'
-                                                    }
-                                                }}
-                                            >
-                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                    <Avatar sx={{ bgcolor: `${action.color}.main`, mr: 2, width: 40, height: 40 }}>
-                                                        {action.icon}
-                                                    </Avatar>
-                                                    <Box>
-                                                        <Typography variant="subtitle2" fontWeight="bold">
-                                                            {action.title}
-                                                        </Typography>
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            {action.description}
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                            </Paper>
-                                        </Grid>
-                                    ))}
-                                </Grid>
-                            </CardContent>
-                        </Card>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <StatsCard
+                            title="Total de Sessões"
+                            subtitle="Histórico"
+                            stats={stats.totalSessions.toString()}
+                            avatarIcon="tabler-device-desktop"
+                            avatarColor="secondary"
+                            chipText="Total"
+                            chipColor="info"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                        <StatsCard
+                            title="Usuários Únicos"
+                            subtitle="Registrados"
+                            stats={stats.totalUsers.toString()}
+                            avatarIcon="tabler-shield-check"
+                            avatarColor="success"
+                            chipText="Ativos"
+                            chipColor="success"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                        <StatsCard
+                            title="Logins Hoje"
+                            subtitle="Últimas 24h"
+                            stats={stats.todayLogins.toString()}
+                            avatarIcon="tabler-clock"
+                            avatarColor="warning"
+                            chipText="Hoje"
+                            chipColor="warning"
+                        />
                     </Grid>
                 </Grid>
 
-                {/* System Status */}
-                <Card className="ts-card-root" sx={{ mt: 3 }}>
-                    <CardContent className="ts-card-content">
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <img src="/images/5521.png" alt="5521 Logo" className="h-8 w-auto brightness-0 invert" />
-                            <Typography variant="h6" sx={{ ml: 2 }}>
-                                Status do Sistema
-                            </Typography>
-                        </Box>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sm={4}>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <QrCode sx={{ mr: 1, color: 'success.main' }} />
-                                    <Typography variant="body2">
-                                        Scanner QR: <Chip label="Online" color="success" size="small" />
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                            <Grid item xs={12} sm={4}>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Event sx={{ mr: 1, color: 'success.main' }} />
-                                    <Typography variant="body2">
-                                        API Backend: <Chip label="Online" color="success" size="small" />
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                            <Grid item xs={12} sm={4}>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <People sx={{ mr: 1, color: 'success.main' }} />
-                                    <Typography variant="body2">
-                                        Usuários: <Chip label="3,891 ativos" color="info" size="small" />
-                                    </Typography>
-                                </Box>
-                            </Grid>
-                        </Grid>
-                    </CardContent>
-                </Card>
+                {/* Integridade dos Serviços */}
+                <Grid container spacing={3} sx={{ mb: 4, mt: 4 }}>
+                    <Grid item xs={12}>
+                        <ApiStatusCard 
+                            services={apiServices}
+                            autoRefresh={true}
+                            refreshInterval={30000}
+                        />
+                    </Grid>
+                </Grid>
+
             </Box>
         </ProtectedRoute>
     )
 }
 
-export default AdminDashboard
+export default AdminPage
