@@ -61,9 +61,9 @@ export const ServiceIntegrityDonutChart: React.FC = () => {
                     warningCount: warningCount,
                     onlinePercentage: onlinePercentage,
                     categories: [
-                        { name: 'Online', value: onlineCount, percentage: onlinePercentage, color: '#28a745' }, // Success
-                        { name: 'Offline', value: offlineCount, percentage: Math.round((offlineCount / totalServices) * 100), color: '#dc3545' }, // Danger
-                        ...(warningCount > 0 ? [{ name: 'Warning', value: warningCount, percentage: Math.round((warningCount / totalServices) * 100), color: '#ffc107' }] : []) // Warning
+                        { name: 'Online', value: onlineCount, percentage: onlinePercentage, color: '#4caf50' }, // Verde principal
+                        { name: 'Offline', value: offlineCount, percentage: Math.round((offlineCount / totalServices) * 100), color: '#81c784' }, // Verde claro
+                        ...(warningCount > 0 ? [{ name: 'Warning', value: warningCount, percentage: Math.round((warningCount / totalServices) * 100), color: '#a5d6a7' }] : []) // Verde pastel
                     ]
                 })
             } catch (err) {
@@ -206,9 +206,9 @@ export const ServiceIntegrityDonutChart: React.FC = () => {
             <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Box>
-                        <Typography variant="h6">Service Integrity Status</Typography>
+                        <Typography variant="h6">Integridade dos Serviços</Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Total: {data.totalServices} services
+                            Total: {data.totalServices} Serviços Rodando
                         </Typography>
                     </Box>
                     <IconButton size="small">

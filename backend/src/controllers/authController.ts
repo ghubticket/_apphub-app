@@ -602,3 +602,102 @@ export const getSessionStats = async (req: Request, res: Response) => {
         });
     }
 };
+
+/**
+ * Controller para listar todos os usuários (apenas ADMIN)
+ */
+export const getAllUsers = async (req: Request, res: Response) => {
+    try {
+        const { page = 1, limit = 10, search = '', role = '', status = '' } = req.query;
+        
+        // Construir filtros
+        const filters: any = {};
+        
+        if (search) {
+            filters.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
+            ];
+        }
+        
+        if (role) {
+            filters.role = role;
+        }
+        
+        if (status !== '') {
+            filters.isActive = status === 'true';
+        }
+
+        // Calcular paginação
+        const skip = (Number(page) - 1) * Number(limit);
+        
+        // Buscar usuários com paginação
+        const users = await User.find(filters)
+            .select('-password -refreshToken') // Excluir campos sensíveis
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(Number(limit));
+
+        // Contar total de usuários
+        const total = await User.countDocuments(filters);
+
+        res.json({
+            success: true,
+            data: {
+                users,
+                pagination: {
+                    page: Number(page),
+                    limit: Number(limit),
+                    total,
+                    pages: Math.ceil(total / Number(limit))
+                }
+            }
+        });
+
+    } catch (error: any) {
+        console.error('Erro ao listar usuários:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor',
+            errors: ['Erro ao listar usuários'],
+        });
+    }
+};
+
+/**
+ * Controller para atualizar status do usuário (ativar/desativar)
+ */
+export const updateUserStatus = async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const { isActive } = req.body;
+
+        const user = await User.findByIdAndUpdate(
+            userId,
+            { isActive },
+            { new: true }
+        ).select('-password -refreshToken');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado',
+                errors: ['Usuário não encontrado'],
+            });
+        }
+
+        res.json({
+            success: true,
+            message: `Usuário ${isActive ? 'ativado' : 'desativado'} com sucesso`,
+            data: user
+        });
+
+    } catch (error: any) {
+        console.error('Erro ao atualizar status do usuário:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor',
+            errors: ['Erro ao atualizar status do usuário'],
+        });
+    }
+};

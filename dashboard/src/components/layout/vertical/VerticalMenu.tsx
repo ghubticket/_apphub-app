@@ -21,61 +21,70 @@ import menuItemStyles from '@core/styles/vertical/menuItemStyles'
 import menuSectionStyles from '@core/styles/vertical/menuSectionStyles'
 
 type RenderExpandIconProps = {
-  open?: boolean
-  transitionDuration?: VerticalMenuContextProps['transitionDuration']
+    open?: boolean
+    transitionDuration?: VerticalMenuContextProps['transitionDuration']
 }
 
 type Props = {
-  scrollMenu: (container: any, isPerfectScrollbar: boolean) => void
+    scrollMenu: (container: any, isPerfectScrollbar: boolean) => void
 }
 
 const RenderExpandIcon = ({ open, transitionDuration }: RenderExpandIconProps) => (
-  <StyledVerticalNavExpandIcon open={open} transitionDuration={transitionDuration}>
-    <i className='tabler-chevron-right' />
-  </StyledVerticalNavExpandIcon>
+    <StyledVerticalNavExpandIcon open={open} transitionDuration={transitionDuration}>
+        <i className='tabler-chevron-right' />
+    </StyledVerticalNavExpandIcon>
 )
 
 const VerticalMenu = ({ scrollMenu }: Props) => {
-  // Hooks
-  const theme = useTheme()
-  const verticalNavOptions = useVerticalNav()
+    // Hooks
+    const theme = useTheme()
+    const verticalNavOptions = useVerticalNav()
 
-  // Vars
-  const { isBreakpointReached, transitionDuration } = verticalNavOptions
+    // Vars
+    const { isBreakpointReached, transitionDuration } = verticalNavOptions
 
-  const ScrollWrapper = isBreakpointReached ? 'div' : PerfectScrollbar
+    const ScrollWrapper = isBreakpointReached ? 'div' : PerfectScrollbar
 
-  return (
-    // eslint-disable-next-line lines-around-comment
-    /* Custom scrollbar instead of browser scroll, remove if you want browser scroll only */
-    <ScrollWrapper
-      {...(isBreakpointReached
-        ? {
-            className: 'bs-full overflow-y-auto overflow-x-hidden',
-            onScroll: container => scrollMenu(container, false)
-          }
-        : {
-            options: { wheelPropagation: false, suppressScrollX: true },
-            onScrollY: container => scrollMenu(container, true)
-          })}
-    >
-      {/* Incase you also want to scroll NavHeader to scroll with Vertical Menu, remove NavHeader from above and paste it below this comment */}
-      {/* Vertical Menu */}
-      <Menu
-        popoutMenuOffset={{ mainAxis: 23 }}
-        menuItemStyles={menuItemStyles(verticalNavOptions, theme)}
-        renderExpandIcon={({ open }) => <RenderExpandIcon open={open} transitionDuration={transitionDuration} />}
-        renderExpandedMenuItemIcon={{ icon: <i className='tabler-circle text-xs' /> }}
-        menuSectionStyles={menuSectionStyles(verticalNavOptions, theme)}
-      >
-        <MenuItem href='/home' icon={<i className='tabler-smart-home' />}>
-          Home
-        </MenuItem>
-        <MenuItem href='/about' icon={<i className='tabler-info-circle' />}>
-          About
-        </MenuItem>
-      </Menu>
-      {/* <Menu
+    return (
+        // eslint-disable-next-line lines-around-comment
+        /* Custom scrollbar instead of browser scroll, remove if you want browser scroll only */
+        <ScrollWrapper
+            {...(isBreakpointReached
+                ? {
+                    className: 'bs-full overflow-y-auto overflow-x-hidden',
+                    onScroll: container => scrollMenu(container, false)
+                }
+                : {
+                    options: { wheelPropagation: false, suppressScrollX: true },
+                    onScrollY: container => scrollMenu(container, true)
+                })}
+        >
+            {/* Incase you also want to scroll NavHeader to scroll with Vertical Menu, remove NavHeader from above and paste it below this comment */}
+            {/* Vertical Menu */}
+            <Menu
+                popoutMenuOffset={{ mainAxis: 23 }}
+                menuItemStyles={menuItemStyles(verticalNavOptions, theme)}
+                renderExpandIcon={({ open }) => <RenderExpandIcon open={open} transitionDuration={transitionDuration} />}
+                renderExpandedMenuItemIcon={{ icon: <i className='tabler-circle text-xs' /> }}
+                menuSectionStyles={menuSectionStyles(verticalNavOptions, theme)}
+            >
+                <MenuItem href='/dashboard' icon={<i className='tabler-dashboard' />}>
+                    Dashboard
+                </MenuItem>
+                <MenuItem href='/admin' icon={<i className='tabler-settings' />}>
+                    Admin
+                </MenuItem>
+                <MenuItem href='/usuarios' icon={<i className='tabler-users' />}>
+                    Usuários
+                </MenuItem>
+                <MenuItem href='/qr-reader' icon={<i className='tabler-qrcode' />}>
+                    QR Reader
+                </MenuItem>
+                <MenuItem href='/configuracoes' icon={<i className='tabler-settings-2' />}>
+                    Configurações
+                </MenuItem>
+            </Menu>
+            {/* <Menu
         popoutMenuOffset={{ mainAxis: 23 }}
         menuItemStyles={menuItemStyles(verticalNavOptions, theme)}
         renderExpandIcon={({ open }) => <RenderExpandIcon open={open} transitionDuration={transitionDuration} />}
@@ -84,8 +93,8 @@ const VerticalMenu = ({ scrollMenu }: Props) => {
       >
         <GenerateVerticalMenu menuData={menuData(dictionary)} />
       </Menu> */}
-    </ScrollWrapper>
-  )
+        </ScrollWrapper>
+    )
 }
 
 export default VerticalMenu
