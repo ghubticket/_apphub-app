@@ -12,7 +12,7 @@ import {
   invalidateAllSessions,
   getSessionStats
 } from '../controllers/authController';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, isAdmin } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import {
   registerSchema,

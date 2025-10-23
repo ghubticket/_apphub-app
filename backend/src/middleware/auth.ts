@@ -186,3 +186,35 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
         next();
     }
 };
+
+/**
+ * Middleware para verificar se o usuário é ADMIN
+ */
+export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Token de acesso necessário',
+                errors: ['Usuário não autenticado']
+            });
+        }
+
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado',
+                errors: ['Apenas administradores podem acessar esta funcionalidade']
+            });
+        }
+
+        next();
+    } catch (error: any) {
+        console.error('Error in isAdmin middleware:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor',
+            errors: [error.message]
+        });
+    }
+};
