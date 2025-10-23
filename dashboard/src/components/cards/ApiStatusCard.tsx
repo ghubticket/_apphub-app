@@ -85,17 +85,16 @@ const ApiStatusCard: React.FC<ApiStatusCardProps> = ({
         }
     }
 
-    // Auto refresh
+    // Auto refresh - DESABILITADO para evitar rate limiting
     useEffect(() => {
-        if (!autoRefresh) return
-
-        const interval = setInterval(refreshAllServices, refreshInterval)
-        return () => clearInterval(interval)
+        // if (!autoRefresh) return
+        // const interval = setInterval(refreshAllServices, refreshInterval)
+        // return () => clearInterval(interval)
     }, [autoRefresh, refreshInterval])
 
-    // Verificar status inicial
+    // Verificar status inicial - DESABILITADO para evitar rate limiting
     useEffect(() => {
-        refreshAllServices()
+        // refreshAllServices()
     }, [])
 
     const getStatusColor = (status: string) => {
@@ -108,15 +107,15 @@ const ApiStatusCard: React.FC<ApiStatusCardProps> = ({
         }
     }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'online': return <CheckCircle sx={{ color: 'white' }} />
-      case 'offline': return <Error sx={{ color: 'white' }} />
-      case 'warning': return <Warning sx={{ color: 'white' }} />
-      case 'checking': return <Refresh sx={{ color: 'white' }} />
-      default: return <Error sx={{ color: 'white' }} />
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'online': return <CheckCircle sx={{ color: 'white' }} />
+            case 'offline': return <Error sx={{ color: 'white' }} />
+            case 'warning': return <Warning sx={{ color: 'white' }} />
+            case 'checking': return <Refresh sx={{ color: 'white' }} />
+            default: return <Error sx={{ color: 'white' }} />
+        }
     }
-  }
 
     const getStatusText = (status: string) => {
         switch (status) {

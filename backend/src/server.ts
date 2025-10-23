@@ -8,7 +8,8 @@ import { setupSwagger } from './config/swagger';
 import { generalRateLimit } from './middleware/rateLimiting';
 import { authenticateWithCookies } from './middleware/cookies';
 import authRoutes from './routes/auth'
-import healthRoutes from './routes/health';
+import healthRoutes from './routes/health'
+import deliveryRoutes from './routes/delivery';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -70,6 +71,7 @@ app.use('/api/auth', authRoutes);
 
 // Rotas de health check
 app.use('/api/health', healthRoutes);
+app.use('/api/delivery', deliveryRoutes);
 
 /**
  * @swagger

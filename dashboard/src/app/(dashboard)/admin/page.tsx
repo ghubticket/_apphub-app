@@ -44,12 +44,9 @@ import { getApiUrl } from '@/config/env'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 // Gráficos removidos devido a conflitos de versão
 import StatsCard from '@/components/cards/StatsCard'
-import InfoCard from '@/components/cards/InfoCard'
-import ModernStatsCard from '@/components/cards/ModernStatsCard'
-import WebsiteAnalyticsCard from '@/components/cards/WebsiteAnalyticsCard'
 import ApiStatusCard from '@/components/cards/ApiStatusCard'
-import ApexChart from '@/components/charts/ApexChart'
 import SessionsTable from '@/components/tables/SessionsTable'
+import { ServiceIntegrityDonutChart } from '@/components/charts/DeliveryExceptionsChart'
 
 interface SessionData {
     _id: string
@@ -91,68 +88,8 @@ const AdminPage = () => {
     const [selectedSession, setSelectedSession] = useState<SessionData | null>(null)
     const [confirmDialog, setConfirmDialog] = useState(false)
 
-    // Dados para Website Analytics
-    const analyticsData = [
-        {
-            title: "Website Analytics",
-            subtitle: "Total 28.5% Conversion Rate",
-            metrics: [
-                { label: "Sessions", value: "28%" },
-                { label: "Leads", value: "1.2k" },
-                { label: "Page Views", value: "3.1k" },
-                { label: "Conversions", value: "12%" }
-            ]
-        },
-        {
-            title: "Website Analytics",
-            subtitle: "Total 28.5% Conversion Rate",
-            metrics: [
-                { label: "Spend", value: "12h" },
-                { label: "Order", value: "127" },
-                { label: "Order Size", value: "18" },
-                { label: "Items", value: "2.3k" }
-            ]
-        }
-    ]
 
-    // Configuração do gráfico ApexCharts
-    const chartOptions = {
-        chart: {
-            type: 'area',
-            height: 350,
-            toolbar: {
-                show: false
-            }
-        },
-        colors: ['#7367F0'],
-        dataLabels: {
-            enabled: false
-        },
-        stroke: {
-            curve: 'smooth',
-            width: 2
-        },
-        xaxis: {
-            categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']
-        },
-        yaxis: {
-            title: {
-                text: 'Sessions'
-            }
-        },
-        grid: {
-            borderColor: '#e7eef7'
-        }
-    }
-
-    const chartSeries = [
-        {
-            name: 'Sessions',
-            data: [30, 40, 35, 50, 49, 60, 70]
-        }
-    ]
-
-    // Dados das APIs para monitoramento (versão simplificada)
+    // Dados das APIs para monitoramento (apenas nossas APIs do backend)
     const apiServices = [
         {
             id: 'backend-api',
@@ -167,6 +104,13 @@ const AdminPage = () => {
             url: getApiUrl('/health/db'),
             status: 'online' as const,
             description: 'Conexão com banco de dados'
+        },
+        {
+            id: 'auth-service',
+            name: 'Auth Service',
+            url: getApiUrl('/health/auth'),
+            status: 'online' as const,
+            description: 'Serviço de autenticação'
         }
     ]
 
@@ -327,16 +271,20 @@ const AdminPage = () => {
                     </Grid>
                 </Grid>
 
-                {/* Integridade dos Serviços */}
+                {/* Integridade dos Serviços e Gráfico */}
                 <Grid container spacing={3} sx={{ mb: 4, mt: 4 }}>
-                    <Grid item xs={12}>
+                    <Grid item xs={12} md={6}>
                         <ApiStatusCard 
                             services={apiServices}
-                            autoRefresh={true}
-                            refreshInterval={30000}
+                            autoRefresh={false}
+                            refreshInterval={0}
                         />
                     </Grid>
+                    <Grid item xs={12} md={6}>
+                        <ServiceIntegrityDonutChart />
+                    </Grid>
                 </Grid>
+
 
             </Box>
         </ProtectedRoute>
