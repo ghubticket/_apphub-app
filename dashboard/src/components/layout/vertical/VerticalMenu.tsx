@@ -80,9 +80,6 @@ const VerticalMenu = ({ scrollMenu }: Props) => {
                 <MenuItem href='/qr-reader' icon={<i className='tabler-qrcode' />}>
                     QR Reader
                 </MenuItem>
-                <MenuItem href='/configuracoes' icon={<i className='tabler-settings-2' />}>
-                    Configurações
-                </MenuItem>
             </Menu>
             {/* <Menu
         popoutMenuOffset={{ mainAxis: 23 }}

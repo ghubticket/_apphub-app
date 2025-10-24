@@ -13,19 +13,19 @@ export const useAuth = () => {
     ...auth,
     // Métodos convenientes
     isAdmin: auth.user?.role === 'ADMIN',
-    isTurma: auth.user?.role === 'TURMA',
+    isCliente: auth.user?.role === 'CLIENTE',
+    isQRCode: auth.user?.role === 'QRCODE',
     canManageUsers: auth.user?.role === 'ADMIN',
-    canAccessQR: auth.user?.role === 'TURMA',
-    
+    canAccessQR: auth.user?.role === 'QRCODE',
+
     // Helper para verificar se pode acessar uma rota
     canAccess: (route: string) => {
       switch (route) {
         case '/admin':
         case '/usuarios':
-        case '/configuracoes':
           return auth.user?.role === 'ADMIN'
         case '/qr-reader':
-          return auth.user?.role === 'TURMA'
+          return auth.user?.role === 'QRCODE'
         default:
           return auth.isAuthenticated
       }

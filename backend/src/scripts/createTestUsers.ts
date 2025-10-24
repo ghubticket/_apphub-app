@@ -20,7 +20,7 @@ async function createTestUsers() {
                 name: 'Pedro Validator',
                 email: 'pedro@teste.com',
                 password: '123456',
-                role: 'TURMA',
+                role: 'QRCODE',
                 phone: '(11) 77777-7777',
                 cpf: '456.789.123-00'
             },
@@ -28,7 +28,7 @@ async function createTestUsers() {
                 name: 'Ana Validator',
                 email: 'ana@teste.com',
                 password: '123456',
-                role: 'TURMA',
+                role: 'QRCODE',
                 phone: '(11) 66666-6666',
                 cpf: '789.123.456-00'
             }

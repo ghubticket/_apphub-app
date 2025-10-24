@@ -32,7 +32,7 @@ interface User {
     _id: string
     name: string
     email: string
-    role: 'ADMIN' | 'TURMA'
+    role: 'ADMIN' | 'CLIENTE' | 'QRCODE'
     phone?: string
     cpf?: string
     isActive: boolean
@@ -208,7 +208,7 @@ export default function UsuariosPage() {
             <Card sx={{ mb: 3 }}>
                 <CardContent>
                     <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} md={4}>
+                        <Grid item xs={12} md={6}>
                             <TextField
                                 fullWidth
                                 placeholder="Buscar por nome ou email..."
@@ -223,7 +223,7 @@ export default function UsuariosPage() {
                                 }}
                             />
                         </Grid>
-                        <Grid item xs={12} md={2}>
+                        <Grid item xs={12} md={3}>
                             <FormControl fullWidth>
                                 <InputLabel>Role</InputLabel>
                                 <Select
@@ -233,11 +233,12 @@ export default function UsuariosPage() {
                                 >
                                     <MenuItem value="">Todos</MenuItem>
                                     <MenuItem value="ADMIN">Admin</MenuItem>
-                                    <MenuItem value="TURMA">Turma</MenuItem>
+                                    <MenuItem value="CLIENTE">Cliente</MenuItem>
+                                    <MenuItem value="QRCODE">QR Code</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12} md={2}>
+                        <Grid item xs={12} md={3}>
                             <FormControl fullWidth>
                                 <InputLabel>Status</InputLabel>
                                 <Select
@@ -250,30 +251,6 @@ export default function UsuariosPage() {
                                     <MenuItem value="false">Inativo</MenuItem>
                                 </Select>
                             </FormControl>
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                <Button
-                                    variant="contained"
-                                    onClick={handleSearch}
-                                    startIcon={<Search />}
-                                >
-                                    Buscar
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    onClick={clearFilters}
-                                >
-                                    Limpar
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    onClick={loadUsers}
-                                    startIcon={<Refresh />}
-                                >
-                                    Atualizar
-                                </Button>
-                            </Box>
                         </Grid>
                     </Grid>
                 </CardContent>

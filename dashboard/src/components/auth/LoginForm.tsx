@@ -71,11 +71,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                 case 'ADMIN':
                     router.push('/admin')
                     break
-                case 'TURMA':
+                case 'QRCODE':
                     router.push('/qr-reader')
                     break
+                case 'CLIENTE':
+                    router.push('/dashboard')
+                    break
                 default:
-                    router.push('/admin')
+                    router.push('/dashboard')
             }
 
             onSuccess?.()
@@ -115,10 +118,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                                         </Typography>
                                     </Box>
                                 </MenuItem>
-                                <MenuItem value="TURMA">
+                                <MenuItem value="QRCODE">
                                     <Box>
                                         <Typography variant="body1" fontWeight="bold">
                                             📱 QR Code
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                                <MenuItem value="CLIENTE">
+                                    <Box>
+                                        <Typography variant="body1" fontWeight="bold">
+                                            👤 Cliente
                                         </Typography>
                                     </Box>
                                 </MenuItem>

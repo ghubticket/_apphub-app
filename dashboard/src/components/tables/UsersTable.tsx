@@ -20,8 +20,6 @@ import {
     Tooltip,
     TablePagination,
     TableSortLabel,
-    TextField,
-    InputAdornment,
     Button,
     Dialog,
     DialogTitle,
@@ -36,9 +34,6 @@ import {
     Block,
     CheckCircle,
     Delete,
-    Search,
-    FilterList,
-    Refresh
 } from '@mui/icons-material'
 
 // Interface para usuário
@@ -46,12 +41,59 @@ interface User {
     _id: string
     name: string
     email: string
-    role: 'ADMIN' | 'TURMA'
+    role: 'ADMIN' | 'CLIENTE' | 'QRCODE'
     phone?: string
     cpf?: string
     isActive: boolean
     lastLogin?: string
     createdAt: string
+}
+
+// Função para gerar cor aleatória baseada no nome
+const getAvatarColor = (name: string): string => {
+    const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+        '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2',
+        '#A9DFBF', '#F9E79F', '#AED6F1', '#D5DBDB', '#FADBD8'
+    ]
+    
+    let hash = 0
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    
+    return colors[Math.abs(hash) % colors.length]
+}
+
+// Função para obter ícone e cor do role (baseado no tema Vuexy)
+const getRoleIcon = (role: string) => {
+    switch (role) {
+        case 'ADMIN':
+            return { 
+                icon: 'tabler-crown', 
+                color: 'text-primary', 
+                label: 'Admin' 
+            }
+        case 'CLIENTE':
+            return { 
+                icon: 'tabler-user', 
+                color: 'text-success', 
+                label: 'Cliente' 
+            }
+        case 'QRCODE':
+            return { 
+                icon: 'tabler-qrcode', 
+                color: 'text-info', 
+                label: 'QR Code' 
+            }
+        default:
+            return { 
+                icon: 'tabler-user', 
+                color: 'text-secondary', 
+                label: role 
+            }
+    }
 }
 
 // Interface para props
@@ -81,15 +123,11 @@ export default function UsersTable({
     const [rowsPerPage, setRowsPerPage] = useState(10)
     const [orderBy, setOrderBy] = useState<keyof User>('name')
     const [order, setOrder] = useState<'asc' | 'desc'>('asc')
-    const [searchTerm, setSearchTerm] = useState('')
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [userToDelete, setUserToDelete] = useState<User | null>(null)
 
-    // Filtrar usuários baseado na busca
-    const filteredUsers = users.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    // Usar todos os usuários (sem filtro de busca)
+    const filteredUsers = users
 
     // Ordenar usuários
     const sortedUsers = [...filteredUsers].sort((a, b) => {
@@ -204,43 +242,11 @@ export default function UsersTable({
 
     return (
         <Paper>
-            {/* Header com busca e ações */}
+            {/* Header */}
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">
-                        Usuários ({filteredUsers.length})
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <TextField
-                            size="small"
-                            placeholder="Buscar usuários..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <Search />
-                                    </InputAdornment>
-                                )
-                            }}
-                        />
-                        <Button
-                            variant="outlined"
-                            startIcon={<FilterList />}
-                            size="small"
-                        >
-                            Filtros
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            startIcon={<Refresh />}
-                            onClick={onRefresh}
-                            size="small"
-                        >
-                            Atualizar
-                        </Button>
-                    </Box>
-                </Box>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                    Usuários ({filteredUsers.length})
+                </Typography>
 
                 {error && (
                     <Alert severity="error" sx={{ mb: 2 }}>
@@ -251,7 +257,7 @@ export default function UsersTable({
 
             {/* Tabela */}
             <TableContainer>
-                <Table>
+                <Table sx={{ '& .MuiTableCell-root': { padding: '16px 24px' } }}>
                     <TableHead>
                         <TableRow>
                             <TableCell padding="checkbox">
@@ -268,15 +274,6 @@ export default function UsersTable({
                                     onClick={() => handleSort('name')}
                                 >
                                     Usuário
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell>
-                                <TableSortLabel
-                                    active={orderBy === 'email'}
-                                    direction={orderBy === 'email' ? order : 'asc'}
-                                    onClick={() => handleSort('email')}
-                                >
-                                    Email
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell>
@@ -331,40 +328,45 @@ export default function UsersTable({
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                             <Avatar
                                                 sx={{
-                                                    width: 32,
-                                                    height: 32,
-                                                    mr: 2,
-                                                    bgcolor: user.isActive ? 'primary.main' : 'grey.400'
+                                                    width: 40,
+                                                    height: 40,
+                                                    bgcolor: getAvatarColor(user.name),
+                                                    color: 'white',
+                                                    fontWeight: 'bold',
+                                                    fontSize: '14px'
                                                 }}
                                             >
                                                 {user.name.charAt(0).toUpperCase()}
                                             </Avatar>
                                             <Box>
-                                                <Typography variant="subtitle2" fontWeight="bold">
+                                                <Typography 
+                                                    variant="subtitle1" 
+                                                    fontWeight="600"
+                                                    sx={{ color: 'text.primary', mb: 0.5 }}
+                                                >
                                                     {user.name}
                                                 </Typography>
-                                                {user.phone && (
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {user.phone}
-                                                    </Typography>
-                                                )}
+                                                <Typography 
+                                                    variant="body2" 
+                                                    sx={{ color: 'text.secondary' }}
+                                                >
+                                                    {user.email}
+                                                </Typography>
                                             </Box>
                                         </Box>
                                     </TableCell>
                                     <TableCell>
-                                        <Typography variant="body2">
-                                            {user.email}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={user.role}
-                                            color={user.role === 'ADMIN' ? 'primary' : 'default'}
-                                            size="small"
-                                        />
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <i 
+                                                className={`icon-base ti ${getRoleIcon(user.role).icon} icon-lg ${getRoleIcon(user.role).color} me-3`}
+                                            />
+                                            <Typography sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
+                                                {getRoleIcon(user.role).label}
+                                            </Typography>
+                                        </Box>
                                     </TableCell>
                                     <TableCell>
                                         <Chip
@@ -379,12 +381,53 @@ export default function UsersTable({
                                         </Typography>
                                     </TableCell>
                                     <TableCell align="right">
-                                        <IconButton
-                                            size="small"
-                                            onClick={(e) => handleMenuClick(e, user)}
-                                        >
-                                            <MoreVert />
-                                        </IconButton>
+                                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                                            <Tooltip title="Excluir">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => onDelete?.(user._id)}
+                                                    sx={{ 
+                                                        color: 'text.secondary',
+                                                        '&:hover': { 
+                                                            backgroundColor: 'action.hover',
+                                                            borderRadius: '50%'
+                                                        }
+                                                    }}
+                                                >
+                                                    <i className="icon-base ti tabler-trash icon-22px" />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="Visualizar">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => console.log('Visualizar', user)}
+                                                    sx={{ 
+                                                        color: 'text.secondary',
+                                                        '&:hover': { 
+                                                            backgroundColor: 'action.hover',
+                                                            borderRadius: '50%'
+                                                        }
+                                                    }}
+                                                >
+                                                    <i className="icon-base ti tabler-eye icon-22px" />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="Mais opções">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(e) => handleMenuClick(e, user)}
+                                                    sx={{ 
+                                                        color: 'text.secondary',
+                                                        '&:hover': { 
+                                                            backgroundColor: 'action.hover',
+                                                            borderRadius: '50%'
+                                                        }
+                                                    }}
+                                                >
+                                                    <i className="icon-base ti tabler-dots-vertical icon-35px" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
                                     </TableCell>
                                 </TableRow>
                             )

@@ -1,5 +1,5 @@
 // User Types for AppHub Dashboard
-export type UserRole = 'ADMIN' | 'TURMA'
+export type UserRole = 'ADMIN' | 'CLIENTE' | 'QRCODE'
 
 export interface User {
   id: string
@@ -46,7 +46,16 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canReadQRCodes: true,
     canAccessFrontend: true
   },
-  TURMA: {
+  CLIENTE: {
+    canViewDashboard: false,
+    canManageEvents: false,
+    canManageTickets: false,
+    canManageUsers: false,
+    canViewReports: false,
+    canReadQRCodes: false,
+    canAccessFrontend: true
+  },
+  QRCODE: {
     canViewDashboard: false,
     canManageEvents: false,
     canManageTickets: false,

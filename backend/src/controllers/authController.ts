@@ -26,7 +26,7 @@ export const register = async (req: Request, res: Response) => {
             name,
             email: email.toLowerCase(),
             password,
-            role: role || 'TURMA',
+            role: role || 'CLIENTE',
             phone,
             cpf,
         });
