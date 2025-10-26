@@ -3,8 +3,13 @@
 // React Imports
 import { useState } from 'react'
 
+// Custom Imports
+import { useRateLimit } from '@/hooks/useRateLimit'
+import { RateLimitAlert } from '@/components/RateLimitAlert'
+
 // Next Imports
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 
 // MUI Imports
 import useMediaQuery from '@mui/material/useMediaQuery'
@@ -16,18 +21,24 @@ import Checkbox from '@mui/material/Checkbox'
 import Button from '@mui/material/Button'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Divider from '@mui/material/Divider'
+import Alert from '@mui/material/Alert'
 
 // Third-party Imports
+import { signIn } from 'next-auth/react'
+import { Controller, useForm } from 'react-hook-form'
+import { valibotResolver } from '@hookform/resolvers/valibot'
+import { email, object, minLength, string, pipe, nonEmpty } from 'valibot'
+import type { SubmitHandler } from 'react-hook-form'
+import type { InferInput } from 'valibot'
 import classnames from 'classnames'
 
 // Type Imports
 import type { SystemMode } from '@core/types'
+import type { Locale } from '@/configs/i18n'
 
 // Component Imports
-import Link from '@components/Link'
 import Logo from '@components/layout/shared/Logo'
 import CustomTextField from '@core/components/mui/TextField'
-import LoginForm from '@/components/auth/LoginForm'
 
 // Config Imports
 import themeConfig from '@configs/themeConfig'
@@ -35,6 +46,9 @@ import themeConfig from '@configs/themeConfig'
 // Hook Imports
 import { useImageVariant } from '@core/hooks/useImageVariant'
 import { useSettings } from '@core/hooks/useSettings'
+
+// Util Imports
+import { getLocalizedUrl } from '@/utils/i18n'
 
 // Styled Custom Components
 const LoginIllustration = styled('img')(({ theme }) => ({
@@ -60,9 +74,28 @@ const MaskImg = styled('img')({
     zIndex: -1
 })
 
-const LoginV2 = ({ mode }: { mode: SystemMode }) => {
+type ErrorType = {
+    message: string[]
+}
+
+type FormData = InferInput<typeof schema>
+
+const schema = object({
+    email: pipe(string(), minLength(1, 'This field is required'), email('Email is invalid')),
+    password: pipe(
+        string(),
+        nonEmpty('This field is required'),
+        minLength(5, 'Password must be at least 5 characters long')
+    )
+})
+
+const Login = ({ mode }: { mode: SystemMode }) => {
     // States
     const [isPasswordShown, setIsPasswordShown] = useState(false)
+
+    // Rate limiting
+    const rateLimit = useRateLimit()
+    const [errorState, setErrorState] = useState<ErrorType | null>(null)
 
     // Vars
     const darkImg = '/images/pages/auth-mask-dark.png'
@@ -74,10 +107,24 @@ const LoginV2 = ({ mode }: { mode: SystemMode }) => {
 
     // Hooks
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const { lang: locale } = useParams()
     const { settings } = useSettings()
     const theme = useTheme()
     const hidden = useMediaQuery(theme.breakpoints.down('md'))
     const authBackground = useImageVariant(mode, lightImg, darkImg)
+
+    const {
+        control,
+        handleSubmit,
+        formState: { errors }
+    } = useForm<FormData>({
+        resolver: valibotResolver(schema),
+        defaultValues: {
+            email: 'admin@vuexy.com',
+            password: 'admin'
+        }
+    })
 
     const characterIllustration = useImageVariant(
         mode,
@@ -88,6 +135,41 @@ const LoginV2 = ({ mode }: { mode: SystemMode }) => {
     )
 
     const handleClickShowPassword = () => setIsPasswordShown(show => !show)
+
+    const onSubmit: SubmitHandler<FormData> = async (data: FormData) => {
+        // Verificar se pode tentar fazer login
+        if (!rateLimit.canAttempt) {
+            setErrorState({
+                message: ['Conta temporariamente bloqueada. Tente novamente mais tarde.']
+            })
+            return
+        }
+
+        const res = await signIn('credentials', {
+            email: data.email,
+            password: data.password,
+            redirect: false
+        })
+
+        if (res && res.ok && res.error === null) {
+            // Login bem-sucedido - reset rate limiting
+            rateLimit.recordAttempt(true)
+
+            // Vars
+            const redirectURL = searchParams.get('redirectTo') ?? '/'
+            router.replace(getLocalizedUrl(redirectURL, locale as Locale))
+        } else {
+            // Login falhou - usar erro do NextAuth (já processado pelo auth.ts)
+            const apiError = res?.error || 'Erro desconhecido'
+
+
+            // Usar o erro no formulário
+            setErrorState({ message: [apiError] })
+
+            // Registrar tentativa com erro da API
+            rateLimit.recordAttempt(false, apiError)
+        }
+    }
 
     return (
         <div className='flex bs-full justify-center'>
@@ -100,31 +182,108 @@ const LoginV2 = ({ mode }: { mode: SystemMode }) => {
                 )}
             >
                 <LoginIllustration src={characterIllustration} alt='character-illustration' />
-                {!hidden && (
-                    <MaskImg
-                        alt='mask'
-                        src={authBackground}
-                        className={classnames({ 'scale-x-[-1]': theme.direction === 'rtl' })}
-                    />
-                )}
+                {!hidden && <MaskImg alt='mask' src={authBackground} />}
             </div>
-            <div className='flex justify-center items-center bs-full bg-backgroundPaper !min-is-full p-6 md:!min-is-[unset] md:p-12 md:is-[560px]'>
-                <Link className='absolute block-start-5 sm:block-start-[33px] inline-start-6 sm:inline-start-[38px]'>
-                    <figure>
-                        <img src="/images/5521.png" alt="5521 Logo" className="h-12 w-auto" />
-                    </figure>
-                </Link>
-                <div className='flex flex-col gap-6 is-full sm:is-auto md:is-full sm:max-is-[400px] md:max-is-[unset] mbs-11 sm:mbs-14 md:mbs-0'>
+            <div className='flex justify-center items-center bs-full bg-backgroundPaper !min-is-full p-6 md:!min-is-[unset] md:p-12 md:is-[480px]'>
+                <div className='absolute block-start-5 sm:block-start-[33px] inline-start-6 sm:inline-start-[38px]'>
+                    <Logo />
+                </div>
+                <div className='flex flex-col gap-6 is-full sm:is-auto md:is-full sm:max-is-[400px] md:max-is-[unset] mbs-8 sm:mbs-11 md:mbs-0'>
                     <div className='flex flex-col gap-1'>
-                        <Typography variant='h4'>{`Seja bem vindo ao seu painel da  ${themeConfig.templateName}! 👋🏻`}</Typography>
+                        <Typography variant='h4'>{`Welcome to ${themeConfig.templateName}! 👋🏻`}</Typography>
+                        <Typography>Please sign-in to your account and start the adventure</Typography>
                     </div>
 
-                    {/* New Login Form with Role Selection */}
-                    <LoginForm />
+                    {/* Rate Limiting Alert */}
+                    <RateLimitAlert
+                        attempts={rateLimit.attempts}
+                        maxAttempts={rateLimit.maxAttempts}
+                        isLocked={rateLimit.isLocked}
+                        remainingTime={rateLimit.remainingTime}
+                        isWarning={rateLimit.isWarning}
+                        formatTime={rateLimit.formatTime}
+                        lastError={rateLimit.lastError}
+                        apiErrors={rateLimit.apiErrors}
+                        showAlert={rateLimit.showAlert}
+                    />
+                    <form
+                        noValidate
+                        autoComplete='off'
+                        action={() => { }}
+                        onSubmit={handleSubmit(onSubmit)}
+                        className='flex flex-col gap-6'
+                    >
+                        <Controller
+                            name='email'
+                            control={control}
+                            rules={{ required: true }}
+                            render={({ field }) => (
+                                <CustomTextField
+                                    {...field}
+                                    autoFocus
+                                    fullWidth
+                                    type='email'
+                                    label='Email'
+                                    placeholder='Enter your email'
+                                    onChange={e => {
+                                        field.onChange(e.target.value)
+                                        errorState !== null && setErrorState(null)
+                                    }}
+                                    {...((errors.email || errorState !== null) && {
+                                        error: true,
+                                        helperText: errors?.email?.message || errorState?.message[0]
+                                    })}
+                                />
+                            )}
+                        />
+                        <Controller
+                            name='password'
+                            control={control}
+                            rules={{ required: true }}
+                            render={({ field }) => (
+                                <CustomTextField
+                                    {...field}
+                                    fullWidth
+                                    label='Password'
+                                    placeholder='············'
+                                    id='login-password'
+                                    type={isPasswordShown ? 'text' : 'password'}
+                                    onChange={e => {
+                                        field.onChange(e.target.value)
+                                        errorState !== null && setErrorState(null)
+                                    }}
+                                    slotProps={{
+                                        input: {
+                                            endAdornment: (
+                                                <InputAdornment position='end'>
+                                                    <IconButton
+                                                        edge='end'
+                                                        onClick={handleClickShowPassword}
+                                                        onMouseDown={e => e.preventDefault()}
+                                                    >
+                                                        <i className={isPasswordShown ? 'tabler-eye' : 'tabler-eye-off'} />
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            )
+                                        }
+                                    }}
+                                    {...(errors.password && { error: true, helperText: errors.password.message })}
+                                />
+                            )}
+                        />
+                        <Button
+                            fullWidth
+                            variant='contained'
+                            type='submit'
+                            disabled={!rateLimit.canAttempt}
+                        >
+                            {rateLimit.isLocked ? 'Conta Bloqueada' : 'Login'}
+                        </Button>
+                    </form>
                 </div>
             </div>
         </div>
     )
 }
 
-export default LoginV2
+export default Login

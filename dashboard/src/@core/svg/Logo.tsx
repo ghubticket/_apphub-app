@@ -3,51 +3,33 @@ import type { SVGAttributes } from 'react'
 
 const Logo = (props: SVGAttributes<SVGElement>) => {
   return (
-    <svg width='2em' height='1.2em' viewBox='0 0 100 60' fill='none' xmlns='http://www.w3.org/2000/svg' {...props}>
-      {/* 5521 Logo Design */}
-      <defs>
-        <linearGradient id="5521Gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#E91E63" />
-          <stop offset="100%" stopColor="#2196F3" />
-        </linearGradient>
-      </defs>
-      
-      {/* Number 5 */}
+    <svg width='1.4583em' height='1em' viewBox='0 0 35 24' fill='none' xmlns='http://www.w3.org/2000/svg' {...props}>
       <path
-        d="M5 10 L5 15 L15 15 L15 25 L5 25 L5 30 L20 30 L20 10 L5 10 Z"
-        fill="url(#5521Gradient)"
-        stroke="currentColor"
-        strokeWidth="1"
+        fillRule='evenodd'
+        clipRule='evenodd'
+        d='M0.00188479 0V7.47707C0.00188479 7.47707 -0.145285 9.83135 2.161 11.8242L14.9358 23.9961L21.5792 23.9107L20.5136 10.7809L17.9947 7.82497L10.0778 0H0.00188479Z'
+        fill='currentColor'
       />
-      
-      {/* Number 5 (second part) */}
       <path
-        d="M25 10 L25 15 L35 15 L35 25 L25 25 L25 30 L40 30 L40 10 L25 10 Z"
-        fill="url(#5521Gradient)"
-        stroke="currentColor"
-        strokeWidth="1"
+        opacity='0.06'
+        fillRule='evenodd'
+        clipRule='evenodd'
+        d='M8.39807 17.9307L13.6581 3.53127L18.059 7.91564L8.39807 17.9307Z'
+        fill='#161616'
       />
-      
-      {/* Number 2 */}
       <path
-        d="M45 10 L45 15 L60 15 L60 20 L45 20 L45 25 L60 25 L60 30 L45 30 L45 35 L65 35 L65 10 L45 10 Z"
-        fill="url(#5521Gradient)"
-        stroke="currentColor"
-        strokeWidth="1"
+        opacity='0.06'
+        fillRule='evenodd'
+        clipRule='evenodd'
+        d='M8.81183 17.3645L15.2093 5.06165L18.0926 7.94695L8.81183 17.3645Z'
+        fill='#161616'
       />
-      
-      {/* Number 1 */}
       <path
-        d="M70 10 L70 35 L75 35 L75 10 L70 10 Z"
-        fill="url(#5521Gradient)"
-        stroke="currentColor"
-        strokeWidth="1"
+        fillRule='evenodd'
+        clipRule='evenodd'
+        d='M8.47955 17.8436L25.8069 0H34.9091V7.50963C34.9091 7.50963 34.7195 10.0128 33.4463 11.3517L21.5808 24H14.9387L8.47955 17.8436Z'
+        fill='currentColor'
       />
-      
-      {/* Decorative elements */}
-      <circle cx="85" cy="20" r="3" fill="#E91E63" opacity="0.8" />
-      <circle cx="90" cy="25" r="2" fill="#2196F3" opacity="0.8" />
-      <circle cx="85" cy="30" r="2" fill="#E91E63" opacity="0.6" />
     </svg>
   )
 }

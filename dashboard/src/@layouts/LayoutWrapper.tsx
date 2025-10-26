@@ -9,6 +9,11 @@ import type { SystemMode } from '@core/types'
 // Hook Imports
 import { useSettings } from '@core/hooks/useSettings'
 import useLayoutInit from '@core/hooks/useLayoutInit'
+import { useSessionTimeout } from '@/hooks/useSessionTimeout'
+
+// Component Imports
+import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
+import { ClientRedirect } from '@/components/ClientRedirect'
 
 type LayoutWrapperProps = {
   systemMode: SystemMode
@@ -22,14 +27,29 @@ const LayoutWrapper = (props: LayoutWrapperProps) => {
 
   // Hooks
   const { settings } = useSettings()
+  const sessionTimeout = useSessionTimeout()
 
   useLayoutInit(systemMode)
 
   // Return the layout based on the layout context
   return (
-    <div className='flex flex-col flex-auto' data-skin={settings.skin}>
-      {settings.layout === 'horizontal' ? horizontalLayout : verticalLayout}
-    </div>
+    <>
+      {/* Client Redirect - redireciona CLIENTE para front-end */}
+      <ClientRedirect />
+      
+      <div className='flex flex-col flex-auto' data-skin={settings.skin}>
+        {settings.layout === 'horizontal' ? horizontalLayout : verticalLayout}
+      </div>
+      
+      {/* Session Timeout Modal */}
+      <SessionTimeoutModal
+        open={sessionTimeout.isWarning}
+        timeLeft={sessionTimeout.timeLeft}
+        onExtend={sessionTimeout.extendSession}
+        onLogout={sessionTimeout.handleLogout}
+        formatTime={sessionTimeout.formatTime}
+      />
+    </>
   )
 }
 

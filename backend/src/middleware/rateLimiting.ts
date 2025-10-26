@@ -6,7 +6,7 @@ import rateLimit from 'express-rate-limit';
  */
 export const authRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 5, // máximo 5 tentativas por IP
+    max: 100, // máximo 100 tentativas por IP (desenvolvimento)
     message: {
         success: false,
         message: 'Muitas tentativas de login. Tente novamente em 15 minutos.',
