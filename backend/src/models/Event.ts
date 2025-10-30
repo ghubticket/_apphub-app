@@ -5,6 +5,7 @@ export interface IEvent extends Document {
     name: string;
     description: string;
     date: Date;
+    time?: string; // optional textual time e.g. '20:00'
     location: string;
     address: string;
     city: string;
@@ -15,6 +16,8 @@ export interface IEvent extends Document {
     status: 'draft' | 'published' | 'cancelled' | 'finished';
     organizer: mongoose.Types.ObjectId; // Referência ao User
     image?: string;
+    coverImage?: string; // 1200x500 PNG URL
+    squareImage?: string; // 300x300 PNG URL
     tags: string[];
     isActive: boolean;
     createdAt: Date;
@@ -116,6 +119,16 @@ const eventSchema = new Schema<IEvent>(
                 /^https?:\/\/.+/,
                 'URL da imagem deve ser válida',
             ],
+        },
+        coverImage: {
+            type: String,
+            trim: true,
+            match: [/^https?:\/\/.+/, 'URL da imagem deve ser válida']
+        },
+        squareImage: {
+            type: String,
+            trim: true,
+            match: [/^https?:\/\/.+/, 'URL da imagem deve ser válida']
         },
         tags: [{
             type: String,

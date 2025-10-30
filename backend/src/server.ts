@@ -8,6 +8,8 @@ import { setupSwagger } from './config/swagger';
 import { generalRateLimit } from './middleware/rateLimiting';
 import { authenticateWithCookies } from './middleware/cookies';
 import authRoutes from './routes/auth'
+import usersRoutes from './routes/users'
+import eventsRoutes from './routes/events'
 import healthRoutes from './routes/health'
 import deliveryRoutes from './routes/delivery';
 
@@ -68,6 +70,10 @@ app.use(authenticateWithCookies);
 
 // Rotas de autenticação
 app.use('/api/auth', authRoutes);
+// Rotas de usuários
+app.use('/api/users', usersRoutes);
+// Rotas de eventos
+app.use('/api/events', eventsRoutes);
 
 // Rotas de health check
 app.use('/api/health', healthRoutes);
@@ -186,8 +192,8 @@ const startServer = async () => {
             console.log('💡 Próximos passos:');
             console.log('   1. Acesse http://localhost:3001 para testar');
             console.log('   2. 📚 Swagger: http://localhost:3001/api-docs');
-            console.log('   3. 🔐 Auth: http://localhost:3001/auth/login');
-            console.log('   4. Implementar lógica de autenticação');
+    console.log('   3. 🔐 Auth: http://localhost:3001/auth/login');
+    console.log('   4. Endpoints de eventos em /api/events');
             console.log('');
         });
     } catch (error) {

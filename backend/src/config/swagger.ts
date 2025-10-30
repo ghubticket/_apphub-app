@@ -20,8 +20,12 @@ const options = {
         },
         servers: [
             {
+                url: 'http://localhost:3001/api',
+                description: 'Servidor de Desenvolvimento (/api)',
+            },
+            {
                 url: 'http://localhost:3001',
-                description: 'Servidor de Desenvolvimento',
+                description: 'Servidor de Desenvolvimento (root)',
             },
             {
                 url: 'https://api-eventhub.railway.app',
