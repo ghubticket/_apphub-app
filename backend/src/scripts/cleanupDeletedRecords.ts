@@ -13,6 +13,8 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Event from '../models/Event';
 import TicketType from '../models/TicketType';
+import Ticket from '../models/Ticket';
+import Order from '../models/Order';
 import { User } from '../models';
 
 dotenv.config();
@@ -50,8 +52,20 @@ const cleanupDeletedRecords = async () => {
         });
         console.log(`🗑️  Usuários deletados permanentemente: ${usersResult.deletedCount}`);
 
+        // Limpar ingressos deletados
+        const ticketsResult = await Ticket.deleteMany({
+            deletedAt: { $ne: null, $lt: cutoffDate },
+        });
+        console.log(`🗑️  Ingressos deletados permanentemente: ${ticketsResult.deletedCount}`);
+
+        // Limpar pedidos deletados
+        const ordersResult = await Order.deleteMany({
+            deletedAt: { $ne: null, $lt: cutoffDate },
+        });
+        console.log(`🗑️  Pedidos deletados permanentemente: ${ordersResult.deletedCount}`);
+
         // Estatísticas
-        const totalDeleted = eventsResult.deletedCount + ticketTypesResult.deletedCount + usersResult.deletedCount;
+        const totalDeleted = eventsResult.deletedCount + ticketTypesResult.deletedCount + usersResult.deletedCount + ticketsResult.deletedCount + ordersResult.deletedCount;
         console.log(`\n📊 Total de registros removidos: ${totalDeleted}`);
 
         if (totalDeleted > 0) {

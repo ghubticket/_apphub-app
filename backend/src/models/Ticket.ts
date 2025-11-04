@@ -5,14 +5,16 @@ export interface ITicket extends Document {
     code: string; // Código único do ingresso
     qrCode: string; // QR Code em base64
     event: mongoose.Types.ObjectId; // Referência ao Event
+    ticketType: mongoose.Types.ObjectId; // Referência ao TicketType (tipo de ingresso)
     order: mongoose.Types.ObjectId; // Referência ao Order
     holder: mongoose.Types.ObjectId; // Referência ao User (dono do ingresso)
-    price: number; // Preço pago pelo ingresso
+    price: number; // Preço pago pelo ingresso (0 para VIP)
     status: 'pending' | 'confirmed' | 'used' | 'cancelled' | 'refunded';
     usedAt?: Date; // Data/hora de uso
     usedBy?: mongoose.Types.ObjectId; // Quem validou o ingresso
     validatedAt?: Date; // Data/hora da validação
     isActive: boolean;
+    deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     createdAt: Date;
     updatedAt: Date;
 
@@ -46,6 +48,11 @@ const ticketSchema = new Schema<ITicket>(
             type: Schema.Types.ObjectId,
             ref: 'Event',
             required: [true, 'Evento é obrigatório'],
+        },
+        ticketType: {
+            type: Schema.Types.ObjectId,
+            ref: 'TicketType',
+            required: [true, 'Tipo de ingresso é obrigatório'],
         },
         order: {
             type: Schema.Types.ObjectId,
@@ -83,6 +90,11 @@ const ticketSchema = new Schema<ITicket>(
         isActive: {
             type: Boolean,
             default: true,
+        },
+        deletedAt: {
+            type: Date,
+            default: null,
+            index: true, // Índice para facilitar queries de limpeza
         },
     },
     {
@@ -131,8 +143,11 @@ ticketSchema.pre('save', async function (next) {
             code += chars.charAt(Math.floor(Math.random() * chars.length));
         }
 
-        // Verificar se o código já existe
-        const existingTicket = await mongoose.model('Ticket').findOne({ code });
+        // Verificar se o código já existe (apenas em ingressos não deletados)
+        const existingTicket = await mongoose.model('Ticket').findOne({ 
+            code,
+            deletedAt: null,
+        });
         if (existingTicket) {
             // Se existir, gerar novo código recursivamente
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -152,22 +167,22 @@ ticketSchema.pre('save', async function (next) {
 
 // Static method para buscar ingressos por evento
 ticketSchema.statics.findByEvent = function (eventId: string) {
-    return this.find({ event: eventId, isActive: true });
+    return this.find({ event: eventId, isActive: true, deletedAt: null });
 };
 
 // Static method para buscar ingressos por portador
 ticketSchema.statics.findByHolder = function (holderId: string) {
-    return this.find({ holder: holderId, isActive: true });
+    return this.find({ holder: holderId, isActive: true, deletedAt: null });
 };
 
 // Static method para buscar ingressos por status
 ticketSchema.statics.findByStatus = function (status: string) {
-    return this.find({ status, isActive: true });
+    return this.find({ status, isActive: true, deletedAt: null });
 };
 
 // Static method para buscar ingresso por código
 ticketSchema.statics.findByCode = function (code: string) {
-    return this.findOne({ code, isActive: true });
+    return this.findOne({ code, isActive: true, deletedAt: null });
 };
 
 // Exportar o modelo

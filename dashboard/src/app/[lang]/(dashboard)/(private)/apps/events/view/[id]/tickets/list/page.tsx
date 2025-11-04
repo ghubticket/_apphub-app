@@ -20,12 +20,6 @@ import classnames from 'classnames'
 import CustomTextField from '@core/components/mui/TextField'
 import OptionMenu from '@core/components/option-menu'
 import Switch from '@mui/material/Switch'
-import IconButton from '@mui/material/IconButton'
-import Dialog from '@mui/material/Dialog'
-import DialogTitle from '@mui/material/DialogTitle'
-import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
-import DialogContentText from '@mui/material/DialogContentText'
 
 import tableStyles from '@core/styles/table.module.css'
 import TablePaginationComponent from '@components/TablePaginationComponent'
@@ -64,10 +58,8 @@ const formatCurrency = (value: number): string => {
 const TicketTypesListPage = () => {
     const router = useRouter()
     const { lang, id } = useParams()
-    const { ticketTypes, loading, error, updateStatus, deleteTicketType, fetchTicketTypes } = useTicketTypes(id as string)
+    const { ticketTypes, loading, error, updateStatus } = useTicketTypes(id as string)
     const [globalFilter, setGlobalFilter] = useState('')
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-    const [ticketTypeToDelete, setTicketTypeToDelete] = useState<TicketTypeItem | null>(null)
 
     const columns = useMemo<ColumnDef<TicketTypeItem, any>[]>(
         () => [
@@ -172,17 +164,6 @@ const TicketTypesListPage = () => {
                                             router.push(`/${lang}/apps/events/view/${id}/tickets/edit/${row.original._id}`)
                                         }
                                     }
-                                },
-                                {
-                                    text: 'Deletar',
-                                    icon: <i className='tabler-trash text-xl' />,
-                                    menuItemProps: {
-                                        onClick: () => {
-                                            setTicketTypeToDelete(row.original)
-                                            setDeleteDialogOpen(true)
-                                        },
-                                        sx: { color: 'error.main' }
-                                    }
                                 }
                             ]}
                         />
@@ -212,18 +193,6 @@ const TicketTypesListPage = () => {
         getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     })
-
-    const handleDelete = async () => {
-        if (!ticketTypeToDelete) return
-
-        try {
-            await deleteTicketType(ticketTypeToDelete._id)
-            setDeleteDialogOpen(false)
-            setTicketTypeToDelete(null)
-        } catch (error) {
-            console.error('Erro ao deletar tipo de ingresso:', error)
-        }
-    }
 
     return (
         <AdminOnly>
@@ -346,22 +315,6 @@ const TicketTypesListPage = () => {
                 </CardContent>
             </Card>
 
-            {/* Dialog de confirmação de exclusão */}
-            <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-                <DialogTitle>Confirmar exclusão</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Tem certeza que deseja excluir o tipo de ingresso <strong>{ticketTypeToDelete?.name}</strong>?
-                        Esta ação não pode ser desfeita.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleDelete} color='error' variant='contained'>
-                        Excluir
-                    </Button>
-                </DialogActions>
-            </Dialog>
         </AdminOnly>
     )
 }

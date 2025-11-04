@@ -9,7 +9,7 @@ export interface IOrder extends Document {
     totalAmount: number; // Valor total do pedido
     totalTickets: number; // Quantidade total de ingressos
     status: 'pending' | 'paid' | 'cancelled' | 'refunded';
-    paymentMethod: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip';
+    paymentMethod?: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free'; // VIP não requer pagamento
     paymentId?: string; // ID do pagamento no Mercado Pago
     paymentStatus?: string; // Status do pagamento
     paidAt?: Date; // Data do pagamento
@@ -22,6 +22,7 @@ export interface IOrder extends Document {
         cpf?: string;
     };
     isActive: boolean;
+    deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     createdAt: Date;
     updatedAt: Date;
 
@@ -82,10 +83,10 @@ const orderSchema = new Schema<IOrder>(
         paymentMethod: {
             type: String,
             enum: {
-                values: ['credit_card', 'debit_card', 'pix', 'bank_slip'],
-                message: 'Método de pagamento deve ser: credit_card, debit_card, pix ou bank_slip',
+                values: ['credit_card', 'debit_card', 'pix', 'bank_slip', 'vip_free'],
+                message: 'Método de pagamento deve ser: credit_card, debit_card, pix, bank_slip ou vip_free',
             },
-            required: [true, 'Método de pagamento é obrigatório'],
+            // Não é obrigatório se for VIP (será 'vip_free' automaticamente)
         },
         paymentId: {
             type: String,
@@ -142,6 +143,11 @@ const orderSchema = new Schema<IOrder>(
             type: Boolean,
             default: true,
         },
+        deletedAt: {
+            type: Date,
+            default: null,
+            index: true, // Índice para facilitar queries de limpeza
+        },
     },
     {
         timestamps: true,
@@ -189,8 +195,11 @@ orderSchema.pre('save', async function (next) {
             orderNumber += chars.charAt(Math.floor(Math.random() * chars.length));
         }
 
-        // Verificar se o número já existe
-        const existingOrder = await mongoose.model('Order').findOne({ orderNumber });
+        // Verificar se o número já existe (apenas em pedidos não deletados)
+        const existingOrder = await mongoose.model('Order').findOne({ 
+            orderNumber,
+            deletedAt: null,
+        });
         if (existingOrder) {
             // Se existir, gerar novo número recursivamente
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -210,22 +219,22 @@ orderSchema.pre('save', async function (next) {
 
 // Static method para buscar pedidos por cliente
 orderSchema.statics.findByCustomer = function (customerId: string) {
-    return this.find({ customer: customerId, isActive: true });
+    return this.find({ customer: customerId, isActive: true, deletedAt: null });
 };
 
 // Static method para buscar pedidos por evento
 orderSchema.statics.findByEvent = function (eventId: string) {
-    return this.find({ event: eventId, isActive: true });
+    return this.find({ event: eventId, isActive: true, deletedAt: null });
 };
 
 // Static method para buscar pedidos por status
 orderSchema.statics.findByStatus = function (status: string) {
-    return this.find({ status, isActive: true });
+    return this.find({ status, isActive: true, deletedAt: null });
 };
 
 // Static method para buscar pedido por número
 orderSchema.statics.findByOrderNumber = function (orderNumber: string) {
-    return this.findOne({ orderNumber, isActive: true });
+    return this.findOne({ orderNumber, isActive: true, deletedAt: null });
 };
 
 // Exportar o modelo

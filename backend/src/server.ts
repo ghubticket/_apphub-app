@@ -13,6 +13,8 @@ import usersRoutes from './routes/users'
 import eventsRoutes from './routes/events'
 import ticketTypesRoutes from './routes/ticketTypes'
 import reservationsRoutes from './routes/reservations'
+import ordersRoutes from './routes/orders'
+import ticketsRoutes from './routes/tickets'
 import healthRoutes from './routes/health'
 import deliveryRoutes from './routes/delivery';
 
@@ -96,6 +98,10 @@ app.use('/api/events', ticketTypesRoutes);
 app.use('/api', ticketTypesRoutes);
 // Rotas de reservas temporárias
 app.use('/api/reservations', reservationsRoutes);
+// Rotas de pedidos
+app.use('/api/orders', ordersRoutes);
+// Rotas de ingressos
+app.use('/api/tickets', ticketsRoutes);
 
 // Rotas de health check
 app.use('/api/health', healthRoutes);
