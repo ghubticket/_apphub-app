@@ -15,13 +15,15 @@ import DialogActions from '@mui/material/DialogActions'
 import { useParams } from 'next/navigation'
 import classnames from 'classnames'
 
-import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table'
+import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, useReactTable } from '@tanstack/react-table'
 import type { ColumnDef, FilterFn } from '@tanstack/react-table'
 import { rankItem } from '@tanstack/match-sorter-utils'
 import type { RankingInfo } from '@tanstack/match-sorter-utils'
 
 import CustomTextField from '@core/components/mui/TextField'
-import TablePaginationComponent from '@components/TablePaginationComponent'
+import TablePagination from '@mui/material/TablePagination'
+import Pagination from '@mui/material/Pagination'
+import MenuItem from '@mui/material/MenuItem'
 import OptionMenu from '@core/components/option-menu'
 import { useOrders } from '@/hooks/useOrders'
 import type { OrderItem } from '@/services/orderService'
@@ -68,19 +70,26 @@ const formatDate = (dateString: string): string => {
 }
 
 const OrderListTable = () => {
-    const [data, setData] = useState<OrderItem[]>([])
     const [globalFilter, setGlobalFilter] = useState('')
     const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null)
     const [qrDialogOpen, setQrDialogOpen] = useState(false)
+    const [currentPage, setCurrentPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
 
     const { lang } = useParams()
-    const { orders, loading, error } = useOrders()
+    const { orders, loading, error, pagination } = useOrders({
+        page: currentPage,
+        limit: pageSize,
+        search: globalFilter || undefined
+    })
 
+    // Usar orders diretamente ao invés de manter estado separado
+    const data = orders || []
+    
+    // Resetar página quando busca mudar
     useEffect(() => {
-        if (orders) {
-            setData(orders)
-        }
-    }, [orders])
+        setCurrentPage(1)
+    }, [globalFilter])
 
     const columns = useMemo<ColumnDef<OrderItem, any>[]>(
         () => [
@@ -207,7 +216,7 @@ const OrderListTable = () => {
     )
 
     const table = useReactTable({
-        data,
+        data: data,
         columns,
         filterFns: {
             fuzzy: fuzzyFilter,
@@ -215,26 +224,17 @@ const OrderListTable = () => {
         state: {
             globalFilter,
             pagination: {
-                pageIndex: 0,
-                pageSize: 10,
+                pageIndex: currentPage - 1,
+                pageSize: pageSize,
             },
         },
         onGlobalFilterChange: setGlobalFilter,
         globalFilterFn: fuzzyFilter,
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        manualPagination: true, // Paginação controlada pelo backend
+        pageCount: pagination ? pagination.totalPages : 0,
     })
-
-    if (loading) {
-        return (
-            <Card>
-                <CardContent>
-                    <Typography>Carregando pedidos...</Typography>
-                </CardContent>
-            </Card>
-        )
-    }
 
     if (error) {
         return (
@@ -265,7 +265,14 @@ const OrderListTable = () => {
                     subheader='Lista de todos os pedidos de ingressos'
                 />
                 <CardContent>
-                    {data.length === 0 ? (
+                    {loading ? (
+                        <Box className='flex flex-col items-center justify-center py-12'>
+                            <i className='tabler-loader-2 animate-spin text-6xl text-textSecondary mb-4' />
+                            <Typography variant='h6' color='text.secondary'>
+                                Carregando pedidos...
+                            </Typography>
+                        </Box>
+                    ) : data.length === 0 ? (
                         <Box className='flex flex-col items-center justify-center py-12'>
                             <i className='tabler-shopping-cart text-6xl text-textSecondary mb-4' />
                             <Typography variant='h6' color='text.secondary' className='mb-2'>
@@ -338,7 +345,62 @@ const OrderListTable = () => {
                                 </table>
                             </div>
 
-                            <TablePaginationComponent table={table} />
+                            <TablePagination
+                                component={() => (
+                                    <div className='flex justify-between items-center flex-wrap pli-6 border-bs bs-auto plb-[12.5px] gap-2'>
+                                        <Typography color='text.disabled'>
+                                            {pagination ? (
+                                                `Mostrando ${
+                                                    pagination.total === 0
+                                                        ? 0
+                                                        : (currentPage - 1) * pageSize + 1
+                                                } a ${Math.min(currentPage * pageSize, pagination.total)} de ${pagination.total} registros`
+                                            ) : (
+                                                `Mostrando ${data.length} registros`
+                                            )}
+                                        </Typography>
+                                        <div className='flex items-center gap-2'>
+                                            <CustomTextField
+                                                select
+                                                size='small'
+                                                value={pageSize}
+                                                onChange={(e) => {
+                                                    const newPageSize = Number(e.target.value)
+                                                    setPageSize(newPageSize)
+                                                    setCurrentPage(1)
+                                                }}
+                                                sx={{ minWidth: 80 }}
+                                            >
+                                                <MenuItem value={10}>10</MenuItem>
+                                                <MenuItem value={25}>25</MenuItem>
+                                                <MenuItem value={50}>50</MenuItem>
+                                                <MenuItem value={100}>100</MenuItem>
+                                            </CustomTextField>
+                                            {pagination && (
+                                                <Pagination
+                                                    shape='rounded'
+                                                    color='primary'
+                                                    variant='tonal'
+                                                    count={pagination.totalPages}
+                                                    page={currentPage}
+                                                    onChange={(_: any, page: number) => setCurrentPage(page)}
+                                                    showFirstButton
+                                                    showLastButton
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                count={pagination?.total || data.length}
+                                rowsPerPage={pageSize}
+                                page={currentPage - 1}
+                                onPageChange={(_, page) => setCurrentPage(page + 1)}
+                                onRowsPerPageChange={(e) => {
+                                    const newPageSize = Number(e.target.value)
+                                    setPageSize(newPageSize)
+                                    setCurrentPage(1)
+                                }}
+                            />
                         </>
                     )}
                 </CardContent>

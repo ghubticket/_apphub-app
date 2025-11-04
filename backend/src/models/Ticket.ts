@@ -41,7 +41,8 @@ const ticketSchema = new Schema<ITicket>(
         },
         qrCode: {
             type: String,
-            required: [true, 'QR Code é obrigatório'],
+            required: false, // QR Code só é gerado após pagamento (não obrigatório para pedidos pendentes)
+            default: '',
             trim: true,
         },
         event: {

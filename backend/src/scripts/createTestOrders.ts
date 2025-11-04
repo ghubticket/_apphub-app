@@ -123,28 +123,42 @@ const createTestOrders = async () => {
             console.log(`✅ Tipo Normal encontrado: ${ticketTypeNormal.name}`);
         }
 
-        // 3. Buscar usuários clientes
-        console.log('\n👤 Buscando usuários clientes...');
-        const clients = await User.find({ 
-            role: 'CLIENTE', 
+        // 3. Buscar TODOS os usuários cadastrados (CLIENTE, QRCODE, ADMIN)
+        console.log('\n👤 Buscando usuários cadastrados no sistema...');
+        const allUsers = await User.find({ 
             deletedAt: null,
             isActive: true 
-        }).limit(5);
+        });
 
-        if (clients.length === 0) {
-            throw new Error('Nenhum usuário CLIENTE encontrado. Execute o script de criação de usuários primeiro.');
+        if (allUsers.length === 0) {
+            throw new Error('Nenhum usuário encontrado. Execute o script de criação de usuários primeiro.');
         }
 
-        console.log(`✅ Encontrados ${clients.length} clientes`);
+        // Filtrar apenas usuários CLIENTE (ou usar todos se quiser)
+        const clients = allUsers.filter(u => u.role === 'CLIENTE');
+        
+        if (clients.length === 0) {
+            console.log('⚠️  Nenhum usuário CLIENTE encontrado. Usando todos os usuários cadastrados...');
+            // Se não houver clientes, usar todos os usuários (exceto ADMIN se preferir)
+            const usersToUse = allUsers.filter(u => u.role !== 'ADMIN');
+            if (usersToUse.length === 0) {
+                throw new Error('Nenhum usuário disponível para criar pedidos.');
+            }
+            console.log(`✅ Usando ${usersToUse.length} usuário(s) cadastrado(s) para criar pedidos`);
+        } else {
+            console.log(`✅ Encontrados ${clients.length} cliente(s) cadastrado(s)`);
+        }
 
-        // 4. Criar pedidos de teste
-        console.log('\n🛒 Criando pedidos de teste...\n');
+        const usersToCreateOrders = clients.length > 0 ? clients : allUsers.filter(u => u.role !== 'ADMIN');
+
+        // 4. Criar pedidos de teste para TODOS os usuários cadastrados
+        console.log(`\n🛒 Criando pedidos de teste para ${usersToCreateOrders.length} usuário(s)...\n`);
 
         const ordersCreated = [];
         
-        for (let i = 0; i < Math.min(5, clients.length); i++) {
-            const client = clients[i];
-            const quantity = i + 1; // 1, 2, 3, 4, 5 ingressos
+        for (let i = 0; i < usersToCreateOrders.length; i++) {
+            const client = usersToCreateOrders[i];
+            const quantity = Math.floor(Math.random() * 3) + 1; // 1, 2 ou 3 ingressos aleatórios
             const useVIP = i % 2 === 0; // Alterna entre VIP e normal
             const ticketType = useVIP ? ticketTypeVIP : ticketTypeNormal;
 
@@ -189,19 +203,16 @@ const createTestOrders = async () => {
             // Salvar - o pre-save hook verificará se o orderNumber já existe e gerará um novo se necessário
             await order.save();
 
-            // Criar tickets e gerar QR codes
+            // Criar tickets e gerar QR codes (APENAS para pedidos pagos/VIP)
             const createdTickets = [];
             for (let j = 0; j < quantity; j++) {
-                // Gerar um código temporário válido (12 caracteres)
+                // Gerar código temporário válido (12 caracteres)
                 // O pre-save hook verificará se já existe e gerará um novo se necessário
                 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
                 let tempCode = '';
                 for (let k = 0; k < 12; k++) {
                     tempCode += chars.charAt(Math.floor(Math.random() * chars.length));
                 }
-
-                // Gerar QR code temporário com o código temporário
-                const tempQRCode = await generateQRCode(tempCode);
 
                 const ticket = new Ticket({
                     event: event._id,
@@ -211,17 +222,17 @@ const createTestOrders = async () => {
                     price: ticketPrice,
                     status: ticketStatus,
                     code: tempCode, // Código temporário válido, será substituído pelo hook se já existir
-                    qrCode: tempQRCode, // QR code temporário, será atualizado após o hook gerar o código real
+                    qrCode: '', // Será preenchido APENAS se o pedido estiver pago/VIP
                     isActive: true
                 });
 
                 // Salvar - o pre-save hook verificará se o código já existe e gerará um novo se necessário
                 await ticket.save();
 
-                // Se o hook gerou um novo código, atualizar o QR code com o código real
-                if (ticket.code !== tempCode) {
-                    const realQRCode = await generateQRCode(ticket.code);
-                    ticket.qrCode = realQRCode;
+                // ⚠️ SEGURANÇA: Gerar QR Code APENAS se o pedido estiver PAID ou for VIP
+                if (orderStatus === 'paid' || isVIP) {
+                    const qrCode = await generateQRCode(ticket.code);
+                    ticket.qrCode = qrCode;
                     await ticket.save();
                 }
 

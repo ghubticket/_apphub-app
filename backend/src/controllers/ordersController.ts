@@ -152,16 +152,23 @@ export const createOrder = async (req: Request, res: Response) => {
                 holder: userId || null,
                 price: ticketPrice,
                 status: ticketStatus,
-                qrCode: '', // Será preenchido após gerar o código
+                qrCode: '', // Será preenchido APENAS se o pedido estiver pago/VIP
             });
 
             // Salvar para gerar o código único (pre-save hook)
             await ticket.save();
 
-            // Gerar QR Code com o código real do ticket
-            const qrCode = await generateQRCode(ticket.code);
-            ticket.qrCode = qrCode;
-            await ticket.save();
+            // ⚠️ SEGURANÇA: Gerar QR Code APENAS se o pedido estiver PAID ou for VIP
+            // QR codes só devem ser gerados para ingressos confirmados (pedidos pagos)
+            if (orderStatus === 'paid' || isVIP) {
+                const qrCode = await generateQRCode(ticket.code);
+                ticket.qrCode = qrCode;
+                await ticket.save();
+            } else {
+                // Para pedidos pendentes, deixar qrCode vazio
+                ticket.qrCode = '';
+                await ticket.save();
+            }
 
             createdTickets.push(ticket);
         }
@@ -202,11 +209,12 @@ export const createOrder = async (req: Request, res: Response) => {
 };
 
 /**
- * Lista pedidos do usuário autenticado
+ * Lista pedidos do usuário autenticado com paginação
  */
 export const listMyOrders = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
+        const user = (req as any).user;
+        const userId = user?._id?.toString() || user?.id;
 
         if (!userId) {
             return res.status(401).json({
@@ -215,18 +223,61 @@ export const listMyOrders = async (req: Request, res: Response) => {
             });
         }
 
-        const orders = await Order.find({ 
+        const { page = 1, limit = 10, search = '' } = req.query;
+
+        // Construir filtros
+        const filters: any = { 
             customer: userId,
             deletedAt: null 
-        })
+        };
+
+        if (search) {
+            filters.$or = [
+                { orderNumber: { $regex: search, $options: 'i' } },
+                { 'customerData.name': { $regex: search, $options: 'i' } },
+                { 'customerData.email': { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Calcular paginação
+        const skip = (Number(page) - 1) * Number(limit);
+
+        // Buscar pedidos com paginação
+        const orders = await Order.find(filters)
             .populate('event', 'name date location coverImage')
-            .populate('tickets', 'code status price')
+            .populate({
+                path: 'tickets',
+                select: 'code qrCode status price',
+                match: { deletedAt: null }
+            })
             .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(Number(limit))
             .lean();
+
+        // Contar total de pedidos
+        const total = await Order.countDocuments(filters);
+
+        // Remover QR codes de pedidos pendentes (segurança)
+        const ordersWithFilteredQR = orders.map(order => ({
+            ...order,
+            tickets: order.tickets.map((ticket: any) => ({
+                ...ticket,
+                qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
+            }))
+        }));
 
         res.json({
             success: true,
-            data: orders
+            data: {
+                orders: ordersWithFilteredQR,
+                pagination: {
+                    page: Number(page),
+                    limit: Number(limit),
+                    total,
+                    totalPages: Math.ceil(total / Number(limit))
+                }
+            }
         });
 
     } catch (error: any) {
@@ -240,22 +291,63 @@ export const listMyOrders = async (req: Request, res: Response) => {
 };
 
 /**
- * Lista TODOS os pedidos (apenas ADMIN)
+ * Lista TODOS os pedidos (apenas ADMIN) com paginação
  */
 export const listAllOrders = async (req: Request, res: Response) => {
     try {
-        const orders = await Order.find({ 
-            deletedAt: null 
-        })
+        const { page = 1, limit = 10, search = '' } = req.query;
+
+        // Construir filtros
+        const filters: any = { deletedAt: null };
+
+        if (search) {
+            filters.$or = [
+                { orderNumber: { $regex: search, $options: 'i' } },
+                { 'customerData.name': { $regex: search, $options: 'i' } },
+                { 'customerData.email': { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Calcular paginação
+        const skip = (Number(page) - 1) * Number(limit);
+
+        // Buscar pedidos com paginação
+        const orders = await Order.find(filters)
             .populate('event', 'name date location coverImage')
-            .populate('tickets', 'code qrCode status price ticketType')
+            .populate({
+                path: 'tickets',
+                select: 'code qrCode status price ticketType',
+                match: { deletedAt: null }
+            })
             .populate('customer', 'name email')
             .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(Number(limit))
             .lean();
+
+        // Contar total de pedidos
+        const total = await Order.countDocuments(filters);
+
+        // Remover QR codes de pedidos pendentes (segurança)
+        const ordersWithFilteredQR = orders.map(order => ({
+            ...order,
+            tickets: order.tickets.map((ticket: any) => ({
+                ...ticket,
+                qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
+            }))
+        }));
 
         res.json({
             success: true,
-            data: orders
+            data: {
+                orders: ordersWithFilteredQR,
+                pagination: {
+                    page: Number(page),
+                    limit: Number(limit),
+                    total,
+                    totalPages: Math.ceil(total / Number(limit))
+                }
+            }
         });
 
     } catch (error: any) {
@@ -281,7 +373,11 @@ export const getOrderById = async (req: Request, res: Response) => {
             deletedAt: null 
         })
             .populate('event', 'name date location coverImage squareImage')
-            .populate('tickets', 'code qrCode status price ticketType')
+            .populate({
+                path: 'tickets',
+                select: 'code qrCode status price ticketType',
+                match: { deletedAt: null }
+            })
             .populate('customer', 'name email')
             .lean();
 
@@ -303,9 +399,18 @@ export const getOrderById = async (req: Request, res: Response) => {
             });
         }
 
+        // Remover QR codes de pedidos pendentes (segurança)
+        const orderWithFilteredQR = {
+            ...order,
+            tickets: order.tickets.map((ticket: any) => ({
+                ...ticket,
+                qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
+            }))
+        };
+
         res.json({
             success: true,
-            data: order
+            data: orderWithFilteredQR
         });
 
     } catch (error: any) {
@@ -313,6 +418,95 @@ export const getOrderById = async (req: Request, res: Response) => {
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar pedido',
+            errors: [error.message || 'Erro desconhecido']
+        });
+    }
+};
+
+/**
+ * Confirma pagamento de um pedido e gera QR codes para os ingressos
+ * Este endpoint será chamado após confirmação de pagamento do gateway
+ */
+export const confirmPayment = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { paymentId, paymentStatus } = req.body;
+
+        // Buscar pedido
+        const order = await Order.findOne({ 
+            _id: id,
+            deletedAt: null 
+        });
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Pedido não encontrado'
+            });
+        }
+
+        // Verificar se o pedido já está pago
+        if (order.status === 'paid') {
+            return res.status(400).json({
+                success: false,
+                message: 'Pedido já está pago'
+            });
+        }
+
+        // Verificar se o pedido está pendente
+        if (order.status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'Pedido não pode ser confirmado',
+                errors: [`Status atual: ${order.status}. Apenas pedidos pendentes podem ser confirmados.`]
+            });
+        }
+
+        // Atualizar status do pedido para pago
+        order.status = 'paid';
+        order.paidAt = new Date();
+        if (paymentId) order.paymentId = paymentId;
+        if (paymentStatus) order.paymentStatus = paymentStatus;
+        await order.save();
+
+        // Buscar todos os tickets do pedido
+        const tickets = await Ticket.find({ 
+            order: order._id,
+            deletedAt: null 
+        });
+
+        // Gerar QR codes para todos os tickets pendentes
+        for (const ticket of tickets) {
+            if (ticket.status === 'pending' && !ticket.qrCode) {
+                // Atualizar status do ticket para confirmado
+                ticket.status = 'confirmed';
+                
+                // Gerar QR Code
+                const qrCode = await generateQRCode(ticket.code);
+                ticket.qrCode = qrCode;
+                
+                await ticket.save();
+            }
+        }
+
+        // Popular dados para resposta
+        const populatedOrder = await Order.findById(order._id)
+            .populate('event', 'name date location coverImage')
+            .populate('tickets', 'code qrCode status price ticketType')
+            .populate('customer', 'name email')
+            .lean();
+
+        res.json({
+            success: true,
+            message: 'Pagamento confirmado e QR codes gerados com sucesso',
+            data: populatedOrder
+        });
+
+    } catch (error: any) {
+        console.error('Erro ao confirmar pagamento:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao confirmar pagamento',
             errors: [error.message || 'Erro desconhecido']
         });
     }

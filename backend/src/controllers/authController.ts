@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { User, IUser } from '../models';
+import { User, IUser, Order } from '../models';
 import Session from '../models/Session';
 import mongoose from 'mongoose';
 
@@ -618,6 +618,58 @@ export const getSessionStats = async (req: Request, res: Response) => {
 /**
  * Controller para listar todos os usuários (apenas ADMIN)
  */
+/**
+ * Controller para obter usuário por ID com seus pedidos
+ */
+export const getUserById = async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+
+        // Buscar usuário
+        const user = await User.findOne({ 
+            _id: userId,
+            deletedAt: null 
+        }).select('-password').lean();
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        // Buscar pedidos do usuário (sem QR codes - apenas visualização)
+        const orders = await Order.find({ 
+            customer: userId,
+            deletedAt: null 
+        })
+            .populate('event', 'name date location coverImage')
+            .populate({
+                path: 'tickets',
+                select: 'code status price ticketType', // Não incluir qrCode
+                match: { deletedAt: null }
+            })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        res.json({
+            success: true,
+            data: {
+                user,
+                orders
+            }
+        });
+
+    } catch (error: any) {
+        console.error('Erro ao buscar usuário:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar usuário',
+            errors: [error.message || 'Erro desconhecido']
+        });
+    }
+};
+
 export const getAllUsers = async (req: Request, res: Response) => {
     try {
         const { page = 1, limit = 10, search = '', role = '', status = '' } = req.query;
@@ -636,9 +688,12 @@ export const getAllUsers = async (req: Request, res: Response) => {
             filters.role = role;
         }
         
-        if (status !== '') {
+        if (status !== '' && status !== 'all') {
             filters.isActive = status === 'true';
         }
+
+        // Adicionar filtro para não retornar usuários deletados
+        filters.deletedAt = null;
 
         // Calcular paginação
         const skip = (Number(page) - 1) * Number(limit);
@@ -661,7 +716,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
                     page: Number(page),
                     limit: Number(limit),
                     total,
-                    pages: Math.ceil(total / Number(limit))
+                    totalPages: Math.ceil(total / Number(limit))
                 }
             }
         });

@@ -40,7 +40,15 @@ export interface OrderItem {
 
 export interface OrderListResponse {
     success: boolean;
-    data: OrderItem[];
+    data: OrderItem[] | {
+        orders: OrderItem[];
+        pagination?: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+        };
+    };
 }
 
 export interface OrderDetailResponse {
@@ -54,16 +62,10 @@ const getAuthToken = async (): Promise<string | null> => {
         const res = await fetch('/api/auth/session');
         if (res.ok) {
             const session = await res.json();
-            const token = session?.accessToken || null;
-            if (!token) {
-                console.warn('⚠️ Token não encontrado na sessão');
-            }
-            return token;
-        } else {
-            console.warn('⚠️ Erro ao buscar sessão:', res.status, res.statusText);
+            return session?.accessToken || null;
         }
     } catch (e) {
-        console.error('❌ Erro ao obter token:', e);
+        console.error('Erro ao obter token:', e);
     }
     return null;
 };
@@ -72,12 +74,10 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
     const token = await getAuthToken();
     
     if (!token) {
-        console.error('❌ Token não disponível');
         throw new Error('Token de acesso não fornecido. Por favor, faça login novamente.');
     }
 
     const fullUrl = `${API_BASE_URL}${url}`;
-    console.log(`📡 Fazendo requisição para: ${fullUrl}`);
 
     try {
         const response = await fetch(fullUrl, {
@@ -89,19 +89,14 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
             },
         });
 
-        console.log(`📥 Resposta recebida: ${response.status} ${response.statusText}`);
-
         if (!response.ok) {
             const error = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
-            console.error('❌ Erro na resposta:', error);
             throw new Error(error.message || `Erro ${response.status}: ${response.statusText}`);
         }
 
         const data = await response.json();
-        console.log('✅ Dados recebidos:', data);
         return data;
     } catch (error: any) {
-        console.error('❌ Erro na requisição:', error);
         // Se for erro de rede (Failed to fetch)
         if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
             throw new Error(`Erro de conexão: Não foi possível conectar ao servidor em ${API_BASE_URL}. Verifique se o backend está rodando.`);
@@ -111,8 +106,20 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
 };
 
 export const orderService = {
-    async list(): Promise<OrderListResponse> {
-        return authenticatedRequest('/orders');
+    async list(params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+    }): Promise<OrderListResponse & { pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
+        const searchParams = new URLSearchParams();
+        if (params?.page) searchParams.append('page', params.page.toString());
+        if (params?.limit) searchParams.append('limit', params.limit.toString());
+        if (params?.search) searchParams.append('search', params.search);
+
+        const queryString = searchParams.toString();
+        const url = `/orders${queryString ? `?${queryString}` : ''}`;
+        
+        return authenticatedRequest(url);
     },
 
     async getById(id: string): Promise<OrderDetailResponse> {

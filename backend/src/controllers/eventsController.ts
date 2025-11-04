@@ -60,21 +60,35 @@ export const createEvent = async (req: Request, res: Response) => {
 export const listEvents = async (req: Request, res: Response) => {
     try {
         const { page = 1, limit = 10, search = '' } = req.query
-        const filters: any = {}
+        const filters: any = { deletedAt: null } // Filtrar apenas eventos não deletados
+        
         if (search) {
-            filters.$text = { $search: String(search) }
+            filters.$or = [
+                { name: { $regex: String(search), $options: 'i' } },
+                { location: { $regex: String(search), $options: 'i' } },
+                { city: { $regex: String(search), $options: 'i' } }
+            ]
         }
 
         const skip = (Number(page) - 1) * Number(limit)
-        // Filtrar apenas eventos não deletados
-        filters.deletedAt = null;
         
         const [events, total] = await Promise.all([
             Event.find(filters).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
             Event.countDocuments(filters)
         ])
 
-        res.json({ success: true, data: { events, pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / Number(limit)) } } })
+        res.json({ 
+            success: true, 
+            data: { 
+                events, 
+                pagination: { 
+                    page: Number(page), 
+                    limit: Number(limit), 
+                    total, 
+                    totalPages: Math.ceil(total / Number(limit)) 
+                } 
+            } 
+        })
     } catch (error: any) {
         res.status(500).json({ success: false, message: 'Erro ao listar eventos', errors: [error.message] })
     }

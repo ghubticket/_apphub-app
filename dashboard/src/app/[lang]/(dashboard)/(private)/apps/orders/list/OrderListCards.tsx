@@ -32,7 +32,13 @@ const calculatePercentageChange = (current: number, previous: number): number =>
 }
 
 const OrderListCards = () => {
-    const { orders, loading } = useOrders()
+    // Buscar TODOS os pedidos para calcular estatísticas (sem paginação)
+    // Usar um limite muito alto para garantir que todos os pedidos sejam buscados
+    const { orders, loading } = useOrders({
+        page: 1,
+        limit: 99999, // Limite muito alto para buscar todos os pedidos
+        search: undefined
+    })
     const theme = useTheme()
 
     // Calcular estatísticas da última semana
@@ -46,8 +52,14 @@ const OrderListCards = () => {
                 totalRevenue: 0,
                 totalRevenueLastWeek: 0,
                 totalTickets: 0,
+                pendingOrders: 0,
+                pendingOrdersLastWeek: 0,
+                cancelledOrders: 0,
+                cancelledOrdersLastWeek: 0,
                 ordersByDay: Array(7).fill(0),
                 revenueByDay: Array(7).fill(0),
+                pendingByDay: Array(7).fill(0),
+                cancelledByDay: Array(7).fill(0),
             }
         }
 
@@ -119,8 +131,50 @@ const OrderListCards = () => {
             .filter(o => o.status === 'paid')
             .reduce((sum, o) => sum + o.totalAmount, 0)
 
-        // Total de ingressos vendidos
-        const totalTickets = ordersLastWeek.reduce((sum, o) => sum + (o.totalTickets || 0), 0)
+        // Total de ingressos vendidos (APENAS CONFIRMADOS - de pedidos pagos)
+        const totalTickets = ordersLastWeek
+            .filter(o => o.status === 'paid')
+            .reduce((sum, o) => sum + (o.totalTickets || 0), 0)
+
+        // Pedidos pendentes
+        const pendingOrders = ordersLastWeek.filter(o => o.status === 'pending').length
+        const pendingOrdersLastWeek = ordersPreviousWeek.filter(o => o.status === 'pending').length
+
+        // Pedidos cancelados
+        const cancelledOrders = ordersLastWeek.filter(o => o.status === 'cancelled').length
+        const cancelledOrdersLastWeek = ordersPreviousWeek.filter(o => o.status === 'cancelled').length
+
+        // Calcular pedidos pendentes por dia
+        const pendingByDay = Array(7).fill(0)
+        for (let i = 0; i < 7; i++) {
+            const targetDate = new Date(lastWeek)
+            targetDate.setDate(targetDate.getDate() + i)
+            const dayStart = new Date(targetDate)
+            dayStart.setHours(0, 0, 0, 0)
+            const dayEnd = new Date(targetDate)
+            dayEnd.setHours(23, 59, 59, 999)
+            
+            pendingByDay[i] = ordersLastWeek.filter(order => {
+                const orderDate = new Date(order.createdAt)
+                return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'pending'
+            }).length
+        }
+
+        // Calcular pedidos cancelados por dia
+        const cancelledByDay = Array(7).fill(0)
+        for (let i = 0; i < 7; i++) {
+            const targetDate = new Date(lastWeek)
+            targetDate.setDate(targetDate.getDate() + i)
+            const dayStart = new Date(targetDate)
+            dayStart.setHours(0, 0, 0, 0)
+            const dayEnd = new Date(targetDate)
+            dayEnd.setHours(23, 59, 59, 999)
+            
+            cancelledByDay[i] = ordersLastWeek.filter(order => {
+                const orderDate = new Date(order.createdAt)
+                return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'cancelled'
+            }).length
+        }
 
         return {
             totalOrders,
@@ -130,8 +184,14 @@ const OrderListCards = () => {
             totalRevenue,
             totalRevenueLastWeek,
             totalTickets,
+            pendingOrders,
+            pendingOrdersLastWeek,
+            cancelledOrders,
+            cancelledOrdersLastWeek,
             ordersByDay,
             revenueByDay,
+            pendingByDay,
+            cancelledByDay,
         }
     }, [orders])
 
@@ -176,6 +236,21 @@ const OrderListCards = () => {
     }
 
     const orderChartSeries = [{ data: stats.ordersByDay }]
+    const salesChartSeries = [{ data: stats.revenueByDay }]
+    const pendingChartSeries = [{ data: stats.pendingByDay }]
+    const cancelledChartSeries = [{ data: stats.cancelledByDay }]
+
+    // Configurações do gráfico de barras (Pendentes) - laranja/amarelo
+    const pendingChartOptions: ApexOptions = {
+        ...orderChartOptions,
+        colors: ['var(--mui-palette-warning-main)'],
+    }
+
+    // Configurações do gráfico de barras (Cancelados) - vermelho
+    const cancelledChartOptions: ApexOptions = {
+        ...orderChartOptions,
+        colors: ['var(--mui-palette-error-main)'],
+    }
 
     // Configurações do gráfico de área (Sales)
     const salesChartOptions: ApexOptions = {
@@ -233,17 +308,17 @@ const OrderListCards = () => {
         yaxis: { show: false }
     }
 
-    const salesChartSeries = [{ data: stats.revenueByDay }]
-
     // Calcular porcentagens
     const ordersPercentage = calculatePercentageChange(stats.totalOrders, stats.totalOrdersLastWeek)
     const revenuePercentage = calculatePercentageChange(stats.totalRevenue, stats.totalRevenueLastWeek)
+    const pendingPercentage = calculatePercentageChange(stats.pendingOrders, stats.pendingOrdersLastWeek)
+    const cancelledPercentage = calculatePercentageChange(stats.cancelledOrders, stats.cancelledOrdersLastWeek)
 
     if (loading) {
         return (
             <Grid container spacing={4}>
-                {[1, 2, 3, 4].map((item) => (
-                    <Grid key={item} size={{ xs: 12, sm: 6, lg: 3 }}>
+                {[1, 2, 3, 4, 5].map((item) => (
+                    <Grid key={item} size={{ xs: 12, sm: 6, lg: 2 }}>
                         <Card>
                             <CardContent>
                                 <div className='flex items-center gap-4'>
@@ -263,7 +338,7 @@ const OrderListCards = () => {
     return (
         <Grid container spacing={4}>
             {/* Card 1: Order - Quantidade de Pedidos Realizados */}
-            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardHeader title='Pedidos' subheader='Última Semana' className='pbe-0' />
                     <CardContent className='flex flex-col flex-1'>
@@ -290,7 +365,7 @@ const OrderListCards = () => {
             </Grid>
 
             {/* Card 2: Total Sales - Pedidos Confirmados e Total em Reais */}
-            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardHeader title='Vendas Totais' subheader='Última Semana' className='pbe-0' />
                     <AppReactApexCharts 
@@ -319,8 +394,62 @@ const OrderListCards = () => {
                 </Card>
             </Grid>
 
+            {/* Card 4: Pedidos Pendentes */}
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardHeader title='Pedidos Pendentes' subheader='Última Semana' className='pbe-0' />
+                    <CardContent className='flex flex-col flex-1'>
+                        <AppReactApexCharts 
+                            type='bar' 
+                            height={84} 
+                            width='100%' 
+                            options={pendingChartOptions} 
+                            series={pendingChartSeries} 
+                        />
+                        <div className='flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5 mt-2'>
+                            <Typography variant='h4' color='text.primary'>
+                                {stats.pendingOrders}
+                            </Typography>
+                            <Typography 
+                                variant='body2' 
+                                color={pendingPercentage >= 0 ? 'warning.main' : 'success.main'}
+                            >
+                                {pendingPercentage >= 0 ? '+' : ''}{pendingPercentage.toFixed(1)}%
+                            </Typography>
+                        </div>
+                    </CardContent>
+                </Card>
+            </Grid>
+
+            {/* Card 5: Pedidos Cancelados */}
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardHeader title='Pedidos Cancelados' subheader='Última Semana' className='pbe-0' />
+                    <CardContent className='flex flex-col flex-1'>
+                        <AppReactApexCharts 
+                            type='bar' 
+                            height={84} 
+                            width='100%' 
+                            options={cancelledChartOptions} 
+                            series={cancelledChartSeries} 
+                        />
+                        <div className='flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5 mt-2'>
+                            <Typography variant='h4' color='text.primary'>
+                                {stats.cancelledOrders}
+                            </Typography>
+                            <Typography 
+                                variant='body2' 
+                                color={cancelledPercentage >= 0 ? 'error.main' : 'success.main'}
+                            >
+                                {cancelledPercentage >= 0 ? '+' : ''}{cancelledPercentage.toFixed(1)}%
+                            </Typography>
+                        </div>
+                    </CardContent>
+                </Card>
+            </Grid>
+
             {/* Card 3: Ingressos Vendidos - Com ícone */}
-            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardContent className='flex flex-col gap-y-3 items-start flex-1'>
                         <CustomAvatar variant='rounded' skin='light' size={44} color='info'>

@@ -10,16 +10,16 @@ import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
-import TablePagination from '@mui/material/TablePagination'
 
-import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table'
+import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, useReactTable } from '@tanstack/react-table'
 import type { ColumnDef, FilterFn } from '@tanstack/react-table'
 import { rankItem } from '@tanstack/match-sorter-utils'
 import type { RankingInfo } from '@tanstack/match-sorter-utils'
 
 import CustomTextField from '@core/components/mui/TextField'
 import CustomAvatar from '@core/components/mui/Avatar'
-import TablePaginationComponent from '@components/TablePaginationComponent'
+import TablePagination from '@mui/material/TablePagination'
+import Pagination from '@mui/material/Pagination'
 import OptionMenu from '@core/components/option-menu'
 import Switch from '@mui/material/Switch'
 
@@ -47,15 +47,25 @@ const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
 const EventListTable = () => {
     const [data, setData] = useState<any[]>([])
     const [globalFilter, setGlobalFilter] = useState('')
+    const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
 
     const router = useRouter()
     const { lang } = useParams()
-    const { events, loading, error, updateEventStatus } = useEvents({ limit: 50 })
+    const { events, loading, error, pagination, updateEventStatus } = useEvents({ 
+        page: currentPage,
+        limit: pageSize,
+        search: globalFilter || undefined
+    })
 
     useEffect(() => {
         setData(events)
     }, [events])
+    
+    // Resetar página quando busca mudar
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [globalFilter])
 
     const columns = useMemo<ColumnDef<any, any>[]>(
         () => [
@@ -130,11 +140,18 @@ const EventListTable = () => {
     const table = useReactTable({
         data,
         columns,
-        state: { globalFilter },
+        state: { 
+            globalFilter,
+            pagination: {
+                pageIndex: currentPage - 1,
+                pageSize: pageSize
+            }
+        },
         onGlobalFilterChange: setGlobalFilter,
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        manualPagination: true, // Paginação controlada pelo backend
+        pageCount: pagination ? pagination.totalPages : 0,
         globalFilterFn: fuzzyFilter,
         filterFns: { fuzzy: fuzzyFilter }
     })
@@ -174,16 +191,6 @@ const EventListTable = () => {
                             '& .MuiOutlinedInput-root': { height: '60px', fontSize: '14px' }
                         }}
                     />
-                    <CustomTextField
-                        select
-                        value={pageSize}
-                        onChange={e => setPageSize(Number(e.target.value))}
-                        className='max-sm:is-full sm:is-[70px]'
-                    >
-                        <MenuItem value='10'>10</MenuItem>
-                        <MenuItem value='25'>25</MenuItem>
-                        <MenuItem value='50'>50</MenuItem>
-                    </CustomTextField>
                     <Button component={Link} href={`/${lang}/apps/events/create`} variant='contained' startIcon={<i className='tabler-plus' />}>Novo Evento</Button>
                 </div>
             </div>
@@ -209,26 +216,72 @@ const EventListTable = () => {
                         </tbody>
                     ) : (
                         <tbody>
-                            {table
-                                .getRowModel()
-                                .rows.slice(0, pageSize)
-                                .map(row => (
-                                    <tr key={row.id}>
-                                        {row.getVisibleCells().map(cell => (
-                                            <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                                        ))}
-                                    </tr>
-                                ))}
+                            {table.getRowModel().rows.map(row => (
+                                <tr key={row.id}>
+                                    {row.getVisibleCells().map(cell => (
+                                        <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                                    ))}
+                                </tr>
+                            ))}
                         </tbody>
                     )}
                 </table>
             </div>
             <TablePagination
-                component={() => <TablePaginationComponent table={table} />}
-                count={table.getFilteredRowModel().rows.length}
+                component={() => (
+                    <div className='flex justify-between items-center flex-wrap pli-6 border-bs bs-auto plb-[12.5px] gap-2'>
+                        <Typography color='text.disabled'>
+                            {pagination ? (
+                                `Mostrando ${
+                                    pagination.total === 0
+                                        ? 0
+                                        : (currentPage - 1) * pageSize + 1
+                                } a ${Math.min(currentPage * pageSize, pagination.total)} de ${pagination.total} registros`
+                            ) : (
+                                `Mostrando ${data.length} registros`
+                            )}
+                        </Typography>
+                        <div className='flex items-center gap-2'>
+                            <CustomTextField
+                                select
+                                size='small'
+                                value={pageSize}
+                                onChange={(e) => {
+                                    const newPageSize = Number(e.target.value)
+                                    setPageSize(newPageSize)
+                                    setCurrentPage(1)
+                                }}
+                                sx={{ minWidth: 80 }}
+                            >
+                                <MenuItem value={10}>10</MenuItem>
+                                <MenuItem value={25}>25</MenuItem>
+                                <MenuItem value={50}>50</MenuItem>
+                                <MenuItem value={100}>100</MenuItem>
+                            </CustomTextField>
+                            {pagination && (
+                                <Pagination
+                                    shape='rounded'
+                                    color='primary'
+                                    variant='tonal'
+                                    count={pagination.totalPages}
+                                    page={currentPage}
+                                    onChange={(_: any, page: number) => setCurrentPage(page)}
+                                    showFirstButton
+                                    showLastButton
+                                />
+                            )}
+                        </div>
+                    </div>
+                )}
+                count={pagination?.total || data.length}
                 rowsPerPage={pageSize}
-                page={table.getState().pagination.pageIndex}
-                onPageChange={(_, page) => table.setPageIndex(page)}
+                page={currentPage - 1}
+                onPageChange={(_, page) => setCurrentPage(page + 1)}
+                onRowsPerPageChange={(e) => {
+                    const newPageSize = Number(e.target.value)
+                    setPageSize(newPageSize)
+                    setCurrentPage(1)
+                }}
             />
         </Card>
     )

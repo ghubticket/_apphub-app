@@ -3,31 +3,71 @@ import { orderService, OrderItem } from '@/services/orderService';
 
 interface UseOrdersOptions {
     autoFetch?: boolean;
+    page?: number;
+    limit?: number;
+    search?: string;
 }
 
-export const useOrders = (options: UseOrdersOptions = { autoFetch: true }) => {
+interface UseOrdersReturn {
+    orders: OrderItem[];
+    loading: boolean;
+    error: string | null;
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    } | null;
+    fetchOrders: () => Promise<void>;
+    refetch: () => Promise<void>;
+}
+
+export const useOrders = (options: UseOrdersOptions = { autoFetch: true }): UseOrdersReturn => {
     const [orders, setOrders] = useState<OrderItem[]>([]);
-    const [loading, setLoading] = useState<boolean>(options.autoFetch || false);
+    const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [pagination, setPagination] = useState<UseOrdersReturn['pagination']>(null);
 
     const fetchOrders = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
-            const response = await orderService.list();
-            console.log('✅ Pedidos carregados:', response);
-            setOrders(response.data || []);
+            const response = await orderService.list({
+                page: options.page,
+                limit: options.limit,
+                search: options.search
+            });
+            
+            // Verificar se a resposta tem estrutura paginada ou array direto
+            let ordersToSet: OrderItem[] = [];
+            let paginationToSet = null;
+            
+            if (Array.isArray(response.data)) {
+                // Estrutura antiga (array direto) - manter compatibilidade
+                ordersToSet = response.data;
+            } else if (response.data && typeof response.data === 'object' && response.data.orders) {
+                // Estrutura nova (paginada) - { orders: [], pagination: {} }
+                ordersToSet = Array.isArray(response.data.orders) ? response.data.orders : [];
+                paginationToSet = response.data.pagination || null;
+            }
+            
+            console.log('🔄 setOrders será chamado com:', ordersToSet.length, 'pedidos');
+            console.log('🔄 Primeiro pedido:', ordersToSet[0]);
+            setOrders(ordersToSet);
+            setPagination(paginationToSet);
+            console.log('✅ setOrders e setPagination chamados');
         } catch (err: any) {
-            console.error('❌ Erro ao carregar pedidos:', err);
+            console.error('Erro ao carregar pedidos:', err);
             setError(err.message || 'Erro ao carregar pedidos');
             setOrders([]);
+            setPagination(null);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [options.page, options.limit, options.search]);
 
     useEffect(() => {
-        if (options.autoFetch) {
+        if (options.autoFetch !== false) {
             fetchOrders();
         }
     }, [options.autoFetch, fetchOrders]);
@@ -36,6 +76,7 @@ export const useOrders = (options: UseOrdersOptions = { autoFetch: true }) => {
         orders,
         loading,
         error,
+        pagination,
         fetchOrders,
         refetch: fetchOrders,
     };

@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react'
 
 // Next Imports
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 // MUI Imports
 import Card from '@mui/material/Card'
@@ -17,6 +17,7 @@ import Checkbox from '@mui/material/Checkbox'
 import IconButton from '@mui/material/IconButton'
 import { styled } from '@mui/material/styles'
 import TablePagination from '@mui/material/TablePagination'
+import Pagination from '@mui/material/Pagination'
 import type { TextFieldProps } from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import Switch from '@mui/material/Switch'
@@ -142,19 +143,30 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
 
     // Hooks
     const { lang: locale } = useParams()
+    const router = useRouter()
+    const [currentPage, setCurrentPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
+    
     const { users, loading, error, pagination, updateUserStatus } = useUsers({
-        limit: 10,
+        page: currentPage,
+        limit: pageSize,
         role: roleFilter === 'all' ? undefined : roleFilter as UserRole,
-        status: statusFilter === 'all' ? undefined : statusFilter === 'true'
+        status: statusFilter === 'all' ? undefined : statusFilter === 'true',
+        search: globalFilter || undefined
     })
 
-    // Update data when users change
+    // Update data when users change (sem filtros locais - busca no backend)
     useEffect(() => {
         if (users) {
             setData(users)
-            setFilteredData(users)
+            setFilteredData(users) // Sem filtros locais, apenas para display
         }
     }, [users])
+    
+    // Resetar página quando filtros mudarem
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [roleFilter, statusFilter, globalFilter])
 
     const columns = useMemo<ColumnDef<any, any>[]>(
         () => [
@@ -257,24 +269,10 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                             iconButtonProps={{ size: 'small' }}
                             options={[
                                 {
-                                    text: 'View',
+                                    text: 'Visualizar',
                                     icon: 'tabler-eye',
                                     menuItemProps: {
-                                        onClick: () => console.log('View user')
-                                    }
-                                },
-                                {
-                                    text: 'Edit',
-                                    icon: 'tabler-edit',
-                                    menuItemProps: {
-                                        onClick: () => console.log('Edit user')
-                                    }
-                                },
-                                {
-                                    text: 'Delete',
-                                    icon: 'tabler-trash',
-                                    menuItemProps: {
-                                        onClick: () => console.log('Delete user')
+                                        onClick: () => router.push(`/${locale}/apps/user/edit/${row.original._id}`)
                                     }
                                 }
                             ]}
@@ -291,19 +289,20 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
         columns,
         state: {
             rowSelection,
-            globalFilter
+            globalFilter,
+            pagination: {
+                pageIndex: currentPage - 1,
+                pageSize: pageSize
+            }
         },
         enableRowSelection: true,
         onRowSelectionChange: setRowSelection,
         getCoreRowModel: getCoreRowModel(),
         onGlobalFilterChange: setGlobalFilter,
         globalFilterFn: fuzzyFilter,
-        getFilteredRowModel: getFilteredRowModel(),
         getSortedRowModel: getSortedRowModel(),
-        getFacetedRowModel: getFacetedRowModel(),
-        getFacetedUniqueValues: getFacetedUniqueValues(),
-        getFacetedMinMaxValues: getFacetedMinMaxValues(),
-        getPaginationRowModel: getPaginationRowModel(),
+        manualPagination: true, // Paginação controlada pelo backend
+        pageCount: pagination ? pagination.totalPages : 0,
         filterFns: {
             fuzzy: fuzzyFilter
         }
@@ -445,29 +444,73 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                             </tbody>
                         ) : (
                             <tbody>
-                                {table
-                                    .getRowModel()
-                                    .rows.slice(0, table.getState().pagination.pageSize)
-                                    .map(row => {
-                                        return (
-                                            <tr key={row.id} className={classnames({ selected: row.getIsSelected() })}>
-                                                {row.getVisibleCells().map(cell => (
-                                                    <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                                                ))}
-                                            </tr>
-                                        )
-                                    })}
+                                {table.getRowModel().rows.map(row => {
+                                    return (
+                                        <tr key={row.id} className={classnames({ selected: row.getIsSelected() })}>
+                                            {row.getVisibleCells().map(cell => (
+                                                <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                                            ))}
+                                        </tr>
+                                    )
+                                })}
                             </tbody>
                         )}
                     </table>
                 </div>
                 <TablePagination
-                    component={() => <TablePaginationComponent table={table} />}
-                    count={table.getFilteredRowModel().rows.length}
-                    rowsPerPage={table.getState().pagination.pageSize}
-                    page={table.getState().pagination.pageIndex}
-                    onPageChange={(_, page) => {
-                        table.setPageIndex(page)
+                    component={() => (
+                        <div className='flex justify-between items-center flex-wrap pli-6 border-bs bs-auto plb-[12.5px] gap-2'>
+                            <Typography color='text.disabled'>
+                                {pagination ? (
+                                    `Mostrando ${
+                                        pagination.total === 0
+                                            ? 0
+                                            : (currentPage - 1) * pageSize + 1
+                                    } a ${Math.min(currentPage * pageSize, pagination.total)} de ${pagination.total} registros`
+                                ) : (
+                                    `Mostrando ${filteredData.length} registros`
+                                )}
+                            </Typography>
+                            <div className='flex items-center gap-2'>
+                                <CustomTextField
+                                    select
+                                    size='small'
+                                    value={pageSize}
+                                    onChange={(e) => {
+                                        const newPageSize = Number(e.target.value)
+                                        setPageSize(newPageSize)
+                                        setCurrentPage(1)
+                                    }}
+                                    sx={{ minWidth: 80 }}
+                                >
+                                    <MenuItem value={10}>10</MenuItem>
+                                    <MenuItem value={25}>25</MenuItem>
+                                    <MenuItem value={50}>50</MenuItem>
+                                    <MenuItem value={100}>100</MenuItem>
+                                </CustomTextField>
+                                {pagination && (
+                                    <Pagination
+                                        shape='rounded'
+                                        color='primary'
+                                        variant='tonal'
+                                        count={pagination.totalPages}
+                                        page={currentPage}
+                                        onChange={(_: any, page: number) => setCurrentPage(page)}
+                                        showFirstButton
+                                        showLastButton
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    count={pagination?.total || filteredData.length}
+                    rowsPerPage={pageSize}
+                    page={currentPage - 1}
+                    onPageChange={(_, page) => setCurrentPage(page + 1)}
+                    onRowsPerPageChange={(e) => {
+                        const newPageSize = Number(e.target.value)
+                        setPageSize(newPageSize)
+                        setCurrentPage(1)
                     }}
                 />
             </Card>

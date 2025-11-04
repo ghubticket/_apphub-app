@@ -180,5 +180,42 @@ export const userService = {
         }
     }> {
         return authenticatedRequest('/auth/stats')
+    },
+
+    // Obter usuário por ID com pedidos (apenas ADMIN)
+    async getUserById(userId: string): Promise<{
+        success: boolean
+        data: {
+            user: User
+            orders: Array<{
+                _id: string
+                orderNumber: string
+                event: {
+                    _id: string
+                    name: string
+                    date: string
+                    location: string
+                    coverImage?: string
+                } | string
+                tickets: Array<{
+                    _id: string
+                    code: string
+                    status: string
+                    price: number
+                    ticketType?: {
+                        _id: string
+                        name: string
+                    }
+                }>
+                totalAmount: number
+                totalTickets: number
+                status: 'pending' | 'paid' | 'cancelled' | 'refunded'
+                paymentMethod?: string
+                createdAt: string
+                updatedAt: string
+            }>
+        }
+    }> {
+        return authenticatedRequest(`/users/${userId}`)
     }
 }

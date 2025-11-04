@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate, isAdmin } from '../middleware/auth';
-import { getAllUsers, updateUserStatus } from '../controllers/authController';
+import { getAllUsers, updateUserStatus, getUserById } from '../controllers/authController';
 
 const router = Router();
 
@@ -54,6 +54,36 @@ const router = Router();
  *         description: Erro interno do servidor
  */
 router.get('/', authenticate, isAdmin, getAllUsers);
+
+/**
+ * @swagger
+ * /users/{userId}:
+ *   get:
+ *     summary: Buscar usuário por ID com seus pedidos
+ *     description: Retorna dados do usuário e lista de pedidos (apenas ADMIN)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do usuário
+ *     responses:
+ *       200:
+ *         description: Dados do usuário e pedidos retornados com sucesso
+ *       401:
+ *         description: Token inválido ou expirado
+ *       403:
+ *         description: Acesso negado - apenas ADMIN
+ *       404:
+ *         description: Usuário não encontrado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/:userId', authenticate, isAdmin, getUserById);
 
 /**
  * @swagger

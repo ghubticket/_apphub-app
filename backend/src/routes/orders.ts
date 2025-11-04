@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, listMyOrders, listAllOrders, getOrderById } from '../controllers/ordersController';
+import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment } from '../controllers/ordersController';
 import { authenticate, isAdmin } from '../middleware/auth';
 
 const router = express.Router();
@@ -106,6 +106,43 @@ router.get('/', authenticate, (req, res, next) => {
  *         description: Pedido não encontrado
  */
 router.get('/:id', authenticate, getOrderById);
+
+/**
+ * @swagger
+ * /api/orders/{id}/confirm-payment:
+ *   post:
+ *     summary: Confirmar pagamento de um pedido e gerar QR codes
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               paymentId:
+ *                 type: string
+ *               paymentStatus:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Pagamento confirmado e QR codes gerados
+ *       400:
+ *         description: Pedido já pago ou status inválido
+ *       401:
+ *         description: Não autenticado
+ *       404:
+ *         description: Pedido não encontrado
+ */
+router.post('/:id/confirm-payment', authenticate, confirmPayment);
 
 export default router;
 
