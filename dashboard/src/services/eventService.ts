@@ -12,6 +12,8 @@ export interface EventItem {
     coverImage?: string
     squareImage?: string
     isActive?: boolean
+    capacity?: number
+    soldTickets?: number
     createdAt: string
     updatedAt: string
 }

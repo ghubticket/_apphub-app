@@ -11,6 +11,8 @@ import { authenticateWithCookies } from './middleware/cookies';
 import authRoutes from './routes/auth'
 import usersRoutes from './routes/users'
 import eventsRoutes from './routes/events'
+import ticketTypesRoutes from './routes/ticketTypes'
+import reservationsRoutes from './routes/reservations'
 import healthRoutes from './routes/health'
 import deliveryRoutes from './routes/delivery';
 
@@ -89,6 +91,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 // Rotas de eventos
 app.use('/api/events', eventsRoutes);
+// Rotas de tipos de ingresso (nested em events e standalone)
+app.use('/api/events', ticketTypesRoutes);
+app.use('/api', ticketTypesRoutes);
+// Rotas de reservas temporárias
+app.use('/api/reservations', reservationsRoutes);
 
 // Rotas de health check
 app.use('/api/health', healthRoutes);

@@ -13,7 +13,7 @@ type FilesMap = { [field: string]: UploadedFileLite[] } | undefined
 
 export const createEvent = async (req: Request, res: Response) => {
     try {
-        const { name, description, date, time, location, address, city, state, price, capacity } = req.body
+        const { name, description, date, time, location, address, city, state, price, capacity, ticketFee } = req.body
 
         const filesMap = req.files as FilesMap
         const cover = filesMap?.cover?.[0]?.filename || null
@@ -43,6 +43,7 @@ export const createEvent = async (req: Request, res: Response) => {
             state,
             price: price ? Number(price) : 0,
             capacity: capacity ? Number(capacity) : 100,
+            ticketFee: ticketFee !== undefined ? Number(ticketFee) : 0,
             organizer: req.user?._id,
             coverImage: fileUrl(req, cover),
             squareImage: fileUrl(req, square)

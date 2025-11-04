@@ -13,6 +13,7 @@ export interface IEvent extends Document {
     price: number;
     capacity: number;
     soldTickets: number;
+    ticketFee: number; // Taxa do ingresso (configurável no evento)
     status: 'draft' | 'published' | 'cancelled' | 'finished';
     organizer: mongoose.Types.ObjectId; // Referência ao User
     image?: string;
@@ -103,6 +104,12 @@ const eventSchema = new Schema<IEvent>(
             type: Number,
             default: 0,
             min: [0, 'Ingressos vendidos não pode ser negativo'],
+        },
+        ticketFee: {
+            type: Number,
+            default: 0,
+            min: [0, 'Taxa do ingresso não pode ser negativa'],
+            max: [1000, 'Taxa do ingresso não pode ser maior que R$ 1.000'],
         },
         status: {
             type: String,

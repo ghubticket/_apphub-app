@@ -1,12 +1,15 @@
 import rateLimit from 'express-rate-limit';
 
+// Detectar ambiente (desenvolvimento se NODE_ENV não for 'production')
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 /**
  * Rate limiting para autenticação (login, register)
  * Mais restritivo para prevenir ataques de força bruta
  */
 export const authRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // máximo 100 tentativas por IP (desenvolvimento)
+    max: isDevelopment ? 1000 : 100, // máximo 1000 em dev, 100 em produção
     message: {
         success: false,
         message: 'Muitas tentativas de login. Tente novamente em 15 minutos.',
@@ -23,7 +26,7 @@ export const authRateLimit = rateLimit({
  */
 export const generalRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // máximo 100 requests por IP
+    max: isDevelopment ? 5000 : 100, // máximo 5000 em dev, 100 em produção
     message: {
         success: false,
         message: 'Muitas requisições. Tente novamente em 15 minutos.',
@@ -39,7 +42,7 @@ export const generalRateLimit = rateLimit({
  */
 export const refreshRateLimit = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutos
-    max: 10, // máximo 10 tentativas por IP
+    max: isDevelopment ? 500 : 10, // máximo 500 em dev, 10 em produção
     message: {
         success: false,
         message: 'Muitas tentativas de refresh. Tente novamente em 5 minutos.',
@@ -55,7 +58,7 @@ export const refreshRateLimit = rateLimit({
  */
 export const sensitiveRateLimit = rateLimit({
     windowMs: 60 * 1000, // 1 minuto
-    max: 10, // máximo 10 requests por IP
+    max: isDevelopment ? 1000 : 10, // máximo 1000 em dev, 10 em produção
     message: {
         success: false,
         message: 'Muitas requisições para endpoint sensível. Tente novamente em 1 minuto.',
