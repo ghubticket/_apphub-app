@@ -719,7 +719,7 @@ const EventViewPage = () => {
                                         startIcon={<i className='tabler-ticket' />}
                                         onClick={() => router.push(`/${lang}/apps/events/view/${id}/tickets/list`)}
                                     >
-                                        Cadastrar Ingressos/Tickets
+                                        Cadastrar Tickets
                                     </Button>
                                     <Button
                                         variant='outlined'

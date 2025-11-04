@@ -11,8 +11,11 @@ export const register = async (req: Request, res: Response) => {
     try {
         const { name, email, password, role, phone, cpf } = req.body;
 
-        // Verificar se o email já existe
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
+        // Verificar se o email já existe (apenas usuários não deletados)
+        const existingUser = await User.findOne({ 
+            email: email.toLowerCase(),
+            deletedAt: null,
+        });
         if (existingUser) {
             return res.status(409).json({
                 success: false,
@@ -96,8 +99,11 @@ export const login = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
 
-        // Buscar usuário por email (incluindo senha para comparação)
-        const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+        // Buscar usuário por email (incluindo senha para comparação, apenas não deletados)
+        const user = await User.findOne({ 
+            email: email.toLowerCase(),
+            deletedAt: null,
+        }).select('+password');
 
         if (!user) {
             return res.status(401).json({
@@ -357,7 +363,10 @@ export const updateProfile = async (req: Request, res: Response) => {
         const userId = req.user._id;
 
         // Buscar usuário
-        const user = await User.findById(userId);
+        const user = await User.findOne({ 
+            _id: userId,
+            deletedAt: null, // Não atualizar usuários deletados
+        });
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -413,7 +422,10 @@ export const changePassword = async (req: Request, res: Response) => {
         const userId = req.user._id;
 
         // Buscar usuário com senha
-        const user = await User.findById(userId).select('+password');
+        const user = await User.findOne({ 
+            _id: userId,
+            deletedAt: null, // Não atualizar usuários deletados
+        }).select('+password');
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -672,8 +684,11 @@ export const updateUserStatus = async (req: Request, res: Response) => {
         const { userId } = req.params;
         const { isActive } = req.body;
 
-        const user = await User.findByIdAndUpdate(
-            userId,
+        const user = await User.findOneAndUpdate(
+            { 
+                _id: userId,
+                deletedAt: null, // Não atualizar usuários deletados
+            },
             { isActive },
             { new: true }
         ).select('-password -refreshToken');

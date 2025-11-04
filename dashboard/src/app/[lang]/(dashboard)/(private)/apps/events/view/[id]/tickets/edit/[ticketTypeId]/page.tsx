@@ -73,7 +73,7 @@ const EditTicketTypePage = () => {
     const { lang, id, ticketTypeId } = useParams()
     const { updateTicketType, loading: hookLoading, error: hookError } = useTicketTypes(id as string)
     const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const [fetchError, setFetchError] = useState<string | null>(null)
     const [ticketType, setTicketType] = useState<ticketTypeService.TicketTypeItem | null>(null)
     const [isVIP, setIsVIP] = useState(false)
     const [salesStart, setSalesStart] = useState<Date | null>(null)
@@ -87,9 +87,12 @@ const EditTicketTypePage = () => {
         watch,
         setValue,
         reset,
+        setError,
     } = useForm<FormData>({
         resolver: valibotResolver(schema),
     })
+
+    const [serverError, setServerError] = useState<string | null>(null)
 
     // Carregar dados do tipo de ingresso
     useEffect(() => {
@@ -97,7 +100,7 @@ const EditTicketTypePage = () => {
             if (!ticketTypeId) return
 
             setLoading(true)
-            setError(null)
+            setFetchError(null)
 
             try {
                 const data = await ticketTypeService.getTicketType(ticketTypeId as string)
@@ -125,7 +128,7 @@ const EditTicketTypePage = () => {
                 // Preencher preço formatado
                 setPriceDisplay(formatCurrency(data.price))
             } catch (err: any) {
-                setError(err.message || 'Erro ao carregar tipo de ingresso')
+                setFetchError(err.message || 'Erro ao carregar tipo de ingresso')
                 console.error('Erro ao buscar tipo de ingresso:', err)
             } finally {
                 setLoading(false)
@@ -154,6 +157,8 @@ const EditTicketTypePage = () => {
     }, [price, isVIP])
 
     const onSubmit: SubmitHandler<FormData> = async (data) => {
+        setServerError(null)
+        
         try {
             const ticketTypeData: UpdateTicketTypeData = {
                 name: data.name,
@@ -171,6 +176,21 @@ const EditTicketTypePage = () => {
             router.push(`/${lang}/apps/events/view/${id}/tickets/list`)
         } catch (err: any) {
             console.error('Erro ao atualizar tipo de ingresso:', err)
+            
+            // Se houver erros de validação do backend, aplicar aos campos
+            if (err.validationErrors) {
+                Object.keys(err.validationErrors).forEach((field) => {
+                    const fieldName = field as keyof FormData
+                    const errorMessage = err.validationErrors[field]
+                    setError(fieldName, {
+                        type: 'server',
+                        message: errorMessage,
+                    })
+                })
+                setServerError(err.message || 'Erro ao atualizar tipo de ingresso')
+            } else {
+                setServerError(err.message || 'Erro ao atualizar tipo de ingresso')
+            }
         }
     }
 
@@ -217,9 +237,9 @@ const EditTicketTypePage = () => {
                             subheader={`Editando: ${ticketType.name}`}
                         />
                         <CardContent>
-                            {(error || hookError) && (
+                            {(fetchError || hookError || serverError) && (
                                 <Alert severity='error' sx={{ mb: 4 }}>
-                                    {error || hookError}
+                                    {fetchError || hookError || serverError}
                                 </Alert>
                             )}
 

@@ -30,9 +30,11 @@ export const createTicketType = async (req: Request, res: Response) => {
         // Se for VIP, garantir que preço seja 0
         const finalPrice = isVIP ? 0 : price;
 
-        // Verificar se já existe um lote com o mesmo número para este evento
+        // Verificar se já existe um lote com o mesmo número para este tipo de ingresso no evento
+        // Permite ter "Pista Lote 1" e "VIP Lote 1" no mesmo evento
         const existingLot = await TicketType.findOne({
             event: eventId,
+            name: name.trim(),
             lotNumber,
             isActive: true,
         });
@@ -40,7 +42,11 @@ export const createTicketType = async (req: Request, res: Response) => {
         if (existingLot) {
             return res.status(400).json({
                 success: false,
-                message: `Já existe um lote ${lotNumber} para este evento`,
+                message: `Já existe um lote ${lotNumber} para o tipo de ingresso "${name}" neste evento`,
+                errors: {
+                    lotNumber: `Já existe um lote ${lotNumber} para o tipo de ingresso "${name}" neste evento`,
+                    name: `Já existe um lote ${lotNumber} para o tipo de ingresso "${name}" neste evento`,
+                },
             });
         }
 
@@ -68,10 +74,57 @@ export const createTicketType = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao criar tipo de ingresso:', error);
+        
+        // Extrair erros de validação do Mongoose
+        const validationErrors: Record<string, string> = {};
+        if (error.errors) {
+            Object.keys(error.errors).forEach((key) => {
+                validationErrors[key] = error.errors[key].message;
+            });
+        }
+        
+        // Se for erro de validação do Mongoose, retornar mensagens específicas
+        if (error.name === 'ValidationError') {
+            const errorMessages = Object.values(validationErrors).join(', ');
+            return res.status(400).json({
+                success: false,
+                message: errorMessages || 'Erro de validação ao criar tipo de ingresso',
+                errors: validationErrors,
+            });
+        }
+        
+        // Se for erro de índice duplicado (event + name + lotNumber)
+        if (error.code === 11000) {
+            const keyPattern = error.keyPattern || {};
+            const keyValue = error.keyValue || {};
+            
+            // Se for o índice único composto (event + name + lotNumber)
+            if (keyPattern.event && keyPattern.name && keyPattern.lotNumber) {
+                const lotNumber = keyValue.lotNumber;
+                const name = keyValue.name;
+                return res.status(400).json({
+                    success: false,
+                    message: `Já existe um lote ${lotNumber} para o tipo de ingresso "${name}" neste evento`,
+                    errors: {
+                        lotNumber: `Já existe um lote ${lotNumber} para o tipo de ingresso "${name}" neste evento`,
+                        name: `Já existe um lote ${lotNumber} para o tipo de ingresso "${name}" neste evento`,
+                    },
+                });
+            }
+            
+            // Para outros índices únicos
+            const field = Object.keys(keyPattern)[0];
+            return res.status(400).json({
+                success: false,
+                message: error.message || 'Já existe um registro com esses dados',
+                errors: { [field]: 'Este valor já está em uso' },
+            });
+        }
+        
         res.status(400).json({
             success: false,
             message: error.message || 'Erro ao criar tipo de ingresso',
-            errors: error.errors || {},
+            errors: validationErrors,
         });
     }
 };
@@ -82,7 +135,10 @@ export const listTicketTypes = async (req: Request, res: Response) => {
         const { eventId } = req.params;
         const { includeInactive } = req.query;
 
-        const filter: any = { event: eventId };
+        const filter: any = { 
+            event: eventId,
+            deletedAt: null, // Não mostrar tipos de ingresso deletados
+        };
         if (includeInactive !== 'true') {
             filter.isActive = true;
         }
@@ -109,7 +165,10 @@ export const getTicketType = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        const ticketType = await TicketType.findById(id).populate('event', 'name date');
+        const ticketType = await TicketType.findOne({ 
+            _id: id,
+            deletedAt: null, // Não mostrar tipos de ingresso deletados
+        }).populate('event', 'name date');
 
         if (!ticketType) {
             return res.status(404).json({
@@ -147,7 +206,10 @@ export const updateTicketType = async (req: Request, res: Response) => {
             salesEnd,
         } = req.body;
 
-        const ticketType = await TicketType.findById(id);
+        const ticketType = await TicketType.findOne({ 
+            _id: id,
+            deletedAt: null, // Não atualizar tipos de ingresso deletados
+        });
 
         if (!ticketType) {
             return res.status(404).json({
@@ -156,11 +218,15 @@ export const updateTicketType = async (req: Request, res: Response) => {
             });
         }
 
-        // Se estiver mudando o número do lote, verificar se já existe
-        if (lotNumber && lotNumber !== ticketType.lotNumber) {
+        // Se estiver mudando o número do lote ou o nome, verificar se já existe
+        const finalName = name !== undefined ? name.trim() : ticketType.name;
+        const finalLotNumber = lotNumber !== undefined ? lotNumber : ticketType.lotNumber;
+
+        if ((lotNumber && lotNumber !== ticketType.lotNumber) || (name && name.trim() !== ticketType.name)) {
             const existingLot = await TicketType.findOne({
                 event: ticketType.event,
-                lotNumber,
+                name: finalName,
+                lotNumber: finalLotNumber,
                 _id: { $ne: id },
                 isActive: true,
             });
@@ -168,7 +234,11 @@ export const updateTicketType = async (req: Request, res: Response) => {
             if (existingLot) {
                 return res.status(400).json({
                     success: false,
-                    message: `Já existe um lote ${lotNumber} para este evento`,
+                    message: `Já existe um lote ${finalLotNumber} para o tipo de ingresso "${finalName}" neste evento`,
+                    errors: {
+                        lotNumber: `Já existe um lote ${finalLotNumber} para o tipo de ingresso "${finalName}" neste evento`,
+                        name: `Já existe um lote ${finalLotNumber} para o tipo de ingresso "${finalName}" neste evento`,
+                    },
                 });
             }
         }
@@ -196,10 +266,57 @@ export const updateTicketType = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao atualizar tipo de ingresso:', error);
+        
+        // Extrair erros de validação do Mongoose
+        const validationErrors: Record<string, string> = {};
+        if (error.errors) {
+            Object.keys(error.errors).forEach((key) => {
+                validationErrors[key] = error.errors[key].message;
+            });
+        }
+        
+        // Se for erro de validação do Mongoose, retornar mensagens específicas
+        if (error.name === 'ValidationError') {
+            const errorMessages = Object.values(validationErrors).join(', ');
+            return res.status(400).json({
+                success: false,
+                message: errorMessages || 'Erro de validação ao atualizar tipo de ingresso',
+                errors: validationErrors,
+            });
+        }
+        
+        // Se for erro de índice duplicado (event + name + lotNumber)
+        if (error.code === 11000) {
+            const keyPattern = error.keyPattern || {};
+            const keyValue = error.keyValue || {};
+            
+            // Se for o índice único composto (event + name + lotNumber)
+            if (keyPattern.event && keyPattern.name && keyPattern.lotNumber) {
+                const lotNumber = keyValue.lotNumber;
+                const name = keyValue.name;
+                return res.status(400).json({
+                    success: false,
+                    message: `Já existe um lote ${lotNumber} para o tipo de ingresso "${name}" neste evento`,
+                    errors: {
+                        lotNumber: `Já existe um lote ${lotNumber} para o tipo de ingresso "${name}" neste evento`,
+                        name: `Já existe um lote ${lotNumber} para o tipo de ingresso "${name}" neste evento`,
+                    },
+                });
+            }
+            
+            // Para outros índices únicos
+            const field = Object.keys(keyPattern)[0];
+            return res.status(400).json({
+                success: false,
+                message: error.message || 'Já existe um registro com esses dados',
+                errors: { [field]: 'Este valor já está em uso' },
+            });
+        }
+        
         res.status(400).json({
             success: false,
             message: error.message || 'Erro ao atualizar tipo de ingresso',
-            errors: error.errors || {},
+            errors: validationErrors,
         });
     }
 };
@@ -209,7 +326,10 @@ export const deleteTicketType = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        const ticketType = await TicketType.findById(id);
+        const ticketType = await TicketType.findOne({ 
+            _id: id,
+            deletedAt: null, // Não atualizar tipos de ingresso deletados
+        });
 
         if (!ticketType) {
             return res.status(404).json({
@@ -228,8 +348,9 @@ export const deleteTicketType = async (req: Request, res: Response) => {
         //     });
         // }
 
-        // Soft delete
+        // Soft delete: desativar e marcar data de exclusão
         ticketType.isActive = false;
+        ticketType.deletedAt = new Date();
         await ticketType.save();
 
         res.status(200).json({
@@ -251,7 +372,10 @@ export const updateTicketTypeStatus = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { isActive } = req.body;
 
-        const ticketType = await TicketType.findById(id);
+        const ticketType = await TicketType.findOne({ 
+            _id: id,
+            deletedAt: null, // Não atualizar tipos de ingresso deletados
+        });
 
         if (!ticketType) {
             return res.status(404).json({

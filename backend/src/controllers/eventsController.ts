@@ -66,6 +66,9 @@ export const listEvents = async (req: Request, res: Response) => {
         }
 
         const skip = (Number(page) - 1) * Number(limit)
+        // Filtrar apenas eventos não deletados
+        filters.deletedAt = null;
+        
         const [events, total] = await Promise.all([
             Event.find(filters).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
             Event.countDocuments(filters)
@@ -79,7 +82,10 @@ export const listEvents = async (req: Request, res: Response) => {
 
 export const getEvent = async (req: Request, res: Response) => {
     try {
-        const event = await Event.findById(req.params.id)
+        const event = await Event.findOne({ 
+            _id: req.params.id,
+            deletedAt: null, // Não mostrar eventos deletados
+        })
         if (!event) return res.status(404).json({ success: false, message: 'Evento não encontrado' })
         res.json({ success: true, data: event })
     } catch (error: any) {
@@ -96,7 +102,14 @@ export const updateEvent = async (req: Request, res: Response) => {
         if (cover) updates.coverImage = fileUrl(req, cover)
         if (square) updates.squareImage = fileUrl(req, square)
 
-        const event = await Event.findByIdAndUpdate(req.params.id, updates, { new: true })
+        const event = await Event.findOneAndUpdate(
+            { 
+                _id: req.params.id,
+                deletedAt: null, // Não atualizar eventos deletados
+            },
+            updates, 
+            { new: true }
+        )
         if (!event) return res.status(404).json({ success: false, message: 'Evento não encontrado' })
         res.json({ success: true, message: 'Evento atualizado com sucesso', data: event })
     } catch (error: any) {
@@ -107,7 +120,14 @@ export const updateEvent = async (req: Request, res: Response) => {
 export const updateEventStatus = async (req: Request, res: Response) => {
     try {
         const { isActive } = req.body
-        const event = await Event.findByIdAndUpdate(req.params.id, { isActive }, { new: true })
+        const event = await Event.findOneAndUpdate(
+            { 
+                _id: req.params.id,
+                deletedAt: null, // Não atualizar eventos deletados
+            },
+            { isActive }, 
+            { new: true }
+        )
         if (!event) return res.status(404).json({ success: false, message: 'Evento não encontrado' })
         res.json({ success: true, message: 'Status do evento atualizado com sucesso', data: event })
     } catch (error: any) {
@@ -117,11 +137,43 @@ export const updateEventStatus = async (req: Request, res: Response) => {
 
 export const deleteEvent = async (req: Request, res: Response) => {
     try {
-        const event = await Event.findByIdAndDelete(req.params.id)
-        if (!event) return res.status(404).json({ success: false, message: 'Evento não encontrado' })
-        res.json({ success: true, message: 'Evento removido com sucesso' })
+        const event = await Event.findOne({ 
+            _id: req.params.id,
+            deletedAt: null, // Não deletar eventos já deletados
+        })
+        if (!event) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Evento não encontrado' 
+            })
+        }
+
+        // Verificar se há ingressos vendidos
+        // TODO: Implementar verificação quando o modelo Ticket estiver completo
+        // const soldTickets = await Ticket.countDocuments({ event: req.params.id, status: { $ne: 'cancelled' } });
+        // if (soldTickets > 0) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: 'Não é possível deletar evento com ingressos vendidos',
+        //     });
+        // }
+
+        // Soft delete: desativar e marcar data de exclusão
+        event.isActive = false;
+        event.deletedAt = new Date();
+        await event.save();
+
+        res.json({ 
+            success: true, 
+            message: 'Evento removido com sucesso (soft delete)' 
+        })
     } catch (error: any) {
-        res.status(500).json({ success: false, message: 'Erro ao remover evento', errors: [error.message] })
+        console.error('Erro ao deletar evento:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Erro ao remover evento', 
+            errors: [error.message] 
+        })
     }
 }
 

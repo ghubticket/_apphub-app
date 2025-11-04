@@ -21,6 +21,7 @@ export interface IEvent extends Document {
     squareImage?: string; // 300x300 PNG URL
     tags: string[];
     isActive: boolean;
+    deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     createdAt: Date;
     updatedAt: Date;
 
@@ -150,6 +151,11 @@ const eventSchema = new Schema<IEvent>(
         isActive: {
             type: Boolean,
             default: true,
+        },
+        deletedAt: {
+            type: Date,
+            default: null,
+            index: true, // Índice para facilitar queries de limpeza
         },
     },
     {

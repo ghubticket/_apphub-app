@@ -117,10 +117,14 @@ export const createTicketType = async (
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.errors
-                ? Object.values(errorData.errors).flat().join(', ')
-                : errorData.message || `Erro ao criar tipo de ingresso: ${response.statusText}`;
-            throw new Error(errorMessage);
+            // Criar erro customizado com erros de validação
+            const error = new Error(
+                errorData.errors
+                    ? Object.values(errorData.errors).flat().join(', ')
+                    : errorData.message || `Erro ao criar tipo de ingresso: ${response.statusText}`
+            ) as any;
+            error.validationErrors = errorData.errors || {};
+            throw error;
         }
 
         const data = await response.json();
@@ -144,10 +148,14 @@ export const updateTicketType = async (
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.errors
-                ? Object.values(errorData.errors).flat().join(', ')
-                : errorData.message || `Erro ao atualizar tipo de ingresso: ${response.statusText}`;
-            throw new Error(errorMessage);
+            // Criar erro customizado com erros de validação
+            const error = new Error(
+                errorData.errors
+                    ? Object.values(errorData.errors).flat().join(', ')
+                    : errorData.message || `Erro ao atualizar tipo de ingresso: ${response.statusText}`
+            ) as any;
+            error.validationErrors = errorData.errors || {};
+            throw error;
         }
 
         const data = await response.json();

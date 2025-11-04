@@ -10,6 +10,7 @@ export interface IUser extends Document {
     phone?: string;
     cpf?: string;
     isActive: boolean;
+    deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     lastLogin?: Date;
     refreshToken?: string;
     createdAt: Date;
@@ -74,6 +75,11 @@ const userSchema = new Schema<IUser>(
         isActive: {
             type: Boolean,
             default: true,
+        },
+        deletedAt: {
+            type: Date,
+            default: null,
+            index: true, // Índice para facilitar queries de limpeza
         },
         lastLogin: {
             type: Date,

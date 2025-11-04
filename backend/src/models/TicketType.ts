@@ -14,6 +14,7 @@ export interface ITicketType extends Document {
     salesStart?: Date; // Data de início da venda (opcional)
     salesEnd?: Date; // Data de fim da venda (opcional)
     isActive: boolean;
+    deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     createdAt: Date;
     updatedAt: Date;
 
@@ -105,6 +106,11 @@ const ticketTypeSchema = new Schema<ITicketType>(
             type: Boolean,
             default: true,
         },
+        deletedAt: {
+            type: Date,
+            default: null,
+            index: true, // Índice para facilitar queries de limpeza
+        },
     },
     {
         timestamps: true,
@@ -114,7 +120,9 @@ const ticketTypeSchema = new Schema<ITicketType>(
 );
 
 // Índices para performance
-ticketTypeSchema.index({ event: 1, lotNumber: 1 }, { unique: true }); // Um lote por número por evento
+// Índice único: mesmo evento + mesmo nome de tipo + mesmo número de lote não pode repetir
+// Permite: Pista Lote 1, Pista Lote 2, VIP Lote 1 (mesmo número de lote para tipos diferentes)
+ticketTypeSchema.index({ event: 1, name: 1, lotNumber: 1 }, { unique: true });
 ticketTypeSchema.index({ event: 1 });
 ticketTypeSchema.index({ isActive: 1 });
 ticketTypeSchema.index({ salesStart: 1, salesEnd: 1 });

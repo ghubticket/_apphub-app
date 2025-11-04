@@ -35,8 +35,11 @@ export const createReservation = async (
             reservationDurationMinutes = 15,
         } = params;
 
-        // Verificar se o evento existe
-        const event = await Event.findById(eventId);
+        // Verificar se o evento existe (não deletado)
+        const event = await Event.findOne({ 
+            _id: eventId,
+            deletedAt: null,
+        });
         if (!event || !event.isActive) {
             return {
                 success: false,
@@ -46,8 +49,11 @@ export const createReservation = async (
             };
         }
 
-        // Verificar se o tipo de ingresso existe
-        const ticketType = await TicketType.findById(ticketTypeId);
+        // Verificar se o tipo de ingresso existe (não deletado)
+        const ticketType = await TicketType.findOne({ 
+            _id: ticketTypeId,
+            deletedAt: null,
+        });
         if (!ticketType || !ticketType.isActive) {
             return {
                 success: false,
@@ -276,7 +282,10 @@ export const getAvailableQuantity = async (
     ticketTypeId: string
 ): Promise<number> => {
     try {
-        const ticketType = await TicketType.findById(ticketTypeId);
+        const ticketType = await TicketType.findOne({ 
+            _id: ticketTypeId,
+            deletedAt: null, // Não considerar tipos de ingresso deletados
+        });
 
         if (!ticketType || !ticketType.isActive) {
             return 0;

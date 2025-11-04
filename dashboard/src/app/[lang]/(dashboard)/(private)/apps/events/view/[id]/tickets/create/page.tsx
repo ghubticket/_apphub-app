@@ -88,6 +88,7 @@ const CreateTicketTypePage = () => {
         formState: { errors },
         watch,
         setValue,
+        setError,
     } = useForm<FormData>({
         resolver: valibotResolver(schema),
         defaultValues: {
@@ -99,6 +100,8 @@ const CreateTicketTypePage = () => {
             maxPerPurchase: 5,
         },
     })
+
+    const [serverError, setServerError] = useState<string | null>(null)
 
     // Atualizar preço quando VIP mudar
     useEffect(() => {
@@ -117,6 +120,8 @@ const CreateTicketTypePage = () => {
     }, [price, isVIP])
 
     const onSubmit: SubmitHandler<FormData> = async (data) => {
+        setServerError(null)
+        
         try {
             const ticketTypeData: CreateTicketTypeData = {
                 name: data.name,
@@ -134,6 +139,21 @@ const CreateTicketTypePage = () => {
             router.push(`/${lang}/apps/events/view/${id}/tickets/list`)
         } catch (err: any) {
             console.error('Erro ao criar tipo de ingresso:', err)
+            
+            // Se houver erros de validação do backend, aplicar aos campos
+            if (err.validationErrors) {
+                Object.keys(err.validationErrors).forEach((field) => {
+                    const fieldName = field as keyof FormData
+                    const errorMessage = err.validationErrors[field]
+                    setError(fieldName, {
+                        type: 'server',
+                        message: errorMessage,
+                    })
+                })
+                setServerError(err.message || 'Erro ao criar tipo de ingresso')
+            } else {
+                setServerError(err.message || 'Erro ao criar tipo de ingresso')
+            }
         }
     }
 
@@ -147,9 +167,9 @@ const CreateTicketTypePage = () => {
                             subheader='Configure os detalhes do tipo de ingresso para este evento'
                         />
                         <CardContent>
-                            {error && (
+                            {(error || serverError) && (
                                 <Alert severity='error' sx={{ mb: 4 }}>
-                                    {error}
+                                    {error || serverError}
                                 </Alert>
                             )}
 
