@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import path from 'path';
 import { connectDatabase } from './config/database';
 import { setupSwagger } from './config/swagger';
 import { generalRateLimit } from './middleware/rateLimiting';
@@ -25,7 +26,18 @@ const PORT = process.env.PORT || 3001;
 // ====================================
 
 // Helmet - Headers de segurança
-app.use(helmet());
+// Configurar para permitir imagens do próprio servidor
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            imgSrc: ["'self'", "data:", "http://localhost:3001", "https:"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+        },
+    },
+}));
 
 // CORS - Permitir requisições do frontend e dashboard
 app.use(
@@ -43,6 +55,9 @@ app.use(cookieParser());
 
 // Rate Limiting Global - Proteção contra DDoS
 app.use(generalRateLimit);
+
+// Servir arquivos estáticos de upload
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ====================================
 // Middlewares de Parsing

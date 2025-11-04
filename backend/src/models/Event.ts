@@ -52,9 +52,14 @@ const eventSchema = new Schema<IEvent>(
             required: [true, 'Data do evento é obrigatória'],
             validate: {
                 validator: function (date: Date) {
-                    return date > new Date();
+                    // Comparar apenas a data (sem hora) para permitir eventos no mesmo dia
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const eventDate = new Date(date);
+                    eventDate.setHours(0, 0, 0, 0);
+                    return eventDate >= today;
                 },
-                message: 'Data do evento deve ser futura',
+                message: 'Data do evento deve ser hoje ou futura',
             },
         },
         location: {

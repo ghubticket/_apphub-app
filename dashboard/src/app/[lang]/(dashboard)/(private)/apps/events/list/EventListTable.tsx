@@ -8,6 +8,8 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import TablePagination from '@mui/material/TablePagination'
 
 import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table'
@@ -47,6 +49,7 @@ const EventListTable = () => {
     const [pageSize, setPageSize] = useState(10)
 
     const { events, loading, error } = useEvents({ limit: 50 })
+    const { lang } = useParams()
 
     useEffect(() => {
         setData(events)
@@ -169,7 +172,7 @@ const EventListTable = () => {
                         <MenuItem value='25'>25</MenuItem>
                         <MenuItem value='50'>50</MenuItem>
                     </CustomTextField>
-                    <Button variant='contained' startIcon={<i className='tabler-plus' />}>Novo Evento</Button>
+                    <Button component={Link} href={`/${lang}/apps/events/create`} variant='contained' startIcon={<i className='tabler-plus' />}>Novo Evento</Button>
                 </div>
             </div>
 

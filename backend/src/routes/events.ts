@@ -1,14 +1,14 @@
 import { Router } from 'express'
 import { authenticate, isAdmin } from '../middleware/auth'
-import { eventImageUpload } from '../middleware/upload'
+import { eventImageUpload, validatePngMagicBytes } from '../middleware/upload'
 import { createEvent, listEvents, getEvent, updateEvent, deleteEvent } from '../controllers/eventsController'
 
 const router = Router()
 
 // Upload fields: cover (1200x500), square (300x300)
 const uploadFields = eventImageUpload.fields([
-  { name: 'cover', maxCount: 1 },
-  { name: 'square', maxCount: 1 }
+    { name: 'cover', maxCount: 1 },
+    { name: 'square', maxCount: 1 }
 ])
 
 /**
@@ -78,7 +78,7 @@ router.get('/:id', getEvent)
  *     responses:
  *       201: { description: Criado }
  */
-router.post('/', authenticate, isAdmin, uploadFields, createEvent)
+router.post('/', authenticate, isAdmin, uploadFields, validatePngMagicBytes, createEvent)
 
 /**
  * @swagger
@@ -108,7 +108,7 @@ router.post('/', authenticate, isAdmin, uploadFields, createEvent)
  *     responses:
  *       200: { description: Atualizado }
  */
-router.put('/:id', authenticate, isAdmin, uploadFields, updateEvent)
+router.put('/:id', authenticate, isAdmin, uploadFields, validatePngMagicBytes, updateEvent)
 
 /**
  * @swagger
