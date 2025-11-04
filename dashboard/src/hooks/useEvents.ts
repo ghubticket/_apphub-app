@@ -18,6 +18,7 @@ interface UseEventsReturn {
     totalPages: number
   } | null
   refetch: () => Promise<void>
+  updateEventStatus: (eventId: string, isActive: boolean) => Promise<void>
 }
 
 export const useEvents = (params: UseEventsParams = {}): UseEventsReturn => {
@@ -43,6 +44,28 @@ export const useEvents = (params: UseEventsParams = {}): UseEventsReturn => {
     }
   }, [params.page, params.limit, params.search])
 
+  const updateEventStatus = useCallback(async (eventId: string, isActive: boolean) => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      await eventService.updateStatus(eventId, isActive)
+      
+      // Atualizar a lista local
+      setEvents(prevEvents => 
+        prevEvents.map(event => 
+          event._id === eventId ? { ...event, isActive } : event
+        )
+      )
+    } catch (err: any) {
+      setError(err.message || 'Erro ao atualizar status do evento')
+      console.error('Erro ao atualizar status:', err)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const refetch = useCallback(async () => {
     await fetchEvents()
   }, [fetchEvents])
@@ -51,7 +74,7 @@ export const useEvents = (params: UseEventsParams = {}): UseEventsReturn => {
     fetchEvents()
   }, [fetchEvents])
 
-  return { events, loading, error, pagination, refetch }
+  return { events, loading, error, pagination, refetch, updateEventStatus }
 }
 
 

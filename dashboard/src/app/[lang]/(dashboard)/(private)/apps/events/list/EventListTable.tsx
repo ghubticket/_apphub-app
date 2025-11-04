@@ -9,7 +9,7 @@ import Chip from '@mui/material/Chip'
 import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import TablePagination from '@mui/material/TablePagination'
 
 import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table'
@@ -21,6 +21,7 @@ import CustomTextField from '@core/components/mui/TextField'
 import CustomAvatar from '@core/components/mui/Avatar'
 import TablePaginationComponent from '@components/TablePaginationComponent'
 import OptionMenu from '@core/components/option-menu'
+import Switch from '@mui/material/Switch'
 
 import tableStyles from '@core/styles/table.module.css'
 
@@ -48,8 +49,9 @@ const EventListTable = () => {
     const [globalFilter, setGlobalFilter] = useState('')
     const [pageSize, setPageSize] = useState(10)
 
-    const { events, loading, error } = useEvents({ limit: 50 })
+    const router = useRouter()
     const { lang } = useParams()
+    const { events, loading, error, updateEventStatus } = useEvents({ limit: 50 })
 
     useEffect(() => {
         setData(events)
@@ -75,12 +77,25 @@ const EventListTable = () => {
                 accessorKey: 'isActive',
                 header: 'Status',
                 cell: ({ row }) => (
-                    <Chip
-                        label={row.original.isActive ? 'Active' : 'Inactive'}
-                        color={row.original.isActive ? 'success' : 'secondary'}
-                        size='small'
-                        variant='tonal'
-                    />
+                    <div className='flex items-center gap-2'>
+                        <Switch
+                            checked={row.original.isActive}
+                            onChange={async () => {
+                                try {
+                                    await updateEventStatus(row.original._id, !row.original.isActive)
+                                } catch (error) {
+                                    console.error('Erro ao atualizar status:', error)
+                                }
+                            }}
+                            size='small'
+                        />
+                        <Chip
+                            label={row.original.isActive ? 'Active' : 'Inactive'}
+                            color={row.original.isActive ? 'success' : 'secondary'}
+                            size='small'
+                            variant='tonal'
+                        />
+                    </div>
                 )
             },
             {
@@ -100,19 +115,16 @@ const EventListTable = () => {
                             {
                                 text: 'View',
                                 icon: 'tabler-eye',
-                                menuItemProps: { onClick: () => console.log('View event', row.original._id) }
-                            },
-                            {
-                                text: 'Edit',
-                                icon: 'tabler-edit',
-                                menuItemProps: { onClick: () => console.log('Edit event', row.original._id) }
+                                menuItemProps: { 
+                                    onClick: () => router.push(`/${lang}/apps/events/view/${row.original._id}`)
+                                }
                             }
                         ]}
                     />
                 )
             }
         ],
-        []
+        [lang, router, updateEventStatus]
     )
 
     const table = useReactTable({

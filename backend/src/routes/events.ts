@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { authenticate, isAdmin } from '../middleware/auth'
 import { eventImageUpload, validatePngMagicBytes } from '../middleware/upload'
-import { createEvent, listEvents, getEvent, updateEvent, deleteEvent } from '../controllers/eventsController'
+import { createEvent, listEvents, getEvent, updateEvent, updateEventStatus, deleteEvent } from '../controllers/eventsController'
 
 const router = Router()
 
@@ -109,6 +109,34 @@ router.post('/', authenticate, isAdmin, uploadFields, validatePngMagicBytes, cre
  *       200: { description: Atualizado }
  */
 router.put('/:id', authenticate, isAdmin, uploadFields, validatePngMagicBytes, updateEvent)
+
+/**
+ * @swagger
+ * /events/{id}/status:
+ *   patch:
+ *     summary: Atualizar status do evento (apenas ADMIN)
+ *     tags: [Events]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       200: { description: Status atualizado }
+ *       404: { description: Evento não encontrado }
+ */
+router.patch('/:id/status', authenticate, isAdmin, updateEventStatus)
 
 /**
  * @swagger

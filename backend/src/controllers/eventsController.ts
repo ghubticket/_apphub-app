@@ -103,6 +103,17 @@ export const updateEvent = async (req: Request, res: Response) => {
     }
 }
 
+export const updateEventStatus = async (req: Request, res: Response) => {
+    try {
+        const { isActive } = req.body
+        const event = await Event.findByIdAndUpdate(req.params.id, { isActive }, { new: true })
+        if (!event) return res.status(404).json({ success: false, message: 'Evento não encontrado' })
+        res.json({ success: true, message: 'Status do evento atualizado com sucesso', data: event })
+    } catch (error: any) {
+        res.status(400).json({ success: false, message: 'Erro ao atualizar status do evento', errors: [error.message] })
+    }
+}
+
 export const deleteEvent = async (req: Request, res: Response) => {
     try {
         const event = await Event.findByIdAndDelete(req.params.id)

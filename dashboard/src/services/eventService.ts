@@ -6,6 +6,9 @@ export interface EventItem {
     date?: string
     time?: string
     location?: string
+    address?: string
+    city?: string
+    state?: string
     coverImage?: string
     squareImage?: string
     isActive?: boolean
@@ -86,6 +89,35 @@ export const eventService = {
             throw new Error(errorMessage)
         }
         return response.json()
+    },
+
+    async getById(id: string): Promise<{ success: boolean; data: EventItem }> {
+        return authenticatedRequest(`/events/${id}`)
+    },
+
+    async update(id: string, payload: FormData): Promise<{ success: boolean; message: string; data: EventItem }> {
+        const token = await getAuthToken()
+        const response = await fetch(`${API_BASE_URL}/events/${id}`, {
+            method: 'PUT',
+            headers: {
+                ...(token && { Authorization: `Bearer ${token}` })
+                // Content-Type omitted for FormData; browser sets boundary
+            } as any,
+            body: payload
+        })
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            const errorMessage = errorData.message || errorData.errors?.[0] || `HTTP ${response.status}`
+            throw new Error(errorMessage)
+        }
+        return response.json()
+    },
+
+    async updateStatus(id: string, isActive: boolean): Promise<{ success: boolean; message: string; data: EventItem }> {
+        return authenticatedRequest(`/events/${id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ isActive })
+        })
     }
 }
 
