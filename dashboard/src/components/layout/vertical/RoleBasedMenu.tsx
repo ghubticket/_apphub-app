@@ -62,6 +62,12 @@ export const RoleBasedMenu = ({ dictionary }: RoleBasedMenuProps) => {
           >
             Usuários
           </MenuItem>
+          <MenuItem
+            href={`/${locale}/apps/events/list`}
+            icon={<i className="tabler-calendar-event" />}
+          >
+            Eventos
+          </MenuItem>
         </MenuSection>
       )}
 
