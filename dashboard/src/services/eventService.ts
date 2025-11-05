@@ -14,6 +14,7 @@ export interface EventItem {
     isActive?: boolean
     capacity?: number
     soldTickets?: number
+    platformFeePercentage?: number
     createdAt: string
     updatedAt: string
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { Order, Ticket, TicketType, Event, User } from '../models';
+import { Order, Ticket, TicketType, Event, User, PromoterCode } from '../models';
 import { generateQRCode } from '../services/qrCodeService';
 import * as reservationService from '../services/reservationService';
 
@@ -8,6 +8,7 @@ interface CreateOrderRequest {
     eventId: string;
     ticketTypeId: string;
     quantity: number;
+    promoterCode?: string; // Código de promotor (opcional)
     customerData?: {
         name?: string;
         email?: string;
@@ -24,7 +25,7 @@ interface CreateOrderRequest {
 export const createOrder = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id; // Do middleware authenticate
-        const { eventId, ticketTypeId, quantity, customerData } = req.body as CreateOrderRequest;
+        const { eventId, ticketTypeId, quantity, promoterCode, customerData } = req.body as CreateOrderRequest;
 
         // Validações básicas
         if (!eventId || !ticketTypeId || !quantity || quantity <= 0) {
@@ -102,10 +103,38 @@ export const createOrder = async (req: Request, res: Response) => {
         // Determinar se é VIP e calcular valores
         const isVIP = ticketType.isVIP;
         const ticketPrice = isVIP ? 0 : ticketType.price;
-        const totalAmount = ticketPrice * quantity;
-        const eventTicketFee = event.ticketFee || 0;
-        const appliedFeePerTicket = isVIP ? 0 : eventTicketFee; // VIP não paga taxa
-        const totalWithFee = totalAmount + (appliedFeePerTicket * quantity);
+        const subtotal = ticketPrice * quantity; // Valor sem taxa
+        
+        // Validar e aplicar desconto de código de promotor (se fornecido e não for VIP)
+        let discountAmount = 0;
+        let usedPromoterCode: string | undefined = undefined;
+        
+        if (promoterCode && !isVIP) {
+            const code = await PromoterCode.findOne({
+                code: promoterCode.toUpperCase().trim(),
+                isActive: true,
+                deletedAt: null,
+                events: eventId
+            });
+            
+            if (code) {
+                usedPromoterCode = code.code;
+                
+                // Calcular desconto
+                if (code.discountType === 'percentage') {
+                    discountAmount = subtotal * (code.discountValue / 100);
+                } else {
+                    // Desconto fixo (limitado ao subtotal)
+                    discountAmount = Math.min(code.discountValue, subtotal);
+                }
+            }
+        }
+        
+        // Calcular taxa da plataforma (percentual sobre subtotal - desconto)
+        const platformFeePercentage = event.platformFeePercentage || 0;
+        const subtotalAfterDiscount = subtotal - discountAmount;
+        const platformFee = isVIP ? 0 : (subtotalAfterDiscount * (platformFeePercentage / 100)); // VIP não paga taxa
+        const totalAmount = subtotalAfterDiscount + platformFee; // Total: (subtotal - desconto) + taxa
 
         // Determinar status e método de pagamento
         let orderStatus: 'pending' | 'paid' = 'pending';
@@ -128,7 +157,11 @@ export const createOrder = async (req: Request, res: Response) => {
             customer: userId || null,
             event: eventId,
             tickets: [], // Será preenchido após criar os tickets
-            totalAmount: totalWithFee,
+            subtotal: subtotal,
+            discountAmount: discountAmount,
+            platformFee: platformFee,
+            totalAmount: totalAmount,
+            promoterCode: usedPromoterCode,
             totalTickets: quantity,
             status: orderStatus,
             paymentMethod: paymentMethod,
@@ -142,6 +175,14 @@ export const createOrder = async (req: Request, res: Response) => {
         });
 
         await order.save();
+        
+        // Incrementar contador de uso do código de promotor (se usado)
+        if (usedPromoterCode) {
+            await PromoterCode.updateOne(
+                { code: usedPromoterCode },
+                { $inc: { currentUses: 1 } }
+            );
+        }
 
         // Criar tickets
         const createdTickets: any[] = [];
@@ -577,6 +618,46 @@ export const confirmPayment = async (req: Request, res: Response) => {
             success: false,
             message: 'Erro ao confirmar pagamento',
             errors: [error.message || 'Erro desconhecido']
+        });
+    }
+};
+
+/**
+ * Obter estatísticas financeiras (apenas ADMIN)
+ * Retorna: total de vendas (subtotal, sem taxa) e total de taxas da plataforma
+ */
+export const getFinancialStats = async (req: Request, res: Response) => {
+    try {
+        // Buscar todos os pedidos pagos (excluindo VIPs)
+        const paidOrders = await Order.find({
+            status: 'paid',
+            paymentMethod: { $ne: 'vip_free' },
+            deletedAt: null,
+        }).select('subtotal platformFee').lean();
+
+        // Calcular totais
+        let totalSales = 0; // Total de vendas (subtotal, sem taxa)
+        let totalFees = 0; // Total de taxas da plataforma
+
+        for (const order of paidOrders) {
+            totalSales += Number(order.subtotal || 0);
+            totalFees += Number(order.platformFee || 0);
+        }
+
+        return res.json({
+            success: true,
+            data: {
+                totalSales, // Valor total das vendas (sem taxa)
+                totalFees, // Valor total das taxas (recebível da plataforma)
+                totalRevenue: totalSales + totalFees, // Total geral (para referência)
+            }
+        });
+    } catch (error: any) {
+        console.error('Erro ao buscar estatísticas financeiras:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar estatísticas financeiras',
+            errors: [error.message]
         });
     }
 };

@@ -38,7 +38,7 @@ type FilesMap = { [field: string]: UploadedFileLite[] } | undefined
 
 export const createEvent = async (req: Request, res: Response) => {
     try {
-        const { name, description, date, time, location, address, city, state, price, capacity, ticketFee } = req.body
+        const { name, description, date, time, location, address, city, state, price, capacity, ticketFee, platformFeePercentage } = req.body
 
         const filesMap = req.files as FilesMap
         const cover = filesMap?.cover?.[0]?.filename || null
@@ -68,7 +68,15 @@ export const createEvent = async (req: Request, res: Response) => {
             state,
             price: price ? Number(price) : 0,
             capacity: capacity ? Number(capacity) : 100,
-            ticketFee: ticketFee !== undefined ? Number(ticketFee) : 0,
+            ticketFee: ticketFee !== undefined ? Number(ticketFee) : 0, // DEPRECATED: manter por compatibilidade
+            platformFeePercentage: (() => {
+                if (platformFeePercentage === undefined || platformFeePercentage === null || platformFeePercentage === '') return 0
+                const num = Number(platformFeePercentage)
+                if (isNaN(num)) throw new Error('Taxa percentual deve ser um número válido')
+                if (num < 0) throw new Error('Taxa percentual não pode ser negativa')
+                if (num > 100) throw new Error('Taxa percentual não pode ser maior que 100%')
+                return num
+            })(),
             organizer: req.user?._id,
             coverImage: fileUrl(req, cover),
             squareImage: fileUrl(req, square)
@@ -143,6 +151,32 @@ export const updateEvent = async (req: Request, res: Response) => {
         // Sanitizar endereço se estiver sendo atualizado
         if (updates.address) {
             updates.address = sanitizeAddress(updates.address)
+        }
+        // Converter e validar platformFeePercentage se fornecido
+        if (updates.platformFeePercentage !== undefined && updates.platformFeePercentage !== null && updates.platformFeePercentage !== '') {
+            const num = Number(updates.platformFeePercentage)
+            if (isNaN(num)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Taxa percentual deve ser um número válido',
+                    errors: ['Taxa percentual inválida']
+                })
+            }
+            if (num < 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Taxa percentual não pode ser negativa',
+                    errors: ['Taxa percentual inválida']
+                })
+            }
+            if (num > 100) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Taxa percentual não pode ser maior que 100%',
+                    errors: ['Taxa percentual inválida']
+                })
+            }
+            updates.platformFeePercentage = num
         }
 
         const event = await Event.findOneAndUpdate(
@@ -236,23 +270,23 @@ export const getEventTicketStats = async (req: Request, res: Response) => {
 
         // Ingressos Vendidos: apenas CONFIRMADOS/USED de tipos NÃO-VIP
         const soldTotal = normalTypeIds.length
-          ? await Ticket.countDocuments({
+            ? await Ticket.countDocuments({
                 event: id,
                 ticketType: { $in: normalTypeIds },
                 status: { $in: ['confirmed', 'used'] },
                 deletedAt: null
             })
-          : 0
+            : 0
 
         // VIPs distribuídos: tickets CONFIRMADOS/USED dos tipos VIP
         const vipsDistributed = vipTypeIds.length
-          ? await Ticket.countDocuments({
+            ? await Ticket.countDocuments({
                 event: id,
                 ticketType: { $in: vipTypeIds },
                 status: { $in: ['confirmed', 'used'] },
                 deletedAt: null
             })
-          : 0
+            : 0
 
         // Contar tickets por status diretamente
         const [pendingCount, cancelledCount] = await Promise.all([
@@ -275,17 +309,19 @@ export const getEventTicketStats = async (req: Request, res: Response) => {
             paymentMethod: { $ne: 'vip_free' },
             deletedAt: null,
             createdAt: { $gte: start7 }
-        }).select('totalAmount createdAt').lean()
+        }).select('subtotal platformFee totalAmount createdAt').lean()
 
         let totalRevenue = 0
         const revenueByDay = Array(7).fill(0)
         for (const o of paidOrders) {
-            totalRevenue += Number(o.totalAmount || 0)
+            // Usar subtotal (sem taxa) para receita do evento
+            const subtotal = Number(o.subtotal || 0)
+            totalRevenue += subtotal
             const d = new Date(o.createdAt as any)
             d.setHours(0, 0, 0, 0)
             const diffDays = Math.round((d.getTime() - start7.getTime()) / (24 * 60 * 60 * 1000))
             if (diffDays >= 0 && diffDays < 7) {
-                revenueByDay[diffDays] += Number(o.totalAmount || 0)
+                revenueByDay[diffDays] += subtotal
             }
         }
 
@@ -352,7 +388,7 @@ export const distributeVip = async (req: Request, res: Response) => {
                 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
                 let orderNumber = ''
                 let exists = true
-                
+
                 while (exists) {
                     orderNumber = ''
                     for (let i = 0; i < 10; i++) {
@@ -371,6 +407,8 @@ export const distributeVip = async (req: Request, res: Response) => {
                 customer: user._id,
                 event: event._id,
                 tickets: [],
+                subtotal: 0, // VIP não tem valor
+                platformFee: 0, // VIP não paga taxa
                 totalAmount: 0,
                 totalTickets: qty,
                 status: 'paid',

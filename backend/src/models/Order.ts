@@ -6,7 +6,11 @@ export interface IOrder extends Document {
     customer: mongoose.Types.ObjectId; // Referência ao User
     event: mongoose.Types.ObjectId; // Referência ao Event
     tickets: mongoose.Types.ObjectId[]; // Array de referências aos Tickets
-    totalAmount: number; // Valor total do pedido
+    subtotal: number; // Valor do pedido sem taxa (valor dos ingressos)
+    discountAmount?: number; // Valor do desconto aplicado (se houver código de promotor)
+    platformFee: number; // Taxa da plataforma calculada (sobre subtotal - desconto)
+    totalAmount: number; // Valor total do pedido (subtotal - desconto + platformFee)
+    promoterCode?: string; // Código de promotor usado (se houver)
     totalTickets: number; // Quantidade total de ingressos
     status: 'pending' | 'paid' | 'cancelled' | 'refunded';
     paymentMethod?: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free'; // VIP não requer pagamento
@@ -61,10 +65,32 @@ const orderSchema = new Schema<IOrder>(
             type: Schema.Types.ObjectId,
             ref: 'Ticket',
         }],
+        subtotal: {
+            type: Number,
+            required: [true, 'Subtotal é obrigatório'],
+            min: [0, 'Subtotal não pode ser negativo'],
+            default: 0,
+        },
+        discountAmount: {
+            type: Number,
+            default: 0,
+            min: [0, 'Desconto não pode ser negativo'],
+        },
+        platformFee: {
+            type: Number,
+            required: [true, 'Taxa da plataforma é obrigatória'],
+            min: [0, 'Taxa da plataforma não pode ser negativa'],
+            default: 0,
+        },
         totalAmount: {
             type: Number,
             required: [true, 'Valor total é obrigatório'],
             min: [0, 'Valor total não pode ser negativo'],
+        },
+        promoterCode: {
+            type: String,
+            trim: true,
+            uppercase: true,
         },
         totalTickets: {
             type: Number,

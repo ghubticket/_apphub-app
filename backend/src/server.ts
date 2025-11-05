@@ -17,6 +17,7 @@ import ordersRoutes from './routes/orders'
 import ticketsRoutes from './routes/tickets'
 import healthRoutes from './routes/health'
 import deliveryRoutes from './routes/delivery';
+import promoterCodesRoutes from './routes/promoterCodes';
 import { startOrderExpirationScheduler } from './services/orderExpirationService'
 
 // Carregar variáveis de ambiente
@@ -103,6 +104,8 @@ app.use('/api/reservations', reservationsRoutes);
 app.use('/api/orders', ordersRoutes);
 // Rotas de ingressos
 app.use('/api/tickets', ticketsRoutes);
+// Rotas de códigos de promotor
+app.use('/api/promoters', promoterCodesRoutes);
 
 // Rotas de health check
 app.use('/api/health', healthRoutes);

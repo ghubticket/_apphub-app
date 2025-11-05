@@ -13,7 +13,8 @@ export interface IEvent extends Document {
     price: number;
     capacity: number;
     soldTickets: number;
-    ticketFee: number; // Taxa do ingresso (configurável no evento)
+    ticketFee?: number; // DEPRECATED: Taxa fixa do ingresso (usar platformFeePercentage)
+    platformFeePercentage: number; // Taxa percentual da plataforma sobre cada ingresso (ex: 5 = 5%)
     status: 'draft' | 'published' | 'cancelled' | 'finished';
     organizer: mongoose.Types.ObjectId; // Referência ao User
     image?: string;
@@ -111,6 +112,24 @@ const eventSchema = new Schema<IEvent>(
             default: 0,
             min: [0, 'Taxa do ingresso não pode ser negativa'],
             max: [1000, 'Taxa do ingresso não pode ser maior que R$ 1.000'],
+            // DEPRECATED: Manter por compatibilidade, usar platformFeePercentage
+        },
+        platformFeePercentage: {
+            type: Number,
+            default: 0,
+            min: [0, 'Taxa percentual não pode ser negativa'],
+            max: [100, 'Taxa percentual não pode ser maior que 100%'],
+            validate: {
+                validator: function(value: number) {
+                    // Validação adicional: garantir que é um número válido e dentro do range
+                    if (value === null || value === undefined) return true // Permite undefined/null (optional)
+                    if (typeof value !== 'number' || isNaN(value)) return false
+                    if (value < 0 || value > 100) return false
+                    return true
+                },
+                message: 'Taxa percentual deve ser um número entre 0 e 100'
+            },
+            // Taxa percentual da plataforma sobre cada ingresso (ex: 5 = 5%)
         },
         status: {
             type: String,

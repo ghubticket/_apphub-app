@@ -19,7 +19,7 @@ import DialogActions from '@mui/material/DialogActions'
 
 import { Controller, useForm } from 'react-hook-form'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { object, string, pipe, nonEmpty, minLength, maxLength, optional } from 'valibot'
+import { object, string, pipe, nonEmpty, minLength, maxLength, optional, number, minValue, maxValue, transform } from 'valibot'
 import type { SubmitHandler } from 'react-hook-form'
 import type { InferInput } from 'valibot'
 
@@ -58,7 +58,19 @@ const schema = object({
     location: optional(string()),
     address: optional(pipe(string(), minLength(5, 'Endereço deve ter pelo menos 5 caracteres'), maxLength(300, 'Endereço deve ter no máximo 300 caracteres'))),
     city: optional(string()),
-    state: optional(string())
+    state: optional(string()),
+    platformFeePercentage: optional(pipe(
+        string(),
+        transform((val) => {
+            if (!val || val === '') return undefined
+            const num = Number(val)
+            if (isNaN(num)) return undefined
+            return num
+        }),
+        number(),
+        minValue(0, 'Taxa não pode ser negativa'),
+        maxValue(100, 'Taxa não pode ser maior que 100%')
+    ))
 })
 
 const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
@@ -271,7 +283,8 @@ const EventViewPage = () => {
             location: '',
             address: '',
             city: '',
-            state: ''
+            state: '',
+            platformFeePercentage: ''
         }
     })
 
@@ -358,7 +371,8 @@ const EventViewPage = () => {
                         location: response.data.location || '',
                         address: response.data.address || '',
                         city: response.data.city || '',
-                        state: response.data.state || ''
+                        state: response.data.state || '',
+                        platformFeePercentage: response.data.platformFeePercentage?.toString() || ''
                     })
 
                     if (response.data.date) {
@@ -482,6 +496,9 @@ const EventViewPage = () => {
             form.append('address', data.address.trim())
             form.append('city', data.city.trim())
             form.append('state', data.state.toUpperCase().trim())
+            if (data.platformFeePercentage !== undefined && data.platformFeePercentage !== null && data.platformFeePercentage !== '') {
+                form.append('platformFeePercentage', String(data.platformFeePercentage))
+            }
 
             // Apenas enviar arquivos se novos foram selecionados
             if (coverFile) {
@@ -662,9 +679,58 @@ const EventViewPage = () => {
                                         )}
                                     />
                                 </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Controller
+                                        name='platformFeePercentage'
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <CustomTextField
+                                                {...field}
+                                                fullWidth
+                                                type='number'
+                                                label='Taxa da Plataforma (%)'
+                                                placeholder='Ex: 5 para 5%'
+                                                inputProps={{
+                                                    min: 0,
+                                                    max: 100,
+                                                    step: 0.1,
+                                                    maxLength: 5 // Limita visualmente (ex: "100.0" ou "99.99")
+                                                }}
+                                                onChange={(e) => {
+                                                    const value = e.target.value
+                                                    // Limitar a entrada: não permitir valores maiores que 100
+                                                    if (value === '' || value === null || value === undefined) {
+                                                        field.onChange('')
+                                                        return
+                                                    }
+                                                    const num = Number(value)
+                                                    if (!isNaN(num)) {
+                                                        if (num > 100) {
+                                                            field.onChange('100')
+                                                        } else if (num < 0) {
+                                                            field.onChange('0')
+                                                        } else {
+                                                            field.onChange(value)
+                                                        }
+                                                    } else {
+                                                        field.onChange('')
+                                                    }
+                                                }}
+                                                helperText={
+                                                    fieldState.error
+                                                        ? fieldState.error.message
+                                                        : field.value
+                                                            ? `Taxa de ${Number(field.value) > 100 ? '100' : field.value}% será aplicada sobre cada ingresso`
+                                                            : 'Taxa percentual sobre cada ingresso (0-100%)'
+                                                }
+                                                error={!!fieldState.error}
+                                            />
+                                        )}
+                                    />
+                                </Grid>
                             </Grid>
 
-                            <Typography variant='body2' className='mbe-1 font-medium'>Sobre o Evento</Typography>
+                            <Typography variant='body2' className='mbe-1 font-bold'>Sobre o Evento</Typography>
                             <Card className='p-0 border shadow-none'>
                                 <CardContent className='p-0'>
                                     <EditorToolbar editor={editor} />
@@ -829,7 +895,7 @@ const EventViewPage = () => {
                             <CardContent sx={{ flex: 1 }}>
                                 <Box className='flex flex-col gap-4'>
                                     <Box>
-                                        <Typography variant='body2' color='text.secondary' className='mb-1 font-medium'>Status</Typography>
+                                        <Typography variant='body2' color='text.secondary' className='mb-1 font-bold'>Status</Typography>
                                         <Chip
                                             label={event.isActive ? 'Ativo' : 'Inativo'}
                                             color={event.isActive ? 'success' : 'secondary'}
@@ -839,32 +905,38 @@ const EventViewPage = () => {
                                     </Box>
                                     {event.date && (
                                         <Box>
-                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-medium'>Data</Typography>
+                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-bold'>Data</Typography>
                                             <Typography>{new Date(event.date).toLocaleDateString('pt-BR')}</Typography>
                                         </Box>
                                     )}
                                     {event.time && (
                                         <Box>
-                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-medium'>Horário</Typography>
+                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-bold'>Horário</Typography>
                                             <Typography>{event.time}</Typography>
                                         </Box>
                                     )}
                                     {event.location && (
                                         <Box>
-                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-medium'>Localização</Typography>
+                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-bold'>Localização</Typography>
                                             <Typography>{event.location}</Typography>
                                         </Box>
                                     )}
                                     {event.address && (
                                         <Box>
-                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-medium'>Endereço</Typography>
+                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-bold'>Endereço</Typography>
                                             <Typography>{event.address}</Typography>
                                         </Box>
                                     )}
                                     {event.city && event.state && (
                                         <Box>
-                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-medium'>Cidade/Estado</Typography>
+                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-bold'>Cidade/Estado</Typography>
                                             <Typography>{event.city}, {event.state}</Typography>
+                                        </Box>
+                                    )}
+                                    {event.platformFeePercentage !== undefined && event.platformFeePercentage !== null && (
+                                        <Box>
+                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-bold'>Taxa da Plataforma</Typography>
+                                            <Typography>{event.platformFeePercentage}%</Typography>
                                         </Box>
                                     )}
                                 </Box>

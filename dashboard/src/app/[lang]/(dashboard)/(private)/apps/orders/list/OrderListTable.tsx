@@ -8,10 +8,6 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
-import Dialog from '@mui/material/Dialog'
-import DialogTitle from '@mui/material/DialogTitle'
-import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
 import { useParams } from 'next/navigation'
 import classnames from 'classnames'
 
@@ -26,7 +22,6 @@ import MenuItem from '@mui/material/MenuItem'
 import TablePagination from '@mui/material/TablePagination'
 import Pagination from '@mui/material/Pagination'
 // MenuItem já importado
-import OptionMenu from '@core/components/option-menu'
 import { useOrders } from '@/hooks/useOrders'
 import type { OrderItem } from '@/services/orderService'
 
@@ -73,8 +68,6 @@ const formatDate = (dateString: string): string => {
 
 const OrderListTable = () => {
     const [globalFilter, setGlobalFilter] = useState('')
-    const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null)
-    const [qrDialogOpen, setQrDialogOpen] = useState(false)
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'cancelled' | 'refunded'>('all')
@@ -214,29 +207,6 @@ const OrderListTable = () => {
                     </Typography>
                 )
             },
-            {
-                id: 'actions',
-                header: 'Ações',
-                cell: ({ row }) => (
-                    <div className='flex items-center gap-2'>
-                        <OptionMenu
-                            iconButtonProps={{ size: 'small' }}
-                            options={[
-                                {
-                                    text: 'Ver QR Codes',
-                                    icon: <i className='tabler-qrcode text-xl' />,
-                                    menuItemProps: {
-                                        onClick: () => {
-                                            setSelectedOrder(row.original)
-                                            setQrDialogOpen(true)
-                                        }
-                                    }
-                                }
-                            ]}
-                        />
-                    </div>
-                )
-            }
         ],
         []
     )
@@ -450,70 +420,6 @@ const OrderListTable = () => {
                     )}
                 </CardContent>
             </Card>
-
-            {/* Dialog para exibir QR Codes */}
-            <Dialog
-                open={qrDialogOpen}
-                onClose={() => setQrDialogOpen(false)}
-                maxWidth='md'
-                fullWidth
-            >
-                <DialogTitle>
-                    QR Codes do Pedido #{selectedOrder?.orderNumber}
-                </DialogTitle>
-                <DialogContent>
-                    {selectedOrder && (
-                        <Box>
-                            <Box className='mb-4'>
-                                <Typography variant='body2' color='text.secondary' className='mb-2'>
-                                    <strong>Cliente:</strong> {typeof selectedOrder.customer === 'object' ? selectedOrder.customer.name : 'N/A'}
-                                </Typography>
-                                <Typography variant='body2' color='text.secondary' className='mb-2'>
-                                    <strong>Evento:</strong> {typeof selectedOrder.event === 'object' ? selectedOrder.event.name : 'N/A'}
-                                </Typography>
-                                <Typography variant='body2' color='text.secondary'>
-                                    <strong>Total de Ingressos:</strong> {selectedOrder.totalTickets}
-                                </Typography>
-                            </Box>
-                            <Box className='grid grid-cols-2 gap-4'>
-                                {selectedOrder.tickets.map((ticket, index) => (
-                                    <Box key={ticket._id} className='border rounded-lg p-4'>
-                                        <Typography variant='subtitle2' className='mb-2'>
-                                            Ingresso {index + 1}
-                                        </Typography>
-                                        <Typography variant='caption' color='text.secondary' className='block mb-2'>
-                                            Código: {ticket.code}
-                                        </Typography>
-                                        <Typography variant='caption' color='text.secondary' className='block mb-2'>
-                                            {(() => {
-                                                const map: Record<string, string> = {
-                                                    confirmed: 'Confirmado',
-                                                    used: 'Usado',
-                                                    pending: 'Pendente',
-                                                    cancelled: 'Cancelado'
-                                                }
-                                                return `Status: ${map[ticket.status] || ticket.status}`
-                                            })()}
-                                        </Typography>
-                                        {ticket.qrCode && (
-                                            <Box className='flex justify-center mt-2'>
-                                                <img
-                                                    src={ticket.qrCode}
-                                                    alt={`QR Code ${ticket.code}`}
-                                                    className='w-32 h-32'
-                                                />
-                                            </Box>
-                                        )}
-                                    </Box>
-                                ))}
-                            </Box>
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setQrDialogOpen(false)}>Fechar</Button>
-                </DialogActions>
-            </Dialog>
         </>
     )
 }

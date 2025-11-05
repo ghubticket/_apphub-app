@@ -109,6 +109,17 @@ const EventListTable = () => {
                 )
             },
             {
+                accessorKey: 'platformFeePercentage',
+                header: 'Taxa (%)',
+                cell: ({ row }) => (
+                    <Typography variant='body2'>
+                        {row.original.platformFeePercentage !== undefined && row.original.platformFeePercentage !== null
+                            ? `${row.original.platformFeePercentage}%`
+                            : '0%'}
+                    </Typography>
+                )
+            },
+            {
                 accessorKey: 'createdAt',
                 header: 'Created',
                 cell: ({ row }) => (

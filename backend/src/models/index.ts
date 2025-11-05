@@ -6,6 +6,7 @@ export { default as TicketType } from './TicketType';
 export { default as TicketReservation } from './TicketReservation';
 export { default as Order } from './Order';
 export { default as Session } from './Session';
+export { default as PromoterCode } from './PromoterCode';
 
 // Re-exportar tipos para facilitar importação
 export type { IUser } from './User';
@@ -15,3 +16,4 @@ export type { ITicketType } from './TicketType';
 export type { ITicketReservation } from './TicketReservation';
 export type { IOrder } from './Order';
 export type { ISession } from './Session';
+export type { IPromoterCode } from './PromoterCode';

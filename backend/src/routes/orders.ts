@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment, cancelOrder } from '../controllers/ordersController';
+import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment, cancelOrder, getFinancialStats } from '../controllers/ordersController';
 import { authenticate, isAdmin } from '../middleware/auth';
 
 const router = express.Router();
@@ -171,6 +171,43 @@ router.get('/:id', authenticate, getOrderById);
  *         description: Pedido não encontrado
  */
 router.post('/:id/confirm-payment', authenticate, confirmPayment);
+
+/**
+ * @swagger
+ * /api/orders/financial/stats:
+ *   get:
+ *     summary: Obter estatísticas financeiras (apenas ADMIN)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Estatísticas financeiras
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalSales:
+ *                       type: number
+ *                       description: Total de vendas (subtotal, sem taxa)
+ *                     totalFees:
+ *                       type: number
+ *                       description: Total de taxas da plataforma
+ *                     totalRevenue:
+ *                       type: number
+ *                       description: Total geral (vendas + taxas)
+ *       401:
+ *         description: Não autenticado
+ *       403:
+ *         description: Acesso negado - apenas ADMIN
+ */
+router.get('/financial/stats', authenticate, isAdmin, getFinancialStats);
 
 export default router;
 
