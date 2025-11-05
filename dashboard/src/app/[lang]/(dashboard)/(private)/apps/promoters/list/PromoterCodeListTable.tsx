@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import CircularProgress from '@mui/material/CircularProgress'
 import Box from '@mui/material/Box'
+import classnames from 'classnames'
 
 import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, useReactTable } from '@tanstack/react-table'
 import type { ColumnDef, FilterFn } from '@tanstack/react-table'
@@ -19,8 +20,9 @@ import { rankItem } from '@tanstack/match-sorter-utils'
 import type { RankingInfo } from '@tanstack/match-sorter-utils'
 
 import CustomTextField from '@core/components/mui/TextField'
-import CustomAvatar from '@core/components/mui/Avatar'
+import Select from '@mui/material/Select'
 import TablePagination from '@mui/material/TablePagination'
+import Pagination from '@mui/material/Pagination'
 import OptionMenu from '@core/components/option-menu'
 import Switch from '@mui/material/Switch'
 
@@ -64,7 +66,7 @@ const PromoterCodeListTable = () => {
 
     const router = useRouter()
     const { lang } = useParams()
-    const { codes, loading, error, pagination, refetch } = usePromoterCodes({ 
+    const { codes, loading, error, pagination, refetch } = usePromoterCodes({
         page: currentPage,
         limit: pageSize,
         search: globalFilter || undefined,
@@ -74,7 +76,7 @@ const PromoterCodeListTable = () => {
     useEffect(() => {
         setData(codes)
     }, [codes])
-    
+
     // Resetar página quando busca mudar
     useEffect(() => {
         setCurrentPage(1)
@@ -90,16 +92,6 @@ const PromoterCodeListTable = () => {
         }
     }
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Tem certeza que deseja remover este código?')) return
-        try {
-            await promoterCodeService.delete(id)
-            refetch()
-        } catch (error) {
-            console.error('Erro ao remover código:', error)
-            alert('Erro ao remover código')
-        }
-    }
 
     const columns = useMemo<ColumnDef<any, any>[]>(
         () => [
@@ -107,46 +99,43 @@ const PromoterCodeListTable = () => {
                 accessorKey: 'code',
                 header: 'Código',
                 cell: ({ row }) => (
-                    <Typography variant='body2' className='font-medium'>
+                    <Typography color='text.primary' className='font-medium'>
                         {row.original.code}
-                    </Typography>
-                )
-            },
-            {
-                accessorKey: 'name',
-                header: 'Nome',
-                cell: ({ row }) => (
-                    <Typography variant='body2'>
-                        {row.original.name}
-                    </Typography>
-                )
-            },
-            {
-                accessorKey: 'cpf',
-                header: 'CPF',
-                cell: ({ row }) => (
-                    <Typography variant='body2'>
-                        {row.original.cpf}
-                    </Typography>
-                )
-            },
-            {
-                accessorKey: 'email',
-                header: 'Email',
-                cell: ({ row }) => (
-                    <Typography variant='body2'>
-                        {row.original.email}
                     </Typography>
                 )
             },
             {
                 accessorKey: 'whatsapp',
                 header: 'WhatsApp',
-                cell: ({ row }) => (
-                    <Typography variant='body2'>
-                        {row.original.whatsapp}
-                    </Typography>
-                )
+                cell: ({ row }) => {
+                    const whatsapp = row.original.whatsapp || ''
+                    const code = row.original.code || ''
+                    
+                    // Formatar número: remover caracteres especiais e adicionar 55 (Brasil) se não tiver
+                    const phoneNumber = whatsapp.replace(/\D/g, '')
+                    const formattedPhone = phoneNumber.startsWith('55') ? phoneNumber : `55${phoneNumber}`
+                    
+                    // Mensagem com o código
+                    const message = encodeURIComponent(`Olá! Seu código de promotor é: ${code}`)
+                    
+                    // Link do WhatsApp
+                    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${message}`
+                    
+                    return (
+                        <a
+                            href={whatsappUrl}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='flex items-center gap-2'
+                            style={{ textDecoration: 'none' }}
+                        >
+                            <i className='tabler-brand-whatsapp text-xl text-success' />
+                            <Typography color='text.primary' className='font-medium'>
+                                {whatsapp}
+                            </Typography>
+                        </a>
+                    )
+                }
             },
             {
                 accessorKey: 'discount',
@@ -157,7 +146,7 @@ const PromoterCodeListTable = () => {
                         ? `${discountValue}%`
                         : formatCurrency(discountValue)
                     return (
-                        <Typography variant='body2'>
+                        <Typography color='text.primary' className='font-medium'>
                             {display}
                         </Typography>
                     )
@@ -169,7 +158,7 @@ const PromoterCodeListTable = () => {
                 cell: ({ row }) => {
                     const events = row.original.events || []
                     return (
-                        <Typography variant='body2'>
+                        <Typography color='text.primary'>
                             {events.length} evento(s)
                         </Typography>
                     )
@@ -179,7 +168,7 @@ const PromoterCodeListTable = () => {
                 accessorKey: 'currentUses',
                 header: 'Usos',
                 cell: ({ row }) => (
-                    <Typography variant='body2'>
+                    <Typography color='text.primary' className='font-medium'>
                         {row.original.currentUses || 0}
                     </Typography>
                 )
@@ -219,14 +208,6 @@ const PromoterCodeListTable = () => {
                                             router.push(`/${lang}/apps/promoters/edit/${row.original._id}`)
                                         }
                                     }
-                                },
-                                {
-                                    text: 'Remover',
-                                    icon: <i className='tabler-trash text-xl' />,
-                                    menuItemProps: {
-                                        onClick: () => handleDelete(row.original._id),
-                                        className: 'text-error'
-                                    }
                                 }
                             ]}
                         />
@@ -245,20 +226,35 @@ const PromoterCodeListTable = () => {
         },
         state: {
             globalFilter,
+            pagination: {
+                pageIndex: currentPage - 1,
+                pageSize: pageSize,
+            },
         },
         onGlobalFilterChange: setGlobalFilter,
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         globalFilterFn: fuzzyFilter,
+        manualPagination: true, // Paginação controlada pelo backend
+        pageCount: pagination ? pagination.totalPages : 0,
     })
 
-    if (loading && data.length === 0) {
+    if (error) {
         return (
             <Card>
+                <CardHeader
+                    title='Erro'
+                    subheader='Não foi possível carregar os códigos'
+                />
                 <CardContent>
-                    <Box display='flex' justifyContent='center' alignItems='center' minHeight='200px'>
-                        <CircularProgress />
-                    </Box>
+                    <Typography color='error' className='mb-2'>{error}</Typography>
+                    <Button
+                        variant='outlined'
+                        onClick={() => window.location.reload()}
+                        startIcon={<i className='tabler-refresh' />}
+                    >
+                        Tentar Novamente
+                    </Button>
                 </CardContent>
             </Card>
         )
@@ -268,91 +264,159 @@ const PromoterCodeListTable = () => {
         <Card>
             <CardHeader
                 title='Códigos de Promotor'
-                action={
-                    <div className='flex items-center gap-4'>
-                        <CustomTextField
-                            select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value === 'all' ? 'all' : e.target.value === 'true')}
-                            className='is-[160px]'
-                        >
-                            <MenuItem value='all'>Todos</MenuItem>
-                            <MenuItem value='true'>Ativos</MenuItem>
-                            <MenuItem value='false'>Inativos</MenuItem>
-                        </CustomTextField>
-                        <CustomTextField
-                            placeholder='Buscar código ou nome...'
-                            value={globalFilter}
-                            onChange={(e) => setGlobalFilter(e.target.value)}
-                            className='is-[250px]'
-                            InputProps={{
-                                startAdornment: <i className='tabler-search text-xl' />
-                            }}
-                        />
-                        <Button
-                            variant='contained'
-                            component={Link}
-                            href={`/${lang}/apps/promoters/create`}
-                        >
-                            Novo Código
-                        </Button>
-                    </div>
-                }
+                subheader='Lista de todos os códigos de promotores'
             />
             <CardContent>
-                {error && (
-                    <Typography color='error' className='mb-4'>
-                        {error}
-                    </Typography>
-                )}
-                {data.length === 0 ? (
-                    <Typography className='text-center py-8'>
-                        Nenhum código encontrado
-                    </Typography>
+                {loading ? (
+                    <Box className='flex flex-col items-center justify-center py-12'>
+                        <i className='tabler-loader-2 animate-spin text-6xl text-textSecondary mb-4' />
+                        <Typography variant='h6' color='text.secondary'>
+                            Carregando códigos...
+                        </Typography>
+                    </Box>
+                ) : data.length === 0 ? (
+                    <Box className='flex flex-col items-center justify-center py-12'>
+                        <i className='tabler-ticket text-6xl text-textSecondary mb-4' />
+                        <Typography variant='h6' color='text.secondary' className='mb-2'>
+                            Nenhum código encontrado
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                            Os códigos aparecerão aqui quando forem criados
+                        </Typography>
+                    </Box>
                 ) : (
                     <>
-                        <div className={tableStyles.tableContainer}>
+                        <div className='flex items-center gap-4 mb-6'>
+                            <CustomTextField
+                                value={globalFilter}
+                                onChange={(e) => setGlobalFilter(e.target.value)}
+                                placeholder='Buscar códigos...'
+                                className='flex-1'
+                                InputProps={{
+                                    startAdornment: <i className='tabler-search text-xl text-textSecondary' />
+                                }}
+                            />
+                            <Select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value === 'all' ? 'all' : e.target.value === 'true')}
+                                size='small'
+                            >
+                                <MenuItem value='all'>Todos</MenuItem>
+                                <MenuItem value='true'>Ativos</MenuItem>
+                                <MenuItem value='false'>Inativos</MenuItem>
+                            </Select>
+                            <Button
+                                variant='contained'
+                                component={Link}
+                                href={`/${lang}/apps/promoters/create`}
+                            >
+                                Novo Código
+                            </Button>
+                        </div>
+
+                        <div className='overflow-x-auto'>
                             <table className={tableStyles.table}>
                                 <thead>
-                                    {table.getHeaderGroups().map(headerGroup => (
+                                    {table.getHeaderGroups().map((headerGroup) => (
                                         <tr key={headerGroup.id}>
-                                            {headerGroup.headers.map(header => (
+                                            {headerGroup.headers.map((header) => (
                                                 <th key={header.id}>
-                                                    {header.isPlaceholder
-                                                        ? null
-                                                        : flexRender(header.column.columnDef.header, header.getContext())}
+                                                    {header.isPlaceholder ? null : (
+                                                        <div
+                                                            className={classnames({
+                                                                'flex items-center gap-2': header.column.getIsSorted(),
+                                                                'cursor-pointer select-none': header.column.getCanSort(),
+                                                            })}
+                                                            onClick={header.column.getToggleSortingHandler()}
+                                                        >
+                                                            {flexRender(header.column.columnDef.header, header.getContext())}
+                                                            {{
+                                                                asc: <i className='tabler-chevron-up text-xl' />,
+                                                                desc: <i className='tabler-chevron-down text-xl' />,
+                                                            }[header.column.getIsSorted() as string] ?? null}
+                                                        </div>
+                                                    )}
                                                 </th>
                                             ))}
                                         </tr>
                                     ))}
                                 </thead>
                                 <tbody>
-                                    {table.getRowModel().rows.map(row => (
-                                        <tr key={row.id}>
-                                            {row.getVisibleCells().map(cell => (
-                                                <td key={cell.id}>
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </td>
-                                            ))}
+                                    {table.getRowModel().rows.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={table.getAllColumns().length} className='text-center'>
+                                                <Typography variant='body2' color='text.secondary' className='py-8'>
+                                                    Nenhum código encontrado
+                                                </Typography>
+                                            </td>
                                         </tr>
-                                    ))}
+                                    ) : (
+                                        table.getRowModel().rows.map((row) => (
+                                            <tr key={row.id} className={classnames({ selected: row.getIsSelected() })}>
+                                                {row.getVisibleCells().map((cell) => (
+                                                    <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                                                ))}
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>
-                        {pagination && (
-                            <TablePagination
-                                component='div'
-                                count={pagination.total}
-                                page={pagination.page - 1}
-                                rowsPerPage={pagination.limit}
-                                onPageChange={(_, page) => setCurrentPage(page + 1)}
-                                onRowsPerPageChange={(e) => {
-                                    setPageSize(Number(e.target.value))
-                                    setCurrentPage(1)
-                                }}
-                                rowsPerPageOptions={[10, 25, 50, 100]}
-                            />
-                        )}
+                        <TablePagination
+                            component={() => (
+                                <div className='flex justify-between items-center flex-wrap border-bs bs-auto pt-5 gap-2'>
+                                    <Typography color='text.disabled'>
+                                        {pagination ? (
+                                            `Mostrando ${pagination.total === 0
+                                                ? 0
+                                                : (currentPage - 1) * pageSize + 1
+                                            } a ${Math.min(currentPage * pageSize, pagination.total)} de ${pagination.total} registros`
+                                        ) : (
+                                            `Mostrando ${data.length} registros`
+                                        )}
+                                    </Typography>
+                                    <div className='flex items-center gap-2'>
+                                        <CustomTextField
+                                            select
+                                            size='small'
+                                            value={pageSize}
+                                            onChange={(e) => {
+                                                const newPageSize = Number(e.target.value)
+                                                setPageSize(newPageSize)
+                                                setCurrentPage(1)
+                                            }}
+                                            sx={{ minWidth: 80 }}
+                                        >
+                                            <MenuItem value={10}>10</MenuItem>
+                                            <MenuItem value={25}>25</MenuItem>
+                                            <MenuItem value={50}>50</MenuItem>
+                                            <MenuItem value={100}>100</MenuItem>
+                                        </CustomTextField>
+                                        {pagination && (
+                                            <Pagination
+                                                shape='rounded'
+                                                color='primary'
+                                                variant='tonal'
+                                                count={pagination.totalPages}
+                                                page={currentPage}
+                                                onChange={(_: any, page: number) => setCurrentPage(page)}
+                                                showFirstButton
+                                                showLastButton
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            count={pagination?.total || data.length}
+                            rowsPerPage={pageSize}
+                            page={currentPage - 1}
+                            onPageChange={(_, page) => setCurrentPage(page + 1)}
+                            onRowsPerPageChange={(e) => {
+                                const newPageSize = Number(e.target.value)
+                                setPageSize(newPageSize)
+                                setCurrentPage(1)
+                            }}
+                        />
                     </>
                 )}
             </CardContent>

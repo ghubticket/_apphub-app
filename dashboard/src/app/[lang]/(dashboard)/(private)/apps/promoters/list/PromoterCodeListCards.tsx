@@ -9,6 +9,7 @@ import Grid from '@mui/material/Grid2'
 import CustomAvatar from '@core/components/mui/Avatar'
 import { promoterCodeService, type PromoterCodeItem } from '@/services/promoterCodeService'
 import { usePromoterCodes } from '@/hooks/usePromoterCodes'
+import { useOrders } from '@/hooks/useOrders'
 
 const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', {
@@ -21,9 +22,16 @@ const formatCurrency = (value: number): string => {
 
 const PromoterCodeListCards = () => {
     // Buscar TODOS os códigos para calcular estatísticas
-    const { codes, loading } = usePromoterCodes({
+    const { codes, loading: codesLoading } = usePromoterCodes({
         page: 1,
         limit: 99999,
+    })
+
+    // Buscar TODOS os pedidos pagos para calcular valores de vendas e descontos
+    const { orders, loading: ordersLoading } = useOrders({
+        page: 1,
+        limit: 99999,
+        status: 'paid',
     })
 
     const stats = useMemo(() => {
@@ -42,20 +50,40 @@ const PromoterCodeListCards = () => {
         const activeCodes = codes.filter(c => c.isActive).length
         const inactiveCodes = codes.filter(c => !c.isActive).length
 
-        // Buscar pedidos pagos com códigos (será feito via API depois)
-        // Por enquanto, usar currentUses como aproximação
-        const totalOrders = codes.reduce((sum, c) => sum + (c.currentUses || 0), 0)
+        // Buscar pedidos pagos que têm códigos de promotor
+        const ordersWithPromoterCode = orders.filter(order => 
+            order.status === 'paid' && 
+            order.promoterCode && 
+            String(order.promoterCode).trim() !== ''
+        )
+
+        // Total de pedidos com códigos
+        const totalOrders = ordersWithPromoterCode.length
+
+        // Calcular valor total vendido (subtotal antes dos descontos)
+        const totalSales = ordersWithPromoterCode.reduce((sum, order) => {
+            const subtotal = Number(order.subtotal) || 0
+            return sum + subtotal
+        }, 0)
+
+        // Calcular total de descontos aplicados
+        const totalDiscount = ordersWithPromoterCode.reduce((sum, order) => {
+            const discount = Number(order.discountAmount) || 0
+            return sum + discount
+        }, 0)
 
         return {
             totalCodes: codes.length,
             activeCodes,
             inactiveCodes,
             totalOrders,
-            totalSales: 0, // Será calculado via API
-            totalDiscount: 0, // Será calculado via API
-            totalCommission: 0, // Será calculado via API
+            totalSales,
+            totalDiscount,
+            totalCommission: 0, // Comissão será calculada depois se necessário
         }
-    }, [codes])
+    }, [codes, orders])
+
+    const loading = codesLoading || ordersLoading
 
     if (loading) {
         return (

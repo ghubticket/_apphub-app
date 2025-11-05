@@ -30,6 +30,10 @@ export interface OrderItem {
     } | string;
     tickets: Ticket[];
     totalAmount: number;
+    subtotal?: number;
+    discountAmount?: number;
+    platformFee?: number;
+    promoterCode?: string;
     totalTickets: number;
     status: 'pending' | 'paid' | 'cancelled' | 'refunded';
     paymentMethod?: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free';

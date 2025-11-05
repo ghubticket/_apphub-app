@@ -363,7 +363,7 @@ const OrderListTable = () => {
 
                             <TablePagination
                                 component={() => (
-                                    <div className='flex justify-between items-center flex-wrap pli-6 border-bs bs-auto plb-[12.5px] gap-2'>
+                                    <div className='flex justify-between items-center flex-wrap border-bs bs-auto pt-5 gap-2'>
                                         <Typography color='text.disabled'>
                                             {pagination ? (
                                                 `Mostrando ${pagination.total === 0

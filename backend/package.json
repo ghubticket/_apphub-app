@@ -14,7 +14,7 @@
     "create-admin": "ts-node src/scripts/createAdminUser.ts",
     "create-test-users": "ts-node src/scripts/createTestUsers.ts",
     "create-test-orders": "ts-node src/scripts/createTestOrders.ts",
-    "create-three-orders": "ts-node src/scripts/createThreeOrders.ts",
+    "create-test-scenario": "ts-node src/scripts/createTestScenario.ts",
     "cleanup-deleted": "ts-node src/scripts/cleanupDeletedRecords.ts",
     "setup": "npm run create-admin && npm run create-test-users"
   },

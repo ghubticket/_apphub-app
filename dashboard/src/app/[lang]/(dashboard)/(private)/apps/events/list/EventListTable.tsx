@@ -10,6 +10,8 @@ import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
+import Box from '@mui/material/Box'
+import classnames from 'classnames'
 
 import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, useReactTable } from '@tanstack/react-table'
 import type { ColumnDef, FilterFn } from '@tanstack/react-table'
@@ -52,7 +54,7 @@ const EventListTable = () => {
 
     const router = useRouter()
     const { lang } = useParams()
-    const { events, loading, error, pagination, updateEventStatus } = useEvents({ 
+    const { events, loading, error, pagination, updateEventStatus } = useEvents({
         page: currentPage,
         limit: pageSize,
         search: globalFilter || undefined
@@ -61,7 +63,7 @@ const EventListTable = () => {
     useEffect(() => {
         setData(events)
     }, [events])
-    
+
     // Resetar página quando busca mudar
     useEffect(() => {
         setCurrentPage(1)
@@ -112,7 +114,7 @@ const EventListTable = () => {
                 accessorKey: 'platformFeePercentage',
                 header: 'Taxa (%)',
                 cell: ({ row }) => (
-                    <Typography variant='body2'>
+                    <Typography color='text.primary' className='font-medium'>
                         {row.original.platformFeePercentage !== undefined && row.original.platformFeePercentage !== null
                             ? `${row.original.platformFeePercentage}%`
                             : '0%'}
@@ -123,7 +125,13 @@ const EventListTable = () => {
                 accessorKey: 'createdAt',
                 header: 'Created',
                 cell: ({ row }) => (
-                    <Typography variant='body2'>{new Date(row.original.createdAt).toLocaleDateString()}</Typography>
+                    <Typography variant='body2' color='text.secondary'>
+                        {new Date(row.original.createdAt).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                        })}
+                    </Typography>
                 )
             },
             {
@@ -136,7 +144,7 @@ const EventListTable = () => {
                             {
                                 text: 'View',
                                 icon: 'tabler-eye',
-                                menuItemProps: { 
+                                menuItemProps: {
                                     onClick: () => router.push(`/${lang}/apps/events/view/${row.original._id}`)
                                 }
                             }
@@ -151,7 +159,7 @@ const EventListTable = () => {
     const table = useReactTable({
         data,
         columns,
-        state: { 
+        state: {
             globalFilter,
             pagination: {
                 pageIndex: currentPage - 1,
@@ -167,21 +175,22 @@ const EventListTable = () => {
         filterFns: { fuzzy: fuzzyFilter }
     })
 
-    if (loading) {
-        return (
-            <Card>
-                <CardContent>
-                    <Typography>Carregando eventos...</Typography>
-                </CardContent>
-            </Card>
-        )
-    }
-
     if (error) {
         return (
             <Card>
+                <CardHeader
+                    title='Erro'
+                    subheader='Não foi possível carregar os eventos'
+                />
                 <CardContent>
-                    <Typography color='error'>Erro ao carregar eventos: {error}</Typography>
+                    <Typography color='error' className='mb-2'>{error}</Typography>
+                    <Button
+                        variant='outlined'
+                        onClick={() => window.location.reload()}
+                        startIcon={<i className='tabler-refresh' />}
+                    >
+                        Tentar Novamente
+                    </Button>
                 </CardContent>
             </Card>
         )
@@ -189,111 +198,157 @@ const EventListTable = () => {
 
     return (
         <Card>
-            <CardHeader title='Eventos' className='pbe-4' />
-
-            <div className='p-6 border-bs'>
-                <div className='flex flex-col lg:flex-row gap-4 w-full'>
-                    <CustomTextField
-                        placeholder='Buscar evento'
-                        value={globalFilter}
-                        onChange={e => setGlobalFilter(e.target.value)}
-                        className='flex-1'
-                        sx={{
-                            '& .MuiOutlinedInput-root': { height: '60px', fontSize: '14px' }
-                        }}
-                    />
-                    <Button component={Link} href={`/${lang}/apps/events/create`} variant='contained' startIcon={<i className='tabler-plus' />}>Novo Evento</Button>
-                </div>
-            </div>
-
-            <div className='overflow-x-auto'>
-                <table className={tableStyles.table}>
-                    <thead>
-                        {table.getHeaderGroups().map(hg => (
-                            <tr key={hg.id}>
-                                {hg.headers.map(header => (
-                                    <th key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</th>
-                                ))}
-                            </tr>
-                        ))}
-                    </thead>
-                    {table.getRowModel().rows.length === 0 ? (
-                        <tbody>
-                            <tr>
-                                <td colSpan={table.getVisibleFlatColumns().length} className='text-center'>
-                                    Sem eventos disponíveis
-                                </td>
-                            </tr>
-                        </tbody>
-                    ) : (
-                        <tbody>
-                            {table.getRowModel().rows.map(row => (
-                                <tr key={row.id}>
-                                    {row.getVisibleCells().map(cell => (
-                                        <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    )}
-                </table>
-            </div>
-            <TablePagination
-                component={() => (
-                    <div className='flex justify-between items-center flex-wrap pli-6 border-bs bs-auto plb-[12.5px] gap-2'>
-                        <Typography color='text.disabled'>
-                            {pagination ? (
-                                `Mostrando ${
-                                    pagination.total === 0
-                                        ? 0
-                                        : (currentPage - 1) * pageSize + 1
-                                } a ${Math.min(currentPage * pageSize, pagination.total)} de ${pagination.total} registros`
-                            ) : (
-                                `Mostrando ${data.length} registros`
-                            )}
-                        </Typography>
-                        <div className='flex items-center gap-2'>
-                            <CustomTextField
-                                select
-                                size='small'
-                                value={pageSize}
-                                onChange={(e) => {
-                                    const newPageSize = Number(e.target.value)
-                                    setPageSize(newPageSize)
-                                    setCurrentPage(1)
-                                }}
-                                sx={{ minWidth: 80 }}
-                            >
-                                <MenuItem value={10}>10</MenuItem>
-                                <MenuItem value={25}>25</MenuItem>
-                                <MenuItem value={50}>50</MenuItem>
-                                <MenuItem value={100}>100</MenuItem>
-                            </CustomTextField>
-                            {pagination && (
-                                <Pagination
-                                    shape='rounded'
-                                    color='primary'
-                                    variant='tonal'
-                                    count={pagination.totalPages}
-                                    page={currentPage}
-                                    onChange={(_: any, page: number) => setCurrentPage(page)}
-                                    showFirstButton
-                                    showLastButton
-                                />
-                            )}
-                        </div>
-                    </div>
-                )}
-                count={pagination?.total || data.length}
-                rowsPerPage={pageSize}
-                page={currentPage - 1}
-                onPageChange={(_, page) => setCurrentPage(page + 1)}
-                onRowsPerPageChange={(e) => {
-                    const newPageSize = Number(e.target.value)
-                    setPageSize(newPageSize)
-                    setCurrentPage(1)
-                }}
+            <CardHeader
+                title='Eventos'
+                subheader='Lista de todos os eventos cadastrados'
             />
+            <CardContent>
+                {loading ? (
+                    <Box className='flex flex-col items-center justify-center py-12'>
+                        <i className='tabler-loader-2 animate-spin text-6xl text-textSecondary mb-4' />
+                        <Typography variant='h6' color='text.secondary'>
+                            Carregando eventos...
+                        </Typography>
+                    </Box>
+                ) : data.length === 0 ? (
+                    <Box className='flex flex-col items-center justify-center py-12'>
+                        <i className='tabler-calendar-event text-6xl text-textSecondary mb-4' />
+                        <Typography variant='h6' color='text.secondary' className='mb-2'>
+                            Nenhum evento encontrado
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                            Os eventos aparecerão aqui quando forem criados
+                        </Typography>
+                    </Box>
+                ) : (
+                    <>
+                        <div className='flex items-center gap-4 mb-6'>
+                            <CustomTextField
+                                value={globalFilter}
+                                onChange={(e) => setGlobalFilter(e.target.value)}
+                                placeholder='Buscar eventos...'
+                                className='flex-1'
+                                InputProps={{
+                                    startAdornment: <i className='tabler-search text-xl text-textSecondary' />
+                                }}
+                            />
+                            <Button
+                                component={Link}
+                                href={`/${lang}/apps/events/create`}
+                                variant='contained'
+                                startIcon={<i className='tabler-plus' />}
+                            >
+                                Novo Evento
+                            </Button>
+                        </div>
+
+                        <div className='overflow-x-auto'>
+                            <table className={tableStyles.table}>
+                                <thead>
+                                    {table.getHeaderGroups().map((headerGroup) => (
+                                        <tr key={headerGroup.id}>
+                                            {headerGroup.headers.map((header) => (
+                                                <th key={header.id}>
+                                                    {header.isPlaceholder ? null : (
+                                                        <div
+                                                            className={classnames({
+                                                                'flex items-center gap-2': header.column.getIsSorted(),
+                                                                'cursor-pointer select-none': header.column.getCanSort(),
+                                                            })}
+                                                            onClick={header.column.getToggleSortingHandler()}
+                                                        >
+                                                            {flexRender(header.column.columnDef.header, header.getContext())}
+                                                            {{
+                                                                asc: <i className='tabler-chevron-up text-xl' />,
+                                                                desc: <i className='tabler-chevron-down text-xl' />,
+                                                            }[header.column.getIsSorted() as string] ?? null}
+                                                        </div>
+                                                    )}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </thead>
+                                <tbody>
+                                    {table.getRowModel().rows.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={table.getAllColumns().length} className='text-center'>
+                                                <Typography variant='body2' color='text.secondary' className='py-8'>
+                                                    Nenhum evento encontrado
+                                                </Typography>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        table.getRowModel().rows.map((row) => (
+                                            <tr key={row.id} className={classnames({ selected: row.getIsSelected() })}>
+                                                {row.getVisibleCells().map((cell) => (
+                                                    <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                                                ))}
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <TablePagination
+                            component={() => (
+                                <div className='flex justify-between items-center flex-wrap border-bs bs-auto pt-5 gap-2'>
+                                    <Typography color='text.disabled'>
+                                        {pagination ? (
+                                            `Mostrando ${pagination.total === 0
+                                                ? 0
+                                                : (currentPage - 1) * pageSize + 1
+                                            } a ${Math.min(currentPage * pageSize, pagination.total)} de ${pagination.total} registros`
+                                        ) : (
+                                            `Mostrando ${data.length} registros`
+                                        )}
+                                    </Typography>
+                                    <div className='flex items-center gap-2'>
+                                        <CustomTextField
+                                            select
+                                            size='small'
+                                            value={pageSize}
+                                            onChange={(e) => {
+                                                const newPageSize = Number(e.target.value)
+                                                setPageSize(newPageSize)
+                                                setCurrentPage(1)
+                                            }}
+                                            sx={{ minWidth: 80 }}
+                                        >
+                                            <MenuItem value={10}>10</MenuItem>
+                                            <MenuItem value={25}>25</MenuItem>
+                                            <MenuItem value={50}>50</MenuItem>
+                                            <MenuItem value={100}>100</MenuItem>
+                                        </CustomTextField>
+                                        {pagination && (
+                                            <Pagination
+                                                shape='rounded'
+                                                color='primary'
+                                                variant='tonal'
+                                                count={pagination.totalPages}
+                                                page={currentPage}
+                                                onChange={(_: any, page: number) => setCurrentPage(page)}
+                                                showFirstButton
+                                                showLastButton
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            count={pagination?.total || data.length}
+                            rowsPerPage={pageSize}
+                            page={currentPage - 1}
+                            onPageChange={(_: any, page: number) => setCurrentPage(page + 1)}
+                            onRowsPerPageChange={(e: any) => {
+                                const newPageSize = Number(e.target.value)
+                                setPageSize(newPageSize)
+                                setCurrentPage(1)
+                            }}
+                        />
+                    </>
+                )}
+            </CardContent>
         </Card>
     )
 }

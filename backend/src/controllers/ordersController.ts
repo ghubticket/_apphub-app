@@ -633,14 +633,17 @@ export const getFinancialStats = async (req: Request, res: Response) => {
             status: 'paid',
             paymentMethod: { $ne: 'vip_free' },
             deletedAt: null,
-        }).select('subtotal platformFee').lean();
+        }).select('subtotal discountAmount platformFee').lean();
 
         // Calcular totais
-        let totalSales = 0; // Total de vendas (subtotal, sem taxa)
+        let totalSales = 0; // Total de vendas para repassar ao dono (subtotal - desconto, SEM taxa)
         let totalFees = 0; // Total de taxas da plataforma
 
         for (const order of paidOrders) {
-            totalSales += Number(order.subtotal || 0);
+            // Subtotal após desconto = subtotal original - desconto
+            // Esse é o valor que deve ser repassado ao dono do evento
+            const subtotalAfterDiscount = (order.subtotal || 0) - (order.discountAmount || 0);
+            totalSales += subtotalAfterDiscount;
             totalFees += Number(order.platformFee || 0);
         }
 
