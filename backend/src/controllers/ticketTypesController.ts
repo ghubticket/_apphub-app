@@ -147,9 +147,22 @@ export const listTicketTypes = async (req: Request, res: Response) => {
             .sort({ lotNumber: 1 })
             .populate('event', 'name date');
 
+        // Reconciliar soldQuantity com base em tickets CONFIRMADOS (evita divergência)
+        const reconciled = await Promise.all(ticketTypes.map(async (tt: any) => {
+            const confirmedCount = await (await import('../models/Ticket')).default.countDocuments({
+                ticketType: tt._id,
+                status: { $in: ['confirmed', 'used'] },
+                deletedAt: null,
+            })
+            return {
+                ...tt.toObject(),
+                soldQuantity: confirmedCount,
+            }
+        }))
+
         res.status(200).json({
             success: true,
-            data: ticketTypes,
+            data: reconciled,
         });
     } catch (error: any) {
         console.error('Erro ao listar tipos de ingresso:', error);

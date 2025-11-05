@@ -19,20 +19,40 @@ export interface EventItem {
 }
 
 export const getEventTicketStats = async (id: string) => {
-  const token = await getAuthToken()
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
-  const res = await fetch(`${API_BASE_URL}/events/${id}/tickets/stats`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` })
-    },
-    credentials: 'include'
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.message || 'Falha ao buscar estatísticas do evento')
-  }
-  return res.json()
+    const token = await getAuthToken()
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+    const res = await fetch(`${API_BASE_URL}/events/${id}/tickets/stats`, {
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` })
+        },
+        credentials: 'include'
+    })
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.message || 'Falha ao buscar estatísticas do evento')
+    }
+    return res.json()
+}
+
+export const distributeVip = async (
+    id: string,
+    payload: { email: string; quantity?: number; ticketTypeId?: string }
+) => {
+    const token = await getAuthToken()
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+    const res = await fetch(`${API_BASE_URL}/events/${id}/vip/distribute`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: JSON.stringify(payload),
+        credentials: 'include'
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.message || 'Falha ao distribuir VIP')
+    return data
 }
 
 export interface EventListResponse {

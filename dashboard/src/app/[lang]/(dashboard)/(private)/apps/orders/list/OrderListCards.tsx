@@ -62,6 +62,9 @@ const OrderListCards = () => {
                 pendingOrdersLastWeek: 0,
                 cancelledOrders: 0,
                 cancelledOrdersLastWeek: 0,
+                totalVipsDistributed: 0,
+                paidOrdersNonVip: 0,
+                vipDistributions: 0,
                 ordersByDay: Array(7).fill(0),
                 revenueByDay: Array(7).fill(0),
                 pendingByDay: Array(7).fill(0),
@@ -85,7 +88,7 @@ const OrderListCards = () => {
             return orderDate >= twoWeeksAgo && orderDate < lastWeek
         })
 
-            // Calcular pedidos por dia da semana (últimos 7 dias)
+        // Calcular pedidos por dia da semana (últimos 7 dias)
         // Criar array com os últimos 7 dias
         const ordersByDay = Array(7).fill(0)
         for (let i = 0; i < 7; i++) {
@@ -95,7 +98,7 @@ const OrderListCards = () => {
             dayStart.setHours(0, 0, 0, 0)
             const dayEnd = new Date(targetDate)
             dayEnd.setHours(23, 59, 59, 999)
-            
+
             ordersByDay[i] = ordersLastWeek.filter(order => {
                 const orderDate = new Date(order.createdAt)
                 return orderDate >= dayStart && orderDate <= dayEnd
@@ -111,7 +114,7 @@ const OrderListCards = () => {
             dayStart.setHours(0, 0, 0, 0)
             const dayEnd = new Date(targetDate)
             dayEnd.setHours(23, 59, 59, 999)
-            
+
             revenueByDay[i] = ordersLastWeek
                 .filter(order => {
                     const orderDate = new Date(order.createdAt)
@@ -132,7 +135,7 @@ const OrderListCards = () => {
         const totalRevenue = ordersLastWeek
             .filter(o => o.status === 'paid')
             .reduce((sum, o) => sum + o.totalAmount, 0)
-        
+
         const totalRevenueLastWeek = ordersPreviousWeek
             .filter(o => o.status === 'paid')
             .reduce((sum, o) => sum + o.totalAmount, 0)
@@ -164,10 +167,19 @@ const OrderListCards = () => {
             .filter(o => o.status === 'cancelled')
             .reduce((sum, o) => sum + o.totalAmount, 0)
 
-        // Total de ingressos vendidos (APENAS CONFIRMADOS - de pedidos pagos)
+        // Total de ingressos vendidos (APENAS CONFIRMADOS - de pedidos pagos, EXCLUINDO VIP)
         const totalTickets = ordersLastWeek
-            .filter(o => o.status === 'paid')
+            .filter(o => o.status === 'paid' && o.paymentMethod !== 'vip_free')
             .reduce((sum, o) => sum + (o.totalTickets || 0), 0)
+
+        // Total de VIPs distribuídos (pedidos com paymentMethod: 'vip_free')
+        const totalVipsDistributed = ordersLastWeek
+            .filter(o => o.status === 'paid' && o.paymentMethod === 'vip_free')
+            .reduce((sum, o) => sum + (o.totalTickets || 0), 0)
+
+        // Contar pedidos confirmados (não-VIP) e distribuições VIP
+        const paidOrdersNonVip = ordersLastWeek.filter(o => o.status === 'paid' && o.paymentMethod !== 'vip_free').length
+        const vipDistributions = ordersLastWeek.filter(o => o.status === 'paid' && o.paymentMethod === 'vip_free').length
 
         // Pedidos pendentes
         const pendingOrders = ordersLastWeek.filter(o => o.status === 'pending').length
@@ -186,7 +198,7 @@ const OrderListCards = () => {
             dayStart.setHours(0, 0, 0, 0)
             const dayEnd = new Date(targetDate)
             dayEnd.setHours(23, 59, 59, 999)
-            
+
             pendingByDay[i] = ordersLastWeek.filter(order => {
                 const orderDate = new Date(order.createdAt)
                 return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'pending'
@@ -202,7 +214,7 @@ const OrderListCards = () => {
             dayStart.setHours(0, 0, 0, 0)
             const dayEnd = new Date(targetDate)
             dayEnd.setHours(23, 59, 59, 999)
-            
+
             cancelledByDay[i] = ordersLastWeek.filter(order => {
                 const orderDate = new Date(order.createdAt)
                 return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'cancelled'
@@ -227,6 +239,9 @@ const OrderListCards = () => {
             pendingOrdersLastWeek,
             cancelledOrders,
             cancelledOrdersLastWeek,
+            totalVipsDistributed,
+            paidOrdersNonVip,
+            vipDistributions,
             ordersByDay,
             revenueByDay,
             pendingByDay,
@@ -381,19 +396,19 @@ const OrderListCards = () => {
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardHeader title='Pedidos' subheader='Última Semana' className='pbe-0' />
                     <CardContent className='flex flex-col flex-1'>
-                        <AppReactApexCharts 
-                            type='bar' 
-                            height={84} 
-                            width='100%' 
-                            options={orderChartOptions} 
-                            series={orderChartSeries} 
+                        <AppReactApexCharts
+                            type='bar'
+                            height={84}
+                            width='100%'
+                            options={orderChartOptions}
+                            series={orderChartSeries}
                         />
                         <div className='flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5 mt-2'>
                             <Typography variant='h4' color='text.primary'>
                                 {formatCurrency(stats.totalActiveRevenue)}
                             </Typography>
-                            <Typography 
-                                variant='body2' 
+                            <Typography
+                                variant='body2'
                                 color={ordersPercentage >= 0 ? 'success.main' : 'error.main'}
                             >
                                 {ordersPercentage >= 0 ? '+' : ''}{ordersPercentage.toFixed(1)}%
@@ -410,20 +425,20 @@ const OrderListCards = () => {
             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardHeader title='Vendas Totais' subheader='Última Semana' className='pbe-0' />
-                    <AppReactApexCharts 
-                        type='area' 
-                        height={84} 
-                        width='100%' 
-                        options={salesChartOptions} 
-                        series={salesChartSeries} 
+                    <AppReactApexCharts
+                        type='area'
+                        height={84}
+                        width='100%'
+                        options={salesChartOptions}
+                        series={salesChartSeries}
                     />
                     <CardContent className='flex flex-col pbs-0 flex-1'>
                         <div className='flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5'>
                             <Typography variant='h4' color='text.primary'>
                                 {formatCurrency(stats.totalRevenue)}
                             </Typography>
-                            <Typography 
-                                variant='body2' 
+                            <Typography
+                                variant='body2'
                                 color={revenuePercentage >= 0 ? 'success.main' : 'error.main'}
                             >
                                 {revenuePercentage >= 0 ? '+' : ''}{revenuePercentage.toFixed(1)}%
@@ -436,8 +451,8 @@ const OrderListCards = () => {
                 </Card>
             </Grid>
 
-            {/* Card 4: Pedidos Pendentes */}
-            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
+            {/* Card 4: Pedidos Pendentes - OCULTO TEMPORARIAMENTE */}
+            {/* <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardHeader title='Pedidos Pendentes' subheader='Última Semana' className='pbe-0' />
                     <CardContent className='flex flex-col flex-1'>
@@ -464,26 +479,26 @@ const OrderListCards = () => {
                         </Typography>
                     </CardContent>
                 </Card>
-            </Grid>
+            </Grid> */}
 
             {/* Card 5: Pedidos Cancelados - Valor total */}
             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardHeader title='Pedidos Cancelados' subheader='Última Semana' className='pbe-0' />
                     <CardContent className='flex flex-col flex-1'>
-                        <AppReactApexCharts 
-                            type='bar' 
-                            height={84} 
-                            width='100%' 
-                            options={cancelledChartOptions} 
-                            series={cancelledChartSeries} 
+                        <AppReactApexCharts
+                            type='bar'
+                            height={84}
+                            width='100%'
+                            options={cancelledChartOptions}
+                            series={cancelledChartSeries}
                         />
                         <div className='flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5 mt-2'>
                             <Typography variant='h4' color='text.primary'>
                                 {formatCurrency(stats.cancelledRevenue)}
                             </Typography>
-                            <Typography 
-                                variant='body2' 
+                            <Typography
+                                variant='body2'
                                 color={cancelledPercentage >= 0 ? 'error.main' : 'success.main'}
                             >
                                 {cancelledPercentage >= 0 ? '+' : ''}{cancelledPercentage.toFixed(1)}%
@@ -496,7 +511,7 @@ const OrderListCards = () => {
                 </Card>
             </Grid>
 
-            {/* Card 3: Ingressos Vendidos - Com ícone */}
+            {/* Card 3: Ingressos Vendidos - Apenas pagos (sem VIP) */}
             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardContent className='flex flex-col gap-y-3 items-start flex-1'>
@@ -508,11 +523,33 @@ const OrderListCards = () => {
                             <Typography color='text.disabled'>Última Semana</Typography>
                             <Typography color='text.primary' variant='h4'>{stats.totalTickets}</Typography>
                         </div>
-                        <Chip 
-                            label={`${stats.paidOrders} confirmados`} 
-                            color='success' 
-                            variant='tonal' 
-                            size='small' 
+                        <Chip
+                            label={`${stats.paidOrdersNonVip} confirmados`}
+                            color='success'
+                            variant='tonal'
+                            size='small'
+                        />
+                    </CardContent>
+                </Card>
+            </Grid>
+
+            {/* Card 6: VIPs Distribuídos */}
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardContent className='flex flex-col gap-y-3 items-start flex-1'>
+                        <CustomAvatar variant='rounded' skin='light' size={44} color='secondary'>
+                            <i className='tabler-gift text-[28px]' />
+                        </CustomAvatar>
+                        <div className='flex flex-col gap-y-1'>
+                            <Typography variant='h5'>VIPs Distribuídos</Typography>
+                            <Typography color='text.disabled'>Última Semana</Typography>
+                            <Typography color='text.primary' variant='h4'>{stats.totalVipsDistributed}</Typography>
+                        </div>
+                        <Chip
+                            label={`${stats.vipDistributions} distribuições`}
+                            color='secondary'
+                            variant='tonal'
+                            size='small'
                         />
                     </CardContent>
                 </Card>

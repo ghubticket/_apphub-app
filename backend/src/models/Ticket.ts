@@ -133,8 +133,8 @@ ticketSchema.virtual('isCancelled').get(function () {
     return this.status === 'cancelled';
 });
 
-// Middleware para gerar código único antes de salvar
-ticketSchema.pre('save', async function (next) {
+// Middleware para gerar código único antes da validação (garante que o campo obrigatório exista)
+ticketSchema.pre('validate', async function (next) {
     if (this.isNew) {
         // Gerar código único de 12 caracteres
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

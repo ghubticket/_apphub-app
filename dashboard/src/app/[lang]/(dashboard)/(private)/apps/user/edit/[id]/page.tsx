@@ -60,7 +60,7 @@ const UserEditPage = () => {
                 setLoading(true)
                 setError(null)
                 const response = await userService.getUserById(id as string)
-                
+
                 if (response.success) {
                     setUser(response.data.user)
                     setOrders(response.data.orders || [])
@@ -121,8 +121,8 @@ const UserEditPage = () => {
                     />
                     <CardContent>
                         <Typography color='error' className='mb-2'>{error || 'Usuário não encontrado'}</Typography>
-                        <Button 
-                            variant='outlined' 
+                        <Button
+                            variant='outlined'
                             onClick={() => router.push(`/${locale}/apps/user/list`)}
                             startIcon={<i className='tabler-arrow-left' />}
                         >
@@ -331,8 +331,8 @@ const UserEditPage = () => {
                                                     </td>
                                                     <td>
                                                         <Chip
-                                                            label={order.status}
-                                                            color={orderStatusColors[order.status] || 'default'}
+                                                            label={order.paymentMethod === 'vip_free' ? 'VIP' : order.status}
+                                                            color={order.paymentMethod === 'vip_free' ? 'success' : (orderStatusColors[order.status] || 'default')}
                                                             size='small'
                                                             variant='tonal'
                                                         />

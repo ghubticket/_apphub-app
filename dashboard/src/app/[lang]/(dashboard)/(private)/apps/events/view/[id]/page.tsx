@@ -12,10 +12,14 @@ import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import Divider from '@mui/material/Divider'
 import MenuItem from '@mui/material/MenuItem'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 
 import { Controller, useForm } from 'react-hook-form'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { object, string, pipe, nonEmpty, minLength, optional } from 'valibot'
+import { object, string, pipe, nonEmpty, minLength, maxLength, optional } from 'valibot'
 import type { SubmitHandler } from 'react-hook-form'
 import type { InferInput } from 'valibot'
 
@@ -33,7 +37,8 @@ import CustomIconButton from '@core/components/mui/IconButton'
 import AppReactDatepicker from '@/libs/styles/AppReactDatepicker'
 
 import { AdminOnly } from '@/components/RoleGuard'
-import { eventService, type EventItem, getEventTicketStats } from '@/services/eventService'
+import { eventService, type EventItem, getEventTicketStats, distributeVip } from '@/services/eventService'
+import { userService } from '@/services/userService'
 import { locationService, type UF, type City } from '@/services/locationService'
 import { useTicketTypes } from '@/hooks/useTicketTypes'
 import type { TicketTypeItem } from '@/services/ticketTypeService'
@@ -51,7 +56,7 @@ type FormData = InferInput<typeof schema>
 const schema = object({
     name: pipe(string(), nonEmpty('Nome do evento é obrigatório'), minLength(3, 'Nome deve ter pelo menos 3 caracteres')),
     location: optional(string()),
-    address: optional(string()),
+    address: optional(pipe(string(), minLength(5, 'Endereço deve ter pelo menos 5 caracteres'), maxLength(300, 'Endereço deve ter no máximo 300 caracteres'))),
     city: optional(string()),
     state: optional(string())
 })
@@ -96,10 +101,40 @@ const EventViewPage = () => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [isEditing, setIsEditing] = useState(false)
-    const { ticketTypes } = useTicketTypes(id as string)
+    const { ticketTypes, fetchTicketTypes } = useTicketTypes(id as string)
+    // Modal de distribuição de VIP
+    const [vipOpen, setVipOpen] = useState(false)
+    const [vipEmail, setVipEmail] = useState('')
+    const [vipUserName, setVipUserName] = useState('')
+    const [vipQuantity, setVipQuantity] = useState(1)
+    const vipTypes = ticketTypes.filter(tt => tt.isVIP)
+    const [vipTypeId, setVipTypeId] = useState<string | null>(null)
+    const [vipSubmitting, setVipSubmitting] = useState(false)
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [vipError, setVipError] = useState<string | null>(null)
+
+    const checkEmail = async (email: string) => {
+        if (!email) { setVipUserName(''); return }
+        try {
+            const res = await userService.getAllUsers({ page: 1, limit: 1, search: email })
+            const u = res.data.users?.[0]
+            setVipUserName(u ? u.name : '')
+        } catch {
+            setVipUserName('')
+        }
+    }
+
+    const refetchStats = async () => {
+        if (!id) return
+        try {
+            const res = await getEventTicketStats(id as string)
+            setApiStats(res.data)
+        } catch { }
+        await fetchTicketTypes()
+    }
     const [availableQuantities, setAvailableQuantities] = useState<Record<string, number>>({})
     const [loadingReservations, setLoadingReservations] = useState(false)
-    const [apiStats, setApiStats] = useState<{ capacityTotal: number; soldTotal: number; availableTotal: number; pendingCount: number; cancelledCount: number; vipsDistributed: number } | null>(null)
+    const [apiStats, setApiStats] = useState<{ capacityTotal: number; soldTotal: number; availableTotal: number; pendingCount: number; cancelledCount: number; vipsDistributed: number; totalRevenue?: number; revenueByDay?: number[] } | null>(null)
 
     // Buscar quantidades disponíveis considerando reservas
     useEffect(() => {
@@ -153,7 +188,7 @@ const EventViewPage = () => {
 
     // Calcular métricas dos ingressos baseado nos tipos cadastrados
     const calculateTicketMetrics = (
-        ticketTypes: TicketTypeItem[], 
+        ticketTypes: TicketTypeItem[],
         availableQuantities: Record<string, number>,
         isLoading: boolean
     ) => {
@@ -173,12 +208,12 @@ const EventViewPage = () => {
             const qty = Number(tt.maxQuantity) || 0
             return sum + qty
         }, 0)
-        
+
         // Ingressos Vendidos: Soma de todos os ingressos vendidos de todos os tipos
         const totalSold = ticketTypes.reduce((sum, tt) => {
             return sum + (tt.soldQuantity || 0)
         }, 0)
-        
+
         // Ingressos Disponíveis: Usar SEMPRE a API que considera reservas ativas
         // Se ainda está carregando, mostrar 0 temporariamente
         let totalAvailable = 0
@@ -194,7 +229,7 @@ const EventViewPage = () => {
                 return sum
             }, 0)
         }
-        
+
         const totalPending = 0 // TODO: Integrar com API de reservas quando disponível
         const totalCancelled = 0 // TODO: Integrar com API de tickets cancelados quando disponível
 
@@ -209,7 +244,7 @@ const EventViewPage = () => {
 
     const ticketMetrics = calculateTicketMetrics(ticketTypes, availableQuantities, loadingReservations)
 
-    
+
     const [coverFile, setCoverFile] = useState<File | null>(null)
     const [squareFile, setSquareFile] = useState<File | null>(null)
     const [coverFileError, setCoverFileError] = useState<string | null>(null)
@@ -562,12 +597,17 @@ const EventViewPage = () => {
                                     <Controller
                                         name='address'
                                         control={control}
-                                        render={({ field }) => (
+                                        render={({ field, fieldState }) => (
                                             <CustomTextField
                                                 {...field}
                                                 fullWidth
                                                 label='Endereço'
                                                 placeholder='Endereço completo'
+                                                inputProps={{
+                                                    maxLength: 300
+                                                }}
+                                                helperText={field.value ? `${field.value.length}/300 caracteres` : 'Máximo 300 caracteres'}
+                                                error={!!fieldState.error}
                                             />
                                         )}
                                     />
@@ -735,6 +775,14 @@ const EventViewPage = () => {
                                         onClick={() => router.push(`/${lang}/apps/events/view/${id}/tickets/list`)}
                                     >
                                         Cadastrar Tickets
+                                    </Button>
+                                    <Button
+                                        variant='tonal'
+                                        color='secondary'
+                                        startIcon={<i className='tabler-gift' />}
+                                        onClick={() => { setVipOpen(true); setVipTypeId(vipTypes[0]?._id || null) }}
+                                    >
+                                        Distribuir Cortesia
                                     </Button>
                                     <Button
                                         variant='outlined'
@@ -938,11 +986,11 @@ const EventViewPage = () => {
                             <CardHeader title='Vendas em Reais' />
                             <Divider />
                             <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 0, '&:last-child': { pb: 0 }, overflow: 'hidden' }}>
-                                <Box 
+                                <Box
                                     ref={chartContainerRef}
-                                    sx={{ 
-                                        flex: 1, 
-                                        width: '100%', 
+                                    sx={{
+                                        flex: 1,
+                                        width: '100%',
                                         minHeight: '400px',
                                         display: 'flex',
                                         flexDirection: 'column',
@@ -955,83 +1003,83 @@ const EventViewPage = () => {
                                             type='area'
                                             height={chartHeight}
                                             width='100%'
-                                        options={{
-                                            chart: {
-                                                parentHeightOffset: 0,
-                                                toolbar: { show: false },
-                                                sparkline: { enabled: false }
-                                            },
-                                            tooltip: {
-                                                enabled: true,
-                                                theme: 'dark',
-                                                y: {
-                                                    formatter: (val: number) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                                                }
-                                            },
-                                            dataLabels: { enabled: false },
-                                            stroke: {
-                                                width: 3,
-                                                curve: 'smooth'
-                                            },
-                                            grid: {
-                                                show: true,
-                                                borderColor: 'var(--mui-palette-divider)',
-                                                strokeDashArray: 3,
-                                                padding: {
-                                                    top: 10,
-                                                    right: 10,
-                                                    bottom: 10,
-                                                    left: 10
-                                                }
-                                            },
-                                            fill: {
-                                                type: 'gradient',
-                                                gradient: {
-                                                    opacityTo: 0.1,
-                                                    opacityFrom: 0.6,
-                                                    shadeIntensity: 1,
-                                                    stops: [0, 100],
-                                                    colorStops: [
-                                                        [
-                                                            {
-                                                                offset: 0,
-                                                                opacity: 0.6,
-                                                                color: theme.palette.success.main
-                                                            },
-                                                            {
-                                                                offset: 100,
-                                                                opacity: 0.1,
-                                                                color: theme.palette.success.main
-                                                            }
-                                                        ]
-                                                    ]
-                                                }
-                                            },
-                                            colors: [theme.palette.success.main],
-                                            xaxis: {
-                                                labels: {
-                                                    show: true,
-                                                    style: {
-                                                        colors: 'var(--mui-palette-text-secondary)',
-                                                        fontSize: '12px'
+                                            options={{
+                                                chart: {
+                                                    parentHeightOffset: 0,
+                                                    toolbar: { show: false },
+                                                    sparkline: { enabled: false }
+                                                },
+                                                tooltip: {
+                                                    enabled: true,
+                                                    theme: 'dark',
+                                                    y: {
+                                                        formatter: (val: number) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                                     }
                                                 },
-                                                axisTicks: { show: false },
-                                                axisBorder: { show: false },
-                                                categories: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul']
-                                            },
-                                            yaxis: {
-                                                show: true,
-                                                labels: {
-                                                    formatter: (val: number) => `R$ ${(val / 1000).toFixed(0)}k`,
-                                                    style: {
-                                                        colors: 'var(--mui-palette-text-secondary)',
-                                                        fontSize: '12px'
+                                                dataLabels: { enabled: false },
+                                                stroke: {
+                                                    width: 3,
+                                                    curve: 'smooth'
+                                                },
+                                                grid: {
+                                                    show: true,
+                                                    borderColor: 'var(--mui-palette-divider)',
+                                                    strokeDashArray: 3,
+                                                    padding: {
+                                                        top: 10,
+                                                        right: 10,
+                                                        bottom: 10,
+                                                        left: 10
+                                                    }
+                                                },
+                                                fill: {
+                                                    type: 'gradient',
+                                                    gradient: {
+                                                        opacityTo: 0.1,
+                                                        opacityFrom: 0.6,
+                                                        shadeIntensity: 1,
+                                                        stops: [0, 100],
+                                                        colorStops: [
+                                                            [
+                                                                {
+                                                                    offset: 0,
+                                                                    opacity: 0.6,
+                                                                    color: theme.palette.success.main
+                                                                },
+                                                                {
+                                                                    offset: 100,
+                                                                    opacity: 0.1,
+                                                                    color: theme.palette.success.main
+                                                                }
+                                                            ]
+                                                        ]
+                                                    }
+                                                },
+                                                colors: [theme.palette.success.main],
+                                                xaxis: {
+                                                    labels: {
+                                                        show: true,
+                                                        style: {
+                                                            colors: 'var(--mui-palette-text-secondary)',
+                                                            fontSize: '12px'
+                                                        }
+                                                    },
+                                                    axisTicks: { show: false },
+                                                    axisBorder: { show: false },
+                                                    categories: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul']
+                                                },
+                                                yaxis: {
+                                                    show: true,
+                                                    labels: {
+                                                        formatter: (val: number) => `R$ ${(val / 1000).toFixed(0)}k`,
+                                                        style: {
+                                                            colors: 'var(--mui-palette-text-secondary)',
+                                                            fontSize: '12px'
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        }}
-                                        series={[{ name: 'Vendas', data: [0, 500, 1200, 800, 1500, 2000, 1800] }]}
+                                            }}
+                                            series={[{ name: 'Vendas', data: (apiStats?.revenueByDay || []).map((v: number) => Number(v)) }]}
                                         />
                                     </Box>
                                 </Box>
@@ -1085,6 +1133,117 @@ const EventViewPage = () => {
                             </Card>
                         </Grid>
                     )}
+
+                    {/* Modal Distribuir Cortesia */}
+                    <Dialog open={vipOpen} onClose={() => setVipOpen(false)} fullWidth maxWidth='sm'>
+                        <DialogTitle>Distribuir Cortesia (VIP)</DialogTitle>
+                        <DialogContent className='flex flex-col gap-4 pbs-4'>
+                            <CustomTextField
+                                label='E-mail do usuário'
+                                value={vipEmail}
+                                onChange={(e) => setVipEmail(e.target.value)}
+                                onBlur={() => checkEmail(vipEmail)}
+                                placeholder='usuario@cliente.com'
+                                fullWidth
+                            />
+                            {vipUserName && (
+                                <Typography variant='body2' color='text.secondary'>Usuário: {vipUserName}</Typography>
+                            )}
+                            <CustomTextField
+                                label='Quantidade'
+                                type='number'
+                                value={vipQuantity}
+                                onChange={(e) => {
+                                    const val = e.target.value
+                                    if (val.length <= 2) {
+                                        const num = Number(val) || 0
+                                        if (num >= 1 && num <= 99) {
+                                            setVipQuantity(num)
+                                        } else if (num > 99) {
+                                            setVipQuantity(99)
+                                        } else if (val === '') {
+                                            setVipQuantity(1)
+                                        }
+                                    }
+                                }}
+                                inputProps={{
+                                    maxLength: 2,
+                                    min: 1,
+                                    max: 99
+                                }}
+                                fullWidth
+                            />
+                            {vipTypes.length > 1 && (
+                                <CustomTextField
+                                    select
+                                    label='Tipo VIP'
+                                    value={vipTypeId || ''}
+                                    onChange={(e) => setVipTypeId(e.target.value as string)}
+                                    fullWidth
+                                >
+                                    {vipTypes.map(tt => (
+                                        <MenuItem key={tt._id} value={tt._id}>
+                                            {tt.name} • Disponível: {(tt.maxQuantity || 0) - (tt.soldQuantity || 0)}
+                                        </MenuItem>
+                                    ))}
+                                </CustomTextField>
+                            )}
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={() => setVipOpen(false)}>Cancelar</Button>
+                            <Button
+                                variant='contained'
+                                disabled={vipSubmitting || !vipEmail || !vipUserName || (vipTypes.find(t => t._id === (vipTypeId || vipTypes[0]?._id)) && ((vipTypes.find(t => t._id === (vipTypeId || vipTypes[0]?._id))!.maxQuantity - (vipTypes.find(t => t._id === (vipTypeId || vipTypes[0]?._id))!.soldQuantity || 0)) < vipQuantity))}
+                                onClick={() => setConfirmOpen(true)}
+                            >
+                                Enviar cortesia
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+                    {/* Confirmação estilizada */}
+                    <Dialog open={confirmOpen} onClose={() => { setConfirmOpen(false); setVipError(null) }} maxWidth='xs' fullWidth>
+                        <DialogTitle>Confirmar envio de cortesia</DialogTitle>
+                        <DialogContent>
+                            {vipError && (
+                                <Box className='mb-4 p-3 rounded' sx={{ backgroundColor: 'error.lightOpacity', border: '1px solid', borderColor: 'error.main' }}>
+                                    <Typography variant='body2' color='error.main'>
+                                        {vipError}
+                                    </Typography>
+                                </Box>
+                            )}
+                            <Typography variant='body2' color='text.secondary'>
+                                Usuário: <strong>{vipUserName}</strong> ({vipEmail})
+                            </Typography>
+                            <Typography variant='body2' color='text.secondary' className='mt-2'>
+                                Quantidade: <strong>{vipQuantity}</strong>{vipTypes.length ? <> • Tipo: <strong>{vipTypes.find(t => t._id === (vipTypeId || vipTypes[0]?._id))?.name}</strong></> : null}
+                            </Typography>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={() => { setConfirmOpen(false); setVipError(null) }}>Cancelar</Button>
+                            <Button
+                                variant='contained'
+                                disabled={vipSubmitting}
+                                onClick={async () => {
+                                    if (!id) return
+                                    try {
+                                        setVipSubmitting(true)
+                                        setVipError(null)
+                                        await distributeVip(id as string, { email: vipEmail, quantity: vipQuantity, ticketTypeId: vipTypeId || vipTypes[0]?._id })
+                                        await refetchStats()
+                                        setConfirmOpen(false)
+                                        setVipOpen(false)
+                                        setVipEmail(''); setVipUserName(''); setVipQuantity(1); setVipError(null)
+                                    } catch (e: any) {
+                                        setVipError(e.message || 'Falha ao distribuir VIP')
+                                    } finally {
+                                        setVipSubmitting(false)
+                                    }
+                                }}
+                            >
+                                Confirmar
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
                 </Grid>
             </Grid>
         </AdminOnly>

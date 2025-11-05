@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { authenticate, isAdmin } from '../middleware/auth'
 import { eventImageUpload, validatePngMagicBytes } from '../middleware/upload'
-import { createEvent, listEvents, getEvent, updateEvent, updateEventStatus, deleteEvent, getEventTicketStats } from '../controllers/eventsController'
+import { createEvent, listEvents, getEvent, updateEvent, updateEventStatus, deleteEvent, getEventTicketStats, distributeVip } from '../controllers/eventsController'
 
 const router = Router()
 
@@ -142,17 +142,48 @@ router.patch('/:id/status', authenticate, isAdmin, updateEventStatus)
  * @swagger
  * /events/{id}:
  *   delete:
- *     summary: Remover evento (apenas ADMIN)
+ *     summary: Remover evento (soft delete) (apenas ADMIN)
+ *     description: Marca o evento como inativo e define deletedAt; não remove definitivamente.
  *     tags: [Events]
  *     security:
  *       - bearerAuth: []
  *     responses:
- *       200: { description: Removido }
+ *       200: { description: Removido (soft delete) }
  */
 router.delete('/:id', authenticate, isAdmin, deleteEvent)
 
 // Estatísticas de ingressos do evento
 router.get('/:id/tickets/stats', authenticate, getEventTicketStats)
+
+/**
+ * @swagger
+ * /events/{id}/vip/distribute:
+ *   post:
+ *     summary: Distribuir VIP (cortesia) para usuário existente (apenas ADMIN)
+ *     tags: [Events]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string }
+ *               quantity: { type: integer, default: 1, minimum: 1 }
+ *     responses:
+ *       201: { description: VIP distribuído }
+ *       400: { description: Dados inválidos }
+ *       404: { description: Usuário/Evento/Tipo VIP não encontrado }
+ */
+router.post('/:id/vip/distribute', authenticate, isAdmin, distributeVip)
 
 export default router
 

@@ -199,7 +199,8 @@ router.patch('/ticket-types/:id/status', authenticate, isAdmin, updateTicketType
  * @swagger
  * /ticket-types/{id}:
  *   delete:
- *     summary: Deletar tipo de ingresso (apenas ADMIN)
+ *     summary: Deletar tipo de ingresso (soft delete) (apenas ADMIN)
+ *     description: Marca o tipo de ingresso como inativo e define deletedAt; não remove definitivamente.
  *     tags: [TicketTypes]
  *     security:
  *       - bearerAuth: []
@@ -211,7 +212,7 @@ router.patch('/ticket-types/:id/status', authenticate, isAdmin, updateTicketType
  *           type: string
  *     responses:
  *       200:
- *         description: Tipo de ingresso deletado
+ *         description: Tipo de ingresso removido (soft delete)
  *       404:
  *         description: Não encontrado
  */
