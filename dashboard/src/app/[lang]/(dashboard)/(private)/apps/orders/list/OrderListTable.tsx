@@ -21,9 +21,11 @@ import { rankItem } from '@tanstack/match-sorter-utils'
 import type { RankingInfo } from '@tanstack/match-sorter-utils'
 
 import CustomTextField from '@core/components/mui/TextField'
+import Select from '@mui/material/Select'
+import MenuItem from '@mui/material/MenuItem'
 import TablePagination from '@mui/material/TablePagination'
 import Pagination from '@mui/material/Pagination'
-import MenuItem from '@mui/material/MenuItem'
+// MenuItem já importado
 import OptionMenu from '@core/components/option-menu'
 import { useOrders } from '@/hooks/useOrders'
 import type { OrderItem } from '@/services/orderService'
@@ -75,21 +77,28 @@ const OrderListTable = () => {
     const [qrDialogOpen, setQrDialogOpen] = useState(false)
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
+    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'cancelled' | 'refunded'>('all')
+    const [typeFilter, setTypeFilter] = useState<'all' | 'vip' | 'normal'>('all')
 
     const { lang } = useParams()
     const { orders, loading, error, pagination } = useOrders({
         page: currentPage,
         limit: pageSize,
-        search: globalFilter || undefined
+        search: globalFilter || undefined,
+        status: statusFilter === 'all' ? undefined : statusFilter
     })
 
     // Usar orders diretamente ao invés de manter estado separado
-    const data = orders || []
-    
+    const data = (orders || []).filter(o => {
+        if (typeFilter === 'vip') return o.paymentMethod === 'vip_free'
+        if (typeFilter === 'normal') return o.paymentMethod !== 'vip_free'
+        return true
+    })
+
     // Resetar página quando busca mudar
     useEffect(() => {
         setCurrentPage(1)
-    }, [globalFilter])
+    }, [globalFilter, statusFilter, typeFilter])
 
     const columns = useMemo<ColumnDef<OrderItem, any>[]>(
         () => [
@@ -106,8 +115,8 @@ const OrderListTable = () => {
                 accessorKey: 'customer',
                 header: 'Cliente',
                 cell: ({ row }) => {
-                    const customer = typeof row.original.customer === 'object' 
-                        ? row.original.customer 
+                    const customer = typeof row.original.customer === 'object'
+                        ? row.original.customer
                         : null
                     return (
                         <div className='flex flex-col'>
@@ -125,8 +134,8 @@ const OrderListTable = () => {
                 accessorKey: 'event',
                 header: 'Evento',
                 cell: ({ row }) => {
-                    const event = typeof row.original.event === 'object' 
-                        ? row.original.event 
+                    const event = typeof row.original.event === 'object'
+                        ? row.original.event
                         : null
                     return (
                         <Typography color='text.primary'>
@@ -147,10 +156,25 @@ const OrderListTable = () => {
             {
                 accessorKey: 'totalAmount',
                 header: 'Valor Total',
+                cell: ({ row }) => {
+                    const isVipFree = row.original.paymentMethod === 'vip_free'
+                    const value = isVipFree ? 0 : row.original.totalAmount
+                    return (
+                        <Typography color='text.primary' className='font-medium'>
+                            {formatCurrency(value)}
+                        </Typography>
+                    )
+                }
+            },
+            {
+                accessorKey: 'paymentMethod',
+                header: 'Tipo',
                 cell: ({ row }) => (
-                    <Typography color='text.primary' className='font-medium'>
-                        {formatCurrency(row.original.totalAmount)}
-                    </Typography>
+                    row.original.paymentMethod === 'vip_free' ? (
+                        <Chip label='VIP' color='secondary' size='small' variant='tonal' />
+                    ) : (
+                        <Typography variant='body2' color='text.secondary'>Normal</Typography>
+                    )
                 )
             },
             {
@@ -169,10 +193,12 @@ const OrderListTable = () => {
                         cancelled: 'Cancelado',
                         refunded: 'Reembolsado'
                     }
+                    const label = row.original.paymentMethod === 'vip_free' ? 'VIP' : (statusLabels[row.original.status] || row.original.status)
+                    const color = row.original.paymentMethod === 'vip_free' ? 'success' : (statusColors[row.original.status] || 'default')
                     return (
                         <Chip
-                            label={statusLabels[row.original.status] || row.original.status}
-                            color={statusColors[row.original.status] || 'default'}
+                            label={label}
+                            color={color as any}
                             size='small'
                             variant='tonal'
                         />
@@ -245,8 +271,8 @@ const OrderListTable = () => {
                 />
                 <CardContent>
                     <Typography color='error' className='mb-2'>{error}</Typography>
-                    <Button 
-                        variant='outlined' 
+                    <Button
+                        variant='outlined'
                         onClick={() => window.location.reload()}
                         startIcon={<i className='tabler-refresh' />}
                     >
@@ -294,6 +320,26 @@ const OrderListTable = () => {
                                         startAdornment: <i className='tabler-search text-xl text-textSecondary' />
                                     }}
                                 />
+                                <Select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                                    size='small'
+                                >
+                                    <MenuItem value='all'>Todos</MenuItem>
+                                    <MenuItem value='pending'>Pendentes</MenuItem>
+                                    <MenuItem value='paid'>Pagos</MenuItem>
+                                    <MenuItem value='cancelled'>Cancelados</MenuItem>
+                                    <MenuItem value='refunded'>Reembolsados</MenuItem>
+                                </Select>
+                                <Select
+                                    value={typeFilter}
+                                    onChange={(e) => setTypeFilter(e.target.value as any)}
+                                    size='small'
+                                >
+                                    <MenuItem value='all'>Todos os tipos</MenuItem>
+                                    <MenuItem value='vip'>VIP</MenuItem>
+                                    <MenuItem value='normal'>Normal</MenuItem>
+                                </Select>
                             </div>
 
                             <div className='overflow-x-auto'>
@@ -350,10 +396,9 @@ const OrderListTable = () => {
                                     <div className='flex justify-between items-center flex-wrap pli-6 border-bs bs-auto plb-[12.5px] gap-2'>
                                         <Typography color='text.disabled'>
                                             {pagination ? (
-                                                `Mostrando ${
-                                                    pagination.total === 0
-                                                        ? 0
-                                                        : (currentPage - 1) * pageSize + 1
+                                                `Mostrando ${pagination.total === 0
+                                                    ? 0
+                                                    : (currentPage - 1) * pageSize + 1
                                                 } a ${Math.min(currentPage * pageSize, pagination.total)} de ${pagination.total} registros`
                                             ) : (
                                                 `Mostrando ${data.length} registros`
@@ -407,8 +452,8 @@ const OrderListTable = () => {
             </Card>
 
             {/* Dialog para exibir QR Codes */}
-            <Dialog 
-                open={qrDialogOpen} 
+            <Dialog
+                open={qrDialogOpen}
                 onClose={() => setQrDialogOpen(false)}
                 maxWidth='md'
                 fullWidth
@@ -440,12 +485,20 @@ const OrderListTable = () => {
                                             Código: {ticket.code}
                                         </Typography>
                                         <Typography variant='caption' color='text.secondary' className='block mb-2'>
-                                            Status: {ticket.status === 'confirmed' ? 'Confirmado' : ticket.status === 'used' ? 'Usado' : 'Pendente'}
+                                            {(() => {
+                                                const map: Record<string, string> = {
+                                                    confirmed: 'Confirmado',
+                                                    used: 'Usado',
+                                                    pending: 'Pendente',
+                                                    cancelled: 'Cancelado'
+                                                }
+                                                return `Status: ${map[ticket.status] || ticket.status}`
+                                            })()}
                                         </Typography>
                                         {ticket.qrCode && (
                                             <Box className='flex justify-center mt-2'>
-                                                <img 
-                                                    src={ticket.qrCode} 
+                                                <img
+                                                    src={ticket.qrCode}
                                                     alt={`QR Code ${ticket.code}`}
                                                     className='w-32 h-32'
                                                 />

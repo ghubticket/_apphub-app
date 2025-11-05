@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { authenticate, isAdmin } from '../middleware/auth'
 import { eventImageUpload, validatePngMagicBytes } from '../middleware/upload'
-import { createEvent, listEvents, getEvent, updateEvent, updateEventStatus, deleteEvent } from '../controllers/eventsController'
+import { createEvent, listEvents, getEvent, updateEvent, updateEventStatus, deleteEvent, getEventTicketStats } from '../controllers/eventsController'
 
 const router = Router()
 
@@ -150,6 +150,9 @@ router.patch('/:id/status', authenticate, isAdmin, updateEventStatus)
  *       200: { description: Removido }
  */
 router.delete('/:id', authenticate, isAdmin, deleteEvent)
+
+// Estatísticas de ingressos do evento
+router.get('/:id/tickets/stats', authenticate, getEventTicketStats)
 
 export default router
 

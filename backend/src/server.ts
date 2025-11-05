@@ -17,6 +17,7 @@ import ordersRoutes from './routes/orders'
 import ticketsRoutes from './routes/tickets'
 import healthRoutes from './routes/health'
 import deliveryRoutes from './routes/delivery';
+import { startOrderExpirationScheduler } from './services/orderExpirationService'
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -220,10 +221,15 @@ const startServer = async () => {
             console.log('💡 Próximos passos:');
             console.log('   1. Acesse http://localhost:3001 para testar');
             console.log('   2. 📚 Swagger: http://localhost:3001/api-docs');
-    console.log('   3. 🔐 Auth: http://localhost:3001/auth/login');
-    console.log('   4. Endpoints de eventos em /api/events');
+            console.log('   3. 🔐 Auth: http://localhost:3001/auth/login');
+            console.log('   4. Endpoints de eventos em /api/events');
             console.log('');
         });
+
+        // Iniciar job de expiração de pedidos pendentes
+        if (process.env.ORDER_EXPIRATION_ENABLED !== 'false') {
+            startOrderExpirationScheduler();
+        }
     } catch (error) {
         console.error('❌ Erro ao iniciar servidor:', error);
         process.exit(1);

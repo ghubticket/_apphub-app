@@ -6,6 +6,7 @@ interface UseOrdersOptions {
     page?: number;
     limit?: number;
     search?: string;
+    status?: 'pending' | 'paid' | 'cancelled' | 'refunded';
 }
 
 interface UseOrdersReturn {
@@ -35,7 +36,8 @@ export const useOrders = (options: UseOrdersOptions = { autoFetch: true }): UseO
             const response = await orderService.list({
                 page: options.page,
                 limit: options.limit,
-                search: options.search
+                search: options.search,
+                status: options.status
             });
             
             // Verificar se a resposta tem estrutura paginada ou array direto
@@ -64,7 +66,7 @@ export const useOrders = (options: UseOrdersOptions = { autoFetch: true }): UseO
         } finally {
             setLoading(false);
         }
-    }, [options.page, options.limit, options.search]);
+    }, [options.page, options.limit, options.search, options.status]);
 
     useEffect(() => {
         if (options.autoFetch !== false) {

@@ -18,6 +18,23 @@ export interface EventItem {
     updatedAt: string
 }
 
+export const getEventTicketStats = async (id: string) => {
+  const token = await getAuthToken()
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+  const res = await fetch(`${API_BASE_URL}/events/${id}/tickets/stats`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` })
+    },
+    credentials: 'include'
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || 'Falha ao buscar estatísticas do evento')
+  }
+  return res.json()
+}
+
 export interface EventListResponse {
     success: boolean
     data: {

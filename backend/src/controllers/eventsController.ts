@@ -1,5 +1,7 @@
 import { Request, Response } from 'express'
 import Event from '../models/Event'
+import TicketType from '../models/TicketType'
+import Ticket from '../models/Ticket'
 
 // Helpers to build public URL for uploaded files
 function fileUrl(req: Request, filename?: string | null) {
@@ -189,6 +191,47 @@ export const deleteEvent = async (req: Request, res: Response) => {
             errors: [error.message] 
         })
     }
+}
+
+// Estatísticas de ingressos por evento (capacidade, vendidos, disponíveis, pendentes, cancelados, VIPs)
+export const getEventTicketStats = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+    const event = await Event.findOne({ _id: id, deletedAt: null })
+    if (!event) return res.status(404).json({ success: false, message: 'Evento não encontrado' })
+
+    const ticketTypes = await TicketType.find({ event: id, deletedAt: null, isActive: true })
+    const capacityTotal = ticketTypes.reduce((sum, tt) => sum + (tt.maxQuantity || 0), 0)
+    const soldTotal = ticketTypes.reduce((sum, tt) => sum + (tt.soldQuantity || 0), 0)
+    // VIPs distribuídos: contar tickets CONFIRMADOS dos tipos VIP
+    const vipTypeIds = ticketTypes.filter(tt => tt.isVIP).map(tt => tt._id)
+    const vipsDistributed = vipTypeIds.length
+      ? await Ticket.countDocuments({ event: id, ticketType: { $in: vipTypeIds }, status: 'confirmed', deletedAt: null })
+      : 0
+
+    // Contar tickets por status diretamente
+    const [pendingCount, cancelledCount] = await Promise.all([
+      Ticket.countDocuments({ event: id, status: 'pending', deletedAt: null }),
+      Ticket.countDocuments({ event: id, status: 'cancelled', deletedAt: null }),
+    ])
+
+    // Disponíveis = capacidade - vendidos (reservas já são tratadas no fluxo de compra)
+    const availableTotal = Math.max(0, capacityTotal - soldTotal)
+
+    return res.json({
+      success: true,
+      data: {
+        capacityTotal,
+        soldTotal,
+        availableTotal,
+        pendingCount,
+        cancelledCount,
+        vipsDistributed,
+      }
+    })
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Erro ao buscar estatísticas', errors: [error.message] })
+  }
 }
 
 

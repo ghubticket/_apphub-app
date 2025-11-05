@@ -104,7 +104,8 @@ export const createOrder = async (req: Request, res: Response) => {
         const ticketPrice = isVIP ? 0 : ticketType.price;
         const totalAmount = ticketPrice * quantity;
         const eventTicketFee = event.ticketFee || 0;
-        const totalWithFee = totalAmount + (eventTicketFee * quantity);
+        const appliedFeePerTicket = isVIP ? 0 : eventTicketFee; // VIP não paga taxa
+        const totalWithFee = totalAmount + (appliedFeePerTicket * quantity);
 
         // Determinar status e método de pagamento
         let orderStatus: 'pending' | 'paid' = 'pending';
@@ -223,13 +224,16 @@ export const listMyOrders = async (req: Request, res: Response) => {
             });
         }
 
-        const { page = 1, limit = 10, search = '' } = req.query;
+        const { page = 1, limit = 10, search = '', status } = req.query as any;
 
         // Construir filtros
         const filters: any = { 
             customer: userId,
             deletedAt: null 
         };
+        if (status && ['pending','paid','cancelled','refunded'].includes(String(status))) {
+            filters.status = String(status);
+        }
 
         if (search) {
             filters.$or = [
@@ -295,7 +299,7 @@ export const listMyOrders = async (req: Request, res: Response) => {
  */
 export const listAllOrders = async (req: Request, res: Response) => {
     try {
-        const { page = 1, limit = 10, search = '' } = req.query;
+        const { page = 1, limit = 10, search = '', status } = req.query as any;
 
         // Construir filtros
         const filters: any = { deletedAt: null };
@@ -306,6 +310,9 @@ export const listAllOrders = async (req: Request, res: Response) => {
                 { 'customerData.name': { $regex: search, $options: 'i' } },
                 { 'customerData.email': { $regex: search, $options: 'i' } }
             ];
+        }
+        if (status && ['pending','paid','cancelled','refunded'].includes(String(status))) {
+            filters.status = String(status);
         }
 
         // Calcular paginação
@@ -420,6 +427,68 @@ export const getOrderById = async (req: Request, res: Response) => {
             message: 'Erro ao buscar pedido',
             errors: [error.message || 'Erro desconhecido']
         });
+    }
+};
+
+/**
+ * Cancela um pedido pendente e libera recursos (tickets/reservas)
+ * Regras:
+ * - Somente ADMIN ou dono do pedido
+ * - Somente pedidos 'pending' podem ser cancelados aqui
+ * - Pedidos 'paid' devem seguir fluxo de reembolso (não tratado aqui)
+ */
+export const cancelOrder = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const authUser = (req as any).user;
+        const userId = authUser?._id?.toString() || authUser?.id;
+
+        // Buscar pedido
+        const order = await Order.findOne({ _id: id, deletedAt: null });
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Pedido não encontrado' });
+        }
+
+        // Permissões: admin ou dono do pedido
+        const isAdmin = authUser?.role === 'ADMIN';
+        const isOwner = String(order.customer) === String(userId);
+        if (!isAdmin && !isOwner) {
+            return res.status(403).json({ success: false, message: 'Acesso negado' });
+        }
+
+        if (order.status === 'cancelled') {
+            return res.json({ success: true, message: 'Pedido já está cancelado' });
+        }
+        if (order.status === 'paid') {
+            return res.status(400).json({ success: false, message: 'Pedido pago não pode ser cancelado aqui. Use reembolso.' });
+        }
+
+        // Cancelar pedido
+        order.status = 'cancelled';
+        order.cancelledAt = new Date();
+        await order.save();
+
+        // Atualizar tickets vinculados: cancelar e desativar
+        await Ticket.updateMany(
+            { order: order._id, deletedAt: null },
+            { $set: { status: 'cancelled', isActive: false, qrCode: '' } }
+        );
+
+        // Segurança extra: nunca retornar QR de pedidos não pagos
+        const tickets = await Ticket.find({ order: order._id, deletedAt: null }).lean();
+        const safeTickets = tickets.map(t => ({ ...t, qrCode: null }));
+
+        return res.json({
+            success: true,
+            message: 'Pedido cancelado com sucesso',
+            data: {
+                order: { ...order.toObject(), status: 'cancelled' },
+                tickets: safeTickets,
+            },
+        });
+    } catch (error: any) {
+        console.error('Erro ao cancelar pedido:', error);
+        return res.status(500).json({ success: false, message: 'Erro ao cancelar pedido', errors: [error.message || 'Erro desconhecido'] });
     }
 };
 

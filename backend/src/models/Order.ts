@@ -164,6 +164,14 @@ orderSchema.index({ status: 1 });
 orderSchema.index({ paymentId: 1 });
 orderSchema.index({ isActive: 1 });
 
+// Regras de transição de status
+const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
+    pending: ['paid', 'cancelled'],
+    paid: ['refunded'],
+    cancelled: [],
+    refunded: [],
+};
+
 // Virtual para verificar se foi pago
 orderSchema.virtual('isPaid').get(function () {
     return this.status === 'paid';
@@ -212,6 +220,36 @@ orderSchema.pre('save', async function (next) {
             this.orderNumber = newOrderNumber;
         } else {
             this.orderNumber = orderNumber;
+        }
+    }
+    // Validar transição de status quando não é novo
+    if (!this.isNew && this.isModified('status')) {
+        const current = await mongoose.model('Order').findById(this._id).select('status').lean() as any;
+        const fromStatus = current?.status as string | undefined;
+        const toStatus = (this as any).status as string;
+        if (fromStatus && toStatus && fromStatus !== toStatus) {
+            const allowed = ALLOWED_STATUS_TRANSITIONS[fromStatus] || [];
+            if (!allowed.includes(toStatus)) {
+                return next(new Error(`Transição de status inválida: ${fromStatus} -> ${toStatus}`));
+            }
+        }
+    }
+    next();
+});
+
+// Validar transições em operações findOneAndUpdate
+orderSchema.pre('findOneAndUpdate', async function (next) {
+    const update: any = this.getUpdate() || {};
+    const nextStatus = ('status' in update) ? update.status : (update.$set?.status);
+    if (!nextStatus) return next();
+
+    const current = await (this as any).model.findOne(this.getQuery()).select('status').lean();
+    const fromStatus = current?.status as string | undefined;
+    const toStatus = nextStatus as string;
+    if (fromStatus && toStatus && fromStatus !== toStatus) {
+        const allowed = ALLOWED_STATUS_TRANSITIONS[fromStatus] || [];
+        if (!allowed.includes(toStatus)) {
+            return next(new Error(`Transição de status inválida: ${fromStatus} -> ${toStatus}`));
         }
     }
     next();

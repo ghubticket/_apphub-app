@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment } from '../controllers/ordersController';
+import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment, cancelOrder } from '../controllers/ordersController';
 import { authenticate, isAdmin } from '../middleware/auth';
 
 const router = express.Router();
@@ -80,6 +80,34 @@ router.get('/', authenticate, (req, res, next) => {
         return listMyOrders(req, res);
     }
 });
+
+/**
+ * @swagger
+ * /api/orders/{id}/cancel:
+ *   post:
+ *     summary: Cancelar pedido pendente
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Pedido cancelado
+ *       400:
+ *         description: Requisição inválida
+ *       401:
+ *         description: Não autenticado
+ *       403:
+ *         description: Acesso negado
+ *       404:
+ *         description: Pedido não encontrado
+ */
+router.post('/:id/cancel', authenticate, cancelOrder);
 
 /**
  * @swagger

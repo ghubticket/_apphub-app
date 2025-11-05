@@ -33,7 +33,7 @@ import CustomIconButton from '@core/components/mui/IconButton'
 import AppReactDatepicker from '@/libs/styles/AppReactDatepicker'
 
 import { AdminOnly } from '@/components/RoleGuard'
-import { eventService, type EventItem } from '@/services/eventService'
+import { eventService, type EventItem, getEventTicketStats } from '@/services/eventService'
 import { locationService, type UF, type City } from '@/services/locationService'
 import { useTicketTypes } from '@/hooks/useTicketTypes'
 import type { TicketTypeItem } from '@/services/ticketTypeService'
@@ -99,6 +99,7 @@ const EventViewPage = () => {
     const { ticketTypes } = useTicketTypes(id as string)
     const [availableQuantities, setAvailableQuantities] = useState<Record<string, number>>({})
     const [loadingReservations, setLoadingReservations] = useState(false)
+    const [apiStats, setApiStats] = useState<{ capacityTotal: number; soldTotal: number; availableTotal: number; pendingCount: number; cancelledCount: number; vipsDistributed: number } | null>(null)
 
     // Buscar quantidades disponíveis considerando reservas
     useEffect(() => {
@@ -135,6 +136,20 @@ const EventViewPage = () => {
 
         fetchAvailableQuantities()
     }, [id, ticketTypes])
+
+    // Buscar estatísticas do backend (pendentes, cancelados e VIPs)
+    useEffect(() => {
+        const run = async () => {
+            if (!id) return
+            try {
+                const res = await getEventTicketStats(id as string)
+                setApiStats(res.data)
+            } catch (e) {
+                console.error('Erro ao buscar stats do evento:', e)
+            }
+        }
+        run()
+    }, [id])
 
     // Calcular métricas dos ingressos baseado nos tipos cadastrados
     const calculateTicketMetrics = (
@@ -828,32 +843,14 @@ const EventViewPage = () => {
                                         </Box>
                                         <Box className='flex-1'>
                                             <Typography variant='h5' color='text.primary' className='font-medium mb-1'>
-                                                {ticketMetrics.totalSold}
+                                                {apiStats?.soldTotal ?? ticketMetrics.totalSold}
                                             </Typography>
                                             <Typography variant='body2' color='text.secondary'>
                                                 Ingressos Vendidos
                                             </Typography>
                                         </Box>
                                     </Box>
-                                    <Box className='flex items-center gap-4'>
-                                        <Box
-                                            className='w-16 h-16 rounded-lg flex items-center justify-center'
-                                            sx={{
-                                                backgroundColor: 'success.lightOpacity',
-                                                color: 'success.main'
-                                            }}
-                                        >
-                                            <i className='tabler-users text-2xl' />
-                                        </Box>
-                                        <Box className='flex-1'>
-                                            <Typography variant='h5' color='text.primary' className='font-medium mb-1'>
-                                                {ticketMetrics.totalCapacity}
-                                            </Typography>
-                                            <Typography variant='body2' color='text.secondary'>
-                                                Capacidade Total
-                                            </Typography>
-                                        </Box>
-                                    </Box>
+                                    {/* Capacidade Total removido conforme solicitação */}
                                     <Box className='flex items-center gap-4'>
                                         <Box
                                             className='w-16 h-16 rounded-lg flex items-center justify-center'
@@ -866,7 +863,7 @@ const EventViewPage = () => {
                                         </Box>
                                         <Box className='flex-1'>
                                             <Typography variant='h5' color='text.primary' className='font-medium mb-1'>
-                                                {ticketMetrics.totalAvailable}
+                                                {apiStats?.availableTotal ?? ticketMetrics.totalAvailable}
                                             </Typography>
                                             <Typography variant='body2' color='text.secondary'>
                                                 Ingressos Disponíveis
@@ -885,7 +882,7 @@ const EventViewPage = () => {
                                         </Box>
                                         <Box className='flex-1'>
                                             <Typography variant='h5' color='text.primary' className='font-medium mb-1'>
-                                                {ticketMetrics.totalPending}
+                                                {apiStats?.pendingCount ?? ticketMetrics.totalPending}
                                             </Typography>
                                             <Typography variant='body2' color='text.secondary'>
                                                 Ingressos Pendentes
@@ -904,10 +901,29 @@ const EventViewPage = () => {
                                         </Box>
                                         <Box className='flex-1'>
                                             <Typography variant='h5' color='text.primary' className='font-medium mb-1'>
-                                                {ticketMetrics.totalCancelled}
+                                                {apiStats?.cancelledCount ?? ticketMetrics.totalCancelled}
                                             </Typography>
                                             <Typography variant='body2' color='text.secondary'>
                                                 Ingressos Cancelados
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                    <Box className='flex items-center gap-4'>
+                                        <Box
+                                            className='w-16 h-16 rounded-lg flex items-center justify-center'
+                                            sx={{
+                                                backgroundColor: 'secondary.lightOpacity',
+                                                color: 'secondary.main'
+                                            }}
+                                        >
+                                            <i className='tabler-star text-2xl' />
+                                        </Box>
+                                        <Box className='flex-1'>
+                                            <Typography variant='h5' color='text.primary' className='font-medium mb-1'>
+                                                {apiStats?.vipsDistributed ?? 0}
+                                            </Typography>
+                                            <Typography variant='body2' color='text.secondary'>
+                                                VIPs Distribuídos
                                             </Typography>
                                         </Box>
                                     </Box>

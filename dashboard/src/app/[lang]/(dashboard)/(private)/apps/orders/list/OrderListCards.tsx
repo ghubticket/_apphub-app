@@ -51,6 +51,12 @@ const OrderListCards = () => {
                 paidOrdersLastWeek: 0,
                 totalRevenue: 0,
                 totalRevenueLastWeek: 0,
+                pendingRevenue: 0,
+                pendingRevenueLastWeek: 0,
+                totalActiveRevenue: 0,
+                totalActiveRevenueLastWeek: 0,
+                cancelledRevenue: 0,
+                cancelledRevenueLastWeek: 0,
                 totalTickets: 0,
                 pendingOrders: 0,
                 pendingOrdersLastWeek: 0,
@@ -131,6 +137,33 @@ const OrderListCards = () => {
             .filter(o => o.status === 'paid')
             .reduce((sum, o) => sum + o.totalAmount, 0)
 
+        // Receita potencial (pendentes)
+        const pendingRevenue = ordersLastWeek
+            .filter(o => o.status === 'pending')
+            .reduce((sum, o) => sum + o.totalAmount, 0)
+
+        const pendingRevenueLastWeek = ordersPreviousWeek
+            .filter(o => o.status === 'pending')
+            .reduce((sum, o) => sum + o.totalAmount, 0)
+
+        // Receita total de pedidos ativos (pendentes + pagos)
+        const totalActiveRevenue = ordersLastWeek
+            .filter(o => o.status === 'pending' || o.status === 'paid')
+            .reduce((sum, o) => sum + o.totalAmount, 0)
+
+        const totalActiveRevenueLastWeek = ordersPreviousWeek
+            .filter(o => o.status === 'pending' || o.status === 'paid')
+            .reduce((sum, o) => sum + o.totalAmount, 0)
+
+        // Receita de pedidos cancelados
+        const cancelledRevenue = ordersLastWeek
+            .filter(o => o.status === 'cancelled')
+            .reduce((sum, o) => sum + o.totalAmount, 0)
+
+        const cancelledRevenueLastWeek = ordersPreviousWeek
+            .filter(o => o.status === 'cancelled')
+            .reduce((sum, o) => sum + o.totalAmount, 0)
+
         // Total de ingressos vendidos (APENAS CONFIRMADOS - de pedidos pagos)
         const totalTickets = ordersLastWeek
             .filter(o => o.status === 'paid')
@@ -183,6 +216,12 @@ const OrderListCards = () => {
             paidOrdersLastWeek,
             totalRevenue,
             totalRevenueLastWeek,
+            pendingRevenue,
+            pendingRevenueLastWeek,
+            totalActiveRevenue,
+            totalActiveRevenueLastWeek,
+            cancelledRevenue,
+            cancelledRevenueLastWeek,
             totalTickets,
             pendingOrders,
             pendingOrdersLastWeek,
@@ -308,11 +347,11 @@ const OrderListCards = () => {
         yaxis: { show: false }
     }
 
-    // Calcular porcentagens
-    const ordersPercentage = calculatePercentageChange(stats.totalOrders, stats.totalOrdersLastWeek)
+    // Calcular porcentagens (baseadas em VALOR, não quantidade)
+    const ordersPercentage = calculatePercentageChange(stats.totalActiveRevenue, stats.totalActiveRevenueLastWeek)
     const revenuePercentage = calculatePercentageChange(stats.totalRevenue, stats.totalRevenueLastWeek)
-    const pendingPercentage = calculatePercentageChange(stats.pendingOrders, stats.pendingOrdersLastWeek)
-    const cancelledPercentage = calculatePercentageChange(stats.cancelledOrders, stats.cancelledOrdersLastWeek)
+    const pendingPercentage = calculatePercentageChange(stats.pendingRevenue, stats.pendingRevenueLastWeek)
+    const cancelledPercentage = calculatePercentageChange(stats.cancelledRevenue, stats.cancelledRevenueLastWeek)
 
     if (loading) {
         return (
@@ -337,7 +376,7 @@ const OrderListCards = () => {
 
     return (
         <Grid container spacing={4}>
-            {/* Card 1: Order - Quantidade de Pedidos Realizados */}
+            {/* Card 1: Pedidos - Valor total (pendentes + confirmados) */}
             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardHeader title='Pedidos' subheader='Última Semana' className='pbe-0' />
@@ -351,7 +390,7 @@ const OrderListCards = () => {
                         />
                         <div className='flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5 mt-2'>
                             <Typography variant='h4' color='text.primary'>
-                                {stats.totalOrders}
+                                {formatCurrency(stats.totalActiveRevenue)}
                             </Typography>
                             <Typography 
                                 variant='body2' 
@@ -360,6 +399,9 @@ const OrderListCards = () => {
                                 {ordersPercentage >= 0 ? '+' : ''}{ordersPercentage.toFixed(1)}%
                             </Typography>
                         </div>
+                        <Typography variant='caption' color='text.secondary' className='mt-1'>
+                            {stats.totalOrders} pedido(s)
+                        </Typography>
                     </CardContent>
                 </Card>
             </Grid>
@@ -408,20 +450,23 @@ const OrderListCards = () => {
                         />
                         <div className='flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5 mt-2'>
                             <Typography variant='h4' color='text.primary'>
-                                {stats.pendingOrders}
+                                {formatCurrency(stats.pendingRevenue)}
                             </Typography>
                             <Typography 
                                 variant='body2' 
                                 color={pendingPercentage >= 0 ? 'warning.main' : 'success.main'}
                             >
-                                {pendingPercentage >= 0 ? '+' : ''}{pendingPercentage.toFixed(1)}%
+                                {pendingPercentage >= 0 ? '+' : ''}{(pendingPercentage ?? 0).toFixed(1)}%
                             </Typography>
                         </div>
+                        <Typography variant='caption' color='text.secondary' className='mt-1'>
+                            {stats.pendingOrders} pedido(s) pendente(s)
+                        </Typography>
                     </CardContent>
                 </Card>
             </Grid>
 
-            {/* Card 5: Pedidos Cancelados */}
+            {/* Card 5: Pedidos Cancelados - Valor total */}
             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardHeader title='Pedidos Cancelados' subheader='Última Semana' className='pbe-0' />
@@ -435,7 +480,7 @@ const OrderListCards = () => {
                         />
                         <div className='flex items-center justify-between flex-wrap gap-x-4 gap-y-0.5 mt-2'>
                             <Typography variant='h4' color='text.primary'>
-                                {stats.cancelledOrders}
+                                {formatCurrency(stats.cancelledRevenue)}
                             </Typography>
                             <Typography 
                                 variant='body2' 
@@ -444,6 +489,9 @@ const OrderListCards = () => {
                                 {cancelledPercentage >= 0 ? '+' : ''}{cancelledPercentage.toFixed(1)}%
                             </Typography>
                         </div>
+                        <Typography variant='caption' color='text.secondary' className='mt-1'>
+                            {stats.cancelledOrders} pedido(s) cancelado(s)
+                        </Typography>
                     </CardContent>
                 </Card>
             </Grid>

@@ -110,11 +110,13 @@ export const orderService = {
         page?: number;
         limit?: number;
         search?: string;
+        status?: 'pending' | 'paid' | 'cancelled' | 'refunded';
     }): Promise<OrderListResponse & { pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
         const searchParams = new URLSearchParams();
         if (params?.page) searchParams.append('page', params.page.toString());
         if (params?.limit) searchParams.append('limit', params.limit.toString());
         if (params?.search) searchParams.append('search', params.search);
+        if (params?.status) searchParams.append('status', params.status);
 
         const queryString = searchParams.toString();
         const url = `/orders${queryString ? `?${queryString}` : ''}`;
