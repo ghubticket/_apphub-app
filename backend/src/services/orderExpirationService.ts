@@ -1,4 +1,4 @@
-import { Order, Ticket } from '../models'
+import { Order, Ticket, TicketType } from '../models'
 import * as paymentService from './paymentService'
 
 const DEFAULT_TIMEOUT_MINUTES = Number(process.env.ORDER_PAYMENT_TIMEOUT_MINUTES || 15)
@@ -17,6 +17,23 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
     try {
       if (!order.paymentId) {
         if (order.createdAt <= cutoff) {
+          // Liberar estoque antes de cancelar
+          const tickets = await Ticket.find({ order: order._id, deletedAt: null }).populate('ticketType')
+          const ticketTypeCounts = new Map<string, number>()
+          for (const ticket of tickets) {
+            const ticketTypeId = String((ticket as any).ticketType?._id || (ticket as any).ticketType)
+            if (ticketTypeId) {
+              ticketTypeCounts.set(ticketTypeId, (ticketTypeCounts.get(ticketTypeId) || 0) + 1)
+            }
+          }
+          for (const [ticketTypeId, quantity] of ticketTypeCounts.entries()) {
+            const ticketType = await TicketType.findById(ticketTypeId)
+            if (ticketType && quantity > 0) {
+              ticketType.soldQuantity = Math.max(0, ticketType.soldQuantity - quantity)
+              await ticketType.save()
+            }
+          }
+
           order.status = 'cancelled'
           ;(order as any).cancelledAt = now
           await order.save()
@@ -40,6 +57,24 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
       const isExpired = exp ? now >= exp : order.createdAt <= cutoff
       if (isExpired && ['pending', 'in_process', 'action_required'].includes(mpStatus)) {
         try { await (paymentService as any).cancelPaymentById(order.paymentId) } catch {}
+        
+        // Liberar estoque antes de cancelar
+        const tickets = await Ticket.find({ order: order._id, deletedAt: null }).populate('ticketType')
+        const ticketTypeCounts = new Map<string, number>()
+        for (const ticket of tickets) {
+          const ticketTypeId = String((ticket as any).ticketType?._id || (ticket as any).ticketType)
+          if (ticketTypeId) {
+            ticketTypeCounts.set(ticketTypeId, (ticketTypeCounts.get(ticketTypeId) || 0) + 1)
+          }
+        }
+        for (const [ticketTypeId, quantity] of ticketTypeCounts.entries()) {
+          const ticketType = await TicketType.findById(ticketTypeId)
+          if (ticketType && quantity > 0) {
+            ticketType.soldQuantity = Math.max(0, ticketType.soldQuantity - quantity)
+            await ticketType.save()
+          }
+        }
+
         order.status = 'cancelled'
         order.paymentStatus = 'cancelled' as any
         ;(order as any).cancelledAt = now

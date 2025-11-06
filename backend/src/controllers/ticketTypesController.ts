@@ -14,6 +14,8 @@ export const createTicketType = async (req: Request, res: Response) => {
             lotNumber,
             maxQuantity,
             maxPerPurchase,
+            maxPerCPF,
+            maxPerEmail,
             salesStart,
             salesEnd,
         } = req.body;
@@ -60,6 +62,8 @@ export const createTicketType = async (req: Request, res: Response) => {
             lotNumber,
             maxQuantity,
             maxPerPurchase,
+            maxPerCPF: maxPerCPF || null,
+            maxPerEmail: maxPerEmail || null,
             soldQuantity: 0,
             salesStart: salesStart ? new Date(salesStart) : undefined,
             salesEnd: salesEnd ? new Date(salesEnd) : undefined,
@@ -215,6 +219,8 @@ export const updateTicketType = async (req: Request, res: Response) => {
             lotNumber,
             maxQuantity,
             maxPerPurchase,
+            maxPerCPF,
+            maxPerEmail,
             salesStart,
             salesEnd,
         } = req.body;
@@ -267,6 +273,8 @@ export const updateTicketType = async (req: Request, res: Response) => {
         if (lotNumber !== undefined) ticketType.lotNumber = lotNumber;
         if (maxQuantity !== undefined) ticketType.maxQuantity = maxQuantity;
         if (maxPerPurchase !== undefined) ticketType.maxPerPurchase = maxPerPurchase;
+        if (maxPerCPF !== undefined) ticketType.maxPerCPF = maxPerCPF || null;
+        if (maxPerEmail !== undefined) ticketType.maxPerEmail = maxPerEmail || null;
         if (salesStart !== undefined) ticketType.salesStart = salesStart ? new Date(salesStart) : undefined;
         if (salesEnd !== undefined) ticketType.salesEnd = salesEnd ? new Date(salesEnd) : undefined;
 

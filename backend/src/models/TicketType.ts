@@ -10,6 +10,8 @@ export interface ITicketType extends Document {
     lotNumber: number; // Número do lote (ex: 1, 2, 3)
     maxQuantity: number; // Quantidade máxima por lote (ex: 200)
     maxPerPurchase: number; // Limite de ingressos por compra
+    maxPerCPF?: number; // Limite acumulado de ingressos por CPF para este tipo (opcional)
+    maxPerEmail?: number; // Limite acumulado de ingressos por Email para este tipo (opcional)
     soldQuantity: number; // Quantidade já vendida
     salesStart?: Date; // Data de início da venda (opcional)
     salesEnd?: Date; // Data de fim da venda (opcional)
@@ -81,6 +83,18 @@ const ticketTypeSchema = new Schema<ITicketType>(
             required: [true, 'Limite por compra é obrigatório'],
             min: [1, 'Limite por compra deve ser pelo menos 1'],
             max: [50, 'Limite por compra não pode ser maior que 50'],
+        },
+        maxPerCPF: {
+            type: Number,
+            default: null,
+            min: [1, 'Limite por CPF deve ser pelo menos 1'],
+            max: [100, 'Limite por CPF não pode ser maior que 100'],
+        },
+        maxPerEmail: {
+            type: Number,
+            default: null,
+            min: [1, 'Limite por Email deve ser pelo menos 1'],
+            max: [100, 'Limite por Email não pode ser maior que 100'],
         },
         soldQuantity: {
             type: Number,

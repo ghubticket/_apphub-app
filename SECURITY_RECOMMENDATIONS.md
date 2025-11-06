@@ -17,7 +17,11 @@
 ### 1.3 Validação de Quantidade
 - ✅ **Implementado**: Validação de limite por compra (`maxPerPurchase`)
 - ✅ **Implementado**: Validação de estoque disponível
-- 🔄 **Recomendado**: Implementar reserva temporária de ingressos (ex: 15 minutos) para evitar que múltiplos usuários tentem comprar os últimos ingressos simultaneamente
+- ✅ **Implementado**: Reserva temporária de ingressos (15 minutos)
+  - Quando um pedido é criado, o estoque é decrementado (`soldQuantity += quantity`)
+  - Se o pedido não for pago em 15 minutos, é cancelado automaticamente e o estoque é liberado (`soldQuantity -= quantity`)
+  - Funciona tanto para cancelamento manual quanto automático (scheduler)
+  - Sistema de reservas temporárias (`TicketReservation`) também disponível para reservas pré-compra
 
 ## 2. Segurança de QR Codes
 
@@ -31,7 +35,10 @@
 - ✅ **Implementado**: Validação de assinatura HMAC e decriptografia AES-256-GCM
 - ✅ **Implementado**: Checagem de timestamp e nonce anti-replay (persistente)
 - ✅ **Implementado**: Verificação de status do ingresso (confirmado) e pedido (pago)
-- 🔄 **Recomendado**: Blacklist de códigos cancelados/estornados
+- ✅ **Implementado**: Apenas role QRCODE pode validar ingressos (Admin não valida para evitar confusão)
+- ✅ **Implementado**: Blacklist de usuários - usuários bloqueados não podem validar ingressos
+- ✅ **Implementado**: Sistema de rastreamento de tentativas (`ValidationAttempt`) com IP e user-agent
+- 🔄 **Recomendado**: Blacklist de códigos cancelados/estornados (além da blacklist de usuários)
 
 ## 3. Segurança de Pagamentos
 
@@ -54,8 +61,10 @@
 
 ### 4.1 Autenticação e Autorização
 - ✅ **Implementado**: JWT com verificação de token
-- ✅ **Implementado**: Middleware de autorização por role (ADMIN)
+- ✅ **Implementado**: Middleware de autorização por role (ADMIN, QRCODE)
 - ✅ **Implementado**: Lockout progressivo no login (5 falhas/15 min → bloqueio 15 min)
+- ✅ **Implementado**: Controle de acesso granular - apenas role QRCODE pode validar ingressos (Admin não valida)
+- ✅ **Implementado**: Verificação de blacklist antes de permitir validação
 - 🔄 **Recomendado**: Refresh tokens + rotação
 - 🔄 **Recomendado**: Rate limiting por usuário autenticado
 
@@ -73,11 +82,27 @@
 ## 5. Prevenção de Fraude
 
 ### 5.1 Limites por CPF/Email
-- 🔄 **Recomendado**: Implementar limite de ingressos por CPF por evento
-- 🔄 **Recomendado**: Implementar verificação de email único por pedido
+- ✅ **Implementado**: Limite acumulado de ingressos por CPF por tipo de ingresso (`maxPerCPF`)
+  - Configurável por tipo de ingresso (opcional)
+  - Considera apenas pedidos pagos (status = 'paid')
+  - Normaliza CPF para comparação (remove formatação)
+  - Mensagem clara informando quantos ingressos já foram comprados e quantos ainda podem ser comprados
+- ✅ **Implementado**: Limite acumulado de ingressos por Email por tipo de ingresso (`maxPerEmail`)
+  - Configurável por tipo de ingresso (opcional)
+  - Considera apenas pedidos pagos (status = 'paid')
+  - Normaliza Email para comparação (lowercase, trim)
+  - Mensagem clara informando quantos ingressos já foram comprados e quantos ainda podem ser comprados
+- ✅ **Implementado**: Índices otimizados no modelo `Order` para queries por CPF/Email (`customerData.cpf`, `customerData.email`)
 - 🔄 **Recomendado**: Implementar blacklist de CPFs/emails suspeitos
 
 ### 5.2 Detecção de Padrões Suspeitos
+- ✅ **Implementado**: Sistema de detecção automática de tentativas suspeitas
+  - Rastreamento de todas as tentativas de validação (`ValidationAttempt` model)
+  - Detecção de múltiplas tentativas de usar QR já utilizado (3+ em 24h → marca como suspeito)
+  - Detecção de mesmo QR code usado em múltiplos eventos (2+ eventos → marca como suspeito)
+  - Flags automáticas no modelo `User` (`isSuspicious`, `suspiciousActivityCount`)
+  - Endpoints para gerenciamento manual (`PATCH /api/users/:userId/suspicious`, `PATCH /api/users/:userId/blacklist`)
+  - Filtros no dashboard para visualizar usuários suspeitos/bloqueados
 - 🔄 **Recomendado**: Alertar sobre múltiplas compras do mesmo IP em pouco tempo
 - 🔄 **Recomendado**: Alertar sobre múltiplos pedidos com mesmo CPF mas diferentes emails
 - 🔄 **Recomendado**: Implementar CAPTCHA após X tentativas de compra
@@ -95,6 +120,11 @@
 - 🔄 **Recomendado**: Implementar log rotation e envio para agregador (Elastic/CloudWatch)
 
 ### 6.2 Auditoria
+- ✅ **Implementado**: Rastreamento de tentativas de validação (`ValidationAttempt`)
+  - Registro de todas as tentativas (sucesso e falha)
+  - Armazenamento de IP, user-agent, motivo da falha
+  - Associação com usuário (holder), validador, evento e ticket
+  - Índices para queries eficientes de padrões suspeitos
 - 🔄 **Recomendado**: Criar tabela de auditoria para mudanças em pedidos e ingressos
 - 🔄 **Recomendado**: Registrar quem fez cada alteração (admin, sistema, etc.)
 - 🔄 **Recomendado**: Manter histórico de alterações de status
@@ -153,15 +183,17 @@
 4. ✅ Geração segura de QR Codes com criptografia (AES-256-GCM)
 5. ✅ Validação de QR Codes com HMAC + timestamp/nonce (anti-replay persistente)
 6. ✅ Webhooks com assinatura obrigatória + idempotência persistente (fila + retry)
+7. ✅ Sistema de detecção de tentativas suspeitas e blacklist de usuários
+8. ✅ Controle de acesso granular (apenas QRCODE pode validar)
 
 ### Média Prioridade 🟡
-7. 🔄 Reserva temporária de ingressos
-8. 🔄 Limites por CPF/Email
-9. 🔄 Validação de CPF
-10. 🔄 Logging de operações críticas
+9. ✅ Reserva temporária de ingressos (implementado - estoque liberado ao cancelar)
+10. ✅ Limites acumulados por CPF/Email por tipo de ingresso (implementado)
+11. 🔄 Validação de CPF (algoritmo de validação de dígitos verificadores)
+12. 🔄 Logging de operações críticas
 
 ### Baixa Prioridade 🟢
-11. 🔄 Refresh tokens
-12. 🔄 CAPTCHA após tentativas suspeitas
-13. 🔄 Sistema de auditoria completo
-14. 🔄 Monitoramento avançado
+13. 🔄 Refresh tokens
+14. 🔄 CAPTCHA após tentativas suspeitas
+15. 🔄 Sistema de auditoria completo (além do rastreamento de validações)
+16. 🔄 Monitoramento avançado

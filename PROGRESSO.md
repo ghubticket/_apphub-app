@@ -1,6 +1,6 @@
 # 📊 Progresso do Projeto - EventHub
 
-> **Última atualização:** Novembro 2025  
+> **Última atualização:** Janeiro 2025  
 > Este documento resume o que foi implementado e o que ainda precisa ser feito.
 
 ---
@@ -288,36 +288,99 @@
 
 ### 🔍 Sistema de Validação de QR Codes
 
-#### Prioridade: ALTA
-- [ ] App de validação (PWA)
+#### Backend
+- ✅ **QR Codes Seguros** (AES-256-GCM + HMAC-SHA256)
+  - Criptografia AES-256-GCM com IV único
+  - Assinatura HMAC-SHA256 para integridade
+  - Timestamp e nonce único para cada QR code
+  - Expiração configurável (default: 7 dias)
+  - Variáveis de ambiente: `QR_SECRET` e `QR_HMAC_SECRET` (32 bytes cada)
+
+- ✅ **Proteção Anti-Replay**
+  - Modelo `QrNonce` para registrar nonces únicos
+  - Prevenção de reutilização do mesmo QR code
+  - Detecção de replay em tempo real
+
+- ✅ **Endpoints de Validação**
+  - `GET /api/tickets/code/:code` - Buscar ingresso por código (público)
+  - `POST /api/tickets/code/:code/validate` - Validar ingresso (apenas QRCODE)
+  - `POST /api/tickets/scan` - Ler QR seguro e retornar dados (apenas QRCODE)
+  - `GET /api/tickets/event/:eventId` - Listar ingressos de evento (ADMIN)
+  - ⚠️ **Apenas role QRCODE pode validar** (Admin não valida para não bagunçar)
+
+- ✅ **Proteção contra Race Condition**
+  - Operação atômica: só atualiza se status ainda for `confirmed`
+  - Garante que apenas uma validação seja aceita simultaneamente
+
+- ✅ **Sistema de Detecção de Tentativas Suspeitas**
+  - Modelo `ValidationAttempt` para rastrear todas as tentativas
+  - Detecção automática de padrões suspeitos:
+    - Múltiplas tentativas de usar QR já utilizado (3+ em 24h → marca como suspeito)
+    - Mesmo QR code usado em múltiplos eventos diferentes (2+ eventos → marca como suspeito)
+  - Flags no modelo `User`:
+    - `isSuspicious` - Flag manual de usuário suspeito
+    - `suspiciousActivityCount` - Contador de tentativas suspeitas
+    - `suspiciousReason` - Motivo da marcação
+    - `isBlacklisted` - Flag de blacklist
+    - `blacklistReason` - Motivo do bloqueio
+  - Endpoints de gerenciamento:
+    - `PATCH /api/users/:userId/suspicious` - Marcar/desmarcar como suspeito
+    - `PATCH /api/users/:userId/blacklist` - Adicionar/remover da blacklist
+  - Proteção: usuários na blacklist não podem validar ingressos
+
+#### Frontend
+- ✅ **Filtros de Segurança na Lista de Usuários**
+  - Filtro "Suspeitos" (Todos, Suspeitos, Não Suspeitos)
+  - Filtro "Blacklist" (Todos, Bloqueados, Não Bloqueados)
+  - Filtros sempre visíveis, mesmo quando não há resultados
+  - Mensagem específica: "Não foram encontrados resultados para esse filtro"
+
+- ✅ **Coluna de Segurança na Tabela**
+  - Badge "BLOQUEADO" (vermelho) para usuários na blacklist
+  - Badge "SUSPEITO (X)" (amarelo) com contador de tentativas
+  - Badge "OK" (verde) para usuários limpos
+
+- [ ] App de validação (PWA) - **PENDENTE**
   - [ ] Scanner de QR Code
   - [ ] Validação em tempo real
   - [ ] Feedback visual (verde/vermelho/amarelo)
   - [ ] Histórico de validações
 
-- [ ] Endpoints de validação
-  - [ ] `GET /api/tickets/code/:code` - Buscar ingresso por código (público)
-  - [ ] `POST /api/tickets/code/:code/validate` - Validar ingresso (apenas QRCODE/ADMIN)
-  - [ ] `GET /api/tickets/event/:eventId` - Listar ingressos de evento (ADMIN)
-
-- [ ] Proteção anti-fraude
-  - [ ] Hash HMAC SHA-256 no QR Code
-  - [ ] Validação de hash antes de marcar como usado
-  - [ ] Prevenção de reutilização
-
 ### 📊 Dashboard Administrativo (Melhorias)
 
-#### Prioridade: MÉDIA
+#### Frontend
+- ✅ **Gestão de Usuários**
+  - Lista de usuários com paginação e filtros
+  - Filtros: Role, Status, Suspeitos, Blacklist
+  - Busca por nome/email
+  - Coluna de segurança (BLOQUEADO/SUSPEITO/OK)
+  - Atualização de status (ativo/inativo)
+  - Visualização de detalhes do usuário
+
+- ✅ **Detalhes do Pedido**
+  - Informações completas do pedido
+  - Método de pagamento com ícone (PIX/Cartão)
+  - Status padronizado (CONFIRMADO, PENDENTE, CANCELADO, REEMBOLSADO)
+  - Detalhes do pagamento (mensagens, erros, status_detail)
+  - Lista de ingressos com status e uso (USADO/NÃO UTILIZADO)
+  - Informação de QR usado (data e validador)
+  - Botão WhatsApp para contato
+  - Resumo financeiro (oculto para VIPs)
+
 - [ ] Relatórios avançados
   - [ ] Vendas por período (gráficos)
   - [ ] Comparação entre eventos
   - [ ] Exportação de dados (CSV, Excel)
+  - [ ] Relatório de tentativas suspeitas
 
 - [ ] Gestão de eventos
   - [ ] Fechamento automático de vendas (X horas antes do evento)
   - [ ] Publicação/despublicação em massa
+  - [ ] Botão "Cadastrar Evento" quando lista está vazia
 
-- [ ] Gestão de usuários
+- [ ] Gestão de usuários (melhorias)
+  - [ ] Ações no menu para marcar/desmarcar suspeito e blacklist
+  - [ ] Visualização de tentativas suspeitas por usuário
   - [ ] Criação em massa
   - [ ] Importação via CSV
 
@@ -339,19 +402,42 @@
 
 ### 🔐 Segurança e Performance
 
-#### Prioridade: MÉDIA
-- [ ] Rate limiting
-  - [ ] ✅ Já implementado básico, revisar limites
-  - [ ] Aplicar em endpoints críticos (validação, compra)
+#### Backend
+- ✅ **Rate Limiting**
+  - Global: 100 req/min por IP
+  - Auth: 5 req/15min por IP+email (lockout progressivo)
+  - Sensitive: 10 req/15min por IP
+  - Payment: 20 req/15min por IP
+  - Order creation: 20 req/15min por IP
+  - Configuração de `trust proxy` para identificar IPs corretamente
 
-- [ ] Criptografia
+- ✅ **Proteção de QR Codes**
+  - Criptografia AES-256-GCM
+  - Assinatura HMAC-SHA256
+  - Anti-replay via nonce persistente
+  - Expiração configurável
+
+- ✅ **Sistema de Blacklist e Detecção de Suspeitos**
+  - Rastreamento de todas as tentativas de validação
+  - Detecção automática de padrões suspeitos
+  - Blacklist automática (usuários bloqueados não podem validar)
+  - Endpoints para gerenciamento manual
+
+- ✅ **Logging e Observabilidade**
+  - Logging estruturado por requisição (`requestId`, status, duração, IP, user-agent)
+  - Integração opcional com Sentry/APM (`SENTRY_DSN`)
+  - Logs detalhados de pagamentos e validações
+
+- ✅ **Proteções Adicionais**
+  - Lockout progressivo no login (5 falhas/15min → bloqueio por 15min)
+  - CORS restrito por domínio em produção
+  - Sanitização de inputs (XSS básico)
+  - Uploads com Cache-Control forte e proteção de hotlink
+  - HSTS e redirecionamento HTTP → HTTPS em produção
+
+- [ ] Criptografia em repouso
   - [ ] Criptografar dados sensíveis (CPF, telefone) em repouso
   - [ ] HTTPS obrigatório (verificar no deploy)
-
-- [ ] Monitoramento
-  - [ ] Integração com Sentry
-  - [ ] Logs estruturados
-  - [ ] Alertas para operações críticas
 
 - [ ] Backup e redundância
   - [ ] Backup automático do MongoDB
@@ -398,7 +484,10 @@
 - ✅ Distribuição de VIPs
 - ✅ Dashboard administrativo básico
 - ✅ Estatísticas de eventos
-- ⏳ **EM ANDAMENTO:** Integração com gateway de pagamento (PIX via Orders API funcional; cartão pendente)
+- ✅ Sistema de validação de QR codes com segurança avançada
+- ✅ Sistema de detecção de tentativas suspeitas e blacklist
+- ✅ Integração com gateway de pagamento (PIX via Orders API funcional)
+- ⏳ **EM ANDAMENTO:** Cartão de crédito via Orders API
 - ⏳ **PRÓXIMO:** Sistema de notificações (email)
 
 ### Fase 2 - Portal Público (2-3 semanas)
@@ -458,6 +547,6 @@
 
 ---
 
-**Status Geral:** ~60% do MVP completo ✅  
-**Próxima milestone:** Finalizar pagamentos (cartão + webhook) + Email
+**Status Geral:** ~70% do MVP completo ✅  
+**Próxima milestone:** Finalizar pagamentos (cartão) + Email + App de validação
 

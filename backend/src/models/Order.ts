@@ -217,6 +217,9 @@ orderSchema.index({ event: 1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ paymentId: 1 });
 orderSchema.index({ isActive: 1 });
+// Índices para validação de limites por CPF/Email
+orderSchema.index({ 'customerData.cpf': 1, event: 1, status: 1 });
+orderSchema.index({ 'customerData.email': 1, event: 1, status: 1 });
 
 // Regras de transição de status
 const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {

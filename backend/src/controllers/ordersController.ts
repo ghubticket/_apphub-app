@@ -5,6 +5,83 @@ import { Order, Ticket, TicketType, Event, User, PromoterCode } from '../models'
 import { generateQRCode } from '../services/qrCodeService';
 import * as reservationService from '../services/reservationService';
 
+/**
+ * Normaliza CPF removendo formatação (pontos e traços)
+ */
+const normalizeCPF = (cpf: string | undefined): string | null => {
+    if (!cpf) return null;
+    return cpf.replace(/\D/g, '');
+};
+
+/**
+ * Normaliza Email para lowercase e trim
+ */
+const normalizeEmail = (email: string | undefined): string | null => {
+    if (!email) return null;
+    return email.trim().toLowerCase();
+};
+
+/**
+ * Conta quantos ingressos um CPF/Email já comprou para um tipo específico
+ * Considera apenas pedidos pagos (status = 'paid')
+ */
+const countPurchasedTicketsByCPFOrEmail = async (
+    eventId: string,
+    ticketTypeId: string,
+    cpf?: string,
+    email?: string
+): Promise<number> => {
+    const normalizedCPF = normalizeCPF(cpf);
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedCPF && !normalizedEmail) {
+        return 0;
+    }
+
+    // Construir filtros para buscar pedidos pagos do evento
+    const orderFilters: any = {
+        event: eventId,
+        status: 'paid',
+        deletedAt: null,
+    };
+
+    // Adicionar filtro por CPF ou Email
+    if (normalizedCPF && normalizedEmail) {
+        // Se ambos estão presentes, usar OR
+        orderFilters.$or = [
+            { 'customerData.cpf': { $regex: normalizedCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') } },
+            { 'customerData.email': normalizedEmail }
+        ];
+    } else if (normalizedCPF) {
+        // Buscar por CPF (normalizado, mas comparar com formato do DB)
+        // CPF no DB está no formato 000.000.000-00, então precisamos buscar de forma flexível
+        const cpfFormatted = normalizedCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        orderFilters['customerData.cpf'] = cpfFormatted;
+    } else if (normalizedEmail) {
+        orderFilters['customerData.email'] = normalizedEmail;
+    }
+
+    // Buscar pedidos pagos que correspondem ao CPF/Email
+    const orders = await Order.find(orderFilters)
+        .select('totalTickets customerData')
+        .lean();
+
+    // Agora verificar se os tickets desses pedidos são do tipo correto
+    let totalPurchased = 0;
+    for (const order of orders) {
+        // Buscar tickets do pedido que são do tipo específico
+        const tickets = await Ticket.countDocuments({
+            order: order._id,
+            ticketType: ticketTypeId,
+            deletedAt: null,
+        });
+        
+        totalPurchased += tickets;
+    }
+
+    return totalPurchased;
+};
+
 interface CreateOrderRequest {
     eventId: string;
     ticketTypeId: string;
@@ -98,6 +175,58 @@ export const createOrder = async (req: Request, res: Response) => {
                 return res.status(404).json({
                     success: false,
                     message: 'Usuário não encontrado'
+                });
+            }
+        }
+
+        // Preparar CPF e Email para validação (prioridade: customerData > user > null)
+        const cpfToValidate = customerData?.cpf || user?.cpf;
+        const emailToValidate = customerData?.email || user?.email;
+
+        // Verificar limite acumulado por CPF (se configurado)
+        if (ticketType.maxPerCPF && cpfToValidate) {
+            const purchasedByCPF = await countPurchasedTicketsByCPFOrEmail(
+                eventId,
+                ticketTypeId,
+                cpfToValidate,
+                undefined
+            );
+            const totalAfterPurchase = purchasedByCPF + quantity;
+            
+            if (totalAfterPurchase > ticketType.maxPerCPF) {
+                const remaining = Math.max(0, ticketType.maxPerCPF - purchasedByCPF);
+                return res.status(400).json({
+                    success: false,
+                    message: 'Limite acumulado por CPF excedido',
+                    errors: [
+                        `Este CPF já comprou ${purchasedByCPF} ingresso(s) deste tipo. ` +
+                        `Limite máximo: ${ticketType.maxPerCPF}. ` +
+                        `Você pode comprar no máximo mais ${remaining} ingresso(s).`
+                    ]
+                });
+            }
+        }
+
+        // Verificar limite acumulado por Email (se configurado)
+        if (ticketType.maxPerEmail && emailToValidate) {
+            const purchasedByEmail = await countPurchasedTicketsByCPFOrEmail(
+                eventId,
+                ticketTypeId,
+                undefined,
+                emailToValidate
+            );
+            const totalAfterPurchase = purchasedByEmail + quantity;
+            
+            if (totalAfterPurchase > ticketType.maxPerEmail) {
+                const remaining = Math.max(0, ticketType.maxPerEmail - purchasedByEmail);
+                return res.status(400).json({
+                    success: false,
+                    message: 'Limite acumulado por Email excedido',
+                    errors: [
+                        `Este Email já comprou ${purchasedByEmail} ingresso(s) deste tipo. ` +
+                        `Limite máximo: ${ticketType.maxPerEmail}. ` +
+                        `Você pode comprar no máximo mais ${remaining} ingresso(s).`
+                    ]
                 });
             }
         }
@@ -552,6 +681,27 @@ export const cancelOrder = async (req: Request, res: Response) => {
             }
         }
 
+        // Buscar tickets para obter ticketType e quantidade
+        const tickets = await Ticket.find({ order: order._id, deletedAt: null }).populate('ticketType');
+        
+        // Agrupar por ticketType para liberar estoque corretamente
+        const ticketTypeCounts = new Map<string, number>();
+        for (const ticket of tickets) {
+            const ticketTypeId = String((ticket as any).ticketType?._id || (ticket as any).ticketType);
+            if (ticketTypeId) {
+                ticketTypeCounts.set(ticketTypeId, (ticketTypeCounts.get(ticketTypeId) || 0) + 1);
+            }
+        }
+
+        // Liberar estoque para cada ticketType
+        for (const [ticketTypeId, quantity] of ticketTypeCounts.entries()) {
+            const ticketType = await TicketType.findById(ticketTypeId);
+            if (ticketType && quantity > 0) {
+                ticketType.soldQuantity = Math.max(0, ticketType.soldQuantity - quantity);
+                await ticketType.save();
+            }
+        }
+
         // Cancelar pedido
         order.status = 'cancelled';
         order.cancelledAt = new Date();
@@ -564,8 +714,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
         );
 
         // Segurança extra: nunca retornar QR de pedidos não pagos
-        const tickets = await Ticket.find({ order: order._id, deletedAt: null }).lean();
-        const safeTickets = tickets.map(t => ({ ...t, qrCode: null }));
+        const safeTickets = tickets.map(t => ({ ...t.toObject(), qrCode: null }));
 
         return res.json({
             success: true,
