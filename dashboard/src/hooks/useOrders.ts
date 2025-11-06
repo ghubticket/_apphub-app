@@ -53,11 +53,8 @@ export const useOrders = (options: UseOrdersOptions = { autoFetch: true }): UseO
                 paginationToSet = response.data.pagination || null;
             }
             
-            console.log('🔄 setOrders será chamado com:', ordersToSet.length, 'pedidos');
-            console.log('🔄 Primeiro pedido:', ordersToSet[0]);
             setOrders(ordersToSet);
             setPagination(paginationToSet);
-            console.log('✅ setOrders e setPagination chamados');
         } catch (err: any) {
             console.error('Erro ao carregar pedidos:', err);
             setError(err.message || 'Erro ao carregar pedidos');

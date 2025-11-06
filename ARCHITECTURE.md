@@ -8,7 +8,7 @@ Framework: Node.js + Express + TypeScript
 Database: MongoDB Atlas (M0 free tier para começar)
 Cache: Node-cache (em memória) → Redis depois
 Auth: Passport.js + JWT
-Pagamento: Mercado Pago SDK
+Pagamento: Mercado Pago SDK (Orders API - online)
 Email: Resend (free 100/dia)
 Upload: Cloudinary (free tier)
 Deploy: Railway / Render
@@ -58,7 +58,7 @@ eventhub/
 │   │   │   └── validation.controller.ts
 │   │   │
 │   │   ├── services/
-│   │   │   ├── payment.service.ts      # Mercado Pago
+│   │   │   ├── payment.service.ts      # Mercado Pago Orders API
 │   │   │   ├── qrcode.service.ts       # Geração/validação
 │   │   │   ├── email.service.ts        # Resend
 │   │   │   └── upload.service.ts       # Cloudinary
@@ -280,14 +280,16 @@ interface Ticket {
    └── Escolhe forma de pagamento
 
 4. Backend processa
-   ├── Valida estoque
+   ├── Valida estoque e regras (CPF/email/amount)
    ├── Cria Order (status: pending)
-   ├── Chama Mercado Pago
-   └── Retorna link de pagamento (PIX) ou processa cartão
+   ├── Chama Mercado Pago (Orders API - online) com idempotência
+   └── Retorna dados de pagamento
+       • PIX: `qrCode`, `qrCodeBase64`, `ticketUrl`, `expiresAt`
+       • Cartão: status/processamento
 
-5. Webhook Mercado Pago
-   ├── Payment approved
-   ├── Atualiza Order (status: approved)
+5. Webhook Mercado Pago (Orders API - tipo "order")
+   ├── Payment processed/approved
+   ├── Atualiza Order (status interno: paid/cancelled)
    ├── Gera Tickets com QR Codes
    ├── Envia email com ingressos (PDF)
    └── Atualiza estoque
@@ -329,32 +331,22 @@ interface Ticket {
 
 ## APIs Críticas
 
-### Mercado Pago
+### Mercado Pago (Orders API - online)
 ```typescript
-// Criar preferência de pagamento
-POST https://api.mercadopago.com/checkout/preferences
-{
-  "items": [
-    {
-      "title": "Ingresso - Pagode da Lua",
-      "quantity": 2,
-      "unit_price": 50.00
-    }
-  ],
-  "back_urls": {
-    "success": "https://eventhub.com/checkout/success",
-    "failure": "https://eventhub.com/checkout/failure"
-  },
-  "notification_url": "https://api.eventhub.com/webhooks/mercadopago"
-}
+// Criação de Order (PIX ou Cartão) é realizada pelo backend via SDK
+// Parâmetros principais:
+//  - type: 'online'
+//  - processing_mode: 'automatic'
+//  - total_amount, external_reference
+//  - payer (no nível raiz)
+//  - transactions.payments: [{ method: 'pix' | 'credit_card', ... }]
+// Headers: Authorization: Bearer <token>, X-Idempotency-Key
 
-// Webhook de notificação
-POST /webhooks/mercadopago
+// Webhook de Order (MP → Backend)
+POST /api/webhooks/mercadopago
 {
-  "action": "payment.updated",
-  "data": {
-    "id": "1234567890"
-  }
+  "type": "order",
+  "data": { "id": "ORD01..." }
 }
 ```
 
@@ -441,6 +433,7 @@ JWT_EXPIRES_IN=7d
 MP_ACCESS_TOKEN=APP_USR-xxx
 MP_PUBLIC_KEY=APP_USR-xxx
 MP_WEBHOOK_SECRET=xxx
+# Sandbox: usar emails *@testuser.com em dev
 
 # Email
 RESEND_API_KEY=re_xxx

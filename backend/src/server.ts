@@ -18,7 +18,9 @@ import ticketsRoutes from './routes/tickets'
 import healthRoutes from './routes/health'
 import deliveryRoutes from './routes/delivery';
 import promoterCodesRoutes from './routes/promoterCodes';
+import paymentRoutes from './routes/payment';
 import { startOrderExpirationScheduler } from './services/orderExpirationService'
+import { checkMercadoPagoConfig } from './utils/checkEnv'
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -106,6 +108,8 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/tickets', ticketsRoutes);
 // Rotas de códigos de promotor
 app.use('/api/promoters', promoterCodesRoutes);
+// Rotas de pagamento
+app.use('/api/payments', paymentRoutes);
 
 // Rotas de health check
 app.use('/api/health', healthRoutes);
@@ -210,6 +214,9 @@ const startServer = async () => {
         // Conectar ao banco de dados
         await connectDatabase();
 
+        // Verificar configuração do Mercado Pago
+        checkMercadoPagoConfig();
+
         // Iniciar servidor
         app.listen(PORT, () => {
             console.log('');
@@ -226,6 +233,7 @@ const startServer = async () => {
             console.log('   2. 📚 Swagger: http://localhost:3001/api-docs');
             console.log('   3. 🔐 Auth: http://localhost:3001/auth/login');
             console.log('   4. Endpoints de eventos em /api/events');
+            console.log('   5. 💳 Endpoints de pagamento em /api/payments');
             console.log('');
         });
 

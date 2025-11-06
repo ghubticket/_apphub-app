@@ -10,6 +10,7 @@
 
 ### 1.2 Rate Limiting por Compra
 - ✅ **Implementado**: Rate limiting global no backend
+- ✅ **Implementado**: Proteções de rate limiting nos endpoints de pagamento e status (básico)
 - 🔄 **Recomendado**: Rate limiting específico para criação de pedidos (ex: 5 pedidos por minuto por IP)
 - 🔄 **Recomendado**: Rate limiting por usuário autenticado (ex: 10 pedidos por hora)
 
@@ -47,15 +48,20 @@
 ## 3. Segurança de Pagamentos
 
 ### 3.1 Integração com Gateway
+- ✅ **Implementado**: Idempotência nas requisições à Orders API via `X-Idempotency-Key`
+- ✅ **Implementado**: Autorização via `Authorization: Bearer <MP_ACCESS_TOKEN>` com validação e logs de diagnóstico
+- ✅ **Implementado**: Tratamento de sandbox (forçar email `*@testuser.com` em ambiente dev) para evitar rejeições
+- ✅ **Implementado**: Armazenamento e exibição de mensagens detalhadas de status/erros (user/admin)
+- ✅ **Implementado**: Logs detalhados de criação de pagamentos e respostas do MP (ambiente dev)
 - 🔄 **Recomendado**: Usar webhooks assinados do gateway de pagamento (Mercado Pago, Stripe, etc.)
 - 🔄 **Recomendado**: Validar assinatura do webhook antes de processar
-- 🔄 **Recomendado**: Implementar idempotência (usar paymentId como chave única)
-- 🔄 **Recomendado**: Armazenar logs de todas as transações
+- 🔄 **Recomendado**: Idempotência no processamento de webhooks (garantir que eventos duplicados não mudem estado)
 
 ### 3.2 Processamento de Pagamento
-- 🔄 **Recomendado**: Nunca processar pagamento diretamente no frontend
-- 🔄 **Recomendado**: Usar server-side validation para todos os valores
-- 🔄 **Recomendado**: Implementar timeout para pedidos pendentes (ex: cancelar após 30 minutos sem pagamento)
+- ✅ **Implementado**: Nunca processar pagamento diretamente no frontend (toda a criação acontece no backend)
+- ✅ **Implementado**: Validações server-side (CPF, email, amount, status do pedido, expiração)
+- ✅ **Implementado**: Timeout/expiração automática de pedidos pendentes (serviço agendado)
+- 🔄 **Recomendado**: Validar `deviceId`/fingerprint e aplicar heurísticas antifraude por sessão
 
 ## 4. Segurança de API
 
@@ -73,6 +79,7 @@
 ### 4.3 CORS e Headers de Segurança
 - ✅ **Implementado**: Helmet com configuração de CSP
 - ✅ **Implementado**: CORS configurado
+- ✅ **Implementado**: Headers adicionais nas chamadas ao MP (`X-Idempotency-Key`, `X-meli-session-id` quando disponível)
 - 🔄 **Recomendado**: Revisar e restringir CORS para produção
 - 🔄 **Recomendado**: Implementar Content-Security-Policy mais restritiva
 

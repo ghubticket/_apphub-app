@@ -1,6 +1,6 @@
 # Premissas do Projeto - EventHub
 
-> **Última atualização:** 23 de Outubro de 2025
+> **Última atualização:** 6 de Novembro de 2025
 >
 > Documento com todas as premissas, decisões e diretrizes do sistema de venda de ingressos para eventos de pagode.
 
@@ -52,7 +52,7 @@ ROI: 3 meses
 ### Solução Proposta
 Sistema próprio de ponta a ponta:
 - Portal de venda de ingressos
-- Pagamento via Mercado Pago (Pix, cartão, boleto)
+- Pagamento via Mercado Pago (Orders API: Pix e Cartão; Boleto opcional)
 - QR Code seguro e único por ingresso
 - App de validação para leitores
 - Dashboard administrativo completo
@@ -106,7 +106,7 @@ Sistema próprio de ponta a ponta:
 Node.js + TypeScript + Express
 MongoDB Atlas (free tier → pago depois)
 JWT para autenticação
-Mercado Pago SDK para pagamentos
+Mercado Pago SDK (Orders API) para pagamentos
 Resend para emails
 Cloudinary para uploads
 Deploy: Railway ou Render
@@ -150,7 +150,7 @@ Monitoramento: Sentry (free tier)
 - ✅ Sem surpresas na conta
 - ❌ AWS: complexo demais para começar
 
-**Mercado Pago vs Stripe:**
+**Mercado Pago (Orders API) vs Stripe:**
 - ✅ Melhor para Brasil (Pix nativo)
 - ✅ Documentação em português
 - ✅ Suporte local

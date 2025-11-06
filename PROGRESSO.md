@@ -1,6 +1,6 @@
 # 📊 Progresso do Projeto - EventHub
 
-> **Última atualização:** Novembro 2024  
+> **Última atualização:** Novembro 2025  
 > Este documento resume o que foi implementado e o que ainda precisa ser feito.
 
 ---
@@ -54,6 +54,34 @@
   - Gráficos de barras por dia
   - Comparação com semana anterior (percentuais baseados em valores monetários)
   - ⚠️ **Pedidos Pendentes** - OCULTO TEMPORARIAMENTE
+
+### 💳 Pagamentos (Mercado Pago - Orders API)
+
+#### Backend
+- ✅ Migração do fluxo para o modelo mais recente do Mercado Pago (Orders API)
+- ✅ PIX via Orders API
+  - Criação de transação com `type: 'online'` e `processing_mode: 'automatic'`
+  - Headers: `Authorization` (Bearer) e `X-Idempotency-Key`
+  - Payer no nível raiz conforme spec da Orders API
+  - Extração correta do QR Code a partir de `payment_method.qr_code` e `qr_code_base64`
+  - `ticket_url` exposto para fallback de pagamento no MP
+  - Expiração configurável e retornada em `expiresAt`/`expirationMinutes`
+- ✅ Mapeamento completo de status (transação e order) com `paymentStatusMapper`
+  - Mensagens amigáveis para usuário e admin
+  - `internalStatus` padronizado (pending, paid, cancelled, refunded, processing, failed)
+  - Cores e flags (`requiresAction`, `canRetry`)
+- ✅ Logs detalhados e diagnósticos
+  - Validação de `MP_ACCESS_TOKEN` com mensagens claras
+  - Logs de payloads/respostas do MP (em ambiente dev)
+  - Tratativa de sandbox: email forçado para `*@testuser.com` em dev
+- ✅ Endpoints atualizados
+  - `POST /api/payments/:orderId/pix`
+  - `GET /api/payments/:paymentId/status`
+  - `GET /api/orders/:orderId/payment/status`
+- ✅ Webhook ajustado para notificações do tipo `order` (Orders API)
+
+#### Frontend (integração planejada)
+- Exposição de campos essenciais para UI: `qrCode`, `qrCodeBase64`, `ticketUrl`, `expiresAt`, `statusInfo`
 
 ### 🎁 Sistema de Distribuição de VIPs
 
@@ -140,18 +168,19 @@
   - Libera estoque automaticamente
   - Integrado no `server.ts` com `setInterval`
 
-### 📝 Documentação e Scripts
+### 🧹 Limpeza e Organização
 
-- ✅ **Swagger atualizado**
+- ✅ Remoção de scripts legados e utilitários não usados
+  - Removidos: `backend/src/scripts/createTestScenario.ts`, `backend/src/scripts/testPayment.ts`, `backend/resetUsers.js`
+  - `backend/package.json`: comandos de scripts de teste/seed limpos
+- ✅ Remoção de documentação antiga/desatualizada para reduzir ruído
+  - Guias antigos de integração/diagnóstico substituídos por logs e Swagger
+
+### 📝 Documentação
+
+- ✅ Swagger atualizado
   - Endpoints DELETE agora documentam explicitamente "soft delete"
-
-- ✅ **Script de teste** (`createThreeOrders.ts`)
-  - Gera 3 pedidos de teste:
-    1. VIP (status: `paid`, `paymentMethod: 'vip_free'`)
-    2. Pendente (status: `pending`)
-    3. Cancelado (status: `cancelled`)
-  - Usa usuários e eventos existentes do sistema
-  - Comando: `npm run create-three-orders`
+  - Endpoints de Pagamento (Orders API) documentados
 
 ### 🐛 Correções e Ajustes
 
@@ -185,16 +214,15 @@
 ### 💳 Integração com Gateway de Pagamento
 
 #### Prioridade: ALTA
-- [ ] Integração com Mercado Pago
-  - [ ] Criar preferência de pagamento (Pix, Cartão, Boleto)
-  - [ ] Webhook para receber notificações de pagamento
-  - [ ] Atualizar status do pedido quando pagamento for aprovado
-  - [ ] Gerar tickets e QR Codes após aprovação
-  - [ ] Enviar email com ingressos após pagamento
+- [ ] Cartão via Orders API (tokenização, parcelas, 3DS quando aplicável)
+- [ ] Boleto (se aplicável ao MVP)
+- [ ] Webhook: finalizar mapeamentos e persistência ampliada de erros/detalhes
+- [ ] Atualizar status do pedido no webhook quando aprovado
+- [ ] Enviar email com ingressos após pagamento aprovado
 
-#### Endpoints necessários:
-- `POST /api/orders/:id/payment` - Criar preferência de pagamento
-- `POST /api/webhooks/mercadopago` - Receber notificações
+#### Endpoints pendentes/complementares:
+- `POST /api/payments/:orderId/card` - Criar pagamento por cartão
+- `POST /api/webhooks/mercadopago` - Receber notificações (Orders API)
 - `GET /api/orders/:id/payment/status` - Verificar status do pagamento
 
 ### 📧 Sistema de Notificações
@@ -341,7 +369,7 @@
 - ✅ Distribuição de VIPs
 - ✅ Dashboard administrativo básico
 - ✅ Estatísticas de eventos
-- ⏳ **EM ANDAMENTO:** Integração com gateway de pagamento
+- ⏳ **EM ANDAMENTO:** Integração com gateway de pagamento (PIX via Orders API funcional; cartão pendente)
 - ⏳ **PRÓXIMO:** Sistema de notificações (email)
 
 ### Fase 2 - Portal Público (2-3 semanas)
@@ -402,5 +430,5 @@
 ---
 
 **Status Geral:** ~60% do MVP completo ✅  
-**Próxima milestone:** Integração com pagamento + Email
+**Próxima milestone:** Finalizar pagamentos (cartão + webhook) + Email
 

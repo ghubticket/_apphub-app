@@ -15,7 +15,12 @@ export interface IOrder extends Document {
     status: 'pending' | 'paid' | 'cancelled' | 'refunded';
     paymentMethod?: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free'; // VIP não requer pagamento
     paymentId?: string; // ID do pagamento no Mercado Pago
-    paymentStatus?: string; // Status do pagamento
+    paymentStatus?: string; // Status do pagamento (status principal)
+    paymentStatusDetail?: string; // Status detalhado (status_detail)
+    paymentMessage?: string; // Mensagem amigável para o usuário
+    paymentAdminMessage?: string; // Mensagem detalhada para admin
+    paymentErrorCode?: string; // Código de erro (se houver)
+    paymentErrorDescription?: string; // Descrição do erro (se houver)
     paidAt?: Date; // Data do pagamento
     cancelledAt?: Date; // Data do cancelamento
     refundedAt?: Date; // Data do reembolso
@@ -121,6 +126,29 @@ const orderSchema = new Schema<IOrder>(
         paymentStatus: {
             type: String,
             trim: true,
+        },
+        paymentStatusDetail: {
+            type: String,
+            trim: true,
+        },
+        paymentMessage: {
+            type: String,
+            trim: true,
+            maxlength: [500, 'Mensagem deve ter no máximo 500 caracteres'],
+        },
+        paymentAdminMessage: {
+            type: String,
+            trim: true,
+            maxlength: [1000, 'Mensagem admin deve ter no máximo 1000 caracteres'],
+        },
+        paymentErrorCode: {
+            type: String,
+            trim: true,
+        },
+        paymentErrorDescription: {
+            type: String,
+            trim: true,
+            maxlength: [1000, 'Descrição do erro deve ter no máximo 1000 caracteres'],
         },
         paidAt: {
             type: Date,
