@@ -17,7 +17,9 @@
     "regen-qr": "ts-node src/scripts/regenerateTicketQrs.ts",
     "check-qr-secrets": "ts-node src/scripts/checkQrSecrets.ts",
     "test-email": "ts-node src/scripts/testEmail.ts",
-    "test-email-template": "ts-node src/scripts/testEmailTemplates.ts"
+    "test-email-template": "ts-node src/scripts/testEmailTemplates.ts",
+    "test-email-outlook": "ts-node src/scripts/testEmailOutlook.ts",
+    "create-users": "ts-node src/scripts/createUsers.ts"
   },
   "keywords": [
     "eventos",

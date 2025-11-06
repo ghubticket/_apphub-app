@@ -98,10 +98,20 @@ export const sendEmail = async (emailData: EmailData): Promise<{ success: boolea
             };
         }
 
-        console.log(`✅ Email enviado com sucesso. ID: ${result.data?.id}`);
+        const messageId = result.data?.id;
+        console.log(`✅ Email enviado com sucesso. ID: ${messageId}`);
+        
+        // Log detalhado para debug (apenas em dev)
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`   📧 Para: ${Array.isArray(emailData.to) ? emailData.to.join(', ') : emailData.to}`);
+            console.log(`   📨 De: ${from}`);
+            console.log(`   📋 Assunto: ${emailData.subject}`);
+            console.log(`   🔗 Ver logs: https://resend.com/emails/${messageId}`);
+        }
+        
         return {
             success: true,
-            messageId: result.data?.id
+            messageId: messageId
         };
     } catch (error: any) {
         console.error('❌ Erro ao enviar email:', error);

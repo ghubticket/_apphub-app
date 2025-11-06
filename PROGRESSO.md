@@ -2,6 +2,10 @@
 
 > **Última atualização:** Janeiro 2025  
 > Este documento resume o que foi implementado e o que ainda precisa ser feito.
+> 
+> **Últimas atualizações:**
+> - ✅ Sistema de identificação de quem passou primeiro na validação (prevenção de burlas)
+> - ✅ Campo `usedByHolderId` no Ticket para rastrear quem estava presente na validação
 
 ---
 
@@ -243,25 +247,74 @@
 ### 💳 Integração com Gateway de Pagamento
 
 #### Prioridade: ALTA
-- [ ] Cartão via Orders API (tokenização, parcelas, 3DS quando aplicável)
-- [ ] Boleto (se aplicável ao MVP)
-- [ ] Webhook: finalizar mapeamentos e persistência ampliada de erros/detalhes
-- [ ] Atualizar status do pedido no webhook quando aprovado
-- [ ] Enviar email com ingressos após pagamento aprovado
 
-#### Endpoints pendentes/complementares:
-- `POST /api/payments/:orderId/card` - Criar pagamento por cartão
-- `POST /api/webhooks/mercadopago` - Receber notificações (Orders API)
-- `GET /api/orders/:id/payment/status` - Verificar status do pagamento
+#### Backend ✅ COMPLETO
+- ✅ **Cartão via Orders API** (Backend completo)
+  - ✅ Endpoint `POST /api/payments/:orderId/card`
+  - ✅ Tokenização (recebe token do frontend)
+  - ✅ Parcelas (suporte a 1-12 parcelas)
+  - ✅ 3D Secure (automático via Orders API)
+  - ✅ Mapeamento completo de status
+  - ✅ Webhook para notificações
+  - ✅ Email de pagamento (pendente/confirmado/recusado)
+  - ✅ Validações e tratamento de erros
+  - ✅ Additional info para melhorar taxa de aprovação
+
+- ✅ **PIX via Orders API** (Completo)
+  - ✅ Criação de transação
+  - ✅ QR Code e código PIX
+  - ✅ Expiração configurável
+  - ✅ Webhook e emails
+
+- ✅ **Webhook** (Completo)
+  - ✅ Idempotência persistente
+  - ✅ Assinatura HMAC
+  - ✅ Atualização de pedido e tickets
+  - ✅ Envio de emails automático
+
+#### Frontend ❌ PENDENTE
+- [ ] **Cartão de Crédito/Débito** (Frontend)
+  - [ ] Integração com MercadoPago.js SDK
+  - [ ] Formulário de cartão (número, nome, validade, CVV)
+  - [ ] Tokenização do cartão no frontend
+  - [ ] Seleção de parcelas (com valores e juros)
+  - [ ] Tratamento de 3D Secure (modal/iframe)
+  - [ ] Página de checkout integrada
+  - [ ] Feedback visual (loading, sucesso, erro)
+  - [ ] Tratamento de erros amigável
+
+- [ ] **Boleto** (se aplicável ao MVP)
+  - [ ] Frontend para exibir código de barras
+  - [ ] Download de PDF do boleto
+
+📄 **Documento detalhado**: `backend/CARTAO_PENDENCIAS.md`
 
 ### 📧 Sistema de Notificações
 
 #### Prioridade: ALTA
-- [ ] Email com ingressos
-  - [ ] Template de email HTML
-  - [ ] PDF com QR Codes (usando `pdfkit` ou similar)
-  - [ ] Upload de PDF para CDN
-  - [ ] Integração com Resend (ou serviço similar)
+- ✅ **Sistema de Email com Resend**
+  - ✅ Integração com Resend API
+  - ✅ Templates HTML responsivos com base template
+  - ✅ Geração de PDF com QR Codes usando `pdfkit`
+  - ✅ QR Codes inline no email (base64 data URLs)
+  - ✅ Templates implementados:
+    - ✅ Confirmação de ingresso (com QR codes e PDF)
+    - ✅ Pagamento pendente (com QR code PIX)
+    - ✅ Pagamento confirmado
+    - ✅ Pagamento recusado
+    - ✅ Pedido cancelado
+    - ✅ Email de boas-vindas (registro)
+    - ✅ Email de cortesia (VIP)
+    - ✅ Redefinição de senha (template pronto, aguardando endpoint)
+  - ✅ Integração nos fluxos:
+    - ✅ Registro de usuário (welcome email)
+    - ✅ Criação de pedido PIX/Cartão (payment pending)
+    - ✅ Aprovação de pagamento via webhook (ticket confirmation)
+    - ✅ Recusa de pagamento via webhook (payment rejected)
+    - ✅ Cancelamento de pedido (order cancelled)
+    - ✅ Distribuição de VIP (courtesy ticket)
+  - ✅ Variáveis de ambiente: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
+  - ✅ Scripts de teste: `test-email`, `test-email-template`
 
 - [ ] WhatsApp (opcional, fase 2)
   - [ ] Envio de link para ingressos
@@ -304,6 +357,8 @@
 - ✅ **Endpoints de Validação**
   - `GET /api/tickets/code/:code` - Buscar ingresso por código (público)
   - `POST /api/tickets/code/:code/validate` - Validar ingresso (apenas QRCODE)
+    - Aceita parâmetro opcional `holderId` no body para identificar quem está presente
+    - Se não informado, assume que foi o holder do ticket
   - `POST /api/tickets/scan` - Ler QR seguro e retornar dados (apenas QRCODE)
   - `GET /api/tickets/event/:eventId` - Listar ingressos de evento (ADMIN)
   - ⚠️ **Apenas role QRCODE pode validar** (Admin não valida para não bagunçar)
@@ -312,15 +367,26 @@
   - Operação atômica: só atualiza se status ainda for `confirmed`
   - Garante que apenas uma validação seja aceita simultaneamente
 
+- ✅ **Identificação de Quem Passou Primeiro** 🆕
+  - Campo `usedByHolderId` no modelo `Ticket` registra qual holder estava presente na validação
+  - Permite identificar exatamente quem passou primeiro quando há tentativa de burla
+  - Quando alguém tenta usar QR já usado, sistema retorna:
+    - Nome de quem passou primeiro
+    - ID de quem passou primeiro
+    - Data/hora da primeira validação
+    - Flag `isDifferentPerson` indicando se é pessoa diferente
+  - Mensagens de erro detalhadas com informações completas
+
 - ✅ **Sistema de Detecção de Tentativas Suspeitas**
   - Modelo `ValidationAttempt` para rastrear todas as tentativas
   - Detecção automática de padrões suspeitos:
     - Múltiplas tentativas de usar QR já utilizado (3+ em 24h → marca como suspeito)
     - Mesmo QR code usado em múltiplos eventos diferentes (2+ eventos → marca como suspeito)
+    - Holder original tentando reutilizar QR já usado por outra pessoa → marca como suspeito automaticamente
   - Flags no modelo `User`:
     - `isSuspicious` - Flag manual de usuário suspeito
     - `suspiciousActivityCount` - Contador de tentativas suspeitas
-    - `suspiciousReason` - Motivo da marcação
+    - `suspiciousReason` - Motivo da marcação (inclui nome de quem passou primeiro)
     - `isBlacklisted` - Flag de blacklist
     - `blacklistReason` - Motivo do bloqueio
   - Endpoints de gerenciamento:
@@ -420,6 +486,7 @@
 - ✅ **Sistema de Blacklist e Detecção de Suspeitos**
   - Rastreamento de todas as tentativas de validação
   - Detecção automática de padrões suspeitos
+  - Identificação de quem passou primeiro em caso de tentativa de burla
   - Blacklist automática (usuários bloqueados não podem validar)
   - Endpoints para gerenciamento manual
 
@@ -486,9 +553,10 @@
 - ✅ Estatísticas de eventos
 - ✅ Sistema de validação de QR codes com segurança avançada
 - ✅ Sistema de detecção de tentativas suspeitas e blacklist
+- ✅ Identificação de quem passou primeiro na validação (prevenção de burlas) 🆕
 - ✅ Integração com gateway de pagamento (PIX via Orders API funcional)
+- ✅ Sistema de notificações (email com Resend) 🆕
 - ⏳ **EM ANDAMENTO:** Cartão de crédito via Orders API
-- ⏳ **PRÓXIMO:** Sistema de notificações (email)
 
 ### Fase 2 - Portal Público (2-3 semanas)
 - [ ] Landing page pública
@@ -547,6 +615,6 @@
 
 ---
 
-**Status Geral:** ~70% do MVP completo ✅  
-**Próxima milestone:** Finalizar pagamentos (cartão) + Email + App de validação
+**Status Geral:** ~75% do MVP completo ✅  
+**Próxima milestone:** Finalizar pagamentos (cartão) + App de validação + Portal público
 
