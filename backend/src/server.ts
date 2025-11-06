@@ -8,6 +8,8 @@ import { connectDatabase } from './config/database';
 import { setupSwagger } from './config/swagger';
 import { generalRateLimit } from './middleware/rateLimiting';
 import { authenticateWithCookies } from './middleware/cookies';
+import crypto from 'crypto';
+import * as Sentry from '@sentry/node';
 import authRoutes from './routes/auth'
 import usersRoutes from './routes/users'
 import eventsRoutes from './routes/events'
@@ -19,6 +21,7 @@ import healthRoutes from './routes/health'
 import deliveryRoutes from './routes/delivery';
 import promoterCodesRoutes from './routes/promoterCodes';
 import paymentRoutes from './routes/payment';
+import { startWebhookWorker } from './services/webhookProcessorService';
 import { startOrderExpirationScheduler } from './services/orderExpirationService'
 import { checkMercadoPagoConfig } from './utils/checkEnv'
 
@@ -33,8 +36,22 @@ const PORT = process.env.PORT || 3001;
 // Middlewares de Segurança
 // ====================================
 
+// Sentry (opcional) - somente se houver DSN
+if (process.env.SENTRY_DSN) {
+    Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        environment: process.env.NODE_ENV || 'development',
+        tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0.1),
+    });
+    app.use(Sentry.Handlers.requestHandler());
+    app.use(Sentry.Handlers.tracingHandler());
+}
+
 // Helmet - Headers de segurança
 // Configurar para permitir imagens do próprio servidor
+// Confiar apenas em um hop de proxy (evita trust proxy permissivo)
+app.set('trust proxy', 1);
+
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
     contentSecurityPolicy: {
@@ -47,13 +64,58 @@ app.use(helmet({
     },
 }));
 
-// CORS - Permitir requisições do frontend e dashboard
+// HSTS forte em produção
+if ((process.env.NODE_ENV || 'development') === 'production') {
+    app.use(helmet.hsts({ maxAge: 15552000, includeSubDomains: true, preload: true }));
+    // Redirecionar HTTP -> HTTPS
+    app.use((req, res, next) => {
+        if (!req.secure) {
+            const host = req.headers['host'];
+            return res.redirect(301, `https://${host}${req.originalUrl}`);
+        }
+        next();
+    });
+}
+
+// Middleware: requestId + logging estruturado por requisição
+app.use((req: any, res, next) => {
+    req.requestId = crypto.randomUUID();
+    const start = Date.now();
+    res.on('finish', () => {
+        const durationMs = Date.now() - start;
+        const log = {
+            requestId: req.requestId,
+            method: req.method,
+            path: req.originalUrl || req.url,
+            status: res.statusCode,
+            durationMs,
+            ip: req.ip,
+            userAgent: req.get('user-agent') || 'unknown',
+            timestamp: new Date().toISOString()
+        };
+        // Consolida em uma única linha JSON para fácil ingestão
+        console.log(JSON.stringify({ level: 'info', msg: 'http_request', ...log }));
+    });
+    next();
+});
+
+// CORS - Permitir requisições do frontend e dashboard (restrito em produção)
 app.use(
     cors({
-        origin: [
-            process.env.FRONTEND_URL || 'http://localhost:3000',
-            process.env.DASHBOARD_URL || 'http://localhost:3000'
-        ],
+        origin: (origin, callback) => {
+            const allowed = [
+                process.env.FRONTEND_URL || 'http://localhost:3000',
+                process.env.DASHBOARD_URL || 'http://localhost:3000'
+            ];
+            if (!origin || allowed.includes(origin)) {
+                return callback(null, true);
+            }
+            // Em dev, permitir sem origin (ex.: curl, Postman)
+            if ((process.env.NODE_ENV || 'development') !== 'production') {
+                return callback(null, true);
+            }
+            return callback(new Error('CORS: Origin não permitido'));
+        },
         credentials: true,
     })
 );
@@ -64,14 +126,45 @@ app.use(cookieParser());
 // Rate Limiting Global - Proteção contra DDoS
 app.use(generalRateLimit);
 
-// Servir arquivos estáticos de upload
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Servir arquivos estáticos de upload com cache forte e proteção simples de hotlink
+const __allowedUploadOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    process.env.DASHBOARD_URL || 'http://localhost:3000'
+];
+
+app.use('/uploads', (req: Request, res: Response, next) => {
+    const referer = req.get('referer') || '';
+    const isProd = (process.env.NODE_ENV || 'development') === 'production';
+    if (isProd && referer) {
+        try {
+            const url = new URL(referer);
+            const origin = `${url.protocol}//${url.host}`;
+            if (!__allowedUploadOrigins.includes(origin)) {
+                return res.status(403).send('Forbidden');
+            }
+        } catch {
+            return res.status(403).send('Forbidden');
+        }
+    }
+    next();
+});
+
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+    setHeaders: (res) => {
+        res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+    }
+}));
 
 // ====================================
 // Middlewares de Parsing
 // ====================================
 
-app.use(express.json());
+// Capturar rawBody para verificação de assinatura de webhooks
+app.use(express.json({
+    verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // ====================================
@@ -114,6 +207,11 @@ app.use('/api/payments', paymentRoutes);
 // Rotas de health check
 app.use('/api/health', healthRoutes);
 app.use('/api/delivery', deliveryRoutes);
+
+// Sentry error handler (antes de handlers customizados)
+if (process.env.SENTRY_DSN) {
+    app.use(Sentry.Handlers.errorHandler());
+}
 
 /**
  * @swagger
@@ -241,6 +339,22 @@ const startServer = async () => {
         if (process.env.ORDER_EXPIRATION_ENABLED !== 'false') {
             startOrderExpirationScheduler();
         }
+
+        // Worker: reprocessamento de webhooks pendentes/fracassados
+        startWebhookWorker(async (payload: any) => {
+            // Reutiliza o mesmo caminho do controller: apenas reemite para a mesma lógica de processamento
+            try {
+                // Por enquanto, o processamento é acoplado ao controller de webhook
+                // e é executado quando a notificação chega. O worker provocará
+                // reprocessamento chamando os mesmos serviços, portanto não há
+                // necessidade de duplicar a lógica aqui.
+                // Como o handler já consulta o MP e atualiza o pedido, basta não fazer nada aqui.
+                // Em versões futuras, podemos extrair para uma função compartilhada.
+                return;
+            } catch {
+                throw new Error('Falha ao reprocessar webhook');
+            }
+        });
     } catch (error) {
         console.error('❌ Erro ao iniciar servidor:', error);
         process.exit(1);

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
-import { Order, Ticket } from '../models';
+import { WebhookEvent, Order, Ticket } from '../models';
+import { enqueueOrGet } from '../services/webhookProcessorService';
+import crypto from 'crypto';
 import * as paymentService from '../services/paymentService';
 import { mapPaymentMethod } from '../services/paymentService';
 import { getPaymentStatusInfo, mapPaymentStatus } from '../utils/paymentStatusMapper';
@@ -86,7 +88,14 @@ export const createPixPayment = async (req: Request, res: Response) => {
         }));
 
         // Obter Device ID do header (X-meli-session-id) ou do body
-        const deviceId = req.headers['x-meli-session-id'] as string || req.body.deviceId;
+        const deviceId = (req.headers['x-meli-session-id'] as string) || req.body.deviceId;
+        if (!deviceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'DeviceId é obrigatório para criar pagamento',
+                errors: ['Envie X-meli-session-id no header ou deviceId no body']
+            });
+        }
 
         // Mock de email para sandbox (apenas em desenvolvimento)
         // Em sandbox, o email deve terminar com @testuser.com
@@ -258,7 +267,14 @@ export const createCardPayment = async (req: Request, res: Response) => {
         }));
 
         // Obter Device ID do header (X-meli-session-id) ou do body
-        const deviceId = req.headers['x-meli-session-id'] as string || req.body.deviceId;
+        const deviceId = (req.headers['x-meli-session-id'] as string) || req.body.deviceId;
+        if (!deviceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'DeviceId é obrigatório para criar pagamento',
+                errors: ['Envie X-meli-session-id no header ou deviceId no body']
+            });
+        }
 
         // Mock de email para sandbox (apenas em desenvolvimento)
         // Em sandbox, o email deve terminar com @testuser.com
@@ -398,6 +414,37 @@ export const createCardPayment = async (req: Request, res: Response) => {
 export const handleWebhook = async (req: Request, res: Response) => {
     try {
         const { type, data } = req.body;
+
+        // Assinatura obrigatória em produção
+        const secret = process.env.MP_WEBHOOK_SECRET?.trim();
+        const sigHeader = (req.headers['x-signature'] as string) || (req.headers['x-hub-signature-256'] as string);
+        if ((process.env.NODE_ENV || 'development') === 'production') {
+            if (!secret) return res.status(500).send('Webhook secret not configured');
+            if (!sigHeader) return res.status(401).send('Missing signature');
+        }
+        let signatureValid = false;
+        if (secret && sigHeader) {
+            const expected = crypto
+                .createHmac('sha256', secret)
+                .update((req as any).rawBody || Buffer.from(JSON.stringify(req.body)))
+                .digest('hex');
+            const provided = sigHeader.replace(/^sha256=/i, '').trim();
+            try {
+                signatureValid = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
+            } catch {
+                signatureValid = false;
+            }
+            if ((process.env.NODE_ENV || 'development') === 'production' && !signatureValid) {
+                return res.status(401).send('Invalid signature');
+            }
+        }
+
+        // Idempotência persistente (DB) + enfileiramento
+        const eventId = `${type}:${data?.id || 'unknown'}`;
+        const queued = await enqueueOrGet(eventId, type, req.body, req.headers as any, sigHeader, !!signatureValid);
+        if (queued.status === 'processed') {
+            return res.status(200).send('OK');
+        }
 
         // Responder imediatamente ao Mercado Pago (200 OK)
         res.status(200).send('OK');
@@ -609,9 +656,21 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 errorCode: paymentInfo.error_code,
                 errorDescription: paymentInfo.error_description
             });
+            // Marcar como processado
+            await WebhookEvent.updateOne({ eventId }, { status: 'processed', processedAt: new Date(), attempts: (queued.attempts || 0) });
         }
     } catch (error: any) {
         console.error('Erro ao processar webhook:', error);
+        // Marcar falha e agendar retry
+        try {
+            const { type, data } = req.body;
+            const eventId = `${type}:${data?.id || 'unknown'}`;
+            await WebhookEvent.updateOne(
+                { eventId },
+                { $set: { status: 'failed', lastError: error?.message || 'unknown' }, $inc: { attempts: 1 } },
+                { upsert: false }
+            );
+        } catch {}
         // Não retornar erro para o Mercado Pago (já respondemos 200)
     }
 };

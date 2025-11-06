@@ -1,5 +1,5 @@
 import express from 'express';
-import { getTicketByCode, validateTicket, listMyTickets, listEventTickets } from '../controllers/ticketsController';
+import { getTicketByCode, validateTicket, listMyTickets, listEventTickets, scanSecureQr } from '../controllers/ticketsController';
 import { authenticate, isAdmin } from '../middleware/auth';
 
 const router = express.Router();
@@ -69,6 +69,38 @@ router.get('/code/:code', getTicketByCode);
  *         description: Acesso negado (apenas QRCODE pode validar)
  */
 router.post('/code/:code/validate', authenticate, validateTicket);
+
+/**
+ * @swagger
+ * /api/tickets/scan:
+ *   post:
+ *     summary: Ler e validar QR seguro (AES+HMAC) e retornar dados do ingresso
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [qr]
+ *             properties:
+ *               qr:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: QR válido, dados do ingresso retornados
+ *       400:
+ *         description: QR inválido
+ *       401:
+ *         description: Não autenticado
+ *       403:
+ *         description: Acesso negado
+ *       409:
+ *         description: Replay detectado
+ */
+router.post('/scan', authenticate, scanSecureQr);
 
 /**
  * @swagger

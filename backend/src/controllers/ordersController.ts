@@ -23,6 +23,7 @@ interface CreateOrderRequest {
  * Para outros: status = 'pending', aguarda pagamento
  */
 export const createOrder = async (req: Request, res: Response) => {
+    let session: mongoose.ClientSession | null = null;
     try {
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id; // Do middleware authenticate
         const { eventId, ticketTypeId, quantity, promoterCode, customerData } = req.body as CreateOrderRequest;
@@ -152,6 +153,10 @@ export const createOrder = async (req: Request, res: Response) => {
             ticketStatus = 'pending';
         }
 
+        // Iniciar transação (atomicidade)
+        session = await mongoose.startSession();
+        session.startTransaction();
+        try {
         // Criar pedido
         const order = new Order({
             customer: userId || null,
@@ -174,13 +179,14 @@ export const createOrder = async (req: Request, res: Response) => {
             },
         });
 
-        await order.save();
+        await order.save({ session });
         
         // Incrementar contador de uso do código de promotor (se usado)
         if (usedPromoterCode) {
             await PromoterCode.updateOne(
                 { code: usedPromoterCode },
-                { $inc: { currentUses: 1 } }
+                { $inc: { currentUses: 1 } },
+                { session }
             );
         }
 
@@ -198,18 +204,18 @@ export const createOrder = async (req: Request, res: Response) => {
             });
 
             // Salvar para gerar o código único (pre-save hook)
-            await ticket.save();
+            await ticket.save({ session });
 
             // ⚠️ SEGURANÇA: Gerar QR Code APENAS se o pedido estiver PAID ou for VIP
             // QR codes só devem ser gerados para ingressos confirmados (pedidos pagos)
             if (orderStatus === 'paid' || isVIP) {
                 const qrCode = await generateQRCode(ticket.code);
                 ticket.qrCode = qrCode;
-                await ticket.save();
+                await ticket.save({ session });
             } else {
                 // Para pedidos pendentes, deixar qrCode vazio
                 ticket.qrCode = '';
-                await ticket.save();
+                await ticket.save({ session });
             }
 
             createdTickets.push(ticket);
@@ -217,11 +223,14 @@ export const createOrder = async (req: Request, res: Response) => {
 
         // Atualizar pedido com os tickets
         order.tickets = createdTickets.map(t => t._id as mongoose.Types.ObjectId);
-        await order.save();
+        await order.save({ session });
 
         // Atualizar quantidade vendida do tipo de ingresso
         ticketType.soldQuantity += quantity;
-        await ticketType.save();
+        await ticketType.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
 
         // Popular dados para resposta
         const populatedOrder = await Order.findById(order._id)
@@ -241,11 +250,24 @@ export const createOrder = async (req: Request, res: Response) => {
         });
 
     } catch (error: any) {
+        // Rollback seguro caso a transação tenha falhado
+        if (session) {
+            try { await session.abortTransaction(); } catch {}
+            try { session.endSession(); } catch {}
+        }
         console.error('Erro ao criar pedido:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Erro ao criar pedido',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error?.message || 'Erro desconhecido']
+        });
+    }
+    } catch (outerError: any) {
+        console.error('Erro ao criar pedido (pré-transação):', outerError);
+        return res.status(500).json({
+            success: false,
+            message: 'Erro ao criar pedido',
+            errors: [outerError?.message || 'Erro desconhecido']
         });
     }
 };
@@ -664,4 +686,3 @@ export const getFinancialStats = async (req: Request, res: Response) => {
         });
     }
 };
-

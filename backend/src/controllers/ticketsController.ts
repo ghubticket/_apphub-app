@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { Ticket, TicketType, Event, Order, User } from '../models';
+import { Ticket, TicketType, Event, Order, User, QrNonce } from '../models';
+import { verifyAndDecode } from '../services/qrCodeService';
 
 /**
  * Busca um ticket por código (para validação de QR code)
@@ -265,6 +266,55 @@ export const listEventTickets = async (req: Request, res: Response) => {
             message: 'Erro ao listar ingressos do evento',
             errors: [error.message || 'Erro desconhecido']
         });
+    }
+};
+
+/**
+ * Lê e valida QR seguro (AES+HMAC). Previene replay via nonce persistente.
+ * Requer role QRCODE ou ADMIN.
+ */
+export const scanSecureQr = async (req: Request, res: Response) => {
+    try {
+        const role = (req as any).user?.role;
+        if (role !== 'QRCODE' && role !== 'ADMIN') {
+            return res.status(403).json({ success: false, message: 'Acesso negado' });
+        }
+
+        const { qr } = req.body || {};
+        if (!qr || typeof qr !== 'string') {
+            return res.status(400).json({ success: false, message: 'QR inválido' });
+        }
+
+        const { ticketCode, ts, nonce } = verifyAndDecode(qr);
+
+        // Anti-replay: registrar nonce único
+        try {
+            await QrNonce.create({ nonce, ticketCode: ticketCode.toUpperCase(), ts });
+        } catch (e: any) {
+            if (String(e?.code) === '11000') {
+                return res.status(409).json({ success: false, message: 'QR já utilizado (replay detectado)' });
+            }
+            throw e;
+        }
+
+        const ticket = await Ticket.findOne({ code: ticketCode.toUpperCase(), deletedAt: null })
+            .populate('event', 'name date location')
+            .populate('ticketType', 'name price isVIP')
+            .populate('order', 'orderNumber status')
+            .lean();
+
+        if (!ticket) {
+            return res.status(404).json({ success: false, message: 'Ingresso não encontrado' });
+        }
+
+        if (ticket.status !== 'confirmed') {
+            return res.status(400).json({ success: false, message: `Ingresso não confirmado (status: ${ticket.status})` });
+        }
+
+        return res.json({ success: true, data: { ticket, ts } });
+    } catch (error: any) {
+        console.error('Erro ao ler QR:', error);
+        return res.status(400).json({ success: false, message: error?.message || 'Falha ao validar QR' });
     }
 };
 

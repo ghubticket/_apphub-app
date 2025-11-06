@@ -5,13 +5,13 @@
 ### 1.1 Validação de Estoque
 - ✅ **Implementado**: Verificação de quantidade máxima por lote
 - ✅ **Implementado**: Validação de limite por compra
-- 🔄 **Recomendado**: Implementar transações atômicas (MongoDB Transactions) para garantir que a reserva e a venda sejam atômicas
-- 🔄 **Recomendado**: Implementar lock otimista para evitar race conditions em vendas simultâneas
+- ✅ **Implementado**: Transações atômicas na criação de pedidos (Mongoose Transactions)
+- 🔄 **Recomendado**: Lock otimista/estratégias anti-race para picos de venda
 
 ### 1.2 Rate Limiting por Compra
 - ✅ **Implementado**: Rate limiting global no backend
 - ✅ **Implementado**: Proteções de rate limiting nos endpoints de pagamento e status (básico)
-- 🔄 **Recomendado**: Rate limiting específico para criação de pedidos (ex: 5 pedidos por minuto por IP)
+- ✅ **Implementado**: Rate limiting específico para criação de pedidos (20 requisições por 15 minutos por IP)
 - 🔄 **Recomendado**: Rate limiting por usuário autenticado (ex: 10 pedidos por hora)
 
 ### 1.3 Validação de Quantidade
@@ -22,54 +22,42 @@
 ## 2. Segurança de QR Codes
 
 ### 2.1 Geração Segura
-- 🔄 **Recomendado**: Usar criptografia simétrica (AES-256) para o payload do QR Code
-- 🔄 **Recomendado**: Incluir HMAC-SHA256 para verificação de integridade
-- 🔄 **Recomendado**: Incluir timestamp no QR Code para validar expiração
-- 🔄 **Recomendado**: Adicionar nonce único para evitar replay attacks
-
-### 2.2 Estrutura do QR Code
-```typescript
-{
-  ticketId: string,        // ID do ingresso
-  eventId: string,         // ID do evento
-  code: string,            // Código único
-  timestamp: number,       // Timestamp de geração
-  nonce: string,          // Nonce único
-  hash: string           // HMAC-SHA256(secret, ticketId + eventId + code + timestamp + nonce)
-}
-```
+- ✅ **Implementado**: Criptografia do payload com AES-256-GCM (com IV e auth tag)
+- ✅ **Implementado**: Assinatura HMAC-SHA256 do payload
+- ✅ **Implementado**: Inclusão de timestamp e nonce (anti-replay)
+- ℹ️ **Obs.**: Variáveis `QR_SECRET` (32 bytes hex/base64) e opcional `QR_HMAC_SECRET`
 
 ### 2.3 Validação
-- 🔄 **Recomendado**: Validar assinatura HMAC antes de processar
-- 🔄 **Recomendado**: Verificar se o ingresso não foi usado anteriormente
-- 🔄 **Recomendado**: Verificar se o evento ainda está ativo
-- 🔄 **Recomendado**: Implementar blacklist de códigos cancelados/estornados
+- ✅ **Implementado**: Validação de assinatura HMAC e decriptografia AES-256-GCM
+- ✅ **Implementado**: Checagem de timestamp e nonce anti-replay (persistente)
+- ✅ **Implementado**: Verificação de status do ingresso (confirmado) e pedido (pago)
+- 🔄 **Recomendado**: Blacklist de códigos cancelados/estornados
 
 ## 3. Segurança de Pagamentos
 
 ### 3.1 Integração com Gateway
 - ✅ **Implementado**: Idempotência nas requisições à Orders API via `X-Idempotency-Key`
 - ✅ **Implementado**: Autorização via `Authorization: Bearer <MP_ACCESS_TOKEN>` com validação e logs de diagnóstico
-- ✅ **Implementado**: Tratamento de sandbox (forçar email `*@testuser.com` em ambiente dev) para evitar rejeições
+- ✅ **Implementado**: Tratamento de sandbox (forçar email `*@testuser.com` em ambiente dev)
 - ✅ **Implementado**: Armazenamento e exibição de mensagens detalhadas de status/erros (user/admin)
 - ✅ **Implementado**: Logs detalhados de criação de pagamentos e respostas do MP (ambiente dev)
-- 🔄 **Recomendado**: Usar webhooks assinados do gateway de pagamento (Mercado Pago, Stripe, etc.)
-- 🔄 **Recomendado**: Validar assinatura do webhook antes de processar
-- 🔄 **Recomendado**: Idempotência no processamento de webhooks (garantir que eventos duplicados não mudem estado)
+- ✅ **Implementado**: Webhook tipo `order` (Orders API) com idempotência persistente (DB + fila + retry) e assinatura HMAC-SHA256 obrigatória em produção (`MP_WEBHOOK_SECRET`)
 
 ### 3.2 Processamento de Pagamento
 - ✅ **Implementado**: Nunca processar pagamento diretamente no frontend (toda a criação acontece no backend)
 - ✅ **Implementado**: Validações server-side (CPF, email, amount, status do pedido, expiração)
 - ✅ **Implementado**: Timeout/expiração automática de pedidos pendentes (serviço agendado)
-- 🔄 **Recomendado**: Validar `deviceId`/fingerprint e aplicar heurísticas antifraude por sessão
+- ✅ **Implementado**: Exigir `deviceId`/fingerprint (`X-meli-session-id` ou `deviceId`) no checkout
+- 🔄 **Recomendado**: Heurísticas antifraude por sessão (ex.: correlação IP/UA, velocity rules)
 
 ## 4. Segurança de API
 
 ### 4.1 Autenticação e Autorização
 - ✅ **Implementado**: JWT com verificação de token
 - ✅ **Implementado**: Middleware de autorização por role (ADMIN)
-- 🔄 **Recomendado**: Implementar refresh tokens para aumentar segurança
-- 🔄 **Recomendado**: Implementar rate limiting por usuário autenticado
+- ✅ **Implementado**: Lockout progressivo no login (5 falhas/15 min → bloqueio 15 min)
+- 🔄 **Recomendado**: Refresh tokens + rotação
+- 🔄 **Recomendado**: Rate limiting por usuário autenticado
 
 ### 4.2 Validação de Input
 - ✅ **Implementado**: Validação de schema com Mongoose
@@ -78,9 +66,8 @@
 
 ### 4.3 CORS e Headers de Segurança
 - ✅ **Implementado**: Helmet com configuração de CSP
-- ✅ **Implementado**: CORS configurado
+- ✅ **Implementado**: CORS restrito por domínio (prod), permissivo em dev
 - ✅ **Implementado**: Headers adicionais nas chamadas ao MP (`X-Idempotency-Key`, `X-meli-session-id` quando disponível)
-- 🔄 **Recomendado**: Revisar e restringir CORS para produção
 - 🔄 **Recomendado**: Implementar Content-Security-Policy mais restritiva
 
 ## 5. Prevenção de Fraude
@@ -103,9 +90,9 @@
 ## 6. Auditoria e Logs
 
 ### 6.1 Logging
-- 🔄 **Recomendado**: Logar todas as operações críticas (criação de pedido, validação de QR Code, cancelamento)
-- 🔄 **Recomendado**: Incluir IP, user agent, timestamp em todos os logs
-- 🔄 **Recomendado**: Implementar log rotation para evitar acúmulo excessivo
+- ✅ **Implementado**: Logging estruturado por requisição com `requestId`, status e duração
+- ✅ **Implementado**: Captura de IP, user-agent e timestamp nos logs HTTP
+- 🔄 **Recomendado**: Implementar log rotation e envio para agregador (Elastic/CloudWatch)
 
 ### 6.2 Auditoria
 - 🔄 **Recomendado**: Criar tabela de auditoria para mudanças em pedidos e ingressos
@@ -132,28 +119,45 @@
 - 🔄 **Recomendado**: Usar serviços de gerenciamento de secrets (AWS Secrets Manager, Azure Key Vault)
 
 ### 8.2 HTTPS
-- 🔄 **Recomendado**: Forçar HTTPS em produção
-- 🔄 **Recomendado**: Implementar HSTS (HTTP Strict Transport Security)
+- ✅ **Implementado**: Forçar HTTPS em produção (redirect 301 quando não seguro)
+- ✅ **Implementado**: HSTS (HTTP Strict Transport Security) com preload em produção
 
 ### 8.3 Monitoramento
-- 🔄 **Recomendado**: Implementar monitoramento de métricas (Sentry, New Relic, etc.)
-- 🔄 **Recomendado**: Alertas para tentativas de fraude
-- 🔄 **Recomendado**: Alertas para erros críticos
+- ✅ **Implementado**: Sentry/APM (opcional) habilitável via `SENTRY_DSN` e `SENTRY_TRACES_SAMPLE_RATE`
+- 🔄 **Recomendado**: Alertas e métricas (fraude/erros críticos)
+
+## 9. Proteção de Arquivos Estáticos/Imagens (Uploads)
+
+### 9.1 Riscos
+- Abuso de URL direta (hotlink) para consumir banda e tentar derrubar o servidor
+- Varredura/bots baixando repetidamente imagens grandes
+
+### 9.2 O que já ajuda
+- ✅ Rate limiting global aplicado a todas as rotas (inclui `/uploads`)
+- ✅ Helmet/CSP (camada de headers – não bloqueia acesso direto, mas reduz superfície de risco)
+- ✅ Cache-Control forte em `/uploads` (`public, max-age=2592000, immutable`)
+- ✅ Hotlink protection por `Referer` em produção (bloqueia origens fora de `FRONTEND_URL`/`DASHBOARD_URL`)
+
+### 9.3 Recomendações
+- 🔄 Colocar imagens atrás de CDN (Cloudflare/CloudFront/R2) com cache no edge
+- 🔄 Hotlink protection no edge (WAF/CDN) e/ou URLs assinadas
+- 🔄 Limitar taxa de download por IP no edge (Rate limiting da CDN)
+- 🔄 Servir estático via Nginx/CDN (tirar carga do Node)
 
 ## 9. Checklist de Implementação Prioritária
 
 ### Alta Prioridade 🔴
 1. ✅ Validação de estoque e limites por compra
-2. 🔄 Transações atômicas para vendas
-3. 🔄 Rate limiting específico para compras
-4. 🔄 Geração segura de QR Codes com criptografia
-5. 🔄 Validação de QR Codes com HMAC
+2. ✅ Transações atômicas para vendas (Mongoose Transactions)
+3. ✅ Rate limiting específico para criação de pedidos (IP)
+4. ✅ Geração segura de QR Codes com criptografia (AES-256-GCM)
+5. ✅ Validação de QR Codes com HMAC + timestamp/nonce (anti-replay persistente)
+6. ✅ Webhooks com assinatura obrigatória + idempotência persistente (fila + retry)
 
 ### Média Prioridade 🟡
-6. 🔄 Reserva temporária de ingressos
-7. 🔄 Limites por CPF/Email
-8. 🔄 Validação de CPF
-9. 🔄 Webhooks assinados para pagamentos
+7. 🔄 Reserva temporária de ingressos
+8. 🔄 Limites por CPF/Email
+9. 🔄 Validação de CPF
 10. 🔄 Logging de operações críticas
 
 ### Baixa Prioridade 🟢
@@ -161,15 +165,3 @@
 12. 🔄 CAPTCHA após tentativas suspeitas
 13. 🔄 Sistema de auditoria completo
 14. 🔄 Monitoramento avançado
-
-## 10. Observações Importantes
-
-- **VIP Ingressos**: Já implementado que ingressos VIP não têm valor nem taxa
-- **Taxa do Evento**: Campo `ticketFee` adicionado ao modelo Event
-- **Lotes**: Sistema de lotes implementado com validação de número único por evento
-- **Limite por Compra**: Campo `maxPerPurchase` configurável por tipo de ingresso
-
----
-
-**Nota**: Este documento deve ser atualizado conforme novas funcionalidades são implementadas e novas vulnerabilidades são identificadas.
-

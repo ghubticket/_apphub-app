@@ -26,6 +26,12 @@ NODE_ENV=development
 PORT=3001
 JWT_SECRET=seu-secret-super-seguro-aqui
 MONGODB_URI=sua-connection-string-do-mongodb-atlas
+FRONTEND_URL=http://localhost:3000
+BACKEND_URL=http://localhost:3001
+
+# Monitoramento (opcional)
+SENTRY_DSN=
+SENTRY_TRACES_SAMPLE_RATE=0.1
 ```
 
 ### 3. Rodar o Servidor
@@ -96,6 +102,7 @@ npm run format       # Formata código com Prettier
 - **Bcrypt** - Hash de senhas
 - **Helmet** - Segurança HTTP
 - **Rate Limit** - Proteção contra DDoS
+- **Sentry (opcional)** - Erros e tracing (se `SENTRY_DSN` setado)
 - **Swagger** - Documentação da API (em breve)
 
 ## 📚 Próximos Passos
@@ -150,6 +157,13 @@ npm run build
 - ✅ Rate limiting está ativo por padrão
 - ✅ Helmet protege contra vulnerabilidades comuns
 - ✅ CORS configurado para aceitar apenas frontend
+- ✅ Uploads com Cache-Control forte e proteção simples de hotlink por `Referer` (produção)
+- ✅ Webhook com idempotência e assinatura opcional (HMAC com `MP_WEBHOOK_SECRET`)
+
+### CDN / Uploads (Recomendado)
+- Coloque `/uploads` atrás de CDN (Cloudflare/CloudFront/R2)
+- Ative cache agressivo (edge) e rate limiting na CDN
+- Opcional: hotlink protection por domínio (WAF/CDN)
 
 ## 📄 Licença
 

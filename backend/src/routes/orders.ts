@@ -1,5 +1,6 @@
 import express from 'express';
 import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment, cancelOrder, getFinancialStats } from '../controllers/ordersController';
+import rateLimit from 'express-rate-limit';
 import { authenticate, isAdmin } from '../middleware/auth';
 
 const router = express.Router();
@@ -55,7 +56,16 @@ const router = express.Router();
  *       404:
  *         description: Evento ou tipo de ingresso não encontrado
  */
-router.post('/', authenticate, createOrder);
+// Rate limit específico para criação de pedidos
+const createOrderRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 20, // 20 pedidos por 15min por IP
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Muitas criações de pedidos. Tente novamente em alguns minutos.'
+});
+
+router.post('/', authenticate, createOrderRateLimit, createOrder);
 
 /**
  * @swagger

@@ -79,6 +79,7 @@
   - `GET /api/payments/:paymentId/status`
   - `GET /api/orders/:orderId/payment/status`
 - ✅ Webhook ajustado para notificações do tipo `order` (Orders API)
+  - Idempotência básica em memória e assinatura HMAC opcional via `MP_WEBHOOK_SECRET`
 
 #### Frontend (integração planejada)
 - Exposição de campos essenciais para UI: `qrCode`, `qrCodeBase64`, `ticketUrl`, `expiresAt`, `statusInfo`
@@ -153,6 +154,15 @@
 
 #### Frontend
 - ✅ **Validação de formulários**
+### 🔭 Observabilidade e Proteções
+
+- ✅ Logging estruturado por requisição (`requestId`, status, duração, IP, user-agent)
+- ✅ Lockout progressivo no login (5 falhas/15min → bloqueio por 15min)
+- ✅ CORS restrito por domínio em produção
+- ✅ Sanitização de inputs em rotas de Eventos (XSS básico)
+- ✅ Uploads com Cache-Control forte e proteção simples de hotlink (produção)
+- ✅ Sentry/APM opcional habilitado via `SENTRY_DSN` e `SENTRY_TRACES_SAMPLE_RATE`
+
   - Endereço: contador de caracteres (0/300), validação min/max
   - Quantidade VIP: input numérico limitado a 2 caracteres, validação de estoque
 
