@@ -5,6 +5,8 @@ import Ticket from '../models/Ticket'
 import { Order } from '../models'
 import { generateQRCode } from '../services/qrCodeService'
 import User from '../models/User'
+import { sendCourtesyTicketEmail } from '../services/emailTemplates'
+import { generateTicketPDF } from '../services/pdfService'
 
 // Helpers to build public URL for uploaded files
 function fileUrl(req: Request, filename?: string | null) {
@@ -452,6 +454,102 @@ export const distributeVip = async (req: Request, res: Response) => {
 
         ticketType.soldQuantity = (ticketType.soldQuantity || 0) + qty
         await ticketType.save()
+
+        // Enviar email de cortesia com PDF dos QR codes
+        try {
+            // Popular dados do pedido para email
+            const populatedOrder = await Order.findById(order._id)
+                .populate('event', 'name date location address')
+                .populate('tickets', 'code qrCode ticketType holder')
+                .populate('customer', 'name email')
+                .populate('tickets.ticketType', 'name')
+                .lean();
+
+            if (populatedOrder) {
+                const eventData = populatedOrder.event as any;
+                const customerData = populatedOrder.customerData as any;
+                const customer = populatedOrder.customer as any;
+                const tickets = populatedOrder.tickets as any[];
+
+                // Obter email e nome (prioridade: customerData > customer > user)
+                const customerEmail = customerData?.email || customer?.email || user.email;
+                const customerName = customerData?.name || customer?.name || user.name;
+
+                // Filtrar apenas tickets com QR code (os recém-criados)
+                const ticketsWithQR = tickets.filter(t => t.qrCode && createdTickets.some(ct => String(ct._id) === String(t._id)));
+
+                if (ticketsWithQR.length > 0 && customerEmail && customerEmail !== 'Não informado') {
+                    // Gerar PDF com QR codes
+                    const pdfBuffer = await generateTicketPDF({
+                        event: {
+                            name: eventData.name,
+                            date: eventData.date,
+                            location: eventData.location,
+                            address: eventData.address
+                        },
+                        orderNumber: populatedOrder.orderNumber,
+                        customerName: customerName,
+                        tickets: ticketsWithQR.map(t => ({
+                            code: t.code,
+                            qrCode: t.qrCode,
+                            ticketType: (t.ticketType as any)?.name || 'VIP',
+                            holderName: (t.holder as any)?.name || customerName
+                        }))
+                    });
+
+                    // Formatar data do evento
+                    const eventDate = new Date(eventData.date).toLocaleDateString('pt-BR', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    // Preparar QR codes para exibição no email
+                    const qrCodesForEmail = ticketsWithQR.map(t => ({
+                        code: t.code,
+                        qrCode: t.qrCode,
+                        holderName: (t.holder as any)?.name || customerName
+                    }));
+
+                    // Enviar email de cortesia
+                    const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+                    const emailResult = await sendCourtesyTicketEmail(
+                        customerEmail,
+                        {
+                            customerName: customerName,
+                            orderNumber: populatedOrder.orderNumber,
+                            eventName: eventData.name,
+                            eventDate,
+                            eventLocation: eventData.location,
+                            eventAddress: eventData.address,
+                            totalTickets: ticketsWithQR.length,
+                            ticketType: ticketsWithQR[0]?.ticketType?.name || 'VIP',
+                            downloadLink: `${dashboardUrl}/orders/${populatedOrder._id}`,
+                            qrCodes: qrCodesForEmail
+                        },
+                        [{
+                            filename: `cortesia-${populatedOrder.orderNumber}.pdf`,
+                            content: pdfBuffer,
+                            contentType: 'application/pdf'
+                        }]
+                    );
+
+                    if (emailResult.success) {
+                        console.log(`✅ Email de cortesia com PDF enviado para ${customerEmail} (distributeVip)`);
+                    } else {
+                        console.error(`❌ Erro ao enviar email de cortesia para ${customerEmail}:`, emailResult.error);
+                    }
+                } else {
+                    console.warn(`⚠️ Não foi possível enviar email de cortesia. Email: ${customerEmail}, Tickets com QR: ${ticketsWithQR.length}`);
+                }
+            }
+        } catch (emailError) {
+            console.error('Erro ao enviar email de cortesia (distributeVip):', emailError);
+            // Não falhar a distribuição se o email falhar
+        }
 
         return res.status(201).json({
             success: true,

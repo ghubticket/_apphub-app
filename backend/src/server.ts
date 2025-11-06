@@ -23,7 +23,7 @@ import promoterCodesRoutes from './routes/promoterCodes';
 import paymentRoutes from './routes/payment';
 import { startWebhookWorker } from './services/webhookProcessorService';
 import { startOrderExpirationScheduler } from './services/orderExpirationService'
-import { checkMercadoPagoConfig } from './utils/checkEnv'
+import { checkMercadoPagoConfig, checkEmailConfig } from './utils/checkEnv'
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -314,6 +314,7 @@ const startServer = async () => {
 
         // Verificar configuração do Mercado Pago
         checkMercadoPagoConfig();
+        checkEmailConfig();
 
         // Iniciar servidor
         app.listen(PORT, () => {

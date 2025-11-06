@@ -11,7 +11,8 @@ export interface ITicket extends Document {
     price: number; // Preço pago pelo ingresso (0 para VIP)
     status: 'pending' | 'confirmed' | 'used' | 'cancelled' | 'refunded';
     usedAt?: Date; // Data/hora de uso
-    usedBy?: mongoose.Types.ObjectId; // Quem validou o ingresso
+    usedBy?: mongoose.Types.ObjectId; // Quem validou o ingresso (usuário QRCODE)
+    usedByHolderId?: mongoose.Types.ObjectId; // Qual holder estava presente na validação (quem passou fisicamente)
     validatedAt?: Date; // Data/hora da validação
     isActive: boolean;
     deletedAt?: Date; // Data de soft delete (para limpeza periódica)
@@ -84,6 +85,11 @@ const ticketSchema = new Schema<ITicket>(
         usedBy: {
             type: Schema.Types.ObjectId,
             ref: 'User',
+        },
+        usedByHolderId: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            default: null, // Se null, assume que foi o holder do ticket
         },
         validatedAt: {
             type: Date,

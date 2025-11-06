@@ -1,0 +1,65 @@
+<h2>🎉 Seus ingressos estão confirmados!</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p>Seu pedido <strong>#{{orderNumber}}</strong> foi confirmado com sucesso!</p>
+
+<div class="info-box">
+    <h3>📅 Informações do Evento</h3>
+    <ul>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data:</strong> {{eventDate}}</li>
+        <li><strong>Local:</strong> {{eventLocation}}</li>
+        {{#if eventAddress}}
+        <li><strong>Endereço:</strong> {{eventAddress}}</li>
+        {{/if}}
+    </ul>
+</div>
+
+<div class="success-box">
+    <h3>🎫 Seus Ingressos</h3>
+    <p>Você comprou <strong>{{totalTickets}}</strong> ingresso(s) do tipo <strong>{{ticketType}}</strong>.</p>
+
+    {{#if qrCodes}}
+    <div style="margin-top: 20px;">
+        <h4 style="margin-bottom: 15px;">Seus QR Codes:</h4>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
+            {{#each qrCodes}}
+            <div
+                style="text-align: center; padding: 15px; background: white; border-radius: 8px; border: 2px solid #e0e0e0;">
+                <img src="{{this.qrCode}}" alt="QR Code Ingresso {{this.code}}"
+                    style="max-width: 200px; height: auto; display: block; margin: 0 auto 10px;" />
+                <p style="margin: 0; font-size: 12px; color: #666; font-weight: bold;">{{this.code}}</p>
+                {{#if this.holderName}}
+                <p style="margin: 5px 0 0 0; font-size: 11px; color: #999;">{{this.holderName}}</p>
+                {{/if}}
+            </div>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    <p style="margin-top: 20px;">O PDF com os QR Codes também está anexo neste email.</p>
+</div>
+
+<div class="warning-box">
+    <h3>⚠️ IMPORTANTE:</h3>
+    <ul>
+        <li>✅ Guarde este email - ele é seu comprovante</li>
+        <li>✅ Pode apresentar no celular ou impresso</li>
+        <li>✅ Um QR Code por pessoa na entrada</li>
+        <li>❌ Não compartilhe o QR Code (uso único)</li>
+    </ul>
+</div>
+
+{{#if downloadLink}}
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{downloadLink}}" class="button">📥 Baixar PDF dos Ingressos</a>
+</div>
+{{/if}}
+
+<p>Nos vemos lá! 🎉</p>
+
+<p style="margin-top: 30px; color: #666; font-size: 14px;">
+    Em caso de dúvidas, entre em contato conosco através do email de suporte.
+</p>

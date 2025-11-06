@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { User, IUser, Order } from '../models';
 import Session from '../models/Session';
 import mongoose from 'mongoose';
+import { sendWelcomeEmail } from '../services/emailTemplates';
 
 /**
  * Controller para registro de usuário
@@ -47,6 +48,20 @@ export const register = async (req: Request, res: Response) => {
             process.env.JWT_SECRET!,
             { expiresIn: '7d' }
         );
+
+        // Enviar email de boas-vindas (não bloquear resposta se falhar)
+        try {
+            const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+            await sendWelcomeEmail(user.email, {
+                customerName: user.name,
+                customerEmail: user.email,
+                customerRole: user.role,
+                loginLink: `${dashboardUrl}/login`
+            });
+        } catch (emailError) {
+            console.error('Erro ao enviar email de boas-vindas:', emailError);
+            // Não falhar o registro se o email falhar
+        }
 
         // Retornar dados do usuário (sem senha) e token
         res.status(201).json({

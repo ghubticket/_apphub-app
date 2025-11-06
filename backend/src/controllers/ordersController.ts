@@ -4,6 +4,8 @@ import mongoose from 'mongoose';
 import { Order, Ticket, TicketType, Event, User, PromoterCode } from '../models';
 import { generateQRCode } from '../services/qrCodeService';
 import * as reservationService from '../services/reservationService';
+import { sendOrderCancelledEmail, sendCourtesyTicketEmail } from '../services/emailTemplates';
+import { generateTicketPDF } from '../services/pdfService';
 
 /**
  * Normaliza CPF removendo formatação (pontos e traços)
@@ -364,10 +366,114 @@ export const createOrder = async (req: Request, res: Response) => {
 
         // Popular dados para resposta
         const populatedOrder = await Order.findById(order._id)
-            .populate('event', 'name date location')
-            .populate('tickets', 'code qrCode status price')
+            .populate('event', 'name date location address')
+            .populate('tickets', 'code qrCode status price ticketType holder')
             .populate('customer', 'name email')
+            .populate('tickets.ticketType', 'name')
             .lean();
+
+        // Se for VIP (cortesia), enviar email com PDF dos QR codes
+        if (isVIP && populatedOrder) {
+            try {
+                const event = populatedOrder.event as any;
+                const customer = populatedOrder.customer as any;
+                const customerData = populatedOrder.customerData as any;
+                const tickets = populatedOrder.tickets as any[];
+                const orderNumber = populatedOrder.orderNumber;
+                const orderId = populatedOrder._id;
+
+                // Obter email e nome do cliente (prioridade: customerData > customer > null)
+                const customerEmail = customerData?.email || customer?.email;
+                const customerName = customerData?.name || customer?.name;
+
+                // Debug: Log dos dados disponíveis
+                console.log(`📧 Tentando enviar email de cortesia para pedido ${orderNumber}:`);
+                console.log(`   customerData:`, JSON.stringify(customerData, null, 2));
+                console.log(`   customer:`, customer ? { name: customer.name, email: customer.email } : 'null');
+                console.log(`   customerEmail final: ${customerEmail}`);
+                console.log(`   customerName final: ${customerName}`);
+
+                // Validar se temos email válido (não pode ser "Não informado" ou vazio)
+                if (!customerEmail || customerEmail === 'Não informado' || customerEmail.trim() === '') {
+                    console.warn(`⚠️ Email não informado para cortesia. Pedido: ${orderNumber}`);
+                    console.warn(`   customerData.email: ${customerData?.email}`);
+                    console.warn(`   customer.email: ${customer?.email}`);
+                    console.warn(`   ⚠️ Email não será enviado. Certifique-se de passar customerData.email ao criar a cortesia.`);
+                } else if (event && tickets && tickets.length > 0 && orderNumber) {
+                    // Filtrar apenas tickets com QR code
+                    const ticketsWithQR = tickets.filter(t => t.qrCode);
+
+                    if (ticketsWithQR.length > 0) {
+                        // Gerar PDF com QR codes
+                        const pdfBuffer = await generateTicketPDF({
+                            event: {
+                                name: event.name,
+                                date: event.date,
+                                location: event.location,
+                                address: event.address
+                            },
+                            orderNumber,
+                            customerName: customerName || 'Cliente',
+                            tickets: ticketsWithQR.map(t => ({
+                                code: t.code,
+                                qrCode: t.qrCode,
+                                ticketType: (t.ticketType as any)?.name || 'Ingresso',
+                                holderName: (t.holder as any)?.name || customerName || 'Cliente'
+                            }))
+                        });
+
+                        // Formatar data do evento
+                        const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+
+                        // Preparar QR codes para exibição no email
+                        const qrCodesForEmail = ticketsWithQR.map(t => ({
+                            code: t.code,
+                            qrCode: t.qrCode, // Já está em base64 data URL
+                            holderName: (t.holder as any)?.name || customerName || 'Cliente'
+                        }));
+
+                        // Enviar email de cortesia com PDF e QR codes inline
+                        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+                        const emailResult = await sendCourtesyTicketEmail(
+                            customerEmail,
+                            {
+                                customerName: customerName || 'Cliente',
+                                orderNumber,
+                                eventName: event.name,
+                                eventDate,
+                                eventLocation: event.location,
+                                eventAddress: event.address,
+                                totalTickets: ticketsWithQR.length,
+                                ticketType: ticketsWithQR[0]?.ticketType?.name || 'VIP',
+                                downloadLink: `${dashboardUrl}/orders/${orderId}`,
+                                qrCodes: qrCodesForEmail
+                            },
+                            [{
+                                filename: `cortesia-${orderNumber}.pdf`,
+                                content: pdfBuffer,
+                                contentType: 'application/pdf'
+                            }]
+                        );
+
+                        if (emailResult.success) {
+                            console.log(`✅ Email de cortesia com PDF enviado para ${customerEmail}`);
+                        } else {
+                            console.error(`❌ Erro ao enviar email de cortesia para ${customerEmail}:`, emailResult.error);
+                        }
+                    }
+                }
+            } catch (emailError) {
+                console.error('Erro ao enviar email de cortesia:', emailError);
+                // Não falhar o pedido se o email falhar
+            }
+        }
 
         res.status(201).json({
             success: true,
@@ -712,6 +818,37 @@ export const cancelOrder = async (req: Request, res: Response) => {
             { order: order._id, deletedAt: null },
             { $set: { status: 'cancelled', isActive: false, qrCode: '' } }
         );
+
+        // Enviar email de cancelamento (não bloquear resposta se falhar)
+        try {
+            const populatedOrder = await Order.findById(order._id)
+                .populate('event', 'name date location')
+                .populate('customer', 'name email')
+                .lean();
+
+            if (populatedOrder && populatedOrder.customer) {
+                const event = populatedOrder.event as any;
+                const customer = populatedOrder.customer as any;
+
+                await sendOrderCancelledEmail(customer.email, {
+                    customerName: customer.name,
+                    orderNumber: populatedOrder.orderNumber,
+                    eventName: event.name,
+                    cancelledAt: new Date().toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }),
+                    cancellationReason: 'Pedido cancelado pelo usuário ou sistema',
+                    refundInfo: order.paymentId ? 'O valor será estornado em até 5 dias úteis.' : undefined
+                });
+            }
+        } catch (emailError) {
+            console.error('Erro ao enviar email de cancelamento:', emailError);
+            // Não falhar o cancelamento se o email falhar
+        }
 
         // Segurança extra: nunca retornar QR de pedidos não pagos
         const safeTickets = tickets.map(t => ({ ...t.toObject(), qrCode: null }));

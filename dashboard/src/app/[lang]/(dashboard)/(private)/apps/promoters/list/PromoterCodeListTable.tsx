@@ -239,6 +239,11 @@ const PromoterCodeListTable = () => {
         pageCount: pagination ? pagination.totalPages : 0,
     })
 
+    // Verificar se há filtros aplicados
+    const hasActiveFilters = 
+        globalFilter !== '' ||
+        statusFilter !== 'all'
+
     if (error) {
         return (
             <Card>
@@ -267,6 +272,35 @@ const PromoterCodeListTable = () => {
                 subheader='Lista de todos os códigos de promotores'
             />
             <CardContent>
+                {/* Sempre mostrar os filtros */}
+                <div className='flex items-center gap-4 mb-6 flex-wrap'>
+                    <CustomTextField
+                        value={globalFilter}
+                        onChange={(e) => setGlobalFilter(e.target.value)}
+                        placeholder='Buscar códigos...'
+                        className='flex-1 min-w-[200px]'
+                        InputProps={{
+                            startAdornment: <i className='tabler-search text-xl text-textSecondary' />
+                        }}
+                    />
+                    <Select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value === 'all' ? 'all' : e.target.value === 'true')}
+                        size='small'
+                    >
+                        <MenuItem value='all'>Todos</MenuItem>
+                        <MenuItem value='true'>Ativos</MenuItem>
+                        <MenuItem value='false'>Inativos</MenuItem>
+                    </Select>
+                    <Button
+                        variant='contained'
+                        component={Link}
+                        href={`/${lang}/apps/promoters/create`}
+                    >
+                        Novo Código
+                    </Button>
+                </div>
+
                 {loading ? (
                     <Box className='flex flex-col items-center justify-center py-12'>
                         <i className='tabler-loader-2 animate-spin text-6xl text-textSecondary mb-4' />
@@ -278,41 +312,20 @@ const PromoterCodeListTable = () => {
                     <Box className='flex flex-col items-center justify-center py-12'>
                         <i className='tabler-ticket text-6xl text-textSecondary mb-4' />
                         <Typography variant='h6' color='text.secondary' className='mb-2'>
-                            Nenhum código encontrado
+                            {hasActiveFilters 
+                                ? 'Não foram encontrados resultados para esse filtro'
+                                : 'Nenhum código encontrado'
+                            }
                         </Typography>
                         <Typography variant='body2' color='text.secondary'>
-                            Os códigos aparecerão aqui quando forem criados
+                            {hasActiveFilters
+                                ? 'Tente ajustar os filtros acima para ver outros resultados'
+                                : 'Os códigos aparecerão aqui quando forem criados'
+                            }
                         </Typography>
                     </Box>
                 ) : (
                     <>
-                        <div className='flex items-center gap-4 mb-6'>
-                            <CustomTextField
-                                value={globalFilter}
-                                onChange={(e) => setGlobalFilter(e.target.value)}
-                                placeholder='Buscar códigos...'
-                                className='flex-1'
-                                InputProps={{
-                                    startAdornment: <i className='tabler-search text-xl text-textSecondary' />
-                                }}
-                            />
-                            <Select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value === 'all' ? 'all' : e.target.value === 'true')}
-                                size='small'
-                            >
-                                <MenuItem value='all'>Todos</MenuItem>
-                                <MenuItem value='true'>Ativos</MenuItem>
-                                <MenuItem value='false'>Inativos</MenuItem>
-                            </Select>
-                            <Button
-                                variant='contained'
-                                component={Link}
-                                href={`/${lang}/apps/promoters/create`}
-                            >
-                                Novo Código
-                            </Button>
-                        </div>
 
                         <div className='overflow-x-auto'>
                             <table className={tableStyles.table}>

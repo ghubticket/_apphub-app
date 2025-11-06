@@ -247,6 +247,12 @@ const OrderListTable = () => {
         pageCount: pagination ? pagination.totalPages : 0,
     })
 
+    // Verificar se há filtros aplicados
+    const hasActiveFilters = 
+        globalFilter !== '' ||
+        statusFilter !== 'all' ||
+        typeFilter !== 'all'
+
     if (error) {
         return (
             <Card>
@@ -276,6 +282,39 @@ const OrderListTable = () => {
                     subheader='Lista de todos os pedidos de ingressos'
                 />
                 <CardContent>
+                    {/* Sempre mostrar os filtros */}
+                    <div className='flex items-center gap-4 mb-6 flex-wrap'>
+                        <CustomTextField
+                            value={globalFilter}
+                            onChange={(e) => setGlobalFilter(e.target.value)}
+                            placeholder='Buscar pedidos...'
+                            className='flex-1 min-w-[200px]'
+                            InputProps={{
+                                startAdornment: <i className='tabler-search text-xl text-textSecondary' />
+                            }}
+                        />
+                        <Select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value as any)}
+                            size='small'
+                        >
+                            <MenuItem value='all'>Todos</MenuItem>
+                            <MenuItem value='pending'>Pendentes</MenuItem>
+                            <MenuItem value='paid'>Pagos</MenuItem>
+                            <MenuItem value='cancelled'>Cancelados</MenuItem>
+                            <MenuItem value='refunded'>Reembolsados</MenuItem>
+                        </Select>
+                        <Select
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value as any)}
+                            size='small'
+                        >
+                            <MenuItem value='all'>Todos os tipos</MenuItem>
+                            <MenuItem value='vip'>VIP</MenuItem>
+                            <MenuItem value='normal'>Normal</MenuItem>
+                        </Select>
+                    </div>
+
                     {loading ? (
                         <Box className='flex flex-col items-center justify-center py-12'>
                             <i className='tabler-loader-2 animate-spin text-6xl text-textSecondary mb-4' />
@@ -287,45 +326,20 @@ const OrderListTable = () => {
                         <Box className='flex flex-col items-center justify-center py-12'>
                             <i className='tabler-shopping-cart text-6xl text-textSecondary mb-4' />
                             <Typography variant='h6' color='text.secondary' className='mb-2'>
-                                Nenhum pedido encontrado
+                                {hasActiveFilters 
+                                    ? 'Não foram encontrados resultados para esse filtro'
+                                    : 'Nenhum pedido encontrado'
+                                }
                             </Typography>
                             <Typography variant='body2' color='text.secondary'>
-                                Os pedidos aparecerão aqui quando forem criados
+                                {hasActiveFilters
+                                    ? 'Tente ajustar os filtros acima para ver outros resultados'
+                                    : 'Os pedidos aparecerão aqui quando forem criados'
+                                }
                             </Typography>
                         </Box>
                     ) : (
                         <>
-                            <div className='flex items-center gap-4 mb-6'>
-                                <CustomTextField
-                                    value={globalFilter}
-                                    onChange={(e) => setGlobalFilter(e.target.value)}
-                                    placeholder='Buscar pedidos...'
-                                    className='flex-1'
-                                    InputProps={{
-                                        startAdornment: <i className='tabler-search text-xl text-textSecondary' />
-                                    }}
-                                />
-                                <Select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                                    size='small'
-                                >
-                                    <MenuItem value='all'>Todos</MenuItem>
-                                    <MenuItem value='pending'>Pendentes</MenuItem>
-                                    <MenuItem value='paid'>Pagos</MenuItem>
-                                    <MenuItem value='cancelled'>Cancelados</MenuItem>
-                                    <MenuItem value='refunded'>Reembolsados</MenuItem>
-                                </Select>
-                                <Select
-                                    value={typeFilter}
-                                    onChange={(e) => setTypeFilter(e.target.value as any)}
-                                    size='small'
-                                >
-                                    <MenuItem value='all'>Todos os tipos</MenuItem>
-                                    <MenuItem value='vip'>VIP</MenuItem>
-                                    <MenuItem value='normal'>Normal</MenuItem>
-                                </Select>
-                            </div>
 
                             <div className='overflow-x-auto'>
                                 <table className={tableStyles.table}>

@@ -175,6 +175,9 @@ const EventListTable = () => {
         filterFns: { fuzzy: fuzzyFilter }
     })
 
+    // Verificar se há filtros aplicados
+    const hasActiveFilters = globalFilter !== ''
+
     if (error) {
         return (
             <Card>
@@ -203,6 +206,27 @@ const EventListTable = () => {
                 subheader='Lista de todos os eventos cadastrados'
             />
             <CardContent>
+                {/* Sempre mostrar os filtros */}
+                <div className='flex items-center gap-4 mb-6 flex-wrap'>
+                    <CustomTextField
+                        value={globalFilter}
+                        onChange={(e) => setGlobalFilter(e.target.value)}
+                        placeholder='Buscar eventos...'
+                        className='flex-1 min-w-[200px]'
+                        InputProps={{
+                            startAdornment: <i className='tabler-search text-xl text-textSecondary' />
+                        }}
+                    />
+                    <Button
+                        component={Link}
+                        href={`/${lang}/apps/events/create`}
+                        variant='contained'
+                        startIcon={<i className='tabler-plus' />}
+                    >
+                        Novo Evento
+                    </Button>
+                </div>
+
                 {loading ? (
                     <Box className='flex flex-col items-center justify-center py-12'>
                         <i className='tabler-loader-2 animate-spin text-6xl text-textSecondary mb-4' />
@@ -214,41 +238,30 @@ const EventListTable = () => {
                     <Box className='flex flex-col items-center justify-center py-12'>
                         <i className='tabler-calendar-event text-6xl text-textSecondary mb-4' />
                         <Typography variant='h6' color='text.secondary' className='mb-2'>
-                            Nenhum evento encontrado
+                            {hasActiveFilters 
+                                ? 'Não foram encontrados resultados para esse filtro'
+                                : 'Nenhum evento encontrado'
+                            }
                         </Typography>
                         <Typography variant='body2' color='text.secondary' className='mb-4'>
-                            Os eventos aparecerão aqui quando forem criados
+                            {hasActiveFilters
+                                ? 'Tente ajustar os filtros acima para ver outros resultados'
+                                : 'Os eventos aparecerão aqui quando forem criados'
+                            }
                         </Typography>
-                        <Button
-                            component={Link}
-                            href={`/${lang}/apps/events/create`}
-                            variant='contained'
-                            startIcon={<i className='tabler-plus' />}
-                        >
-                            Cadastrar Evento
-                        </Button>
-                    </Box>
-                ) : (
-                    <>
-                        <div className='flex items-center gap-4 mb-6'>
-                            <CustomTextField
-                                value={globalFilter}
-                                onChange={(e) => setGlobalFilter(e.target.value)}
-                                placeholder='Buscar eventos...'
-                                className='flex-1'
-                                InputProps={{
-                                    startAdornment: <i className='tabler-search text-xl text-textSecondary' />
-                                }}
-                            />
+                        {!hasActiveFilters && (
                             <Button
                                 component={Link}
                                 href={`/${lang}/apps/events/create`}
                                 variant='contained'
                                 startIcon={<i className='tabler-plus' />}
                             >
-                                Novo Evento
+                                Cadastrar Evento
                             </Button>
-                        </div>
+                        )}
+                    </Box>
+                ) : (
+                    <>
 
                         <div className='overflow-x-auto'>
                             <table className={tableStyles.table}>

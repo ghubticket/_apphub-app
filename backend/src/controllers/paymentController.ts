@@ -1,10 +1,17 @@
 import { Request, Response } from 'express';
-import { WebhookEvent, Order, Ticket } from '../models';
+import { WebhookEvent, Order, Ticket, Event, User } from '../models';
 import { enqueueOrGet } from '../services/webhookProcessorService';
 import crypto from 'crypto';
 import * as paymentService from '../services/paymentService';
 import { mapPaymentMethod } from '../services/paymentService';
 import { getPaymentStatusInfo, mapPaymentStatus } from '../utils/paymentStatusMapper';
+import { 
+    sendTicketConfirmationEmail, 
+    sendPaymentRejectedEmail,
+    sendPaymentConfirmedEmail,
+    sendPaymentPendingEmail
+} from '../services/emailTemplates';
+import { generateTicketPDF } from '../services/pdfService';
 
 /**
  * Valida e busca um pedido com verificações de segurança
@@ -146,6 +153,57 @@ export const createPixPayment = async (req: Request, res: Response) => {
         }
 
         await order.save();
+
+        // Enviar email de pagamento pendente (não bloquear resposta se falhar)
+        try {
+            const populatedOrder = await Order.findById(order._id)
+                .populate('event', 'name date location address')
+                .populate('customer', 'name email')
+                .lean();
+
+            if (populatedOrder) {
+                const event = populatedOrder.event as any;
+                const customerData = populatedOrder.customerData as any;
+                const customer = populatedOrder.customer as any;
+
+                const customerEmail = customerData?.email || customer?.email;
+                const customerName = customerData?.name || customer?.name;
+
+                if (customerEmail && customerEmail !== 'Não informado') {
+                    const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+                    await sendPaymentPendingEmail(
+                        customerEmail,
+                        {
+                            customerName: customerName || 'Cliente',
+                            orderNumber: order.orderNumber,
+                            eventName: event.name,
+                            eventDate,
+                            eventLocation: event.location,
+                            totalAmount: `R$ ${order.totalAmount.toFixed(2).replace('.', ',')}`,
+                            paymentMethod: 'PIX',
+                            expirationMinutes: pixPayment.expirationMinutes || 15,
+                            pixQrCode: pixPayment.qrCodeBase64 ? `data:image/png;base64,${pixPayment.qrCodeBase64}` : pixPayment.qrCode,
+                            pixCode: pixPayment.ticketUrl, // Código PIX para copiar e colar
+                            paymentLink: `${dashboardUrl}/orders/${order._id}`
+                        }
+                    );
+
+                    console.log(`✅ Email de pagamento pendente (PIX) enviado para ${customerEmail}`);
+                }
+            }
+        } catch (emailError) {
+            console.error('Erro ao enviar email de pagamento pendente (PIX):', emailError);
+            // Não falhar a criação do pagamento se o email falhar
+        }
 
         // Log detalhado
         console.log(`📦 Pedido ${order.orderNumber} - PIX criado:`, {
@@ -341,6 +399,58 @@ export const createCardPayment = async (req: Request, res: Response) => {
 
         await order.save();
 
+        // Enviar email de pagamento pendente se não foi aprovado imediatamente
+        // (Se foi aprovado, o webhook enviará o email de confirmação)
+        if (paymentStatus !== 'paid') {
+            try {
+                const populatedOrder = await Order.findById(order._id)
+                    .populate('event', 'name date location address')
+                    .populate('customer', 'name email')
+                    .lean();
+
+                if (populatedOrder) {
+                    const event = populatedOrder.event as any;
+                    const customerData = populatedOrder.customerData as any;
+                    const customer = populatedOrder.customer as any;
+
+                    const customerEmail = customerData?.email || customer?.email;
+                    const customerName = customerData?.name || customer?.name;
+
+                    if (customerEmail && customerEmail !== 'Não informado') {
+                        const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+
+                        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+                        await sendPaymentPendingEmail(
+                            customerEmail,
+                            {
+                                customerName: customerName || 'Cliente',
+                                orderNumber: order.orderNumber,
+                                eventName: event.name,
+                                eventDate,
+                                eventLocation: event.location,
+                                totalAmount: `R$ ${order.totalAmount.toFixed(2).replace('.', ',')}`,
+                                paymentMethod: paymentMethod === 'credit_card' ? 'Cartão de Crédito' : 'Cartão de Débito',
+                                expirationMinutes: 15, // Cartão geralmente processa rápido, mas mantemos 15min como padrão
+                                paymentLink: `${dashboardUrl}/orders/${order._id}`
+                            }
+                        );
+
+                        console.log(`✅ Email de pagamento pendente (Cartão) enviado para ${customerEmail}`);
+                    }
+                }
+            } catch (emailError) {
+                console.error('Erro ao enviar email de pagamento pendente (Cartão):', emailError);
+                // Não falhar a criação do pagamento se o email falhar
+            }
+        }
+
         // Log detalhado
         console.log(`💳 Pedido ${order.orderNumber} - Cartão processado:`, {
             paymentId: cardPayment.paymentId,
@@ -406,6 +516,150 @@ export const createCardPayment = async (req: Request, res: Response) => {
         });
     }
 };
+
+/**
+ * Função auxiliar para enviar email de confirmação com PDF quando pagamento é aprovado
+ */
+async function sendPaymentApprovedEmail(order: any) {
+    try {
+        // Popular dados necessários
+        const populatedOrder = await Order.findById(order._id)
+            .populate('event', 'name date location address')
+            .populate('tickets', 'code qrCode ticketType holder')
+            .populate('customer', 'name email')
+            .populate('tickets.ticketType', 'name')
+            .lean();
+
+        if (!populatedOrder || !populatedOrder.customer) {
+            console.error('Pedido ou cliente não encontrado para envio de email');
+            return;
+        }
+
+        const event = populatedOrder.event as any;
+        const customer = populatedOrder.customer as any;
+        const tickets = populatedOrder.tickets as any[];
+
+        // Filtrar apenas tickets com QR code (confirmados)
+        const ticketsWithQR = tickets.filter(t => t.qrCode);
+
+        if (ticketsWithQR.length === 0) {
+            console.warn('Nenhum ticket com QR code encontrado para envio');
+            return;
+        }
+
+        // Gerar PDF com QR codes
+        const pdfBuffer = await generateTicketPDF({
+            event: {
+                name: event.name,
+                date: event.date,
+                location: event.location,
+                address: event.address
+            },
+            orderNumber: populatedOrder.orderNumber,
+            customerName: customer.name,
+            tickets: ticketsWithQR.map(t => ({
+                code: t.code,
+                qrCode: t.qrCode,
+                ticketType: (t.ticketType as any)?.name || 'Ingresso',
+                holderName: (t.holder as any)?.name || customer.name
+            }))
+        });
+
+        // Formatar data do evento
+        const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        // Preparar QR codes para exibição no email
+        const qrCodesForEmail = ticketsWithQR.map(t => ({
+            code: t.code,
+            qrCode: t.qrCode, // Já está em base64 data URL
+            holderName: (t.holder as any)?.name || customer.name
+        }));
+
+        // Enviar email com PDF anexo e QR codes inline
+        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+        await sendTicketConfirmationEmail(
+            customer.email,
+            {
+                customerName: customer.name,
+                orderNumber: populatedOrder.orderNumber,
+                eventName: event.name,
+                eventDate,
+                eventLocation: event.location,
+                eventAddress: event.address,
+                totalTickets: ticketsWithQR.length,
+                ticketType: ticketsWithQR[0]?.ticketType?.name || 'Ingresso',
+                downloadLink: `${dashboardUrl}/orders/${populatedOrder._id}`,
+                qrCodes: qrCodesForEmail
+            },
+            [{
+                filename: `ingressos-${populatedOrder.orderNumber}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+            }]
+        );
+
+        console.log(`✅ Email de confirmação com PDF enviado para ${customer.email}`);
+    } catch (error) {
+        console.error('Erro ao enviar email de confirmação:', error);
+        // Não falhar o webhook se o email falhar
+    }
+}
+
+/**
+ * Função auxiliar para enviar email quando pagamento é recusado
+ */
+async function sendPaymentRejectedEmailHelper(order: any, rejectionReason?: string) {
+    try {
+        const populatedOrder = await Order.findById(order._id)
+            .populate('event', 'name date location')
+            .populate('customer', 'name email')
+            .lean();
+
+        if (!populatedOrder || !populatedOrder.customer) {
+            console.error('Pedido ou cliente não encontrado para envio de email');
+            return;
+        }
+
+        const event = populatedOrder.event as any;
+        const customer = populatedOrder.customer as any;
+
+        const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+        await sendPaymentRejectedEmail(
+            customer.email,
+            {
+                customerName: customer.name,
+                orderNumber: populatedOrder.orderNumber,
+                eventName: event.name,
+                eventDate,
+                eventLocation: event.location,
+                totalAmount: `R$ ${populatedOrder.totalAmount.toFixed(2).replace('.', ',')}`,
+                paymentMethod: populatedOrder.paymentMethod || 'Não informado',
+                rejectionReason: rejectionReason || populatedOrder.paymentMessage || 'Pagamento recusado',
+                retryLink: `${dashboardUrl}/orders/${populatedOrder._id}`
+            }
+        );
+
+        console.log(`✅ Email de pagamento recusado enviado para ${customer.email}`);
+    } catch (error) {
+        console.error('Erro ao enviar email de pagamento recusado:', error);
+    }
+}
 
 /**
  * Webhook do Mercado Pago para receber notificações de pagamento
@@ -529,16 +783,25 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 if (paymentStatus === 'paid') {
                     order.paidAt = paymentInfo.date_approved ? new Date(paymentInfo.date_approved) : new Date();
 
-                    // Atualizar status dos tickets para 'confirmed'
-                    await Ticket.updateMany(
-                        { _id: { $in: order.tickets } },
-                        {
-                            $set: {
-                                status: 'confirmed',
-                                confirmedAt: new Date()
-                            }
+                    // Atualizar status dos tickets para 'confirmed' e gerar QR codes se necessário
+                    const tickets = await Ticket.find({ _id: { $in: order.tickets }, deletedAt: null });
+                    for (const ticket of tickets) {
+                        if (ticket.status === 'pending' && !ticket.qrCode) {
+                            const { generateQRCode } = await import('../services/qrCodeService');
+                            ticket.status = 'confirmed';
+                            ticket.qrCode = await generateQRCode(ticket.code);
+                            await ticket.save();
+                        } else if (ticket.status === 'pending') {
+                            ticket.status = 'confirmed';
+                            await ticket.save();
                         }
-                    );
+                    }
+
+                    // Enviar email de confirmação com PDF
+                    await sendPaymentApprovedEmail(order);
+                } else if (paymentStatus === 'failed') {
+                    // Enviar email de pagamento recusado
+                    await sendPaymentRejectedEmailHelper(order, statusInfo.userMessage);
                 }
 
                 await order.save();
@@ -630,16 +893,25 @@ export const handleWebhook = async (req: Request, res: Response) => {
             if (paymentStatus === 'paid') {
                 order.paidAt = paymentInfo.date_approved ? new Date(paymentInfo.date_approved) : new Date();
 
-                // Atualizar status dos tickets para 'confirmed'
-                await Ticket.updateMany(
-                    { _id: { $in: order.tickets } },
-                    {
-                        $set: {
-                            status: 'confirmed',
-                            confirmedAt: new Date()
-                        }
+                // Atualizar status dos tickets para 'confirmed' e gerar QR codes se necessário
+                const tickets = await Ticket.find({ _id: { $in: order.tickets }, deletedAt: null });
+                for (const ticket of tickets) {
+                    if (ticket.status === 'pending' && !ticket.qrCode) {
+                        const { generateQRCode } = await import('../services/qrCodeService');
+                        ticket.status = 'confirmed';
+                        ticket.qrCode = await generateQRCode(ticket.code);
+                        await ticket.save();
+                    } else if (ticket.status === 'pending') {
+                        ticket.status = 'confirmed';
+                        await ticket.save();
                     }
-                );
+                }
+
+                // Enviar email de confirmação com PDF
+                await sendPaymentApprovedEmail(order);
+            } else if (paymentStatus === 'failed') {
+                // Enviar email de pagamento recusado
+                await sendPaymentRejectedEmailHelper(order, statusInfo.userMessage);
             }
 
             await order.save();

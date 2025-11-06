@@ -58,6 +58,16 @@ router.get('/code/:code', getTicketByCode);
  *         schema:
  *           type: string
  *           length: 12
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               holderId:
+ *                 type: string
+ *                 description: ID do holder que está presente na validação (opcional). Se não informado, assume que foi o holder do ticket.
  *     responses:
  *       200:
  *         description: Ingresso validado com sucesso

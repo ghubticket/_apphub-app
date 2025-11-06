@@ -1,0 +1,39 @@
+<div class="content">
+    <h2>🎉 Bem-vindo ao EventHub!</h2>
+    
+    <p>Olá <strong>{{customerName}}</strong>,</p>
+    
+    <p>Sua conta foi criada com sucesso! Estamos muito felizes em tê-lo conosco.</p>
+    
+    <div class="info-box">
+        <h3>📋 Informações da sua conta</h3>
+        <ul>
+            <li><strong>Nome:</strong> {{customerName}}</li>
+            <li><strong>Email:</strong> {{customerEmail}}</li>
+            <li><strong>Perfil:</strong> {{customerRole}}</li>
+        </ul>
+    </div>
+    
+    <div class="success-box">
+        <h3>🚀 O que você pode fazer agora?</h3>
+        <ul>
+            <li>✅ Explorar eventos disponíveis</li>
+            <li>✅ Comprar ingressos para seus eventos favoritos</li>
+            <li>✅ Gerenciar seus pedidos e ingressos</li>
+            <li>✅ Receber notificações sobre seus eventos</li>
+        </ul>
+    </div>
+    
+    {{#if loginLink}}
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{loginLink}}" class="button">🔐 Acessar Minha Conta</a>
+    </div>
+    {{/if}}
+    
+    <p>Se você tiver alguma dúvida, nossa equipe de suporte está pronta para ajudar!</p>
+    
+    <p style="margin-top: 30px; color: #666; font-size: 14px;">
+        Bem-vindo e aproveite nossos eventos! 🎉
+    </p>
+</div>
+
