@@ -1,4 +1,5 @@
 import { Order, Ticket } from '../models'
+import * as paymentService from './paymentService'
 
 const DEFAULT_TIMEOUT_MINUTES = Number(process.env.ORDER_PAYMENT_TIMEOUT_MINUTES || 15)
 const BATCH_LIMIT = 100
@@ -6,31 +7,48 @@ const BATCH_LIMIT = 100
 export async function expirePendingOrders(now = new Date()): Promise<{ checked: number; expired: number }> {
   const cutoff = new Date(now.getTime() - DEFAULT_TIMEOUT_MINUTES * 60 * 1000)
 
-  // Buscar pedidos pendentes mais antigos que o cutoff
-  const pending = await Order.find({
-    status: 'pending',
-    deletedAt: null,
-    createdAt: { $lte: cutoff }
-  })
-    .select('_id status createdAt')
+  const pending = await Order.find({ status: 'pending', deletedAt: null })
+    .select('_id status createdAt paymentId paymentStatus')
     .limit(BATCH_LIMIT)
 
   let expired = 0
 
   for (const order of pending) {
     try {
-      order.status = 'cancelled'
-      ;(order as any).cancelledAt = now
-      await order.save()
+      if (!order.paymentId) {
+        if (order.createdAt <= cutoff) {
+          order.status = 'cancelled'
+          ;(order as any).cancelledAt = now
+          await order.save()
+          await Ticket.updateMany({ order: order._id, deletedAt: null }, { $set: { status: 'cancelled', isActive: false, qrCode: '' } })
+          expired++
+        }
+        continue
+      }
 
-      await Ticket.updateMany({ order: order._id, deletedAt: null }, {
-        $set: { status: 'cancelled', isActive: false, qrCode: '' }
-      })
+      const payment = await (paymentService as any).getPaymentById(order.paymentId)
+      const mpStatus: string = (payment?.status || '').toLowerCase()
+      const exp = payment?.date_of_expiration ? new Date(payment.date_of_expiration) : null
 
-      expired++
+      if (mpStatus === 'approved') {
+        order.status = 'paid'
+        ;(order as any).paidAt = payment?.date_approved ? new Date(payment.date_approved) : now
+        await order.save()
+        continue
+      }
+
+      const isExpired = exp ? now >= exp : order.createdAt <= cutoff
+      if (isExpired && ['pending', 'in_process', 'action_required'].includes(mpStatus)) {
+        try { await (paymentService as any).cancelPaymentById(order.paymentId) } catch {}
+        order.status = 'cancelled'
+        order.paymentStatus = 'cancelled' as any
+        ;(order as any).cancelledAt = now
+        await order.save()
+        await Ticket.updateMany({ order: order._id, deletedAt: null }, { $set: { status: 'cancelled', isActive: false, qrCode: '' } })
+        expired++
+      }
     } catch (e) {
-      // Log e continua
-      console.error('Erro ao expirar pedido', String(order._id), e)
+      console.error('Erro ao expirar/cancelar pedido', String(order._id), e)
     }
   }
 
@@ -39,7 +57,7 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
 
 export function startOrderExpirationScheduler() {
   const intervalMs = Number(process.env.ORDER_EXPIRATION_CHECK_INTERVAL_MS || 60_000)
-  console.log(`🕒 Order expiration scheduler ativo (timeout=${DEFAULT_TIMEOUT_MINUTES}m, interval=${intervalMs}ms)`) 
+  console.log(`🕒 Order expiration scheduler ativo (timeout=${DEFAULT_TIMEOUT_MINUTES}m, interval=${intervalMs}ms, fonte=MP date_of_expiration p/ PIX)`) 
   setInterval(async () => {
     try {
       const result = await expirePendingOrders()

@@ -9,14 +9,27 @@ function b64url(input: Buffer | string): string {
 function getSecrets() {
     const enc = process.env.QR_SECRET?.trim();
     const hmac = process.env.QR_HMAC_SECRET?.trim() || enc;
+    const isProd = (process.env.NODE_ENV || 'development') === 'production';
     if (!enc) {
-        // Em dev, gera um segredo volátil para não quebrar
+        // Sem QR_SECRET: em dev gera segredo volátil; em prod, erro
+        if (isProd) {
+            throw new Error('QR_SECRET ausente em produção');
+        }
         const dev = crypto.randomBytes(32).toString('hex');
         return { encKey: Buffer.from(dev, 'hex'), hmacKey: Buffer.from(dev, 'hex') };
     }
     const encKey = enc.length === 64 ? Buffer.from(enc, 'hex') : Buffer.from(enc, 'base64');
-    const hmacKey = hmac && (hmac.length === 64 ? Buffer.from(hmac, 'hex') : Buffer.from(hmac, 'base64'));
-    if (encKey.length !== 32) throw new Error('QR_SECRET deve ser 32 bytes (hex de 64 chars ou base64)');
+    let hmacKey = hmac && (hmac.length === 64 ? Buffer.from(hmac, 'hex') : Buffer.from(hmac, 'base64'));
+    if (encKey.length !== 32) {
+        if (isProd) throw new Error('QR_SECRET deve ser 32 bytes (hex de 64 chars ou base64)');
+        // dev: tolerar comprimento inválido gerando um temporário
+        const dev = crypto.randomBytes(32).toString('hex');
+        return { encKey: Buffer.from(dev, 'hex'), hmacKey: Buffer.from(dev, 'hex') };
+    }
+    if (hmacKey && hmacKey.length !== 32) {
+        if (isProd) throw new Error('QR_HMAC_SECRET deve ser 32 bytes (hex/base64)');
+        hmacKey = encKey;
+    }
     return { encKey, hmacKey: hmacKey || encKey };
 }
 

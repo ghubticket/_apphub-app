@@ -37,6 +37,13 @@ export interface OrderItem {
     totalTickets: number;
     status: 'pending' | 'paid' | 'cancelled' | 'refunded';
     paymentMethod?: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free';
+    paymentId?: string;
+    paymentStatus?: string;
+    paymentStatusDetail?: string;
+    paymentMessage?: string;
+    paymentAdminMessage?: string;
+    paymentErrorCode?: string;
+    paymentErrorDescription?: string;
     paidAt?: string;
     createdAt: string;
     updatedAt: string;
@@ -76,7 +83,7 @@ const getAuthToken = async (): Promise<string | null> => {
 
 const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
     const token = await getAuthToken();
-    
+
     if (!token) {
         throw new Error('Token de acesso não fornecido. Por favor, faça login novamente.');
     }
@@ -124,7 +131,7 @@ export const orderService = {
 
         const queryString = searchParams.toString();
         const url = `/orders${queryString ? `?${queryString}` : ''}`;
-        
+
         return authenticatedRequest(url);
     },
 

@@ -204,6 +204,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         validatePaymentData(params);
 
         const { orderId, orderNumber, totalAmount, customerData, description, items } = params;
+        const MP_PIX_EXPIRATION_ISO = process.env.MP_PIX_EXPIRATION_ISO?.trim() || 'PT15M';
 
         // Calcular data de expiração
         const expirationDate = new Date();
@@ -240,7 +241,10 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                         payment_method: {
                             id: 'pix',
                             type: 'bank_transfer'
-                        }
+                        },
+                        // Orders API aceita expiration_time (ISO-8601 duration)
+                        // Ex.: PT15M (15 minutos)
+                        expiration_time: MP_PIX_EXPIRATION_ISO
                     }
                 ]
             }
@@ -312,7 +316,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             qrCodeBase64: qrCodeBase64,
             ticketUrl: ticketUrl,
             expiresAt: paymentInfo.date_of_expiration,
-            expirationMinutes: PIX_EXPIRATION_MINUTES,
+            expirationMinutes: MP_PIX_EXPIRATION_ISO.startsWith('PT') ? PIX_EXPIRATION_MINUTES : PIX_EXPIRATION_MINUTES,
             orderStatus: orderResponse.status // Status da Order
         };
     } catch (error: any) {
@@ -535,6 +539,39 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
     } catch (error: any) {
         console.error('Erro ao criar pagamento com cartão (Orders API):', error);
         throw new Error(`Erro ao criar pagamento: ${error.message || 'Erro desconhecido'}`);
+    }
+};
+
+// Cancela um pagamento no Mercado Pago (quando ainda não aprovado)
+export const cancelPaymentById = async (paymentId: string) => {
+    try {
+        const currentToken = process.env.MP_ACCESS_TOKEN?.trim();
+        if (!currentToken || currentToken === '') {
+            throw new Error('MP_ACCESS_TOKEN não está configurado.');
+        }
+
+        const currentClient = new MercadoPagoConfig({
+            accessToken: currentToken,
+            options: { timeout: 10000 }
+        });
+        const paymentApi = new Payment(currentClient);
+
+        // SDK v2: cancel
+        const resp = await paymentApi.cancel({ id: paymentId as any } as any);
+        return resp;
+    } catch (error) {
+        // Tentar fallback usando status update (alguns SDKs usam update -> status: 'cancelled')
+        try {
+            const currentClient = new MercadoPagoConfig({
+                accessToken: process.env.MP_ACCESS_TOKEN!.trim(),
+                options: { timeout: 10000 }
+            });
+            const paymentApi = new Payment(currentClient);
+            const resp = await (paymentApi as any).update({ id: paymentId, status: 'cancelled' });
+            return resp;
+        } catch (e) {
+            throw error;
+        }
     }
 };
 

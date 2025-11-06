@@ -7,6 +7,9 @@ import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Button from '@mui/material/Button'
+import Link from 'next/link'
+import IconButton from '@mui/material/IconButton'
+import Menu from '@mui/material/Menu'
 import Box from '@mui/material/Box'
 import { useParams } from 'next/navigation'
 import classnames from 'classnames'
@@ -159,16 +162,36 @@ const OrderListTable = () => {
                     )
                 }
             },
+            // coluna Tipo removida (exibiremos no detalhe)
             {
-                accessorKey: 'paymentMethod',
-                header: 'Tipo',
-                cell: ({ row }) => (
-                    row.original.paymentMethod === 'vip_free' ? (
-                        <Chip label='VIP' color='secondary' size='small' variant='tonal' />
-                    ) : (
-                        <Typography variant='body2' color='text.secondary'>Normal</Typography>
+                id: 'actions',
+                header: 'Ações',
+                cell: ({ row }) => {
+                    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+                    const open = Boolean(anchorEl)
+                    const handleOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)
+                    const handleClose = () => setAnchorEl(null)
+                    return (
+                        <>
+                            <IconButton size='small' onClick={handleOpen}>
+                                <i className='tabler-dots-vertical' />
+                            </IconButton>
+                            <Menu
+                                anchorEl={anchorEl}
+                                open={open}
+                                onClose={handleClose}
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                            >
+                                <MenuItem onClick={handleClose}>
+                                    <Link href={`/${String(lang)}/apps/orders/detail/${row.original._id}`} className='flex items-center gap-2'>
+                                        <i className='tabler-eye text-base' /> Ver detalhes
+                                    </Link>
+                                </MenuItem>
+                            </Menu>
+                        </>
                     )
-                )
+                }
             },
             {
                 accessorKey: 'status',
@@ -198,15 +221,7 @@ const OrderListTable = () => {
                     )
                 }
             },
-            {
-                accessorKey: 'createdAt',
-                header: 'Data',
-                cell: ({ row }) => (
-                    <Typography variant='body2' color='text.secondary'>
-                        {formatDate(row.original.createdAt)}
-                    </Typography>
-                )
-            },
+            // coluna de Data removida para ganhar espaço
         ],
         []
     )

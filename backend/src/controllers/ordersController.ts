@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import * as paymentService from '../services/paymentService';
 import mongoose from 'mongoose';
 import { Order, Ticket, TicketType, Event, User, PromoterCode } from '../models';
 import { generateQRCode } from '../services/qrCodeService';
@@ -524,6 +525,27 @@ export const cancelOrder = async (req: Request, res: Response) => {
         }
         if (order.status === 'paid') {
             return res.status(400).json({ success: false, message: 'Pedido pago não pode ser cancelado aqui. Use reembolso.' });
+        }
+
+        // Se houver pagamento, primeiro consultar status no MP para evitar falso positivo
+        if (order.paymentId) {
+            try {
+                const payment = await (paymentService as any).getPaymentById(order.paymentId)
+                const mpStatus: string = (payment?.status || '').toLowerCase()
+                if (mpStatus === 'approved') {
+                    return res.status(400).json({ success: false, message: 'Pedido já aprovado no Mercado Pago; não é possível cancelar.' })
+                }
+                // Só tentar cancelar se ainda pendente/acionável
+                if (['pending', 'in_process', 'action_required'].includes(mpStatus)) {
+                    await (paymentService as any).cancelPaymentById(order.paymentId);
+                    order.paymentStatus = 'cancelled';
+                    order.paymentStatusDetail = order.paymentStatusDetail || 'cancelled';
+                    order.paymentMessage = 'Pagamento cancelado no Mercado Pago.';
+                }
+            } catch (e) {
+                // Se não conseguir cancelar no MP, prosseguir com cancel local
+                console.warn('Não foi possível cancelar no Mercado Pago:', e);
+            }
         }
 
         // Cancelar pedido
