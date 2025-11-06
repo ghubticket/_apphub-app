@@ -216,9 +216,17 @@ const EventListTable = () => {
                         <Typography variant='h6' color='text.secondary' className='mb-2'>
                             Nenhum evento encontrado
                         </Typography>
-                        <Typography variant='body2' color='text.secondary'>
+                        <Typography variant='body2' color='text.secondary' className='mb-4'>
                             Os eventos aparecerão aqui quando forem criados
                         </Typography>
+                        <Button
+                            component={Link}
+                            href={`/${lang}/apps/events/create`}
+                            variant='contained'
+                            startIcon={<i className='tabler-plus' />}
+                        >
+                            Cadastrar Evento
+                        </Button>
                     </Box>
                 ) : (
                     <>

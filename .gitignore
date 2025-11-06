@@ -134,7 +134,7 @@ next-env.d.ts
 # ===========================================
 # DASHBOARD SPECIFIC
 # ===========================================
-# Vuexy - Ignorar pastas de versões
+# vicente - Ignorar pastas de versões
 dashboard/nextjs-version/
 dashboard/nextjs-version/typescript-version/
 

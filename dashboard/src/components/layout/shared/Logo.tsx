@@ -32,7 +32,8 @@ const LogoText = styled.span<LogoTextProps>`
   color: ${({ color }) => color ?? 'var(--mui-palette-text-primary)'};
   font-size: 1.375rem;
   line-height: 1.09091;
-  font-weight: 700;
+  font-family: 'Funnel Display', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+  font-weight: 600;
   letter-spacing: 0.25px;
   transition: ${({ transitionDuration }) =>
     `margin-inline-start ${transitionDuration}ms ease-in-out, opacity ${transitionDuration}ms ease-in-out`};

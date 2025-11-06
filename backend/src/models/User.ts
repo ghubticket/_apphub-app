@@ -13,6 +13,14 @@ export interface IUser extends Document {
     deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     lastLogin?: Date;
     refreshToken?: string;
+    // Flags de segurança e suspeita
+    suspiciousActivityCount?: number; // Contador de tentativas suspeitas
+    isSuspicious?: boolean; // Flag manual de usuário suspeito
+    suspiciousReason?: string; // Motivo da marcação como suspeito
+    lastSuspiciousActivity?: Date; // Última atividade suspeita detectada
+    isBlacklisted?: boolean; // Se está na blacklist (bloqueado)
+    blacklistReason?: string; // Motivo do bloqueio
+    blacklistedAt?: Date; // Quando foi bloqueado
     createdAt: Date;
     updatedAt: Date;
 
@@ -87,6 +95,34 @@ const userSchema = new Schema<IUser>(
         refreshToken: {
             type: String,
             select: false, // Não incluir refresh token por padrão nas consultas
+        },
+        // Flags de segurança e suspeita
+        suspiciousActivityCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+        isSuspicious: {
+            type: Boolean,
+            default: false,
+            index: true, // Índice para buscar usuários suspeitos
+        },
+        suspiciousReason: {
+            type: String,
+        },
+        lastSuspiciousActivity: {
+            type: Date,
+        },
+        isBlacklisted: {
+            type: Boolean,
+            default: false,
+            index: true, // Índice para buscar usuários bloqueados
+        },
+        blacklistReason: {
+            type: String,
+        },
+        blacklistedAt: {
+            type: Date,
         },
     },
     {

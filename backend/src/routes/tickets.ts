@@ -96,7 +96,7 @@ router.post('/code/:code/validate', authenticate, validateTicket);
  *       401:
  *         description: Não autenticado
  *       403:
- *         description: Acesso negado
+ *         description: Acesso negado (apenas QRCODE pode ler QR codes)
  *       409:
  *         description: Replay detectado
  */

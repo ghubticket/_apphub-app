@@ -8,6 +8,8 @@ interface UseUsersParams {
   search?: string
   role?: UserRole
   status?: boolean
+  suspicious?: boolean
+  blacklisted?: boolean
 }
 
 interface UseUsersReturn {
@@ -45,7 +47,7 @@ export const useUsers = (params: UseUsersParams = {}): UseUsersReturn => {
     } finally {
       setLoading(false)
     }
-  }, [params.page, params.limit, params.search, params.role, params.status])
+  }, [params.page, params.limit, params.search, params.role, params.status, params.suspicious, params.blacklisted])
 
   const updateUserStatus = useCallback(async (userId: string, isActive: boolean) => {
     try {

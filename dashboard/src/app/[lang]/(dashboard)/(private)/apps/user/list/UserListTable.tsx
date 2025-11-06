@@ -142,6 +142,8 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
     const [globalFilter, setGlobalFilter] = useState('')
     const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all')
     const [statusFilter, setStatusFilter] = useState<'all' | 'true' | 'false'>('all')
+    const [suspiciousFilter, setSuspiciousFilter] = useState<'all' | 'true' | 'false'>('all')
+    const [blacklistedFilter, setBlacklistedFilter] = useState<'all' | 'true' | 'false'>('all')
 
     // Hooks
     const { lang: locale } = useParams()
@@ -154,6 +156,8 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
         limit: pageSize,
         role: roleFilter === 'all' ? undefined : roleFilter as UserRole,
         status: statusFilter === 'all' ? undefined : statusFilter === 'true',
+        suspicious: suspiciousFilter === 'all' ? undefined : suspiciousFilter === 'true',
+        blacklisted: blacklistedFilter === 'all' ? undefined : blacklistedFilter === 'true',
         search: globalFilter || undefined
     })
 
@@ -168,7 +172,7 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
     // Resetar página quando filtros mudarem
     useEffect(() => {
         setCurrentPage(1)
-    }, [roleFilter, statusFilter, globalFilter])
+    }, [roleFilter, statusFilter, suspiciousFilter, blacklistedFilter, globalFilter])
 
     const columns = useMemo<ColumnDef<any, any>[]>(
         () => [
@@ -256,6 +260,46 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                 )
             },
             {
+                accessorKey: 'security',
+                header: 'Segurança',
+                cell: ({ row }) => {
+                    const isSuspicious = row.original.isSuspicious
+                    const isBlacklisted = row.original.isBlacklisted
+                    const suspiciousCount = row.original.suspiciousActivityCount || 0
+                    
+                    return (
+                        <div className='flex items-center gap-2 flex-wrap'>
+                            {isBlacklisted && (
+                                <Chip
+                                    label='BLOQUEADO'
+                                    color='error'
+                                    size='small'
+                                    variant='tonal'
+                                    icon={<i className='tabler-ban text-base' />}
+                                />
+                            )}
+                            {isSuspicious && !isBlacklisted && (
+                                <Chip
+                                    label={`SUSPEITO${suspiciousCount > 0 ? ` (${suspiciousCount})` : ''}`}
+                                    color='warning'
+                                    size='small'
+                                    variant='tonal'
+                                    icon={<i className='tabler-alert-triangle text-base' />}
+                                />
+                            )}
+                            {!isSuspicious && !isBlacklisted && (
+                                <Chip
+                                    label='OK'
+                                    color='success'
+                                    size='small'
+                                    variant='tonal'
+                                />
+                            )}
+                        </div>
+                    )
+                }
+            },
+            {
                 accessorKey: 'createdAt',
                 header: 'Created',
                 cell: ({ row }) => (
@@ -316,6 +360,14 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
         }
     })
 
+    // Verificar se há filtros aplicados
+    const hasActiveFilters = 
+        globalFilter !== '' ||
+        roleFilter !== 'all' ||
+        statusFilter !== 'all' ||
+        suspiciousFilter !== 'all' ||
+        blacklistedFilter !== 'all'
+
     if (error) {
         return (
             <Card>
@@ -345,6 +397,71 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                     subheader='Lista de todos os usuários cadastrados'
                 />
                 <CardContent>
+                    {/* Sempre mostrar os filtros */}
+                    <div className='flex items-center gap-4 mb-6 flex-wrap'>
+                        <CustomTextField
+                            value={globalFilter}
+                            onChange={(e) => setGlobalFilter(e.target.value)}
+                            placeholder='Buscar usuários...'
+                            className='flex-1 min-w-[200px]'
+                            InputProps={{
+                                startAdornment: <i className='tabler-search text-xl text-textSecondary' />
+                            }}
+                        />
+                        <Select
+                            value={roleFilter}
+                            onChange={(e: any) => setRoleFilter(e.target.value as UserRole | 'all')}
+                            size='small'
+                        >
+                            <MenuItem value='all'>Todas as Roles</MenuItem>
+                            <MenuItem value='ADMIN'>Admin</MenuItem>
+                            <MenuItem value='QRCODE'>QR Code</MenuItem>
+                            <MenuItem value='CLIENTE'>Cliente</MenuItem>
+                        </Select>
+                        <Select
+                            value={statusFilter}
+                            onChange={(e: any) => {
+                                const value = e.target.value
+                                if (value === 'all' || value === 'true' || value === 'false') {
+                                    setStatusFilter(value)
+                                }
+                            }}
+                            size='small'
+                        >
+                            <MenuItem value='all'>Todos os Status</MenuItem>
+                            <MenuItem value='true'>Ativo</MenuItem>
+                            <MenuItem value='false'>Inativo</MenuItem>
+                        </Select>
+                        <Select
+                            value={suspiciousFilter}
+                            onChange={(e: any) => {
+                                const value = e.target.value
+                                if (value === 'all' || value === 'true' || value === 'false') {
+                                    setSuspiciousFilter(value)
+                                }
+                            }}
+                            size='small'
+                        >
+                            <MenuItem value='all'>Todos (Suspeitos)</MenuItem>
+                            <MenuItem value='true'>Suspeitos</MenuItem>
+                            <MenuItem value='false'>Não Suspeitos</MenuItem>
+                        </Select>
+                        <Select
+                            value={blacklistedFilter}
+                            onChange={(e: any) => {
+                                const value = e.target.value
+                                if (value === 'all' || value === 'true' || value === 'false') {
+                                    setBlacklistedFilter(value)
+                                }
+                            }}
+                            size='small'
+                        >
+                            <MenuItem value='all'>Todos (Blacklist)</MenuItem>
+                            <MenuItem value='true'>Bloqueados</MenuItem>
+                            <MenuItem value='false'>Não Bloqueados</MenuItem>
+                        </Select>
+                    </div>
+
                     {loading ? (
                         <Box className='flex flex-col items-center justify-center py-12'>
                             <i className='tabler-loader-2 animate-spin text-6xl text-textSecondary mb-4' />
@@ -356,50 +473,20 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                         <Box className='flex flex-col items-center justify-center py-12'>
                             <i className='tabler-users text-6xl text-textSecondary mb-4' />
                             <Typography variant='h6' color='text.secondary' className='mb-2'>
-                                Nenhum usuário encontrado
+                                {hasActiveFilters 
+                                    ? 'Não foram encontrados resultados para esse filtro'
+                                    : 'Nenhum usuário encontrado'
+                                }
                             </Typography>
                             <Typography variant='body2' color='text.secondary'>
-                                Os usuários aparecerão aqui quando forem criados
+                                {hasActiveFilters
+                                    ? 'Tente ajustar os filtros acima para ver outros resultados'
+                                    : 'Os usuários aparecerão aqui quando forem criados'
+                                }
                             </Typography>
                         </Box>
                     ) : (
                         <>
-                            <div className='flex items-center gap-4 mb-6 flex-wrap'>
-                                <CustomTextField
-                                    value={globalFilter}
-                                    onChange={(e) => setGlobalFilter(e.target.value)}
-                                    placeholder='Buscar usuários...'
-                                    className='flex-1 min-w-[200px]'
-                                    InputProps={{
-                                        startAdornment: <i className='tabler-search text-xl text-textSecondary' />
-                                    }}
-                                />
-                                <Select
-                                    value={roleFilter}
-                                    onChange={(e: any) => setRoleFilter(e.target.value as UserRole | 'all')}
-                                    size='small'
-                                >
-                                    <MenuItem value='all'>Todas as Roles</MenuItem>
-                                    <MenuItem value='ADMIN'>Admin</MenuItem>
-                                    <MenuItem value='QRCODE'>QR Code</MenuItem>
-                                    <MenuItem value='CLIENTE'>Cliente</MenuItem>
-                                </Select>
-                                <Select
-                                    value={statusFilter}
-                                    onChange={(e: any) => {
-                                        const value = e.target.value
-                                        if (value === 'all' || value === 'true' || value === 'false') {
-                                            setStatusFilter(value)
-                                        }
-                                    }}
-                                    size='small'
-                                >
-                                    <MenuItem value='all'>Todos os Status</MenuItem>
-                                    <MenuItem value='true'>Ativo</MenuItem>
-                                    <MenuItem value='false'>Inativo</MenuItem>
-                                </Select>
-                            </div>
-
                             <div className='overflow-x-auto'>
                                 <table className={tableStyles.table}>
                                     <thead>

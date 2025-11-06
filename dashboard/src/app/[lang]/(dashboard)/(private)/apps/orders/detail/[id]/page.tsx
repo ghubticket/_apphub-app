@@ -153,23 +153,18 @@ export default function OrderDetailPage() {
                                                         </div>
                                                     ) : null}
                                                 </div>
-                                                <Box className='flex items-center gap-2'>
-                                                    {(() => {
-                                                        const status = String(t.status || '').toLowerCase()
-                                                        const labelMap: Record<string, string> = {
-                                                            confirmed: 'CONFIRMADO',
-                                                            pending: 'PENDENTE',
-                                                            cancelled: 'CANCELADO',
-                                                            refunded: 'REEMBOLSADO',
-                                                            used: 'USADO'
-                                                        }
-                                                        const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
-                                                        return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
-                                                    })()}
-                                                    {t.status === 'used'
-                                                        ? <Chip size='small' label='USADO' color='success' variant='tonal' />
-                                                        : <Chip size='small' label='NÃO UTILIZADO' color='info' variant='tonal' />}
-                                                </Box>
+                                                {(() => {
+                                                    const status = String(t.status || '').toLowerCase()
+                                                    const labelMap: Record<string, string> = {
+                                                        confirmed: 'CONFIRMADO',
+                                                        pending: 'PENDENTE',
+                                                        cancelled: 'CANCELADO',
+                                                        refunded: 'REEMBOLSADO',
+                                                        used: 'USADO'
+                                                    }
+                                                    const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
+                                                    return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
+                                                })()}
                                             </Box>
                                         ))}
                                     </Box>
@@ -218,23 +213,18 @@ export default function OrderDetailPage() {
                                         </div>
                                     )}
                                 </div>
-                                <Box className='flex items-center gap-2'>
-                                    {(() => {
-                                        const status = String(t.status || '').toLowerCase()
-                                        const labelMap: Record<string, string> = {
-                                            confirmed: 'CONFIRMADO',
-                                            pending: 'PENDENTE',
-                                            cancelled: 'CANCELADO',
-                                            refunded: 'REEMBOLSADO',
-                                            used: 'USADO'
-                                        }
-                                        const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
-                                        return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
-                                    })()}
-                                    {t.status === 'used'
-                                        ? <Chip size='small' label='USADO' color='success' variant='tonal' />
-                                        : <Chip size='small' label='NÃO UTILIZADO' color='info' variant='tonal' />}
-                                </Box>
+                                {(() => {
+                                    const status = String(t.status || '').toLowerCase()
+                                    const labelMap: Record<string, string> = {
+                                        confirmed: 'CONFIRMADO',
+                                        pending: 'PENDENTE',
+                                        cancelled: 'CANCELADO',
+                                        refunded: 'REEMBOLSADO',
+                                        used: 'USADO'
+                                    }
+                                    const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
+                                    return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
+                                })()}
                             </Box>
                         ))}
                     </Box>

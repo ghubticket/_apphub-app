@@ -29,31 +29,39 @@ import '@/app/globals.css'
 import '@assets/iconify-icons/generated-icons.css'
 
 export const metadata = {
-  title: 'Vuexy - MUI Next.js Admin Dashboard Template',
-  description:
-    'Vuexy - MUI Next.js Admin Dashboard Template - is the most developer friendly & highly customizable Admin Dashboard Template based on MUI v5.'
+    title: 'Vuexy - MUI Next.js Admin Dashboard Template',
+    description:
+        'Vuexy - MUI Next.js Admin Dashboard Template - is the most developer friendly & highly customizable Admin Dashboard Template based on MUI v5.'
 }
 
 const RootLayout = async (props: ChildrenType & { params: Promise<{ lang: Locale }> }) => {
-  const params = await props.params
+    const params = await props.params
 
-  const { children } = props
+    const { children } = props
 
-  // Vars
-  const headersList = await headers()
-  const systemMode = await getSystemMode()
-  const direction = i18n.langDirection[params.lang]
+    // Vars
+    const headersList = await headers()
+    const systemMode = await getSystemMode()
+    const direction = i18n.langDirection[params.lang]
 
-  return (
-    <TranslationWrapper headersList={headersList} lang={params.lang}>
-      <html id='__next' lang={params.lang} dir={direction} suppressHydrationWarning>
-        <body className='flex is-full min-bs-full flex-auto flex-col'>
-          <InitColorSchemeScript attribute='data' defaultMode={systemMode} />
-          {children}
-        </body>
-      </html>
-    </TranslationWrapper>
-  )
+    return (
+        <TranslationWrapper headersList={headersList} lang={params.lang}>
+            <html id='__next' lang={params.lang} dir={direction} suppressHydrationWarning>
+                <head>
+                    <link rel="preconnect" href="https://fonts.googleapis.com" />
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+                    <link
+                        href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&display=swap"
+                        rel="stylesheet"
+                    />
+                </head>
+                <body className='flex is-full min-bs-full flex-auto flex-col'>
+                    <InitColorSchemeScript attribute='data' defaultMode={systemMode} />
+                    {children}
+                </body>
+            </html>
+        </TranslationWrapper>
+    )
 }
 
 export default RootLayout

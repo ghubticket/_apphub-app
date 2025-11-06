@@ -705,7 +705,7 @@ export const getUserById = async (req: Request, res: Response) => {
 
 export const getAllUsers = async (req: Request, res: Response) => {
     try {
-        const { page = 1, limit = 10, search = '', role = '', status = '' } = req.query;
+        const { page = 1, limit = 10, search = '', role = '', status = '', suspicious = '', blacklisted = '' } = req.query;
         
         // Construir filtros
         const filters: any = {};
@@ -723,6 +723,16 @@ export const getAllUsers = async (req: Request, res: Response) => {
         
         if (status !== '' && status !== 'all') {
             filters.isActive = status === 'true';
+        }
+
+        // Filtro para usuários suspeitos
+        if (suspicious !== '' && suspicious !== 'all') {
+            filters.isSuspicious = suspicious === 'true';
+        }
+
+        // Filtro para usuários na blacklist
+        if (blacklisted !== '' && blacklisted !== 'all') {
+            filters.isBlacklisted = blacklisted === 'true';
         }
 
         // Adicionar filtro para não retornar usuários deletados

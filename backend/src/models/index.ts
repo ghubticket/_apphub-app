@@ -9,6 +9,7 @@ export { default as Session } from './Session';
 export { default as PromoterCode } from './PromoterCode';
 export { default as WebhookEvent } from './WebhookEvent';
 export { default as QrNonce } from './QrNonce';
+export { default as ValidationAttempt } from './ValidationAttempt';
 
 // Re-exportar tipos para facilitar importação
 export type { IUser } from './User';
@@ -21,3 +22,4 @@ export type { ISession } from './Session';
 export type { IPromoterCode } from './PromoterCode';
 export type { IWebhookEvent } from './WebhookEvent';
 export type { IQrNonce } from './QrNonce';
+export type { IValidationAttempt } from './ValidationAttempt';

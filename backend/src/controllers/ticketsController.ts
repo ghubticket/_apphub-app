@@ -1,6 +1,110 @@
 import { Request, Response } from 'express';
 import { Ticket, TicketType, Event, Order, User, QrNonce } from '../models';
 import { verifyAndDecode } from '../services/qrCodeService';
+import ValidationAttempt from '../models/ValidationAttempt';
+import { checkUserBlocked } from './usersController';
+
+/**
+ * Helper: Registra tentativa de validação e detecta padrões suspeitos
+ */
+async function recordValidationAttempt(
+    ticketCode: string,
+    success: boolean,
+    reason: string | undefined,
+    req: Request,
+    ticket?: any,
+    validatorId?: string
+) {
+    try {
+        const ipAddress = (req.ip || req.connection.remoteAddress || 'unknown').toString();
+        const userAgent = req.get('user-agent') || 'unknown';
+
+        // Registrar tentativa
+        const attempt = await ValidationAttempt.create({
+            ticketCode: ticketCode.toUpperCase(),
+            ticketId: ticket?._id,
+            holderId: ticket?.holder?._id || ticket?.holder,
+            validatorId: validatorId,
+            eventId: ticket?.event?._id || ticket?.event,
+            success,
+            reason,
+            ipAddress,
+            userAgent,
+        });
+
+        // Se falhou e tem holder, verificar padrões suspeitos
+        if (!success && ticket?.holder) {
+            await checkSuspiciousPatterns(ticket.holder._id || ticket.holder, ticketCode);
+        }
+
+        // Se sucesso, verificar se mesmo QR foi usado em múltiplos eventos
+        if (success && ticket?.event) {
+            await checkMultiEventUsage(ticketCode);
+        }
+
+        return attempt;
+    } catch (error: any) {
+        // Não falhar a validação se o registro der erro
+        console.error('Erro ao registrar tentativa de validação:', error);
+    }
+}
+
+/**
+ * Helper: Detecta padrões suspeitos e atualiza flags do usuário
+ */
+async function checkSuspiciousPatterns(holderId: string, ticketCode: string) {
+    try {
+        const user = await User.findById(holderId);
+        if (!user || user.role === 'ADMIN' || user.role === 'QRCODE') return;
+
+        // Contar tentativas suspeitas nas últimas 24h
+        const suspiciousCount = await ValidationAttempt.countDocuments({
+            holderId,
+            success: false,
+            reason: { $in: ['already_used', 'replay_detected'] },
+            createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        });
+
+        // Atualizar contador
+        user.suspiciousActivityCount = suspiciousCount;
+        user.lastSuspiciousActivity = new Date();
+
+        // Marcar como suspeito se tiver 3+ tentativas suspeitas
+        if (suspiciousCount >= 3) {
+            user.isSuspicious = true;
+            user.suspiciousReason = `Múltiplas tentativas de usar QR codes já utilizados (${suspiciousCount} tentativas nas últimas 24h)`;
+        }
+
+        await user.save();
+    } catch (error: any) {
+        console.error('Erro ao verificar padrões suspeitos:', error);
+    }
+}
+
+/**
+ * Helper: Verifica se mesmo QR foi usado em múltiplos eventos
+ */
+async function checkMultiEventUsage(ticketCode: string) {
+    try {
+        const result = await (ValidationAttempt as any).checkMultiEventUsage(ticketCode, 24);
+
+        // Se mesmo QR foi usado em 2+ eventos diferentes, marcar como suspeito
+        if (result.uniqueEvents >= 2) {
+            const ticket = await Ticket.findOne({ code: ticketCode.toUpperCase() });
+            if (ticket?.holder) {
+                const user = await User.findById(ticket.holder);
+                if (user && user.role === 'CLIENTE') {
+                    user.isSuspicious = true;
+                    user.suspiciousReason = `Mesmo QR code usado em ${result.uniqueEvents} eventos diferentes`;
+                    user.lastSuspiciousActivity = new Date();
+                    await user.save();
+                }
+            }
+        }
+    } catch (error: any) {
+        console.error('Erro ao verificar uso em múltiplos eventos:', error);
+    }
+}
 
 /**
  * Busca um ticket por código (para validação de QR code)
@@ -59,12 +163,12 @@ export const validateTicket = async (req: Request, res: Response) => {
         const validatorId = (req as any).user?._id?.toString() || (req as any).user?.id;
         const validatorRole = (req as any).user?.role;
 
-        // Verificar permissão (apenas QRCODE ou ADMIN)
-        if (validatorRole !== 'QRCODE' && validatorRole !== 'ADMIN') {
+        // Verificar permissão (APENAS QRCODE - Admin não valida para não bagunçar)
+        if (validatorRole !== 'QRCODE') {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: ['Apenas usuários QRCODE podem validar ingressos']
+                errors: ['Apenas usuários com role QRCODE podem validar ingressos']
             });
         }
 
@@ -82,14 +186,30 @@ export const validateTicket = async (req: Request, res: Response) => {
         });
 
         if (!ticket) {
+            // Registrar tentativa de ingresso não encontrado
+            await recordValidationAttempt(code, false, 'not_found', req, undefined, validatorId);
             return res.status(404).json({
                 success: false,
                 message: 'Ingresso não encontrado'
             });
         }
 
+        // Verificar se o dono do ingresso está bloqueado
+        if (ticket.holder) {
+            const blocked = await checkUserBlocked(ticket.holder.toString());
+            if (blocked.blocked) {
+                await recordValidationAttempt(code, false, 'unauthorized', req, ticket, validatorId);
+                return res.status(403).json({
+                    success: false,
+                    message: 'Validação bloqueada',
+                    errors: [blocked.reason || 'Usuário está bloqueado']
+                });
+            }
+        }
+
         // Verificar se o ingresso está confirmado
         if (ticket.status !== 'confirmed') {
+            await recordValidationAttempt(code, false, 'invalid_status', req, ticket, validatorId);
             return res.status(400).json({
                 success: false,
                 message: 'Ingresso não confirmado',
@@ -100,6 +220,7 @@ export const validateTicket = async (req: Request, res: Response) => {
         // Verificar se o pedido está pago
         const order = await Order.findById(ticket.order);
         if (!order || order.status !== 'paid') {
+            await recordValidationAttempt(code, false, 'order_not_paid', req, ticket, validatorId);
             return res.status(400).json({
                 success: false,
                 message: 'Pedido não pago',
@@ -110,6 +231,7 @@ export const validateTicket = async (req: Request, res: Response) => {
         // Verificar se o evento ainda está ativo
         const event = await Event.findById(ticket.event);
         if (!event || !event.isActive || event.deletedAt) {
+            await recordValidationAttempt(code, false, 'event_inactive', req, ticket, validatorId);
             return res.status(400).json({
                 success: false,
                 message: 'Evento não disponível',
@@ -147,6 +269,8 @@ export const validateTicket = async (req: Request, res: Response) => {
             const currentTicket = await Ticket.findById(ticket._id);
             
             if (currentTicket?.status === 'used') {
+                // Registrar tentativa de usar QR já utilizado (SUSPEITO!)
+                await recordValidationAttempt(code, false, 'already_used', req, ticket, validatorId);
                 return res.status(400).json({
                     success: false,
                     message: 'Ingresso já utilizado',
@@ -157,6 +281,7 @@ export const validateTicket = async (req: Request, res: Response) => {
                 });
             }
 
+            await recordValidationAttempt(code, false, 'other', req, ticket, validatorId);
             return res.status(409).json({
                 success: false,
                 message: 'Conflito na validação',
@@ -172,6 +297,9 @@ export const validateTicket = async (req: Request, res: Response) => {
             .populate('holder', 'name email')
             .populate('usedBy', 'name email')
             .lean();
+
+        // Registrar tentativa bem-sucedida
+        await recordValidationAttempt(code, true, undefined, req, populatedTicket, validatorId);
 
         res.json({
             success: true,
@@ -271,13 +399,14 @@ export const listEventTickets = async (req: Request, res: Response) => {
 
 /**
  * Lê e valida QR seguro (AES+HMAC). Previene replay via nonce persistente.
- * Requer role QRCODE ou ADMIN.
+ * Requer role QRCODE (Admin não valida para não bagunçar).
  */
 export const scanSecureQr = async (req: Request, res: Response) => {
     try {
         const role = (req as any).user?.role;
-        if (role !== 'QRCODE' && role !== 'ADMIN') {
-            return res.status(403).json({ success: false, message: 'Acesso negado' });
+        // Apenas QRCODE pode ler QR codes (Admin não para não bagunçar)
+        if (role !== 'QRCODE') {
+            return res.status(403).json({ success: false, message: 'Acesso negado. Apenas usuários com role QRCODE podem ler QR codes.' });
         }
 
         const { qr } = req.body || {};
@@ -285,13 +414,54 @@ export const scanSecureQr = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: 'QR inválido' });
         }
 
-        const { ticketCode, ts, nonce } = verifyAndDecode(qr);
+        // Se já é payload direto (QR1.xxx), usar direto
+        // Se for imagem base64, extrair payload primeiro
+        let qrPayload = qr;
+        if (!qr.startsWith('QR1.')) {
+            try {
+                // Tentar decodificar como imagem QR
+                const QRCode = require('qrcode');
+                const Jimp = require('jimp');
+                const jsQR = require('jsqr');
+                
+                let base64Data = qr;
+                if (qr.startsWith('data:')) {
+                    const commaIdx = qr.indexOf(',');
+                    if (commaIdx === -1) {
+                        return res.status(400).json({ success: false, message: 'Formato de QR inválido' });
+                    }
+                    base64Data = qr.substring(commaIdx + 1);
+                }
+                
+                const imageBuffer = Buffer.from(base64Data, 'base64');
+                const image = await Jimp.read(imageBuffer);
+                const imageData = {
+                    data: new Uint8ClampedArray(image.bitmap.data),
+                    width: image.bitmap.width,
+                    height: image.bitmap.height
+                };
+                
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                if (!code || !code.data) {
+                    return res.status(400).json({ success: false, message: 'Não foi possível decodificar a imagem QR' });
+                }
+                
+                qrPayload = code.data;
+            } catch (e: any) {
+                return res.status(400).json({ success: false, message: `Erro ao processar QR: ${e?.message || 'Formato inválido'}` });
+            }
+        }
+
+        const { ticketCode, ts, nonce } = verifyAndDecode(qrPayload);
 
         // Anti-replay: registrar nonce único
         try {
             await QrNonce.create({ nonce, ticketCode: ticketCode.toUpperCase(), ts });
         } catch (e: any) {
             if (String(e?.code) === '11000') {
+                // Replay detectado - registrar tentativa suspeita
+                const ticket = await Ticket.findOne({ code: ticketCode.toUpperCase(), deletedAt: null });
+                await recordValidationAttempt(ticketCode, false, 'replay_detected', req, ticket);
                 return res.status(409).json({ success: false, message: 'QR já utilizado (replay detectado)' });
             }
             throw e;

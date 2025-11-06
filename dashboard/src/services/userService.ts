@@ -9,6 +9,14 @@ export interface User {
     isActive: boolean
     phone?: string
     cpf?: string
+    // Flags de segurança
+    suspiciousActivityCount?: number
+    isSuspicious?: boolean
+    suspiciousReason?: string
+    lastSuspiciousActivity?: string
+    isBlacklisted?: boolean
+    blacklistReason?: string
+    blacklistedAt?: string
     createdAt: string
     updatedAt: string
 }
@@ -87,6 +95,8 @@ export const userService = {
         search?: string
         role?: UserRole
         status?: boolean
+        suspicious?: boolean
+        blacklisted?: boolean
     } = {}): Promise<UserListResponse> {
         const searchParams = new URLSearchParams()
 
@@ -95,6 +105,8 @@ export const userService = {
         if (params.search) searchParams.append('search', params.search)
         if (params.role) searchParams.append('role', params.role)
         if (params.status !== undefined) searchParams.append('status', params.status.toString())
+        if (params.suspicious !== undefined) searchParams.append('suspicious', params.suspicious.toString())
+        if (params.blacklisted !== undefined) searchParams.append('blacklisted', params.blacklisted.toString())
 
         const queryString = searchParams.toString()
     const url = `/users${queryString ? `?${queryString}` : ''}`
@@ -217,5 +229,27 @@ export const userService = {
         }
     }> {
         return authenticatedRequest(`/users/${userId}`)
-    }
+    },
+
+    // Marcar/desmarcar usuário como suspeito (apenas ADMIN)
+    async toggleSuspicious(
+        userId: string,
+        data: { isSuspicious?: boolean; reason?: string }
+    ): Promise<{ success: boolean; message: string; data: User }> {
+        return authenticatedRequest(`/users/${userId}/suspicious`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        })
+    },
+
+    // Adicionar/remover usuário da blacklist (apenas ADMIN)
+    async toggleBlacklist(
+        userId: string,
+        data: { isBlacklisted?: boolean; reason?: string }
+    ): Promise<{ success: boolean; message: string; data: User }> {
+        return authenticatedRequest(`/users/${userId}/blacklist`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        })
+    },
 }

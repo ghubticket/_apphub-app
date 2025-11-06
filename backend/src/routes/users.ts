@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate, isAdmin } from '../middleware/auth';
 import { getAllUsers, updateUserStatus, getUserById } from '../controllers/authController';
+import { toggleSuspicious, toggleBlacklist } from '../controllers/usersController';
 
 const router = Router();
 
@@ -43,6 +44,18 @@ const router = Router();
  *           type: string
  *           enum: [true, false]
  *         description: Filtrar por status ativo
+ *       - in: query
+ *         name: suspicious
+ *         schema:
+ *           type: string
+ *           enum: [true, false, all]
+ *         description: Filtrar por usuários suspeitos (true) ou não suspeitos (false)
+ *       - in: query
+ *         name: blacklisted
+ *         schema:
+ *           type: string
+ *           enum: [true, false, all]
+ *         description: Filtrar por usuários na blacklist (true) ou não bloqueados (false)
  *     responses:
  *       200:
  *         description: Lista de usuários retornada com sucesso
@@ -124,6 +137,74 @@ router.get('/:userId', authenticate, isAdmin, getUserById);
  *         description: Erro interno do servidor
  */
 router.patch('/:userId/status', authenticate, isAdmin, updateUserStatus);
+
+/**
+ * @swagger
+ * /users/{userId}/suspicious:
+ *   patch:
+ *     summary: Marcar/desmarcar usuário como suspeito
+ *     description: Atualiza flag de suspeito do usuário (apenas ADMIN)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               isSuspicious:
+ *                 type: boolean
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Status atualizado
+ *       403:
+ *         description: Acesso negado
+ */
+router.patch('/:userId/suspicious', authenticate, isAdmin, toggleSuspicious);
+
+/**
+ * @swagger
+ * /users/{userId}/blacklist:
+ *   patch:
+ *     summary: Adicionar/remover usuário da blacklist
+ *     description: Bloqueia ou desbloqueia usuário (apenas ADMIN)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               isBlacklisted:
+ *                 type: boolean
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Blacklist atualizada
+ *       403:
+ *         description: Acesso negado
+ */
+router.patch('/:userId/blacklist', authenticate, isAdmin, toggleBlacklist);
 
 export default router;
 
