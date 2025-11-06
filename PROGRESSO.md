@@ -65,7 +65,8 @@
   - Payer no nível raiz conforme spec da Orders API
   - Extração correta do QR Code a partir de `payment_method.qr_code` e `qr_code_base64`
   - `ticket_url` exposto para fallback de pagamento no MP
-  - Expiração configurável e retornada em `expiresAt`/`expirationMinutes`
+  - Expiração do PIX configurada no MP via `expiration_time` (ISO-8601). Default: `PT15M` (ENV `MP_PIX_EXPIRATION_ISO`)
+  - UI/Backend passam a usar exclusivamente o `date_of_expiration` devolvido pelo MP como fonte de verdade (evita falsos positivos)
 - ✅ Mapeamento completo de status (transação e order) com `paymentStatusMapper`
   - Mensagens amigáveis para usuário e admin
   - `internalStatus` padronizado (pending, paid, cancelled, refunded, processing, failed)
@@ -79,10 +80,27 @@
   - `GET /api/payments/:paymentId/status`
   - `GET /api/orders/:orderId/payment/status`
 - ✅ Webhook ajustado para notificações do tipo `order` (Orders API)
-  - Idempotência básica em memória e assinatura HMAC opcional via `MP_WEBHOOK_SECRET`
+  - Idempotência persistente (DB + fila + retry) e assinatura HMAC obrigatória em produção (`MP_WEBHOOK_SECRET`)
+  - Atualização de pedido e tickets conforme status do pagamento/ordem
 
-#### Frontend (integração planejada)
+- ✅ Cancelamento sem falso positivo
+  - Ao cancelar pedido pendente, consultamos status no MP
+    - Se `approved/paid` → bloqueia cancelamento
+    - Se `pending/in_process/action_required` → cancela no MP e só depois marca localmente
+  - Serviço de expiração consulta `date_of_expiration` no MP; se expirado e pendente, cancela no MP e depois local
+
+#### Frontend
 - Exposição de campos essenciais para UI: `qrCode`, `qrCodeBase64`, `ticketUrl`, `expiresAt`, `statusInfo`
+- Tela de detalhes do pedido
+  - Ícone e label do método de pagamento (PIX, Cartão)
+  - Status padronizado com chip (PENDENTE, CONFIRMADO, CANCELADO, REEMBOLSADO)
+  - "Detalhes do pagamento" com `paymentMessage`, `paymentAdminMessage`, `paymentStatusDetail` e erros do gateway
+  - Se VIP, oculta o card de resumo financeiro
+  - Ingressos mostram status padronizado e, quando `used`, exibem data e validador (usedAt/usedBy)
+
+- Lista de pedidos
+  - Ações no padrão do template (menu com “Ver detalhes”)
+  - Coluna "Tipo" removida (mostrada no detalhe)
 
 ### 🎁 Sistema de Distribuição de VIPs
 
@@ -169,12 +187,13 @@
 ### ⏰ Expiração Automática de Pedidos
 
 - ✅ **Serviço de expiração** (`orderExpirationService.ts`)
-  - Job automático que verifica pedidos pendentes expirados
+  - Job automático que verifica pedidos pendentes
+  - Fonte de verdade para PIX: `date_of_expiration` do MP (quando disponível)
   - Configurável via variáveis de ambiente:
-    - `ORDER_PAYMENT_TIMEOUT_MINUTES` (default: 15 minutos)
+    - `ORDER_PAYMENT_TIMEOUT_MINUTES` (fallback local, default: 15 minutos)
     - `ORDER_EXPIRATION_ENABLED` (default: `true`)
     - `ORDER_EXPIRATION_CHECK_INTERVAL_MS` (default: 60 segundos)
-  - Cancela pedidos pendentes após timeout
+  - Ao expirar: consulta status no MP, cancela no MP e só então cancela local (evita falso positivo)
   - Libera estoque automaticamente
   - Integrado no `server.ts` com `setInterval`
 

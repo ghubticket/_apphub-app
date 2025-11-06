@@ -66,6 +66,7 @@ export default function OrderDetailPage() {
         cancelled: 'error',
         refunded: 'info'
     }
+    const isVip = order.paymentMethod === 'vip_free'
 
     return (
         <Card>
@@ -133,50 +134,111 @@ export default function OrderDetailPage() {
                             </Box>
                         )}
                     </Grid>
-          {order.paymentMethod !== 'vip_free' && (
-            <Grid item xs={12} md={5}>
-              <Card variant='outlined'>
-                <CardContent>
-                  <Typography variant='h6' className='mb-3'>Resumo financeiro</Typography>
-                  <InfoRow label='Subtotal' value={`R$ ${(order.subtotal || 0).toFixed(2)}`} />
-                  <InfoRow label='Desconto' value={`R$ ${(order.discountAmount || 0).toFixed(2)}`} />
-                  <InfoRow label='Taxa' value={`R$ ${(order.platformFee || 0).toFixed(2)}`} />
-                  <InfoRow label='Total' value={<span className='font-medium'>R$ {(order.totalAmount || 0).toFixed(2)}</span>} />
-                  {waLink && (
-                    <Box className='mt-4'>
-                      <Button fullWidth variant='contained' color='success' startIcon={<i className='tabler-brand-whatsapp' />} href={waLink} target='_blank'>
-                        Contatar no WhatsApp
-                      </Button>
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
+                    {isVip ? (
+                        <Grid item xs={12} md={5}>
+                            <Card variant='outlined'>
+                                <CardContent>
+                                    <Typography variant='h6' className='mb-2'>Ingressos</Typography>
+                                    <Box className='space-y-2'>
+                                        {order.tickets?.map((t: any) => (
+                                            <Box key={t._id} className='flex items-center justify-between border rounded px-3 py-2'>
+                                                <div>
+                                                    <div className='font-medium'>{t.code}</div>
+                                                    <div className='text-sm text-textSecondary'>
+                                                        {t?.ticketType?.name || 'Ingresso'} • R$ {(t.price || 0).toFixed(2)}
+                                                    </div>
+                                                    {t.status === 'used' ? (
+                                                        <div className='text-xs text-textSecondary mt-1'>
+                                                            USADO em {t.usedAt ? new Date(t.usedAt).toLocaleString() : '—'}{t.usedBy ? ` por ${(t.usedBy as any)?.name || (t.usedBy as any)?.email}` : ''}
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                                <Box className='flex items-center gap-2'>
+                                                    {(() => {
+                                                        const status = String(t.status || '').toLowerCase()
+                                                        const labelMap: Record<string, string> = {
+                                                            confirmed: 'CONFIRMADO',
+                                                            pending: 'PENDENTE',
+                                                            cancelled: 'CANCELADO',
+                                                            refunded: 'REEMBOLSADO',
+                                                            used: 'USADO'
+                                                        }
+                                                        const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
+                                                        return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
+                                                    })()}
+                                                    {t.status === 'used'
+                                                        ? <Chip size='small' label='USADO' color='success' variant='tonal' />
+                                                        : <Chip size='small' label='NÃO UTILIZADO' color='info' variant='tonal' />}
+                                                </Box>
+                                            </Box>
+                                        ))}
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    ) : (
+                        <Grid item xs={12} md={5}>
+                            <Card variant='outlined'>
+                                <CardContent>
+                                    <Typography variant='h6' className='mb-3'>Resumo financeiro</Typography>
+                                    <InfoRow label='Subtotal' value={`R$ ${(order.subtotal || 0).toFixed(2)}`} />
+                                    <InfoRow label='Desconto' value={`R$ ${(order.discountAmount || 0).toFixed(2)}`} />
+                                    <InfoRow label='Taxa' value={`R$ ${(order.platformFee || 0).toFixed(2)}`} />
+                                    <InfoRow label='Total' value={<span className='font-medium'>R$ {(order.totalAmount || 0).toFixed(2)}</span>} />
+                                    {waLink && (
+                                        <Box className='mt-4'>
+                                            <Button fullWidth variant='contained' color='success' startIcon={<i className='tabler-brand-whatsapp' />} href={waLink} target='_blank'>
+                                                Contatar no WhatsApp
+                                            </Button>
+                                        </Box>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    )}
                 </Grid>
 
-                <Typography variant='h6' className='mt-6 mb-2'>Ingressos</Typography>
-                <Box className='space-y-2'>
-          {order.tickets?.map((t: any) => (
-            <Box key={t._id} className='flex items-center justify-between border rounded px-3 py-2'>
-              <div>
-                <div className='font-medium'>{t.code}</div>
-                <div className='text-sm text-textSecondary'>{t?.ticketType?.name || 'Ingresso'} • R$ {(t.price || 0).toFixed(2)}</div>
-              </div>
-              {(() => {
-                const status = String(t.status || '').toLowerCase()
-                const labelMap: Record<string, string> = {
-                  confirmed: 'CONFIRMADO',
-                  pending: 'PENDENTE',
-                  cancelled: 'CANCELADO',
-                  refunded: 'REEMBOLSADO'
-                }
-                const color = status === 'confirmed' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
-                return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
-              })()}
-            </Box>
-          ))}
-                </Box>
+                {!isVip && (<>
+                    <Typography variant='h6' className='mt-6 mb-2'>Ingressos</Typography>
+                    <Box className='space-y-2'>
+                        {order.tickets?.map((t: any) => (
+                            <Box key={t._id} className='flex items-center justify-between border rounded px-3 py-2'>
+                                <div>
+                                    <div className='font-medium'>{t.code}</div>
+                                    <div className='text-sm text-textSecondary'>
+                                        {t?.ticketType?.name || 'Ingresso'} • R$ {(t.price || 0).toFixed(2)}
+                                    </div>
+                                    {t.status === 'used' ? (
+                                        <div className='text-xs text-textSecondary mt-1'>
+                                            USADO em {t.usedAt ? new Date(t.usedAt).toLocaleString() : '—'}{t.usedBy ? ` por ${(t.usedBy as any)?.name || (t.usedBy as any)?.email}` : ''}
+                                        </div>
+                                    ) : (
+                                        <div className='text-xs text-textSecondary mt-1'>
+                                            NÃO UTILIZADO
+                                        </div>
+                                    )}
+                                </div>
+                                <Box className='flex items-center gap-2'>
+                                    {(() => {
+                                        const status = String(t.status || '').toLowerCase()
+                                        const labelMap: Record<string, string> = {
+                                            confirmed: 'CONFIRMADO',
+                                            pending: 'PENDENTE',
+                                            cancelled: 'CANCELADO',
+                                            refunded: 'REEMBOLSADO',
+                                            used: 'USADO'
+                                        }
+                                        const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
+                                        return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
+                                    })()}
+                                    {t.status === 'used'
+                                        ? <Chip size='small' label='USADO' color='success' variant='tonal' />
+                                        : <Chip size='small' label='NÃO UTILIZADO' color='info' variant='tonal' />}
+                                </Box>
+                            </Box>
+                        ))}
+                    </Box>
+                </>)}
             </CardContent>
         </Card>
     )

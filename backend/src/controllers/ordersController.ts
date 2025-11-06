@@ -446,8 +446,12 @@ export const getOrderById = async (req: Request, res: Response) => {
             .populate('event', 'name date location coverImage squareImage')
             .populate({
                 path: 'tickets',
-                select: 'code qrCode status price ticketType',
-                match: { deletedAt: null }
+                select: 'code qrCode status price ticketType usedAt usedBy',
+                match: { deletedAt: null },
+                populate: [
+                    { path: 'usedBy', select: 'name email' },
+                    { path: 'ticketType', select: 'name price isVIP' }
+                ]
             })
             .populate('customer', 'name email')
             .lean();
