@@ -104,7 +104,9 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
         isLoading: false 
       });
     } catch (error) {
-      console.error('Erro ao carregar histórico do backend:', error);
+      if (import.meta.env.DEV) {
+        console.error('Erro ao carregar histórico do backend:', error);
+      }
       set({ isLoading: false });
     }
   },
@@ -133,7 +135,9 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
         duplicateAttempts: result.duplicateAttempts
       });
     } catch (error) {
-      console.error('Erro ao sincronizar histórico:', error);
+      if (import.meta.env.DEV) {
+        console.error('Erro ao sincronizar histórico:', error);
+      }
     }
   },
 }));

@@ -34,7 +34,7 @@ body {
 
 /* Estilos específicos do QR Scanner */
 #qr-reader {
-  border-radius: 0.75rem;
+  border-radius: 0;
   overflow: hidden;
   background: #000;
   min-height: 300px;
@@ -42,17 +42,73 @@ body {
 
 #qr-reader video {
   width: 100% !important;
-  height: auto !important;
-  border-radius: 0.75rem;
+  height: 100% !important;
+  border-radius: 0;
+  object-fit: cover;
 }
 
+/* Ocultar dashboard completamente (fita preta) */
 #qr-reader__dashboard {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  top: -9999px !important;
+}
+
+/* NÃO ocultar elementos - pode quebrar o scanner */
+/* Apenas ocultar dashboard específico */
+
+/* Ocultar elementos com classe dashboard */
+#qr-reader .qr-reader__dashboard,
+#qr-reader [class*="dashboard"] {
   display: none !important;
 }
 
 #qr-reader__scan_region {
-  border: 3px solid #667eea !important;
-  border-radius: 0.75rem;
+  border: none !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+/* Modo tela cheia - não precisa de estilos para scan region */
+
+/* Canvas específico - onde os coletores são desenhados */
+/* html5-qrcode usa #qr-canvas como ID */
+/* Se não houver qrbox, o canvas pode não existir - isso é normal */
+#qr-canvas {
+  display: none !important; /* Ocultar canvas quando não há qrbox (modo tela cheia) */
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Ocultar qualquer vídeo dentro do canvas ou região de scan */
+#qr-canvas video,
+#qr-reader__scan_region video,
+#qr-reader__scan_region > video,
+canvas video {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Canvas dentro da scan region também */
+/* Ocultar quando em modo tela cheia (sem qrbox) */
+#qr-reader__scan_region canvas,
+#qr-reader canvas {
+  display: none !important; /* Ocultar canvas no modo tela cheia */
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* App específico */
@@ -104,8 +160,30 @@ body {
 
 .app-main {
   flex: 1;
-  padding: 1rem;
-  overflow-y: auto;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Quando scanner está ativo, ocultar header e nav */
+.app.scanner-active {
+  overflow: hidden;
+}
+
+.app.scanner-active .app-header,
+.app.scanner-active .app-nav {
+  display: none !important;
+}
+
+.app.scanner-active .app-main {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
 }
 
 /* Utilitários adicionais */
@@ -128,17 +206,129 @@ body {
 
 /* Container do QR Scanner */
 .qr-scanner-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
+  justify-content: center;
   flex-direction: column;
-  gap: 1rem;
-  max-width: 600px;
-  margin: 0 auto;
+  flex: 1;
+  min-height: 0;
+  /* Permite que o flex funcione corretamente */
 }
 
 .scanner-controls {
   display: flex;
   justify-content: center;
   gap: 1rem;
+  padding: 1rem;
+}
+
+/* Scanner em tela cheia */
+.qr-reader-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  background: #000;
+}
+
+.qr-reader-fullscreen video {
+  width: 100vw !important;
+  height: 100vh !important;
+  object-fit: cover;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 1 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  /* Garantir que não se mova */
+  will-change: auto !important;
+  transform: none !important;
+}
+
+/* Garantir que há apenas UM vídeo (o principal) */
+.qr-reader-fullscreen video:not(:first-of-type) {
+  display: none !important;
+}
+
+.qr-reader-fullscreen #qr-reader__scan_region {
+  width: 100vw !important;
+  height: 100vh !important;
+  border: none !important;
+  z-index: 2;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  position: relative !important;
+}
+
+/* NÃO interferir com o posicionamento padrão do html5-qrcode */
+/* Deixar o html5-qrcode renderizar os coletores naturalmente */
+/* Apenas garantir visibilidade básica */
+.qr-reader-fullscreen #qr-reader__scan_region > * {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Forçar remoção de qualquer barra/fita preta - mas apenas seletivamente */
+/* Não ocultar todos os divs, pode quebrar o scanner */
+
+/* Garantir que apenas o vídeo e a região de scan são visíveis */
+/* NÃO ocultar tudo - pode quebrar o scanner */
+/* #qr-reader > *:not(video):not(#qr-reader__scan_region) {
+  display: none !important;
+} */
+
+/* Overlay de mensagens sobre a câmera */
+.scanner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.scanner-overlay-content {
+  max-width: 90%;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Botão de logout customizado */
@@ -165,6 +355,7 @@ body {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -197,6 +388,91 @@ body {
   border-left-color: rgba(220, 53, 69, 0.5) !important;
 }
 
+/* Painel de Debug Visual */
+.debug-panel {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  max-width: 90%;
+  max-height: 40vh;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0;
+  z-index: 10000;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.debug-header {
+  background: rgba(102, 126, 234, 0.9);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.debug-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.2s;
+}
+
+.debug-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.debug-content {
+  padding: 8px 12px;
+  overflow-y: auto;
+  max-height: calc(40vh - 40px);
+}
+
+.debug-line {
+  margin: 4px 0;
+  word-break: break-all;
+  white-space: pre-wrap;
+  color: #fff;
+  font-size: 10px;
+}
+
+.debug-line:first-child {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+/* Scrollbar customizada para debug */
+.debug-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.debug-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.debug-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
 /* Responsivo */
 @media (max-width: 768px) {
   .app-header h1 {
@@ -217,5 +493,13 @@ body {
   .search-input {
     padding-right: 2.5rem;
   }
-}
 
+  .debug-panel {
+    font-size: 10px;
+    max-height: 35vh;
+  }
+
+  .debug-line {
+    font-size: 9px;
+  }
+}

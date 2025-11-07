@@ -50,7 +50,9 @@ const ManualSearch = () => {
         timestamp: new Date(),
       });
     } catch (err: any) {
-      console.error('Erro ao buscar ingresso:', err);
+      if (import.meta.env.DEV) {
+        console.error('Erro ao buscar ingresso:', err);
+      }
       setError('Erro ao buscar ingresso. Tente novamente.');
     } finally {
       setIsSearching(false);

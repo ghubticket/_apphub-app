@@ -12,32 +12,37 @@ if (typeof window !== 'undefined') {
   if (hostname.includes('ngrok') || hostname.includes('trycloudflare') || hostname.includes('ngrok-free')) {
     // Se estiver via túnel HTTPS, usar o túnel do backend também
     if (!import.meta.env.VITE_API_URL) {
-      console.error('❌ ERRO: VITE_API_URL não configurado!');
-      console.error('🌐 Você está acessando via túnel HTTPS.');
-      console.error('💡 SOLUÇÃO: Crie o arquivo .env na pasta qr-scanner-app com:');
-      console.error('   VITE_API_URL=https://SEU_TUNEL_BACKEND.trycloudflare.com/api');
-      console.error('   OU se usar IP local:');
-      console.error('   VITE_API_URL=http://192.168.18.157:3001/api');
-      console.error('   Depois, REINICIE o servidor (Ctrl+C e npm run dev novamente)');
+      if (import.meta.env.DEV) {
+        console.error('❌ ERRO: VITE_API_URL não configurado!');
+        console.error('🌐 Você está acessando via túnel HTTPS.');
+        console.error('💡 SOLUÇÃO: Crie o arquivo .env na pasta qr-scanner-app com:');
+        console.error('   VITE_API_URL=https://SEU_TUNEL_BACKEND.trycloudflare.com/api');
+        console.error('   OU se usar IP local:');
+        console.error('   VITE_API_URL=http://192.168.18.157:3001/api');
+        console.error('   Depois, REINICIE o servidor (Ctrl+C e npm run dev novamente)');
+      }
       // Não tentar usar IP padrão - forçar erro claro
       API_URL = 'http://ERRO-CONFIGURE-ENV:3001/api';
-    } else {
-      // Se VITE_API_URL está configurado, usar ele (pode ser HTTPS ou HTTP)
+    } else if (import.meta.env.DEV) {
       console.log('✅ Usando VITE_API_URL do .env:', import.meta.env.VITE_API_URL);
     }
   } else if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !import.meta.env.VITE_API_URL) {
     // Acesso direto via IP na rede local
     API_URL = `http://${hostname}:3001/api`;
-    console.log('🌐 Detectado acesso via rede local. Usando:', API_URL);
+    if (import.meta.env.DEV) {
+      console.log('🌐 Detectado acesso via rede local. Usando:', API_URL);
+    }
   }
 }
 
 // Validar que a URL termina com /api
-if (!API_URL.endsWith('/api')) {
+if (!API_URL.endsWith('/api') && import.meta.env.DEV) {
   console.warn('⚠️ VITE_API_URL deve terminar com /api. Exemplo: http://192.168.18.157:3001/api');
 }
 
-console.log('🔗 API URL configurada:', API_URL);
+if (import.meta.env.DEV) {
+  console.log('🔗 API URL configurada:', API_URL);
+}
 
 export const api = axios.create({
   baseURL: API_URL,

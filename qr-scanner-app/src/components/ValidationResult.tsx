@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ValidationResult as ValidationResultType } from '../types';
 
 interface ValidationResultProps {
   result: ValidationResultType;
 }
 
-const ValidationResult = ({ result }: ValidationResultProps) => {
+const ValidationResult = memo(({ result }: ValidationResultProps) => {
   return (
     <div className={`card border-start border-4 ${
       result.success ? 'border-success' : result.alreadyUsed ? 'border-danger' : 'border-warning'
@@ -58,7 +59,9 @@ const ValidationResult = ({ result }: ValidationResultProps) => {
       </div>
     </div>
   );
-};
+});
+
+ValidationResult.displayName = 'ValidationResult';
 
 export default ValidationResult;
 
