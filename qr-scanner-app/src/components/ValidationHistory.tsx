@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useValidationStore } from '../store/validationStore';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -5,6 +6,13 @@ import { ptBR } from 'date-fns/locale';
 const ValidationHistory = () => {
   const history = useValidationStore((state) => state.getRecentHistory(50));
   const clearHistory = useValidationStore((state) => state.clearHistory);
+  const loadHistoryFromBackend = useValidationStore((state) => state.loadHistoryFromBackend);
+  const isLoading = useValidationStore((state) => state.isLoading);
+
+  // Carregar histórico do backend ao montar o componente
+  useEffect(() => {
+    loadHistoryFromBackend();
+  }, [loadHistoryFromBackend]);
 
   return (
     <div className="validation-history">
@@ -17,7 +25,11 @@ const ValidationHistory = () => {
         )}
       </div>
 
-      {history.length === 0 ? (
+      {isLoading ? (
+        <div className="empty-history">
+          <p>Carregando histórico...</p>
+        </div>
+      ) : history.length === 0 ? (
         <div className="empty-history">
           <p>Nenhuma validação realizada ainda.</p>
         </div>

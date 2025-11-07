@@ -64,6 +64,28 @@
   margin: 0 auto;
 }
 
+#qr-reader {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  min-height: 300px;
+}
+
+#qr-reader video {
+  width: 100% !important;
+  height: auto !important;
+  border-radius: 12px;
+}
+
+#qr-reader__dashboard {
+  display: none !important;
+}
+
+#qr-reader__scan_region {
+  border: 3px solid #667eea !important;
+  border-radius: 12px;
+}
+
 .scanner-controls {
   display: flex;
   justify-content: center;
@@ -118,6 +140,14 @@
   border-radius: 8px;
   border: 1px solid #f5c6cb;
   text-align: center;
+  margin: 1rem 0;
+  line-height: 1.5;
+}
+
+.error-message strong {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
 }
 
 .validation-result {

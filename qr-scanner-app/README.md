@@ -25,6 +25,17 @@ npm run dev
 
 Acesse: http://localhost:5174
 
+## 📱 Testar no Celular
+
+Veja o guia completo em [TESTE_NO_CELULAR.md](./TESTE_NO_CELULAR.md)
+
+**⚠️ IMPORTANTE:** Para a câmera funcionar no celular, você precisa usar HTTPS. Veja [SOLUCAO_HTTPS.md](./SOLUCAO_HTTPS.md)
+
+**Solução rápida (Cloudflare Tunnel):**
+1. Inicie o app: `npm run dev`
+2. Em outro terminal: `cloudflared tunnel --url http://localhost:5174`
+3. Acesse a URL HTTPS gerada no celular
+
 ## 🏗️ Build
 
 ```bash
@@ -42,11 +53,38 @@ npm run build
 
 ## 🔧 Configuração
 
+### Desenvolvimento Local
+
 Crie um arquivo `.env` na raiz:
 
 ```env
-VITE_API_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:3001/api
 ```
 
-Para produção, use a URL do backend em produção.
+### Teste no Celular
 
+```env
+VITE_API_URL=http://<SEU_IP>:3001/api
+```
+
+Use `npm run get-ip` para descobrir seu IP automaticamente.
+
+**⚠️ IMPORTANTE:** Certifique-se de que o backend está rodando na porta 3001 antes de usar o app.
+
+Para iniciar o backend:
+```bash
+cd backend
+npm run dev
+```
+
+### Produção
+
+```env
+VITE_API_URL=https://api.eventhub.com/api
+```
+
+## 🔑 Credenciais de Teste
+
+**Usuário QRCODE:**
+- Email: `qrcode@eventhub.com`
+- Senha: `QRCode123!`

@@ -30,6 +30,12 @@ const usersToCreate: UserData[] = [
         password: 'Senha123!', // Senha padrão - deve ser alterada no primeiro login
         role: 'ADMIN',
     },
+    {
+        name: 'Validador QR Code',
+        email: 'qrcode@eventhub.com',
+        password: 'QRCode123!', // Senha padrão - deve ser alterada no primeiro login
+        role: 'QRCODE',
+    },
 ];
 
 /**

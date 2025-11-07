@@ -30,7 +30,7 @@ dotenv.config();
 
 // Criar aplicação Express
 const app: Application = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 // ====================================
 // Middlewares de Segurança
@@ -99,13 +99,14 @@ app.use((req: any, res, next) => {
     next();
 });
 
-// CORS - Permitir requisições do frontend e dashboard (restrito em produção)
+// CORS - Permitir requisições do frontend, dashboard e QR scanner app (restrito em produção)
 app.use(
     cors({
         origin: (origin, callback) => {
             const allowed = [
                 process.env.FRONTEND_URL || 'http://localhost:3000',
-                process.env.DASHBOARD_URL || 'http://localhost:3000'
+                process.env.DASHBOARD_URL || 'http://localhost:3000',
+                process.env.QR_SCANNER_URL || 'http://localhost:5174'
             ];
             if (!origin || allowed.includes(origin)) {
                 return callback(null, true);
@@ -317,13 +318,14 @@ const startServer = async () => {
         checkEmailConfig();
 
         // Iniciar servidor
-        app.listen(PORT, () => {
+        app.listen(PORT, '0.0.0.0', () => {
             console.log('');
             console.log('🚀 ========================================');
             console.log(`🚀  EventHub API está rodando!`);
             console.log('🚀 ========================================');
             console.log(`📡  Porta: ${PORT}`);
-            console.log(`🌍  URL: http://localhost:${PORT}`);
+            console.log(`🌍  URL Local: http://localhost:${PORT}`);
+            console.log(`🌐  URL Rede: http://0.0.0.0:${PORT} (acessível por outros dispositivos na rede)`);
             console.log(`📚  Ambiente: ${process.env.NODE_ENV || 'development'}`);
             console.log('🚀 ========================================');
             console.log('');

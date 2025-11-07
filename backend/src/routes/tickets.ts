@@ -1,5 +1,5 @@
 import express from 'express';
-import { getTicketByCode, validateTicket, listMyTickets, listEventTickets, scanSecureQr } from '../controllers/ticketsController';
+import { getTicketByCode, validateTicket, listMyTickets, listEventTickets, scanSecureQr, getValidationHistory } from '../controllers/ticketsController';
 import { authenticate, isAdmin } from '../middleware/auth';
 
 const router = express.Router();
@@ -135,6 +135,31 @@ router.post('/scan', authenticate, scanSecureQr);
  *         description: Acesso negado (apenas ADMIN)
  */
 router.get('/event/:eventId', authenticate, isAdmin, listEventTickets);
+
+/**
+ * @swagger
+ * /api/tickets/validation-history:
+ *   get:
+ *     summary: Listar histórico de validações do usuário QRCODE autenticado
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: Número máximo de registros a retornar
+ *     responses:
+ *       200:
+ *         description: Histórico de validações
+ *       401:
+ *         description: Não autenticado
+ *       403:
+ *         description: Acesso negado (apenas QRCODE)
+ */
+router.get('/validation-history', authenticate, getValidationHistory);
 
 export default router;
 

@@ -23,18 +23,37 @@ const Login = ({ onLogin }: LoginProps) => {
         password,
       });
 
-      if (response.data.success && response.data.data?.token) {
-        onLogin(response.data.data.token);
+      console.log('Resposta do login:', response.data);
+      
+      if (response.data.success) {
+        // O backend retorna accessToken ou token
+        const token = response.data.data?.accessToken || response.data.data?.token;
+        
+        if (token) {
+          console.log('Token encontrado, fazendo login...');
+          onLogin(token);
+        } else {
+          console.error('Token não encontrado na resposta:', response.data);
+          setError('Erro: Token não recebido do servidor');
+        }
       } else {
-        setError('Credenciais inválidas');
+        setError(response.data.message || 'Credenciais inválidas');
       }
     } catch (err: any) {
       console.error('Erro ao fazer login:', err);
-      setError(
-        err.response?.data?.message ||
-        err.response?.data?.errors?.[0] ||
-        'Erro ao fazer login. Verifique suas credenciais.'
-      );
+      
+      // Tratamento específico para erro de conexão
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        setError(
+          'Não foi possível conectar ao servidor. Verifique se o backend está rodando na porta 3001.'
+        );
+      } else {
+        setError(
+          err.response?.data?.message ||
+          err.response?.data?.errors?.[0] ||
+          'Erro ao fazer login. Verifique suas credenciais.'
+        );
+      }
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +76,7 @@ const Login = ({ onLogin }: LoginProps) => {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={isLoading}
-              placeholder="seu@email.com"
+              placeholder="qrcode@eventhub.com"
             />
           </div>
 

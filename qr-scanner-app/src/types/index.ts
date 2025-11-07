@@ -48,6 +48,7 @@ export interface ValidationResult {
   firstPassedHolderId?: string;
   isHolderTryingToReuse?: boolean;
   isDifferentPerson?: boolean;
+  reason?: string; // Motivo da falha: 'already_used', 'replay_detected', etc.
 }
 
 export interface ValidationHistory {

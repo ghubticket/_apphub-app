@@ -6,6 +6,7 @@ import { checkUserBlocked } from './usersController';
 
 /**
  * Helper: Registra tentativa de validação e detecta padrões suspeitos
+ * Proteção contra spam: não cria múltiplos registros de replay do mesmo QR code em período curto
  */
 async function recordValidationAttempt(
     ticketCode: string,
@@ -19,7 +20,36 @@ async function recordValidationAttempt(
         const ipAddress = (req.ip || req.connection.remoteAddress || 'unknown').toString();
         const userAgent = req.get('user-agent') || 'unknown';
 
-        // Registrar tentativa
+        // PROTEÇÃO CONTRA SPAM: Para tentativas de replay/already_used, verificar se já existe registro recente
+        const isReplayAttempt = !success && (reason === 'replay_detected' || reason === 'already_used');
+        const REPLAY_COOLDOWN_MINUTES = 5; // Não criar novo registro se já existe um nos últimos 5 minutos
+
+        if (isReplayAttempt) {
+            const cooldownTime = new Date(Date.now() - REPLAY_COOLDOWN_MINUTES * 60 * 1000);
+
+            // Verificar se já existe tentativa de replay recente para este ticket code
+            const recentReplayAttempt = await ValidationAttempt.findOne({
+                ticketCode: ticketCode.toUpperCase(),
+                success: false,
+                reason: { $in: ['replay_detected', 'already_used'] },
+                createdAt: { $gte: cooldownTime }
+            }).sort({ createdAt: -1 }).lean();
+
+            if (recentReplayAttempt) {
+                // Já existe tentativa recente - não criar novo registro, apenas logar e marcar como suspeito
+                console.warn(`⚠️ Tentativa de replay ignorada (cooldown): QR ${ticketCode} já teve replay registrado há menos de ${REPLAY_COOLDOWN_MINUTES} minutos`);
+
+                // Ainda assim, verificar padrões suspeitos para marcar usuário
+                if (ticket?.holder) {
+                    await checkSuspiciousPatterns(ticket.holder._id || ticket.holder, ticketCode);
+                }
+
+                // Retornar o registro existente ao invés de criar novo
+                return recentReplayAttempt;
+            }
+        }
+
+        // Registrar tentativa (primeira tentativa de replay ou tentativa válida)
         const attempt = await ValidationAttempt.create({
             ticketCode: ticketCode.toUpperCase(),
             ticketId: ticket?._id,
@@ -69,10 +99,12 @@ async function checkSuspiciousPatterns(holderId: string, ticketCode: string) {
         user.suspiciousActivityCount = suspiciousCount;
         user.lastSuspiciousActivity = new Date();
 
-        // Marcar como suspeito se tiver 3+ tentativas suspeitas
-        if (suspiciousCount >= 3) {
+        // Marcar como suspeito se tiver 1+ tentativas suspeitas (mais agressivo para detectar golpes)
+        if (suspiciousCount >= 1) {
             user.isSuspicious = true;
-            user.suspiciousReason = `Múltiplas tentativas de usar QR codes já utilizados (${suspiciousCount} tentativas nas últimas 24h)`;
+            user.suspiciousReason = suspiciousCount === 1
+                ? `Tentativa de usar QR code já utilizado (1 tentativa nas últimas 24h)`
+                : `Múltiplas tentativas de usar QR codes já utilizados (${suspiciousCount} tentativas nas últimas 24h)`;
         }
 
         await user.save();
@@ -327,27 +359,40 @@ export const validateTicket = async (req: Request, res: Response) => {
                 // Registrar tentativa de usar QR já utilizado (SUSPEITO!)
                 await recordValidationAttempt(code, false, 'already_used', req, ticket, validatorId);
 
-                // Se o holder original está tentando usar um QR já usado, é SUSPEITO!
-                if (isHolderTryingToReuse) {
-                    console.warn(`⚠️ SUSPEITO: Holder original tentando usar QR já utilizado!`, {
-                        ticketCode: code,
-                        holder: (currentTicket.holder as any)?.name || currentTicket.holder,
-                        firstPassedHolder: firstPassedHolderName,
-                        firstUsedAt: currentTicket.usedAt,
-                        firstUsedBy: (currentTicket.usedBy as any)?.name || currentTicket.usedBy,
-                        attemptedBy: validatorId,
-                        isDifferentPerson
-                    });
+                // SEMPRE marcar o holder do ticket como suspeito quando há tentativa de replay
+                // (independente de quem está tentando passar - pode ser o próprio holder ou outra pessoa)
+                if (ticket.holder) {
+                    const holderUser = await User.findById(ticket.holder);
+                    if (holderUser && holderUser.role === 'CLIENTE') {
+                        if (isHolderTryingToReuse) {
+                            // Holder original tentando reutilizar
+                            console.warn(`⚠️ SUSPEITO: Holder original tentando usar QR já utilizado!`, {
+                                ticketCode: code,
+                                holder: (currentTicket.holder as any)?.name || currentTicket.holder,
+                                firstPassedHolder: firstPassedHolderName,
+                                firstUsedAt: currentTicket.usedAt,
+                                firstUsedBy: (currentTicket.usedBy as any)?.name || currentTicket.usedBy,
+                                attemptedBy: validatorId,
+                                isDifferentPerson
+                            });
 
-                    // Marcar como suspeito se for o holder
-                    if (ticket.holder) {
-                        const holderUser = await User.findById(ticket.holder);
-                        if (holderUser && holderUser.role === 'CLIENTE') {
                             holderUser.isSuspicious = true;
                             holderUser.suspiciousReason = `Tentativa de reutilizar QR code já validado. QR foi usado por ${firstPassedHolderName} em ${currentTicket.usedAt?.toLocaleString('pt-BR')}`;
-                            holderUser.lastSuspiciousActivity = new Date();
-                            await holderUser.save();
+                        } else {
+                            // Outra pessoa tentando usar QR do holder (possível fraude)
+                            console.warn(`⚠️ SUSPEITO: Tentativa de usar QR code de outra pessoa!`, {
+                                ticketCode: code,
+                                holder: (currentTicket.holder as any)?.name || currentTicket.holder,
+                                firstPassedHolder: firstPassedHolderName,
+                                attemptedBy: validatorId
+                            });
+
+                            holderUser.isSuspicious = true;
+                            holderUser.suspiciousReason = `Tentativa de usar QR code já validado. QR foi usado por ${firstPassedHolderName} em ${currentTicket.usedAt?.toLocaleString('pt-BR')}`;
                         }
+                        holderUser.lastSuspiciousActivity = new Date();
+                        holderUser.suspiciousActivityCount = (holderUser.suspiciousActivityCount || 0) + 1;
+                        await holderUser.save();
                     }
                 }
 
@@ -459,6 +504,143 @@ export const listMyTickets = async (req: Request, res: Response) => {
 };
 
 /**
+ * Lista histórico de validações do usuário QRCODE autenticado
+ */
+export const getValidationHistory = async (req: Request, res: Response) => {
+    try {
+        const validatorId = (req as any).user?._id?.toString() || (req as any).user?.id;
+        const validatorRole = (req as any).user?.role;
+
+        // Apenas QRCODE pode ver seu próprio histórico
+        if (validatorRole !== 'QRCODE') {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado',
+                errors: ['Apenas usuários com role QRCODE podem ver histórico de validações']
+            });
+        }
+
+        if (!validatorId) {
+            return res.status(401).json({
+                success: false,
+                message: 'Usuário não autenticado'
+            });
+        }
+
+        // Buscar tentativas de validação do usuário QRCODE
+        const limit = parseInt(req.query.limit as string) || 100;
+        const attempts = await ValidationAttempt.find({
+            validatorId: validatorId
+        })
+            .populate('ticketId', 'code status')
+            .populate('holderId', 'name email')
+            .populate('eventId', 'name date location')
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        // Formatar resposta (usar Promise.all para permitir await dentro do map)
+        const history = await Promise.all(attempts.map(async (attempt: any) => {
+            // Buscar informações do ticket se disponível
+            let ticketHolder = 'N/A';
+            let eventName = 'N/A';
+            let ticketCode = attempt.ticketCode;
+
+            if (attempt.ticketId) {
+                ticketCode = attempt.ticketId.code || attempt.ticketCode;
+            }
+
+            if (attempt.holderId) {
+                ticketHolder = (attempt.holderId as any)?.name || 'N/A';
+            }
+
+            if (attempt.eventId) {
+                eventName = (attempt.eventId as any)?.name || 'N/A';
+            }
+
+            // Determinar mensagem baseada no reason
+            let message = attempt.success
+                ? 'Ingresso validado com sucesso'
+                : 'Validação falhou';
+
+            if (attempt.reason === 'already_used' || attempt.reason === 'replay_detected') {
+                // Buscar informações do ticket usado para melhorar mensagem
+                let whoUsed = 'N/A';
+                let usedAt: Date | null = null;
+
+                if (attempt.ticketId) {
+                    const ticket = await Ticket.findById(attempt.ticketId)
+                        .populate('usedByHolderId', 'name')
+                        .populate('usedBy', 'name')
+                        .populate('holder', 'name')
+                        .lean();
+
+                    if (ticket) {
+                        if (ticket.usedByHolderId) {
+                            whoUsed = (ticket.usedByHolderId as any)?.name || 'N/A';
+                        } else if (ticket.usedBy) {
+                            whoUsed = (ticket.usedBy as any)?.name || 'N/A';
+                        } else if (ticket.holder) {
+                            whoUsed = (ticket.holder as any)?.name || 'N/A';
+                        }
+
+                        if (ticket.usedAt) {
+                            usedAt = new Date(ticket.usedAt);
+                        }
+                    }
+                }
+
+                if (whoUsed !== 'N/A' && usedAt) {
+                    const formattedTime = usedAt.toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    message = `QR já UTILIZADO por: ${whoUsed} em ${formattedTime}`;
+                } else {
+                    message = 'QR já utilizado (replay detectado)';
+                }
+            } else if (attempt.reason === 'not_found') {
+                message = 'Ingresso não encontrado';
+            } else if (attempt.reason === 'invalid_status') {
+                message = 'Status do ingresso inválido';
+            } else if (attempt.reason === 'expired') {
+                message = 'QR code expirado';
+            }
+
+            return {
+                id: attempt._id.toString(),
+                ticketCode,
+                ticketHolder,
+                eventName,
+                status: attempt.success ? 'success' : 'error',
+                message,
+                reason: attempt.reason,
+                timestamp: attempt.createdAt,
+                success: attempt.success
+            };
+        }));
+
+        res.json({
+            success: true,
+            data: history,
+            count: history.length
+        });
+
+    } catch (error: any) {
+        console.error('Erro ao buscar histórico de validações:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar histórico de validações',
+            errors: [error.message || 'Erro desconhecido']
+        });
+    }
+};
+
+/**
  * Lista ingressos de um evento (apenas ADMIN)
  */
 export const listEventTickets = async (req: Request, res: Response) => {
@@ -561,10 +743,53 @@ export const scanSecureQr = async (req: Request, res: Response) => {
             await QrNonce.create({ nonce, ticketCode: ticketCode.toUpperCase(), ts });
         } catch (e: any) {
             if (String(e?.code) === '11000') {
-                // Replay detectado - registrar tentativa suspeita
-                const ticket = await Ticket.findOne({ code: ticketCode.toUpperCase(), deletedAt: null });
-                await recordValidationAttempt(ticketCode, false, 'replay_detected', req, ticket);
-                return res.status(409).json({ success: false, message: 'QR já utilizado (replay detectado)' });
+                // Replay detectado - buscar informações do ticket usado
+                const ticket = await Ticket.findOne({ code: ticketCode.toUpperCase(), deletedAt: null })
+                    .populate('holder', 'name email')
+                    .populate('usedBy', 'name email')
+                    .populate('usedByHolderId', 'name email')
+                    .lean();
+
+                const validatorId = (req as any).user?._id?.toString() || (req as any).user?.id;
+                await recordValidationAttempt(ticketCode, false, 'replay_detected', req, ticket, validatorId);
+
+                // Montar mensagem detalhada
+                let whoUsed = 'N/A';
+                let usedAt = null;
+
+                if (ticket) {
+                    if (ticket.usedByHolderId) {
+                        whoUsed = (ticket.usedByHolderId as any)?.name || 'N/A';
+                    } else if (ticket.usedBy) {
+                        whoUsed = (ticket.usedBy as any)?.name || 'N/A';
+                    } else if (ticket.holder) {
+                        whoUsed = (ticket.holder as any)?.name || 'N/A';
+                    }
+
+                    if (ticket.usedAt) {
+                        usedAt = new Date(ticket.usedAt);
+                    }
+                }
+
+                const formattedTime = usedAt
+                    ? usedAt.toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    })
+                    : 'Data não disponível';
+
+                return res.status(409).json({
+                    success: false,
+                    message: `QR já UTILIZADO por: ${whoUsed} em ${formattedTime}`,
+                    reason: 'replay_detected',
+                    firstPassedHolder: whoUsed,
+                    usedAt: usedAt?.toISOString(),
+                    alreadyUsed: true
+                });
             }
             throw e;
         }

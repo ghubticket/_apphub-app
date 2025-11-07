@@ -58,7 +58,10 @@ export default defineConfig({
   ],
   server: {
     port: 5174,
-    host: true
+    host: true,
+    // Permitir todos os hosts (necessário para túneis como ngrok)
+    // true = permite qualquer host durante desenvolvimento
+    allowedHosts: true
   }
 })
 
