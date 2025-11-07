@@ -98,11 +98,16 @@
 ### 5.2 Detecção de Padrões Suspeitos
 - ✅ **Implementado**: Sistema de detecção automática de tentativas suspeitas
   - Rastreamento de todas as tentativas de validação (`ValidationAttempt` model)
-  - Detecção de múltiplas tentativas de usar QR já utilizado (3+ em 24h → marca como suspeito)
+  - **Detecção agressiva: 1+ tentativa de usar QR já utilizado → marca como suspeito imediatamente** (melhoria: antes era 3+ em 24h)
+  - **Sempre marca o holder do ticket como suspeito quando há tentativa de replay** (independente de quem tenta passar)
   - Detecção de mesmo QR code usado em múltiplos eventos (2+ eventos → marca como suspeito)
-  - Flags automáticas no modelo `User` (`isSuspicious`, `suspiciousActivityCount`)
+  - Flags automáticas no modelo `User` (`isSuspicious`, `suspiciousActivityCount`, `lastSuspiciousActivity`, `suspiciousReason`)
   - Endpoints para gerenciamento manual (`PATCH /api/users/:userId/suspicious`, `PATCH /api/users/:userId/blacklist`)
   - Filtros no dashboard para visualizar usuários suspeitos/bloqueados
+  - **Proteção contra spam no banco de dados:**
+    - Cooldown de 5 minutos para tentativas de replay do mesmo QR code
+    - Evita múltiplos registros de `ValidationAttempt` para o mesmo QR code em período curto
+    - Ainda marca usuário como suspeito mesmo durante o cooldown (via `checkSuspiciousPatterns`)
 - 🔄 **Recomendado**: Alertar sobre múltiplas compras do mesmo IP em pouco tempo
 - 🔄 **Recomendado**: Alertar sobre múltiplos pedidos com mesmo CPF mas diferentes emails
 - 🔄 **Recomendado**: Implementar CAPTCHA após X tentativas de compra
@@ -156,25 +161,53 @@
 - ✅ **Implementado**: Sentry/APM (opcional) habilitável via `SENTRY_DSN` e `SENTRY_TRACES_SAMPLE_RATE`
 - 🔄 **Recomendado**: Alertas e métricas (fraude/erros críticos)
 
-## 9. Proteção de Arquivos Estáticos/Imagens (Uploads)
+## 9. Segurança do PWA de Validação
 
-### 9.1 Riscos
+### 9.1 Restrição de Acesso
+- ✅ **Implementado**: Validação de User-Agent no backend (bloqueia bots e crawlers)
+- ✅ **Implementado**: Validação de dispositivo móvel no frontend (bloqueia acesso via desktop)
+- ✅ **Implementado**: Middleware global de validação de User-Agent no backend
+- ✅ **Implementado**: Apenas role QRCODE pode validar ingressos (controle de acesso granular)
+
+### 9.2 Proteção de Câmera e HTTPS
+- ✅ **Implementado**: Suporte para HTTPS via túneis (Cloudflare Tunnel, ngrok) para acesso à câmera
+- ✅ **Implementado**: Validação de contexto seguro (HTTPS) no frontend
+- ✅ **Implementado**: Detecção automática de câmera traseira (priorização em Android e iOS)
+- 🔄 **Recomendado**: Certificado SSL válido em produção (não depender apenas de túneis)
+
+### 9.3 Interface e UX Segura
+- ✅ **Implementado**: Migração para Bootstrap 5 (reduz superfície de ataque de CSS customizado)
+- ✅ **Implementado**: Limpeza de CSS não utilizado (reduz tamanho do bundle)
+- ✅ **Implementado**: Histórico persistente sincronizado com backend (não confia apenas em localStorage)
+- ✅ **Implementado**: Mensagens detalhadas de erro sem expor informações sensíveis do sistema
+- ✅ **Implementado**: Estatísticas de validações (válidas vs duplicadas) para auditoria
+
+### 9.4 Comunicação com Backend
+- ✅ **Implementado**: Autenticação via JWT armazenado em localStorage
+- ✅ **Implementado**: Integração com API via Axios com interceptors
+- ✅ **Implementado**: Detecção automática de URL da API (localhost, IP local, ou HTTPS tunnel)
+- 🔄 **Recomendado**: Implementar refresh tokens para maior segurança
+- 🔄 **Recomendado**: Criptografar token no localStorage (opcional, mas recomendado)
+
+## 10. Proteção de Arquivos Estáticos/Imagens (Uploads)
+
+### 10.1 Riscos
 - Abuso de URL direta (hotlink) para consumir banda e tentar derrubar o servidor
 - Varredura/bots baixando repetidamente imagens grandes
 
-### 9.2 O que já ajuda
+### 10.2 O que já ajuda
 - ✅ Rate limiting global aplicado a todas as rotas (inclui `/uploads`)
 - ✅ Helmet/CSP (camada de headers – não bloqueia acesso direto, mas reduz superfície de risco)
 - ✅ Cache-Control forte em `/uploads` (`public, max-age=2592000, immutable`)
 - ✅ Hotlink protection por `Referer` em produção (bloqueia origens fora de `FRONTEND_URL`/`DASHBOARD_URL`)
 
-### 9.3 Recomendações
+### 10.3 Recomendações
 - 🔄 Colocar imagens atrás de CDN (Cloudflare/CloudFront/R2) com cache no edge
 - 🔄 Hotlink protection no edge (WAF/CDN) e/ou URLs assinadas
 - 🔄 Limitar taxa de download por IP no edge (Rate limiting da CDN)
 - 🔄 Servir estático via Nginx/CDN (tirar carga do Node)
 
-## 9. Checklist de Implementação Prioritária
+## 11. Checklist de Implementação Prioritária
 
 ### Alta Prioridade 🔴
 1. ✅ Validação de estoque e limites por compra

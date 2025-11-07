@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -8,6 +8,7 @@ import { connectDatabase } from './config/database';
 import { setupSwagger } from './config/swagger';
 import { generalRateLimit } from './middleware/rateLimiting';
 import { authenticateWithCookies } from './middleware/cookies';
+import { validateUserAgent } from './middleware/deviceValidation';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/node';
 import authRoutes from './routes/auth'
@@ -123,6 +124,18 @@ app.use(
 
 // Cookie Parser - Para ler cookies
 app.use(cookieParser());
+
+// Validação de User-Agent Global - Proteção contra bots e ataques automatizados
+// Aplicar em todas as rotas exceto health checks e webhooks (que podem vir de serviços externos)
+app.use((req: Request, res: Response, next: NextFunction) => {
+    // Permitir health checks e webhooks sem validação de User-Agent
+    const publicPaths = ['/health', '/api/health', '/api/payments/webhook'];
+    if (publicPaths.some(path => req.path.startsWith(path))) {
+        return next();
+    }
+    // Aplicar validação de User-Agent para todas as outras rotas
+    validateUserAgent(req, res, next);
+});
 
 // Rate Limiting Global - Proteção contra DDoS
 app.use(generalRateLimit);

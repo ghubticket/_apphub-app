@@ -527,17 +527,89 @@ export const getValidationHistory = async (req: Request, res: Response) => {
             });
         }
 
-        // Buscar tentativas de validação do usuário QRCODE
-        const limit = parseInt(req.query.limit as string) || 100;
-        const attempts = await ValidationAttempt.find({
+        // Parâmetros de busca, paginação e filtro
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const search = (req.query.search as string) || '';
+        const filter = (req.query.filter as string) || 'validated'; // Padrão: apenas validados
+        const skip = (page - 1) * limit;
+
+        // Construir filtros
+        const filters: any = {
             validatorId: validatorId
-        })
-            .populate('ticketId', 'code status')
-            .populate('holderId', 'name email')
-            .populate('eventId', 'name date location')
-            .sort({ createdAt: -1 })
-            .limit(limit)
-            .lean();
+        };
+
+        // Aplicar filtro de status
+        // 'validated' = apenas sucessos (success: true)
+        // 'already_used' = apenas já validados (success: false, reason: already_used/replay_detected)
+        if (filter === 'validated') {
+            filters.success = true;
+        } else if (filter === 'already_used') {
+            filters.success = false;
+            filters.reason = { $in: ['already_used', 'replay_detected'] };
+        }
+        // 'all' = não filtra por status (mostra tudo)
+
+        // Busca por código de ticket ou CPF do portador
+        if (search) {
+            // Buscar tickets que correspondem ao termo de busca
+            const matchingTickets = await Ticket.find({
+                $or: [
+                    { code: { $regex: search.toUpperCase(), $options: 'i' } },
+                ],
+                deletedAt: null
+            }).select('_id').lean();
+
+            const ticketIds = matchingTickets.map(t => t._id);
+
+            // Buscar usuários (holders) que correspondem ao CPF ou nome
+            const matchingUsers = await User.find({
+                $or: [
+                    { cpf: { $regex: search.replace(/\D/g, ''), $options: 'i' } }, // Remove formatação do CPF
+                    { name: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } }
+                ],
+                deletedAt: null
+            }).select('_id').lean();
+
+            const userIds = matchingUsers.map(u => u._id);
+
+            // Aplicar filtro: ticket code OU holder (CPF/nome/email)
+            if (ticketIds.length > 0 || userIds.length > 0) {
+                filters.$or = [];
+                if (ticketIds.length > 0) {
+                    filters.$or.push({ ticketId: { $in: ticketIds } });
+                }
+                if (userIds.length > 0) {
+                    filters.$or.push({ holderId: { $in: userIds } });
+                }
+                // Também buscar por ticketCode diretamente
+                filters.$or.push({ ticketCode: { $regex: search.toUpperCase(), $options: 'i' } });
+            } else {
+                // Se não encontrou nada, buscar apenas por ticketCode
+                filters.ticketCode = { $regex: search.toUpperCase(), $options: 'i' };
+            }
+        }
+
+        // Buscar tentativas de validação com paginação
+        const [attempts, total, totalValidations, validValidations, duplicateAttempts] = await Promise.all([
+            ValidationAttempt.find(filters)
+                .populate('ticketId', 'code status')
+                .populate('holderId', 'name email cpf')
+                .populate('eventId', 'name date location')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            ValidationAttempt.countDocuments(filters), // Total com filtros aplicados (para paginação)
+            ValidationAttempt.countDocuments({ validatorId: validatorId }), // Total geral de validações do validador
+            ValidationAttempt.countDocuments({ validatorId: validatorId, success: true }), // Validações válidas (sucesso)
+            ValidationAttempt.countDocuments({ 
+                validatorId: validatorId, 
+                success: false, 
+                reason: { $in: ['already_used', 'replay_detected'] } 
+            }) // Tentativas duplicadas/golpe
+        ]);
 
         // Formatar resposta (usar Promise.all para permitir await dentro do map)
         const history = await Promise.all(attempts.map(async (attempt: any) => {
@@ -627,7 +699,17 @@ export const getValidationHistory = async (req: Request, res: Response) => {
         res.json({
             success: true,
             data: history,
-            count: history.length
+            totalValidations, // Total geral de validações do validador
+            validValidations, // Validações válidas (sucesso)
+            duplicateAttempts, // Tentativas duplicadas/golpe
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+                hasNextPage: page * limit < total,
+                hasPrevPage: page > 1
+            }
         });
 
     } catch (error: any) {

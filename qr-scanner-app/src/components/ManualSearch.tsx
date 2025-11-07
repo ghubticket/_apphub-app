@@ -65,41 +65,43 @@ const ManualSearch = () => {
 
   return (
     <div className="manual-search">
-      <div className="search-container">
-        <h2>Buscar Ingresso</h2>
-        <p className="search-hint">Digite o código do ingresso (12 caracteres) ou CPF</p>
+      <div className="card">
+        <div className="card-body">
+          <h2 className="card-title">Buscar Ingresso</h2>
+          <p className="card-text text-muted">Digite o código do ingresso (12 caracteres) ou CPF</p>
 
-        <div className="search-input-group">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ex: ABC123456789"
-            className="search-input"
-            maxLength={12}
-            disabled={isSearching}
-          />
-          <button
-            onClick={handleSearch}
-            disabled={isSearching || !searchTerm.trim()}
-            className="btn btn-primary"
-          >
-            {isSearching ? 'Buscando...' : 'Buscar'}
-          </button>
+          <div className="input-group mb-3">
+            <input
+              type="text"
+              className="form-control text-uppercase"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ex: ABC123456789"
+              maxLength={12}
+              disabled={isSearching}
+            />
+            <button
+              onClick={handleSearch}
+              disabled={isSearching || !searchTerm.trim()}
+              className="btn btn-primary"
+            >
+              {isSearching ? 'Buscando...' : 'Buscar'}
+            </button>
+          </div>
+
+          {error && (
+            <div className="alert alert-danger" role="alert">
+              {error}
+            </div>
+          )}
+
+          {validationResult && (
+            <div className="mt-3">
+              <ValidationResult result={validationResult} />
+            </div>
+          )}
         </div>
-
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-
-        {validationResult && (
-          <div style={{ marginTop: '1rem' }}>
-            <ValidationResult result={validationResult} />
-          </div>
-        )}
       </div>
     </div>
   );

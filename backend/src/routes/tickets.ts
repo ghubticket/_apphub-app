@@ -1,6 +1,7 @@
 import express from 'express';
 import { getTicketByCode, validateTicket, listMyTickets, listEventTickets, scanSecureQr, getValidationHistory } from '../controllers/ticketsController';
 import { authenticate, isAdmin } from '../middleware/auth';
+import { validateMobileDevice, validateUserAgent } from '../middleware/deviceValidation';
 
 const router = express.Router();
 
@@ -78,7 +79,7 @@ router.get('/code/:code', getTicketByCode);
  *       403:
  *         description: Acesso negado (apenas QRCODE pode validar)
  */
-router.post('/code/:code/validate', authenticate, validateTicket);
+router.post('/code/:code/validate', validateUserAgent, validateMobileDevice, authenticate, validateTicket);
 
 /**
  * @swagger
@@ -110,7 +111,7 @@ router.post('/code/:code/validate', authenticate, validateTicket);
  *       409:
  *         description: Replay detectado
  */
-router.post('/scan', authenticate, scanSecureQr);
+router.post('/scan', validateUserAgent, validateMobileDevice, authenticate, scanSecureQr);
 
 /**
  * @swagger
@@ -159,7 +160,7 @@ router.get('/event/:eventId', authenticate, isAdmin, listEventTickets);
  *       403:
  *         description: Acesso negado (apenas QRCODE)
  */
-router.get('/validation-history', authenticate, getValidationHistory);
+router.get('/validation-history', validateUserAgent, validateMobileDevice, authenticate, getValidationHistory);
 
 export default router;
 

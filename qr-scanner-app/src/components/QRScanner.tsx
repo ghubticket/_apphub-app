@@ -11,23 +11,15 @@ const QRScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResultType | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const addToHistory = useValidationStore((state) => state.addToHistory);
   const syncHistory = useValidationStore((state) => state.syncHistory);
 
-  // Função para adicionar log visual
+  // Função para adicionar log no console (apenas para debug)
   const addLog = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
     const emoji = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'error' ? '❌' : 'ℹ️';
     const logMessage = `[${timestamp}] ${emoji} ${message}`;
-
     console.log(logMessage);
-
-    setDebugLogs(prev => {
-      const newLogs = [...prev, logMessage];
-      // Manter apenas os últimos 20 logs
-      return newLogs.slice(-20);
-    });
   };
 
   useEffect(() => {
@@ -208,7 +200,6 @@ const QRScanner = () => {
 
   const startScanning = async () => {
     addLog('🚀 Iniciando scanner...', 'info');
-    setDebugLogs([]); // Limpar logs anteriores
 
     if (!scannerRef.current) {
       addLog('scannerRef.current é null', 'error');
@@ -693,50 +684,6 @@ const QRScanner = () => {
       {validationResult && (
         <ValidationResult result={validationResult} />
       )}
-
-      {/* Área de Debug - Logs Visuais */}
-      <div style={{
-        marginTop: '2rem',
-        padding: '1rem',
-        background: '#f5f5f5',
-        borderRadius: '8px',
-        maxHeight: '300px',
-        overflowY: 'auto',
-        fontSize: '12px',
-        fontFamily: 'monospace'
-      }}>
-        <div style={{
-          fontWeight: 'bold',
-          marginBottom: '0.5rem',
-          color: '#333'
-        }}>
-          📋 Logs de Debug:
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {debugLogs.length === 0 ? (
-            <div style={{ color: '#999', fontStyle: 'italic' }}>
-              Nenhum log ainda. Clique em "Iniciar Scanner" para ver os logs.
-            </div>
-          ) : (
-            debugLogs.map((log, index) => (
-              <div
-                key={index}
-                style={{
-                  padding: '4px 8px',
-                  background: log.includes('✅') ? '#e8f5e9' :
-                    log.includes('⚠️') ? '#fff3e0' :
-                      log.includes('❌') ? '#ffebee' : '#f0f0f0',
-                  borderRadius: '4px',
-                  wordBreak: 'break-word',
-                  color: '#333'
-                }}
-              >
-                {log}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
     </div>
   );
 };

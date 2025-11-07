@@ -6,6 +6,11 @@
 > **Últimas atualizações:**
 > - ✅ Sistema de identificação de quem passou primeiro na validação (prevenção de burlas)
 > - ✅ Campo `usedByHolderId` no Ticket para rastrear quem estava presente na validação
+> - ✅ Detecção de suspeitos melhorada: marca com 1+ tentativa (antes era 3+)
+> - ✅ Proteção contra spam: cooldown de 5 minutos para replay do mesmo QR code
+> - ✅ PWA de validação completo: câmera traseira automática, histórico persistente, mensagens detalhadas
+> - ✅ Migração para Bootstrap 5: interface moderna, código limpo e manutenível
+> - ✅ Melhorias de UX: busca, paginação, filtros e estatísticas no histórico de validações
 
 ---
 
@@ -360,6 +365,10 @@
     - Aceita parâmetro opcional `holderId` no body para identificar quem está presente
     - Se não informado, assume que foi o holder do ticket
   - `POST /api/tickets/scan` - Ler QR seguro e retornar dados (apenas QRCODE)
+  - `GET /api/tickets/validation-history` - Histórico de validações do validador autenticado (apenas QRCODE) 🆕
+    - Retorna todas as tentativas de validação do usuário QRCODE
+    - Inclui informações detalhadas: ticket, portador, evento, status, motivo, timestamp
+    - Mensagens enriquecidas para replay: nome de quem passou primeiro e horário
   - `GET /api/tickets/event/:eventId` - Listar ingressos de evento (ADMIN)
   - ⚠️ **Apenas role QRCODE pode validar** (Admin não valida para não bagunçar)
 
@@ -380,13 +389,19 @@
 - ✅ **Sistema de Detecção de Tentativas Suspeitas**
   - Modelo `ValidationAttempt` para rastrear todas as tentativas
   - Detecção automática de padrões suspeitos:
-    - Múltiplas tentativas de usar QR já utilizado (3+ em 24h → marca como suspeito)
+    - **1+ tentativa de usar QR já utilizado → marca como suspeito imediatamente** (melhoria: antes era 3+)
     - Mesmo QR code usado em múltiplos eventos diferentes (2+ eventos → marca como suspeito)
+    - **Sempre marca o holder do ticket como suspeito quando há tentativa de replay** (independente de quem tenta passar)
     - Holder original tentando reutilizar QR já usado por outra pessoa → marca como suspeito automaticamente
+  - **Proteção contra spam no banco de dados:**
+    - Cooldown de 5 minutos para tentativas de replay do mesmo QR code
+    - Evita múltiplos registros de `ValidationAttempt` para o mesmo QR code em período curto
+    - Ainda marca usuário como suspeito mesmo durante o cooldown
   - Flags no modelo `User`:
     - `isSuspicious` - Flag manual de usuário suspeito
-    - `suspiciousActivityCount` - Contador de tentativas suspeitas
-    - `suspiciousReason` - Motivo da marcação (inclui nome de quem passou primeiro)
+    - `suspiciousActivityCount` - Contador de tentativas suspeitas (incrementado a cada tentativa)
+    - `suspiciousReason` - Motivo da marcação (inclui nome de quem passou primeiro e horário)
+    - `lastSuspiciousActivity` - Data/hora da última atividade suspeita
     - `isBlacklisted` - Flag de blacklist
     - `blacklistReason` - Motivo do bloqueio
   - Endpoints de gerenciamento:
@@ -406,11 +421,33 @@
   - Badge "SUSPEITO (X)" (amarelo) com contador de tentativas
   - Badge "OK" (verde) para usuários limpos
 
-- [ ] App de validação (PWA) - **PENDENTE**
-  - [ ] Scanner de QR Code
-  - [ ] Validação em tempo real
-  - [ ] Feedback visual (verde/vermelho/amarelo)
-  - [ ] Histórico de validações
+- ✅ **App de validação (PWA)** 🆕
+  - ✅ Scanner de QR Code com câmera traseira automática
+    - Detecção automática e priorização da câmera traseira em Android e iOS
+    - Suporte para HTTPS via túneis (Cloudflare Tunnel, ngrok)
+    - Logs visuais de debug na interface para troubleshooting em dispositivos móveis
+  - ✅ Validação em tempo real
+    - Integração com backend via API
+    - Mensagens detalhadas de erro (incluindo nome de quem passou primeiro e horário)
+  - ✅ Feedback visual (verde/vermelho/amarelo)
+  - ✅ Histórico de validações persistente
+    - Sincronização com backend (GET `/api/tickets/validation-history`)
+    - Histórico persiste após refresh da página
+    - Exibe informações detalhadas: código do ticket, portador, evento, status, mensagem, timestamp
+    - Mensagens detalhadas para replay: "QR já UTILIZADO por: NOME em HORÁRIO"
+    - Busca por CPF, nome ou código do ticket
+    - Paginação de resultados
+    - Filtros: "Códigos Validados" e "Códigos Já Validados"
+    - Estatísticas: total de validações, validações válidas (verde) e duplicadas/tentativas de golpe (vermelho)
+  - ✅ Interface moderna com Bootstrap 5
+    - Migração completa para Bootstrap 5 (substituindo CSS customizado)
+    - Componentes padronizados: cards, botões, formulários, alerts, paginação
+    - Estilos customizados mínimos (apenas para funcionalidades específicas)
+    - Bordas dos cards com opacidade para visual mais suave
+    - Componente Login migrado para Bootstrap
+    - Limpeza de CSS não utilizado (arquivos removidos: App.css, Login.css, reset.css, templates.css, variables.css)
+    - Integração com react-select para filtros estilizados
+    - Fonte Quicksand mantida globalmente
 
 ### 📊 Dashboard Administrativo (Melhorias)
 
@@ -556,6 +593,13 @@
 - ✅ Identificação de quem passou primeiro na validação (prevenção de burlas) 🆕
 - ✅ Integração com gateway de pagamento (PIX via Orders API funcional)
 - ✅ Sistema de notificações (email com Resend) 🆕
+- ✅ **App de validação (PWA) completo** 🆕
+  - Scanner com câmera traseira automática
+  - Histórico persistente sincronizado com backend
+  - Mensagens detalhadas de replay
+  - Interface moderna com Bootstrap 5
+  - Busca, paginação e filtros no histórico
+  - Estatísticas de validações (válidas vs duplicadas)
 - ⏳ **EM ANDAMENTO:** Cartão de crédito via Orders API
 
 ### Fase 2 - Portal Público (2-3 semanas)
@@ -564,11 +608,12 @@
 - [ ] Área do cliente
 - [ ] Integração completa com pagamento
 
-### Fase 3 - Validação (2-3 semanas)
-- [ ] App de validação (PWA)
-- [ ] Endpoints de validação
-- [ ] Proteção anti-fraude
-- [ ] Testes em evento real
+### Fase 3 - Validação (2-3 semanas) ✅ COMPLETO
+- ✅ App de validação (PWA)
+- ✅ Endpoints de validação
+- ✅ Proteção anti-fraude
+- ✅ Histórico de validações persistente
+- [ ] Testes em evento real (próximo passo)
 
 ### Fase 4 - Melhorias (contínuo)
 - [ ] Relatórios avançados
@@ -608,13 +653,13 @@
 
 ## 🎯 Próximos Passos Imediatos
 
-1. **Integração com Mercado Pago** (prioridade máxima)
-2. **Sistema de email com PDF** (crítico para MVP)
-3. **Portal público de compra** (necessário para vendas)
-4. **App de validação** (necessário para eventos)
+1. **Integração com Mercado Pago - Cartão de Crédito** (prioridade máxima)
+2. **Portal público de compra** (necessário para vendas)
+3. **Testes em evento real** (validar PWA de validação em produção)
+4. **Melhorias no dashboard** (relatórios avançados, ações em massa)
 
 ---
 
-**Status Geral:** ~75% do MVP completo ✅  
-**Próxima milestone:** Finalizar pagamentos (cartão) + App de validação + Portal público
+**Status Geral:** ~80% do MVP completo ✅  
+**Próxima milestone:** Finalizar pagamentos (cartão) + Portal público + Testes em evento real
 
