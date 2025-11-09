@@ -11,6 +11,7 @@
 > - ✅ PWA de validação completo: câmera traseira automática, histórico persistente, mensagens detalhadas
 > - ✅ Migração para Bootstrap 5: interface moderna, código limpo e manutenível
 > - ✅ Melhorias de UX: busca, paginação, filtros e estatísticas no histórico de validações
+> - ✅ Base do frontend público criada (Next.js 14 + Tailwind + SASS + componentes compartilhados)
 
 ---
 
@@ -219,6 +220,7 @@
 - ✅ Swagger atualizado
   - Endpoints DELETE agora documentam explicitamente "soft delete"
   - Endpoints de Pagamento (Orders API) documentados
+- ✅ Guias rápidos do frontend público (`README.md`, `SETUP.md`, `COMANDOS_RAPIDOS.md` dentro de `frontend/`)
 
 ### 🐛 Correções e Ajustes
 
@@ -278,6 +280,7 @@
   - ✅ Envio de emails automático
 
 #### Frontend ❌ PENDENTE
+- ✅ Projeto base configurado em `frontend/` (Next.js 14 + Tailwind + SASS + TypeScript + Axios + Zustand)
 - [ ] **Cartão de Crédito/Débito** (Frontend)
   - [ ] Integração com MercadoPago.js SDK
   - [ ] Formulário de cartão (número, nome, validade, CVV)
@@ -603,6 +606,7 @@
 - ⏳ **EM ANDAMENTO:** Cartão de crédito via Orders API
 
 ### Fase 2 - Portal Público (2-3 semanas)
+- ✅ Projeto base Next.js/Tailwind preparado para desenvolvimento do portal
 - [ ] Landing page pública
 - [ ] Página de compra
 - [ ] Área do cliente

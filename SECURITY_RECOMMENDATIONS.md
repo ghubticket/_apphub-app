@@ -150,6 +150,7 @@
 
 ### 8.1 Variáveis de Ambiente
 - ✅ **Implementado**: Uso de dotenv
+- ✅ **Implementado**: Projeto frontend com `.env.example` e `.gitignore` para evitar commitar secrets
 - 🔄 **Recomendado**: Nunca commitar secrets no código
 - 🔄 **Recomendado**: Usar serviços de gerenciamento de secrets (AWS Secrets Manager, Azure Key Vault)
 
@@ -207,7 +208,21 @@
 - 🔄 Limitar taxa de download por IP no edge (Rate limiting da CDN)
 - 🔄 Servir estático via Nginx/CDN (tirar carga do Node)
 
-## 11. Checklist de Implementação Prioritária
+## 11. Segurança do Frontend Público (Next.js)
+
+### 12.1 Base Implementada
+- ✅ Projeto base com Next.js 14, TypeScript, ESLint e Tailwind (reforça tipagem e linting)
+- ✅ Cliente Axios único com interceptor para anexar token e tratar `401` (redireciona para login)
+- ✅ Organização de variáveis e mixins SASS reutilizáveis reduzindo risco de CSS duplicado inseguro
+- ✅ Arquivo `.env.example` documentando apenas variáveis públicas e mantendo secrets fora do versionamento
+
+### 12.2 Recomendações
+- 🔄 Avaliar uso de cookies `httpOnly` ou Storage seguro para tokens no frontend público
+- 🔄 Configurar headers de segurança adicionais (CSP, Referrer-Policy) via Next.js Middleware
+- 🔄 Implementar monitoramento de bundle para evitar dependências vulneráveis (ex.: `npm audit`, `dependabot`)
+- 🔄 Adicionar testes E2E para fluxos críticos (compra, login) garantindo ausência de regressões de segurança
+
+## 12. Checklist de Implementação Prioritária
 
 ### Alta Prioridade 🔴
 1. ✅ Validação de estoque e limites por compra
