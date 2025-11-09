@@ -1,0 +1,25 @@
+// ============================================
+// ESTILOS GLOBAIS
+// ============================================
+
+// Importar variáveis e mixins primeiro
+@import '../styles/variables';
+@import '../styles/mixins';
+@import '../styles/reset';
+
+// Importar Tailwind
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+// CSS Variables (para usar no JS se precisar)
+:root {
+  --color-primary: #{$primary};
+  --color-primary-dark: #{$primary-dark};
+  --spacing-md: #{$spacing-md};
+  --radius-md: #{$radius-md};
+}
+
+// Estilos globais customizados (se necessário)
+// Tailwind já cobre a maioria, mas você pode adicionar aqui
+

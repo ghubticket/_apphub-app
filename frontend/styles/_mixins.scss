@@ -1,0 +1,63 @@
+// ============================================
+// MIXINS SASS
+// ============================================
+
+// Responsive breakpoints
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == sm {
+    @media (min-width: 640px) { @content; }
+  }
+  @if $breakpoint == md {
+    @media (min-width: 768px) { @content; }
+  }
+  @if $breakpoint == lg {
+    @media (min-width: 1024px) { @content; }
+  }
+  @if $breakpoint == xl {
+    @media (min-width: 1280px) { @content; }
+  }
+  @if $breakpoint == 2xl {
+    @media (min-width: 1536px) { @content; }
+  }
+}
+
+// Flexbox center
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Truncate text
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Button base
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-sm $spacing-md;
+  font-weight: $font-weight-medium;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+  cursor: pointer;
+  border: none;
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Card base
+@mixin card-base {
+  background: $white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-md;
+  padding: $spacing-lg;
+}
+

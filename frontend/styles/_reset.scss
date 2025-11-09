@@ -1,0 +1,54 @@
+// ============================================
+// RESET CSS
+// ============================================
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: $font-size-base;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: $font-family-base;
+  font-weight: $font-weight-normal;
+  line-height: 1.5;
+  color: $gray-900;
+  background-color: $gray-50;
+}
+
+// Links
+a {
+  color: $primary;
+  text-decoration: none;
+  transition: color $transition-base;
+  
+  &:hover {
+    color: $primary-dark;
+  }
+}
+
+// Images
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+// Buttons
+button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+// Inputs
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
