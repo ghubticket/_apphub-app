@@ -111,6 +111,7 @@
 - 🔄 **Recomendado**: Alertar sobre múltiplas compras do mesmo IP em pouco tempo
 - 🔄 **Recomendado**: Alertar sobre múltiplos pedidos com mesmo CPF mas diferentes emails
 - 🔄 **Recomendado**: Implementar CAPTCHA após X tentativas de compra
+- ✅ **Implementado**: Validação server-side de códigos de promotor vinculados ao evento, com contador de uso e bloqueio de códigos inativos
 
 ### 5.3 Validação de Dados do Comprador
 - 🔄 **Recomendado**: Validar CPF (algoritmo de validação)
@@ -210,13 +211,13 @@
 
 ## 11. Segurança do Frontend Público (Next.js)
 
-### 12.1 Base Implementada
+### 11.1 Base Implementada
 - ✅ Projeto base com Next.js 14, TypeScript, ESLint e Tailwind (reforça tipagem e linting)
 - ✅ Cliente Axios único com interceptor para anexar token e tratar `401` (redireciona para login)
 - ✅ Organização de variáveis e mixins SASS reutilizáveis reduzindo risco de CSS duplicado inseguro
 - ✅ Arquivo `.env.example` documentando apenas variáveis públicas e mantendo secrets fora do versionamento
 
-### 12.2 Recomendações
+### 11.2 Recomendações
 - 🔄 Avaliar uso de cookies `httpOnly` ou Storage seguro para tokens no frontend público
 - 🔄 Configurar headers de segurança adicionais (CSP, Referrer-Policy) via Next.js Middleware
 - 🔄 Implementar monitoramento de bundle para evitar dependências vulneráveis (ex.: `npm audit`, `dependabot`)

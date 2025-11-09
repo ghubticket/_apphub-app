@@ -12,6 +12,7 @@
 > - ✅ Migração para Bootstrap 5: interface moderna, código limpo e manutenível
 > - ✅ Melhorias de UX: busca, paginação, filtros e estatísticas no histórico de validações
 > - ✅ Base do frontend público criada (Next.js 14 + Tailwind + SASS + componentes compartilhados)
+> - ✅ Sistema de códigos de promotor implementado (modelo, API, descontos, dashboard)
 
 ---
 
@@ -239,14 +240,14 @@
 ### 🎫 Sistema de Códigos de Promotor/Afiliado
 
 #### Prioridade: ALTA (Novo)
-- [ ] Modelo `PromoterCode` no backend
-- [ ] CRUD de códigos (admin)
-- [ ] Associação código ↔ evento (N:N)
-- [ ] Validação de código no checkout
-- [ ] Aplicação de desconto (percentual ou fixo)
-- [ ] Registro de código no pedido
-- [ ] Estatísticas de vendas por código
-- [ ] Tela de gerenciamento de códigos
+- ✅ Modelo `PromoterCode` no backend
+- ✅ CRUD de códigos (admin)
+- ✅ Associação código ↔ evento (N:N)
+- ✅ Validação de código no checkout (endpoint público)
+- ✅ Aplicação de desconto (percentual ou fixo)
+- ✅ Registro de código no pedido e incremento de uso
+- ✅ Estatísticas de vendas por código (endpoint e dashboard)
+- ✅ Tela de gerenciamento de códigos (dashboard com listagem, cards e formulários de criação/edição)
 - [ ] Integração no portal público (checkout)
 
 📄 **Documento completo**: `FEATURE_PROMOTER_CODES.md`
