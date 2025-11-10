@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     HiOutlineClipboardDocumentList,
@@ -124,7 +124,9 @@ export default function DashboardPage() {
     const [ordersError, setOrdersError] = useState<string>('');
     const [ordersLoading, setOrdersLoading] = useState<boolean>(false);
     const [hasFetchedOrders, setHasFetchedOrders] = useState(false);
-    const [ticketCarouselIndex, setTicketCarouselIndex] = useState<Record<string, number>>({});
+    const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+    const [modalSlideIndex, setModalSlideIndex] = useState(0);
+    const modalScrollRef = useRef<HTMLDivElement | null>(null);
 
     const greetingName = useMemo(() => {
         if (!user) return 'Bem-vindo';
@@ -238,55 +240,31 @@ export default function DashboardPage() {
     }, [isReady, isAuthenticated, router]);
 
     useEffect(() => {
-        setTicketCarouselIndex((prev) => {
-            const next: Record<string, number> = {};
-            let changed = false;
-
-            orders.forEach((order) => {
-                const maxIndex = Math.max(order.tickets.length - 1, 0);
-                const prevIndex = prev[order._id] ?? 0;
-                const clamped = Math.min(prevIndex, maxIndex);
-                next[order._id] = clamped;
-                if (clamped !== prevIndex) changed = true;
-            });
-
-            if (Object.keys(prev).length !== Object.keys(next).length) {
-                changed = true;
-            }
-
-            return changed ? next : prev;
-        });
-    }, [orders]);
-
-    useEffect(() => {
         if (!isReady || !isAuthenticated) return;
         if (activeTab === 'orders' && !hasFetchedOrders) {
             fetchOrders();
         }
     }, [activeTab, fetchOrders, hasFetchedOrders, isAuthenticated, isReady]);
 
-    const updateTicketIndex = useCallback((orderId: string, nextIndex: number) => {
-        setTicketCarouselIndex((prev) => {
-            if (prev[orderId] === nextIndex) return prev;
-            return { ...prev, [orderId]: nextIndex };
-        });
-    }, []);
+    const activeOrder = openOrderId ? orders.find((order) => order._id === openOrderId) : null;
 
-    const handleTicketNavigation = useCallback(
-        (orderId: string, direction: 'prev' | 'next', total: number) => {
-            if (total <= 1) return;
-            setTicketCarouselIndex((prev) => {
-                const current = prev[orderId] ?? 0;
-                const nextIndex =
-                    direction === 'prev'
-                        ? Math.max(0, current - 1)
-                        : Math.min(total - 1, current + 1);
-                if (nextIndex === current) return prev;
-                return { ...prev, [orderId]: nextIndex };
-            });
-        },
-        [],
-    );
+    useEffect(() => {
+        if (activeOrder && modalScrollRef.current) {
+            setModalSlideIndex(0);
+            modalScrollRef.current.scrollTo({ left: 0, behavior: 'auto' });
+        }
+    }, [activeOrder]);
+
+    const handleModalScroll = useCallback(() => {
+        if (!modalScrollRef.current || !activeOrder) return;
+        const container = modalScrollRef.current;
+        const width = container.clientWidth || 1;
+        const index = Math.round(container.scrollLeft / width);
+        const clamped = Math.max(0, Math.min(activeOrder.tickets.length - 1, index));
+        if (clamped !== modalSlideIndex) {
+            setModalSlideIndex(clamped);
+        }
+    }, [activeOrder, modalSlideIndex]);
 
     const renderProfileContent = () => (
         <div className="space-y-6">
@@ -342,12 +320,12 @@ export default function DashboardPage() {
                         (order.status === 'paid' ? 'Pagamento confirmado' : 'Pagamento pendente');
 
                     const ticketsConfirmed = order.tickets.filter((ticket) => ticket?.status === 'confirmed').length;
-                    const currentTicketSlide = ticketCarouselIndex[order._id] ?? 0;
-                    const hasMultipleTickets = order.tickets.length > 1;
+                    const totalTickets = order.tickets.length;
 
                     return (
                         <article
                             key={order._id}
+                            className="rounded-2xl border border-[#ded7ca] bg-white/80 p-6 shadow-[0_25px_45px_-25px_rgba(20,20,32,0.25)] transition hover:shadow-[0_30px_60px_-25px_rgba(20,20,32,0.35)]"
                         >
                             <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                                 <div className="space-y-1">
@@ -413,165 +391,17 @@ export default function DashboardPage() {
                             </div>
 
                             {order.tickets.length > 0 && (
-                                <div className="mt-6 space-y-4 rounded-2xl border border-dashed border-[#ded7ca] bg-white/60 p-4">
-                                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
-                                            Tickets & QR Codes
-                                        </p>
-                                        {hasMultipleTickets && (
-                                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
-                                                <span>
-                                                    {currentTicketSlide + 1} / {order.tickets.length}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="relative overflow-hidden rounded-2xl border border-[#e3dbc8] bg-white">
-                                        <div
-                                            className="flex transition-transform duration-500 ease-in-out"
-                                            style={{ transform: `translateX(-${currentTicketSlide * 100}%)` }}
-                                        >
-                                            {order.tickets.map((ticket, index) => {
-                                                const ticketConfirmed = ticket.status === 'confirmed';
-                                                const ticketPrice =
-                                                    typeof ticket.price === 'number'
-                                                        ? currencyFormatter.format(ticket.price)
-                                                        : undefined;
-
-                                                return (
-                                                    <div
-                                                        key={ticket._id ?? ticket.code ?? index}
-                                                        className="flex w-full flex-shrink-0 flex-col gap-6 p-6 md:flex-row md:items-start"
-                                                    >
-                                                        <div className="flex flex-1 flex-col gap-4">
-                                                            <div className="space-y-1">
-                                                                <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
-                                                                    Código do Ticket
-                                                                </span>
-                                                                <p className="text-lg font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
-                                                                    {ticket.code ?? 'Não informado'}
-                                                                </p>
-                                                            </div>
-
-                                                            <div className="space-y-1 text-sm text-[#4c4c55]">
-                                                                <p>
-                                                                    <span className="font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
-                                                                        Evento:
-                                                                    </span>{' '}
-                                                                    {eventName}
-                                                                </p>
-                                                                <p>
-                                                                    <span className="font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
-                                                                        Data:
-                                                                    </span>{' '}
-                                                                    {eventDate ?? 'A definir'}
-                                                                </p>
-                                                                {eventLocation ? (
-                                                                    <p>
-                                                                        <span className="font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
-                                                                            Local:
-                                                                        </span>{' '}
-                                                                        {eventLocation}
-                                                                    </p>
-                                                                ) : null}
-                                                                <p>
-                                                                    <span className="font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
-                                                                        Status:
-                                                                    </span>{' '}
-                                                                    <span
-                                                                        className={`inline-flex items-center rounded-full px-3 py-[2px] text-[0.65rem] font-semibold uppercase tracking-[0.2em] ${ticketConfirmed
-                                                                                ? 'bg-emerald-500/15 text-emerald-600'
-                                                                                : 'bg-[#f5f1e8] text-[#7d796c]'
-                                                                            }`}
-                                                                    >
-                                                                        {ticket.status ?? 'Pendente'}
-                                                                    </span>
-                                                                </p>
-                                                                {ticketPrice ? (
-                                                                    <p>
-                                                                        <span className="font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
-                                                                            Valor:
-                                                                        </span>{' '}
-                                                                        {ticketPrice}
-                                                                    </p>
-                                                                ) : null}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex flex-1 items-center justify-center">
-                                                            {ticketConfirmed && ticket.qrCode ? (
-                                                                <div className="flex flex-col items-center gap-3">
-                                                                    <div className="rounded-3xl border border-[#ded7ca] bg-white p-4 shadow-[0_20px_45px_-25px_rgba(20,20,32,0.25)]">
-                                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                        <img
-                                                                            src={ticket.qrCode}
-                                                                            alt={`QR Code do ingresso ${ticket.code ?? ''}`}
-                                                                            className="h-40 w-40 object-contain"
-                                                                        />
-                                                                    </div>
-                                                                    <p className="text-center text-[0.65rem] uppercase tracking-[0.25em] text-[#7d796c]">
-                                                                        Apresente este QR Code na entrada
-                                                                    </p>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/60 p-6 text-center text-xs text-[#7d796c]">
-                                                                    <span className="font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
-                                                                        QR Code indisponível
-                                                                    </span>
-                                                                    <p className="max-w-xs leading-relaxed">
-                                                                        O QR Code será liberado assim que o pagamento for confirmado. Fique de olho no status do seu pedido.
-                                                                    </p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {hasMultipleTickets && (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleTicketNavigation(order._id, 'prev', order.tickets.length)
-                                                    }
-                                                    className="absolute left-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[#4c4c55] shadow-sm transition hover:border-[#a38f78] hover:text-[#1a1a1d] md:flex"
-                                                    aria-label="Ticket anterior"
-                                                >
-                                                    ‹
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleTicketNavigation(order._id, 'next', order.tickets.length)
-                                                    }
-                                                    className="absolute right-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[#4c4c55] shadow-sm transition hover:border-[#a38f78] hover:text-[#1a1a1d] md:flex"
-                                                    aria-label="Próximo ticket"
-                                                >
-                                                    ›
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {hasMultipleTickets && (
-                                        <div className="flex items-center justify-center gap-2 pt-2">
-                                            {order.tickets.map((_, index) => (
-                                                <button
-                                                    key={`ticket-dot-${order._id}-${index}`}
-                                                    type="button"
-                                                    onClick={() => updateTicketIndex(order._id, index)}
-                                                    className={`h-2.5 w-2.5 rounded-full transition ${currentTicketSlide === index
-                                                            ? 'bg-[#1a1a1d]'
-                                                            : 'bg-[#dcd5c7] hover:bg-[#bfb5a2]'
-                                                        }`}
-                                                    aria-label={`Ticket ${index + 1}`}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
+                                <div className="mt-6 flex flex-col items-start gap-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
+                                        {totalTickets} ingresso(s) neste pedido
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpenOrderId(order._id)}
+                                        className="inline-flex items-center gap-2 rounded-full border border-[#ded7ca] bg-white px-5 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#a38f78] hover:bg-[#f5f1e8]"
+                                    >
+                                        Abrir ingressos
+                                    </button>
                                 </div>
                             )}
                         </article>
@@ -613,82 +443,211 @@ export default function DashboardPage() {
     };
 
     return (
-        <main
-            className="bg-[#f5f1e8]"
-            style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
-        >
-            {!isReady || (!isAuthenticated && isReady) ? (
-                <Container className="flex min-h-[60vh] items-center justify-center py-12">
-                    <div className="flex flex-col items-center gap-3 text-[#7d796c]">
-                        <span className="text-xs font-semibold uppercase tracking-[0.3em]">
-                            Redirecionando
-                        </span>
-                        <span className="h-3 w-3 animate-ping rounded-full bg-[#f97316]" />
-                    </div>
-                </Container>
-            ) : (
-                <Container className="py-12">
-                    <header className="mb-10 space-y-3">
-                        <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
-                            Área do Cliente
-                        </span>
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                            <h1 className="text-3xl font-bold uppercase tracking-[0.25em] text-[#1a1a1d]">
-                                Dashboard 5521
-                            </h1>
-                            <p className="text-sm text-[#4c4c55]">
-                                {greetingName}, gerencie sua conta, pedidos e solicitações em um só
-                                lugar.
-                            </p>
+        <>
+            <main
+                className="bg-[#f5f1e8]"
+                style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
+            >
+                {!isReady || (!isAuthenticated && isReady) ? (
+                    <Container className="flex min-h-[60vh] items-center justify-center py-12">
+                        <div className="flex flex-col items-center gap-3 text-[#7d796c]">
+                            <span className="text-xs font-semibold uppercase tracking-[0.3em]">
+                                Redirecionando
+                            </span>
+                            <span className="h-3 w-3 animate-ping rounded-full bg-[#f97316]" />
                         </div>
-                    </header>
+                    </Container>
+                ) : (
+                    <Container className="py-12">
+                        <header className="mb-10 space-y-3">
+                            <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
+                                Área do Cliente
+                            </span>
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                <h1 className="text-3xl font-bold uppercase tracking-[0.25em] text-[#1a1a1d]">
+                                    Dashboard 5521
+                                </h1>
+                                <p className="text-sm text-[#4c4c55]">
+                                    {greetingName}, gerencie sua conta, pedidos e solicitações em um só
+                                    lugar.
+                                </p>
+                            </div>
+                        </header>
 
-                    <section className="space-y-10">
-                        <nav className="flex w-full flex-wrap gap-4 rounded-3xl border border-[#ded7ca] bg-white/40 p-3">
-                            {tabs.map((tab) => {
-                                const Icon = tab.icon;
-                                const isActive = activeTab === tab.key;
-                                return (
-                                    <button
-                                        key={tab.key}
-                                        type="button"
-                                        onClick={() => setActiveTab(tab.key)}
-                                        className={`group flex flex-1 min-w-[180px] items-center gap-3 rounded-2xl px-5 py-4 text-left transition ${isActive
-                                            ? 'bg-[#1a1a1d] text-white shadow-[0_20px_45px_-18px_rgba(12,12,24,0.45)]'
-                                            : 'bg-transparent text-[#4c4c55] hover:bg-white hover:text-[#1a1a1d]'
-                                            }`}
-                                    >
-                                        <span
-                                            className={`flex h-10 w-10 items-center justify-center rounded-full ${isActive
-                                                ? 'bg-white/10 text-white'
-                                                : 'bg-[#f5f1e8] text-[#a38f78]'
-                                                } transition`}
+                        <section className="space-y-10">
+                            <nav className="flex w-full flex-wrap gap-4 rounded-3xl border border-[#ded7ca] bg-white/40 p-3">
+                                {tabs.map((tab) => {
+                                    const Icon = tab.icon;
+                                    const isActive = activeTab === tab.key;
+                                    return (
+                                        <button
+                                            key={tab.key}
+                                            type="button"
+                                            onClick={() => setActiveTab(tab.key)}
+                                            className={`group flex flex-1 min-w-[180px] items-center gap-3 rounded-2xl px-5 py-4 text-left transition ${isActive
+                                                ? 'bg-[#1a1a1d] text-white shadow-[0_20px_45px_-18px_rgba(12,12,24,0.45)]'
+                                                : 'bg-transparent text-[#4c4c55] hover:bg-white hover:text-[#1a1a1d]'
+                                                }`}
                                         >
-                                            <Icon className="text-xl" />
-                                        </span>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-semibold uppercase tracking-[0.2em]">
-                                                {tab.label}
-                                            </span>
                                             <span
-                                                className={`text-xs ${isActive ? 'text-white/70' : 'text-[#7d796c]'
-                                                    }`}
+                                                className={`flex h-10 w-10 items-center justify-center rounded-full ${isActive
+                                                    ? 'bg-white/10 text-white'
+                                                    : 'bg-[#f5f1e8] text-[#a38f78]'
+                                                    } transition`}
                                             >
-                                                {tab.description}
+                                                <Icon className="text-xl" />
                                             </span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </nav>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-semibold uppercase tracking-[0.2em]">
+                                                    {tab.label}
+                                                </span>
+                                                <span
+                                                    className={`text-xs ${isActive ? 'text-white/70' : 'text-[#7d796c]'
+                                                        }`}
+                                                >
+                                                    {tab.description}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </nav>
 
-                        <section className="rounded-3xl border border-[#ded7ca] bg-white/80 p-8 shadow-[0_35px_60px_-25px_rgba(20,20,32,0.25)]">
-                            {renderActiveTabContent()}
+                            <section className="rounded-3xl border border-[#ded7ca] bg-white/80 p-8 shadow-[0_35px_60px_-25px_rgba(20,20,32,0.25)]">
+                                {renderActiveTabContent()}
+                            </section>
                         </section>
-                    </section>
-                </Container>
-            )}
-        </main>
+                    </Container>
+                )}
+            </main>
+
+            {activeOrder ? (
+                <TicketModal
+                    order={activeOrder}
+                    slideIndex={modalSlideIndex}
+                    onClose={() => setOpenOrderId(null)}
+                    scrollRef={modalScrollRef}
+                    onScroll={handleModalScroll}
+                />
+            ) : null}
+        </>
     );
 }
+
+interface TicketModalProps {
+    order: OrderSummary;
+    slideIndex: number;
+    onClose: () => void;
+    scrollRef: React.RefObject<HTMLDivElement>;
+    onScroll: () => void;
+}
+
+const TicketModal = ({ order, slideIndex, onClose, scrollRef, onScroll }: TicketModalProps) => {
+    const eventName = order.event?.name ?? 'Evento não informado';
+    const eventDate = order.event?.date
+        ? new Date(order.event.date).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+        })
+        : 'Data a definir';
+    const eventLocation = order.event?.location || order.event?.address || '';
+
+    const formatCurrency = (value?: number) =>
+        typeof value === 'number'
+            ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+            : undefined;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
+            <div className="relative flex w-full max-w-4xl flex-col gap-6 rounded-3xl border border-[#ded7ca] bg-white p-6 text-[#1a1a1d] shadow-[0_40px_80px_-40px_rgba(18,18,24,0.45)] md:p-10">
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
+                    aria-label="Fechar modal de ingressos"
+                >
+                    ✕
+                </button>
+
+                <div className="flex flex-col gap-2 text-center">
+                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
+                        Ingressos do pedido #{order.orderNumber ?? order._id.slice(-6)}
+                    </span>
+                    <h2 className="text-2xl font-semibold uppercase tracking-[0.25em] text-[#1a1a1d]">
+                        {eventName}
+                    </h2>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
+                        {eventDate}
+                        {eventLocation ? ` • ${eventLocation}` : ''}
+                    </p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
+                        Ingresso {slideIndex + 1} de {order.tickets.length}
+                    </p>
+                </div>
+
+                <div
+                    ref={scrollRef}
+                    onScroll={onScroll}
+                    className="flex snap-x snap-mandatory gap-6 overflow-x-auto pb-6"
+                >
+                    {order.tickets.map((ticket, index) => {
+                        const ticketConfirmed = ticket.status === 'confirmed';
+                        const ticketPrice = formatCurrency(ticket.price);
+
+                        return (
+                            <div
+                                key={ticket._id ?? ticket.code ?? index}
+                                className="flex min-w-full snap-center flex-col items-center gap-6 text-center"
+                            >
+                                <div className="space-y-3">
+                                    <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#a38f78]">
+                                        Código do Ticket
+                                    </span>
+                                    <p className="text-2xl font-semibold uppercase tracking-[0.35em] text-[#1a1a1d]">
+                                        {ticket.code ?? 'Não informado'}
+                                    </p>
+                                </div>
+
+                                <div className="flex flex-col items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#4c4c55]">
+                                    <p className="flex items-center gap-2">
+                                        <span className="text-[#a38f78]">Status:</span>
+                                        <span
+                                            className={`inline-flex items-center rounded-full px-3 py-[4px] text-[0.6rem] ${ticketConfirmed
+                                                    ? 'bg-emerald-500/15 text-emerald-600'
+                                                    : 'bg-[#f5f1e8] text-[#7d796c]'
+                                                }`}
+                                        >
+                                            {ticket.status ?? 'Pendente'}
+                                        </span>
+                                    </p>
+                                    {ticketPrice ? (
+                                        <p>
+                                            <span className="text-[#a38f78]">Valor:</span> {ticketPrice}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="rounded-3xl border border-[#ded7ca] bg-white p-4 shadow-[0_20px_45px_-25px_rgba(20,20,32,0.25)]">
+                                    {ticketConfirmed && ticket.qrCode ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={ticket.qrCode}
+                                            alt={`QR Code do ingresso ${ticket.code ?? ''}`}
+                                            className="h-56 w-56 object-contain"
+                                        />
+                                    ) : (
+                                        <div className="flex h-56 w-56 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
+                                            Aguardando confirmação do pagamento
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
 
