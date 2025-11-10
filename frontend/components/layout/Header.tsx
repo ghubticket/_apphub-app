@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { HiOutlineTicket } from 'react-icons/hi';
@@ -26,9 +29,28 @@ const formatDate = (isoDate: string) =>
         month: 'short',
     });
 
-export default function Header() {
-    return (
-        <header className={`${styles.headerBackground} relative z-20`}>
+ export default function Header() {
+     const headerRef = useRef<HTMLElement>(null);
+
+     useEffect(() => {
+         const updateHeaderHeight = () => {
+             if (headerRef.current) {
+                 document.documentElement.style.setProperty(
+                     '--app-header-height',
+                     `${headerRef.current.offsetHeight}px`
+                 );
+             }
+         };
+
+         updateHeaderHeight();
+         window.addEventListener('resize', updateHeaderHeight);
+         return () => {
+             window.removeEventListener('resize', updateHeaderHeight);
+         };
+     }, []);
+
+     return (
+         <header ref={headerRef} className={`${styles.headerBackground} relative z-20 w-full`}>
             <div className="overflow-hidden py-3 text-white" aria-hidden="true">
                 <div
                     className={`${styles.marquee} flex gap-12 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-white/90 md:text-xs`}
@@ -60,17 +82,17 @@ export default function Header() {
                             alt="Logotipo 5521"
                             width={120}
                             height={48}
-                            className="h-12 w-auto"
+                            className=""
                             priority
                         />
                     </Link>
 
-                    <nav className="hidden items-center gap-3   text-white/70 lg:flex">
+                    <nav className="hidden items-center gap-7  text-white/70 lg:flex">
                         {navigationLinks.map((link) => (
                             <Link
                                 key={link.label}
                                 href={link.href}
-                                className={`${styles.navItem} text-white relative text-2xl `}
+                                className={`${styles.navItem} text-white uppercase font-bold relative text-xl `}
                             >
                                 {link.label}
                             </Link>

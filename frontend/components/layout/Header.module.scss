@@ -17,11 +17,14 @@
     transition: color 0.2s ease;
 
     &::after {
-        content: '•';
+        content: "•";
         display: inline-block;
-        margin-left: 1.75rem;
-        color: rgba(249, 115, 22, 0.5);
+        color: rgba(255, 255, 255, 0.2196078431);
         transition: color 0.2s ease;
+        position: absolute;
+        font-size: 2rem;
+        right: -1rem;
+        top: 0.24rem;
     }
 
     &:last-child::after {
@@ -29,7 +32,8 @@
     }
 
     &:hover {
-        color: #ffffff;
+        color: rgba(249, 115, 22, 0.85);
+
 
         &::after {
             color: rgba(249, 115, 22, 0.85);
@@ -62,4 +66,3 @@
         transform: translateX(-50%);
     }
 }
-
