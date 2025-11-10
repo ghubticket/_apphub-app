@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { HiOutlineTicket } from 'react-icons/hi';
 import { HiOutlineUserCircle } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import styles from './Header.module.scss';
+import { useAuth } from '@/context/AuthContext';
 
 const upcomingEvents = [
     { name: '5521 Summer Vibes', city: 'Rio de Janeiro', state: 'RJ', date: '2025-11-15', venue: 'Morro da Urca' },
@@ -29,28 +31,37 @@ const formatDate = (isoDate: string) =>
         month: 'short',
     });
 
- export default function Header() {
-     const headerRef = useRef<HTMLElement>(null);
+export default function Header() {
+    const headerRef = useRef<HTMLElement>(null);
+    const router = useRouter();
+    const { user, isAuthenticated, logout } = useAuth();
 
-     useEffect(() => {
-         const updateHeaderHeight = () => {
-             if (headerRef.current) {
-                 document.documentElement.style.setProperty(
-                     '--app-header-height',
-                     `${headerRef.current.offsetHeight}px`
-                 );
-             }
-         };
+    const welcomeName = useMemo(() => {
+        if (!user) return '';
+        const fullName = user.name || user.email || '';
+        const [first] = fullName.split(' ');
+        return first || fullName;
+    }, [user]);
 
-         updateHeaderHeight();
-         window.addEventListener('resize', updateHeaderHeight);
-         return () => {
-             window.removeEventListener('resize', updateHeaderHeight);
-         };
-     }, []);
+    useEffect(() => {
+        const updateHeaderHeight = () => {
+            if (headerRef.current) {
+                document.documentElement.style.setProperty(
+                    '--app-header-height',
+                    `${headerRef.current.offsetHeight}px`
+                );
+            }
+        };
 
-     return (
-         <header ref={headerRef} className={`${styles.headerBackground} relative z-20 w-full`}>
+        updateHeaderHeight();
+        window.addEventListener('resize', updateHeaderHeight);
+        return () => {
+            window.removeEventListener('resize', updateHeaderHeight);
+        };
+    }, []);
+
+    return (
+        <header ref={headerRef} className={`${styles.headerBackground} relative z-20 w-full`}>
             <div className="overflow-hidden py-3 text-white" aria-hidden="true">
                 <div
                     className={`${styles.marquee} flex gap-12 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-white/90 md:text-xs`}
@@ -100,23 +111,36 @@ const formatDate = (isoDate: string) =>
                     </nav>
 
                     <div className="flex items-center gap-4">
+                        {isAuthenticated && welcomeName ? (
+                            <div className="flex flex-col items-end gap-1 text-white">
+                                <Link
+                                    href="/dashboard"
+                                    className="inline-flex items-center rounded-full gap-2 bg-white text-black px-6 py-2 text-sm font-semibold uppercase  transition "
+                                >
+                                    <HiOutlineUserCircle className="text-lg" />
+                                    <span>
+                                        Olá, <strong className="font-bold">{welcomeName}</strong>
+                                    </span>
+                                </Link>
+                                
+                            </div>
+                        ) : (
+                            <Link
+                                href="/login"
+                                className="inline-flex items-center gap-1 rounded-full border border-white/40 px-7 py-3 text-sm font-semibold uppercase text-white transition hover:border-[#f97316] lg:inline-flex"
+                            >
+                                <HiOutlineUserCircle className="text-lg" />
+                                Entrar
+                            </Link>
+                        )}
+
                         <Link
                             href="/ingressos"
                             className="group relative flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition hover:border-[#f97316] hover:bg-[#f97316]/10"
                             aria-label="Ingressos"
                         >
                             <HiOutlineTicket className="text-xl drop-shadow-[0_0_12px_rgba(249,115,22,0.35)] group-hover:text-[#f97316]" />
-                            <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full border border-white/70 bg-white px-1 text-[0.65rem] font-semibold text-[#f97316] shadow-[0_0_16px_rgba(255,255,255,0.35)]">
-                                0
-                            </span>
-                        </Link>
-
-                        <Link
-                            href="/login"
-                            className="inline-flex items-center gap-1 rounded-full bg-white px-7 py-3 text-sm font-semibold uppercase text-[#1a1a1d]  transition hover:bg-orange-100"
-                        >
-                            <HiOutlineUserCircle className="text-lg" />
-                            Entrar
+                           
                         </Link>
                     </div>
                 </Container>

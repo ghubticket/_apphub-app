@@ -25,7 +25,7 @@ const InputField = forwardRef<HTMLInputElement, InputFieldProps>(function InputF
 
     return (
         <div className="space-y-2">
-            <label htmlFor={id} className="block text-xs font-semibold uppercase tracking-[0.35em] text-[#555068]">
+            <label htmlFor={id} className="block text-xs font-semibold uppercase text-[#555068]">
                 {label}
             </label>
             <div className="relative">

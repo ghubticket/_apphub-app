@@ -10,7 +10,7 @@ import { sendWelcomeEmail } from '../services/emailTemplates';
  */
 export const register = async (req: Request, res: Response) => {
     try {
-        const { name, email, password, role, phone, cpf } = req.body;
+        const { name, email, password, phone, cpf } = req.body;
 
         // Verificar se o email já existe (apenas usuários não deletados)
         const existingUser = await User.findOne({ 
@@ -30,7 +30,7 @@ export const register = async (req: Request, res: Response) => {
             name,
             email: email.toLowerCase(),
             password,
-            role: role || 'CLIENTE',
+            role: 'CLIENTE',
             phone,
             cpf,
         });
@@ -117,24 +117,30 @@ export const login = async (req: Request, res: Response) => {
         // Lockout progressivo por IP+email (in-memory)
         //  - 5 falhas em 15min => bloqueia por 15min
         //  - reseta no sucesso
+        const isProduction = (process.env.NODE_ENV || 'development') === 'production';
         const clientIp = (req.ip || req.connection.remoteAddress || 'unknown').toString();
         const key = `${(email || '').toLowerCase()}|${clientIp}`;
         const now = Date.now();
-        // @ts-ignore - guarda em escopo do módulo
-        if (!(global as any).__FAILED_LOGIN__) {
-            // Estrutura: { [key]: { count: number, until?: number, last: number } }
-            (global as any).__FAILED_LOGIN__ = Object.create(null);
-        }
-        const store = (global as any).__FAILED_LOGIN__ as Record<string, { count: number; until?: number; last: number }>;
 
-        const entry = store[key];
-        if (entry?.until && entry.until > now) {
-            const seconds = Math.ceil((entry.until - now) / 1000);
-            return res.status(429).json({
-                success: false,
-                message: `Muitas tentativas de login. Aguarde ${seconds}s e tente novamente.`,
-                errors: ['Lockout temporário por tentativas falhas'],
-            });
+        let store: Record<string, { count: number; until?: number; last: number }> | null = null;
+
+        if (isProduction) {
+            // @ts-ignore - guarda em escopo do módulo
+            if (!(global as any).__FAILED_LOGIN__) {
+                // Estrutura: { [key]: { count: number, until?: number, last: number } }
+                (global as any).__FAILED_LOGIN__ = Object.create(null);
+            }
+            store = (global as any).__FAILED_LOGIN__ as Record<string, { count: number; until?: number; last: number }>;
+
+            const entry = store[key];
+            if (entry?.until && entry.until > now) {
+                const seconds = Math.ceil((entry.until - now) / 1000);
+                return res.status(429).json({
+                    success: false,
+                    message: `Muitas tentativas de login. Aguarde ${seconds}s e tente novamente.`,
+                    errors: ['Lockout temporário por tentativas falhas'],
+                });
+            }
         }
 
         // Buscar usuário por email (incluindo senha para comparação, apenas não deletados)
@@ -163,12 +169,14 @@ export const login = async (req: Request, res: Response) => {
         // Verificar senha
         const isPasswordValid = await user.comparePassword(password);
         if (!isPasswordValid) {
-            // incrementa falhas e aplica lockout se necessário
-            const prev = store[key] || { count: 0, last: now };
-            const withinWindow = now - prev.last <= 15 * 60 * 1000;
-            const count = withinWindow ? prev.count + 1 : 1;
-            const until = count >= 5 ? now + 15 * 60 * 1000 : undefined;
-            store[key] = { count, last: now, until } as any;
+            if (store) {
+                // incrementa falhas e aplica lockout se necessário
+                const prev = store[key] || { count: 0, last: now };
+                const withinWindow = now - prev.last <= 15 * 60 * 1000;
+                const count = withinWindow ? prev.count + 1 : 1;
+                const until = count >= 5 ? now + 15 * 60 * 1000 : undefined;
+                store[key] = { count, last: now, until } as any;
+            }
 
             return res.status(401).json({
                 success: false,
@@ -178,7 +186,7 @@ export const login = async (req: Request, res: Response) => {
         }
 
         // Sucesso: resetar contador de falhas
-        if (store[key]) delete store[key];
+        if (store && store[key]) delete store[key];
 
         // Atualizar último login
         user.lastLogin = new Date();

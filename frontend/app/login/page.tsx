@@ -1,12 +1,16 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { HiOutlineEnvelope, HiOutlineLockClosed } from 'react-icons/hi2';
+import { useRouter } from 'next/navigation';
 import AuthCard from '@/components/auth/AuthCard';
 import InputField from '@/components/forms/InputField';
 import PasswordField from '@/components/forms/PasswordField';
 import Button from '@/components/shared/Button';
+import api from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import { sanitizeInput } from '@/utils/sanitize';
 
 type LoginFormFields = 'email' | 'password';
 
@@ -25,6 +29,13 @@ const validators: Record<LoginFormFields, (value: string) => string> = {
 };
 
 export default function LoginPage() {
+    const router = useRouter();
+    const { login: authLogin, isAuthenticated, isReady } = useAuth();
+    useEffect(() => {
+        if (isReady && isAuthenticated) {
+            router.replace('/dashboard');
+        }
+    }, [isReady, isAuthenticated, router]);
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -35,10 +46,14 @@ export default function LoginPage() {
         email: '',
         password: '',
     });
+    const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleChange = (field: LoginFormFields) => (event: ChangeEvent<HTMLInputElement>) => {
-        const value = event.target.value;
+        const rawValue = event.target.value;
+        const value = field === 'email' ? sanitizeInput(rawValue) : rawValue;
         setFormData((prev) => ({ ...prev, [field]: value }));
+        if (formMessage) setFormMessage(null);
     };
 
     const handleRememberToggle = (event: ChangeEvent<HTMLInputElement>) => {
@@ -55,7 +70,7 @@ export default function LoginPage() {
         validateField(field, formData[field]);
     };
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const fieldErrors = {
             email: validators.email(formData.email),
@@ -66,8 +81,77 @@ export default function LoginPage() {
         const hasErrors = Object.values(fieldErrors).some(Boolean);
         if (hasErrors) return;
 
-        // TODO: integrar com backend
-        console.log('Formulário válido. Enviar dados:', formData);
+        setIsSubmitting(true);
+        setFormMessage(null);
+
+        try {
+            const payload = {
+                email: formData.email.trim(),
+                password: formData.password,
+            };
+
+            const response = await api.post('/auth/login', payload);
+            const { accessToken, refreshToken, user, sessionId } = response.data?.data ?? {};
+            if (!accessToken || !refreshToken) {
+                throw new Error('Tokens não recebidos do servidor.');
+            }
+
+            authLogin(
+                {
+                    user,
+                    accessToken,
+                    refreshToken,
+                    sessionId,
+                },
+                formData.remember
+            );
+
+            setFormMessage({
+                type: 'success',
+                text: 'Login realizado com sucesso. Redirecionando...',
+            });
+
+            setTimeout(() => {
+                router.replace('/');
+            }, 600);
+        } catch (error: any) {
+            const status = error?.response?.status;
+            const messageResponse = error?.response?.data?.message;
+            const apiErrors: string[] | undefined = error?.response?.data?.errors;
+
+            if (status === 401 || status === 403) {
+                const invalidMessage = 'E-mail ou senha incorretos.';
+                setErrors((prev) => ({
+                    ...prev,
+                    email: invalidMessage,
+                    password: invalidMessage,
+                }));
+                setFormMessage({
+                    type: 'error',
+                    text: invalidMessage,
+                });
+            } else if (status === 429) {
+                setFormMessage({
+                    type: 'error',
+                    text: messageResponse || 'Muitas tentativas. Tente novamente em instantes.',
+                });
+            } else {
+                setFormMessage({
+                    type: 'error',
+                    text:
+                        messageResponse ||
+                        apiErrors?.[0] ||
+                        (error instanceof Error ? error.message : '') ||
+                        'Não foi possível realizar o login. Tente novamente.',
+                });
+            }
+            if (process.env.NODE_ENV !== 'production') {
+                // eslint-disable-next-line no-console
+                console.error('Erro no login', error?.response || error);
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -130,10 +214,23 @@ export default function LoginPage() {
 
                         <Button
                             type="submit"
-                            className="w-full bg-[#1a1a1d] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                            disabled={isSubmitting}
+                            className="w-full bg-[#1a1a1d] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d] disabled:cursor-not-allowed disabled:bg-[#1a1a1d]/60"
                         >
-                            Entrar
+                            {isSubmitting ? 'Entrando...' : 'Entrar'}
                         </Button>
+
+                        {formMessage && (
+                            <div
+                                className={`rounded-xl border ${
+                                    formMessage.type === 'error'
+                                        ? 'border-[#f2c4c4] bg-[#fbecec] text-[#a22d2d]'
+                                        : 'border-[#c1f1ce] bg-[#e9fbef] text-[#256b3f]'
+                                } p-4 text-sm text-center`}
+                            >
+                                {formMessage.text}
+                            </div>
+                        )}
 
                         <p className="text-center text-xs text-[#5b5866]">
                             Ainda não tem uma conta?{' '}

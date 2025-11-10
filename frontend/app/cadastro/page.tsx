@@ -13,6 +13,16 @@ import AuthCard from '@/components/auth/AuthCard';
 import InputField from '@/components/forms/InputField';
 import PasswordField from '@/components/forms/PasswordField';
 import Button from '@/components/shared/Button';
+import api from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import {
+    sanitizeInput,
+    normalizePhone,
+    normalizeCpf,
+    formatPhoneDisplay,
+    formatCpfDisplay,
+} from '@/utils/sanitize';
 
 type SignupField = 'name' | 'email' | 'password' | 'confirmPassword' | 'phone' | 'cpf';
 
@@ -54,6 +64,8 @@ const validators: Record<SignupField, (value: string, data?: Record<SignupField,
 };
 
 export default function CadastroPage() {
+    const router = useRouter();
+    const { login: authLogin, updateUser } = useAuth();
     const [formData, setFormData] = useState<Record<SignupField, string>>({
         name: '',
         email: '',
@@ -73,30 +85,68 @@ export default function CadastroPage() {
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+    const [apiErrorsList, setApiErrorsList] = useState<Array<{ field?: string; message: string }>>([]);
 
     const handleChange = (field: SignupField) => (event: ChangeEvent<HTMLInputElement>) => {
-        const value = event.target.value;
+        let value = event.target.value;
+
+        if (field === 'phone') {
+            const normalized = normalizePhone(value);
+            value = formatPhoneDisplay(normalized);
+        } else if (field === 'cpf') {
+            const normalized = normalizeCpf(value);
+            value = formatCpfDisplay(normalized);
+        } else {
+            value = sanitizeInput(value);
+        }
+
         setFormData((prev) => ({ ...prev, [field]: value }));
         if (errors[field]) {
-            const message = validators[field](value, { ...formData, [field]: value });
+            const normalizedValue =
+                field === 'phone'
+                    ? normalizePhone(value)
+                    : field === 'cpf'
+                    ? normalizeCpf(value)
+                    : value;
+            const message = validators[field](normalizedValue, {
+                ...formData,
+                [field]: normalizedValue,
+            });
             setErrors((prev) => ({ ...prev, [field]: message }));
         }
+        if (formMessage) setFormMessage(null);
     };
 
     const handleBlur = (field: SignupField) => () => {
-        const message = validators[field](formData[field], formData);
+        let normalizedValue: string;
+        if (field === 'phone') {
+            normalizedValue = normalizePhone(formData[field]);
+        } else if (field === 'cpf') {
+            normalizedValue = normalizeCpf(formData[field]);
+        } else {
+            normalizedValue = sanitizeInput(formData[field]);
+        }
+
+        const message = validators[field](normalizedValue, {
+            ...formData,
+            [field]: normalizedValue,
+        });
         setErrors((prev) => ({ ...prev, [field]: message }));
     };
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const fieldErrors = {
-            name: validators.name(formData.name),
-            email: validators.email(formData.email),
+            name: validators.name(sanitizeInput(formData.name)),
+            email: validators.email(sanitizeInput(formData.email)),
             password: validators.password(formData.password),
-            confirmPassword: validators.confirmPassword(formData.confirmPassword, formData),
-            phone: validators.phone(formData.phone),
-            cpf: validators.cpf(formData.cpf),
+            confirmPassword: validators.confirmPassword(formData.confirmPassword, {
+                ...formData,
+                password: formData.password,
+            }),
+            phone: validators.phone(normalizePhone(formData.phone)),
+            cpf: validators.cpf(normalizeCpf(formData.cpf)),
         };
         setErrors(fieldErrors);
 
@@ -104,17 +154,102 @@ export default function CadastroPage() {
         if (hasErrors) return;
 
         setIsSubmitting(true);
+        setFormMessage(null);
         try {
-            // TODO: integrar com cadastro no backend
+            const nameSanitized = sanitizeInput(formData.name);
+            const emailSanitized = sanitizeInput(formData.email).toLowerCase();
+            const phoneDigits = normalizePhone(formData.phone);
+            const cpfDigits = normalizeCpf(formData.cpf);
             const payload = {
-                name: formData.name.trim(),
-                email: formData.email.trim(),
+                name: nameSanitized,
+                email: emailSanitized,
                 password: formData.password,
-                phone: formData.phone.replace(/\D/g, '') || undefined,
-                cpf: formData.cpf.replace(/\D/g, '') || undefined,
-                role: 'CLIENTE',
+                phone: phoneDigits ? formatPhoneDisplay(phoneDigits) : undefined,
+                cpf: cpfDigits ? formatCpfDisplay(cpfDigits) : undefined,
             };
-            console.log('Enviar cadastro', payload);
+
+            const response = await api.post('/auth/register', payload);
+            const data = response.data?.data;
+            const userResponse = data?.user ?? payload;
+
+            if (data?.token && data?.user) {
+                authLogin(
+                    {
+                        user: data.user,
+                        accessToken: data.token,
+                        refreshToken: data.refreshToken ?? data.token,
+                        sessionId: data.sessionId,
+                    },
+                    true
+                );
+            } else if (data?.user) {
+                updateUser(data.user);
+            }
+
+            setFormMessage({
+                type: 'success',
+                text: 'Conta criada com sucesso! Redirecionando...',
+            });
+            setTimeout(() => {
+                router.replace('/');
+            }, 800);
+        } catch (error: any) {
+            const status = error?.response?.status;
+            const messageResponse = error?.response?.data?.message;
+            const apiErrors = error?.response?.data?.errors;
+
+            if (status === 409) {
+                setErrors((prev) => ({
+                    ...prev,
+                    email: 'Este e-mail já está cadastrado.',
+                }));
+                setFormMessage({
+                    type: 'error',
+                    text: messageResponse || 'E-mail já cadastrado. Faça login ou use outro e-mail.',
+                });
+            } else if (status === 400 && Array.isArray(apiErrors) && apiErrors.length > 0) {
+                const updatedErrors: Partial<Record<SignupField, string>> = {};
+                const friendlyErrors: string[] = [];
+                const listForDisplay: Array<{ field?: string; message: string }> = [];
+                apiErrors.forEach((err: any) => {
+                    if (!err || typeof err !== 'object') return;
+                    const field = err.field as SignupField | undefined;
+                    const message = err.message as string | undefined;
+                    if (field && field !== ('role' as SignupField) && message && field in formData) {
+                        updatedErrors[field] = message;
+                    }
+                    if (message && field !== ('role' as SignupField)) {
+                        friendlyErrors.push(message);
+                        listForDisplay.push({ field, message });
+                    }
+                });
+                setErrors((prev) => ({ ...prev, ...updatedErrors }));
+                setApiErrorsList(listForDisplay);
+                const combinedMessage = [messageResponse, friendlyErrors.join(' • ')]
+                    .filter(Boolean)
+                    .join(' • ');
+                setFormMessage({
+                    type: 'error',
+                    text:
+                        combinedMessage ||
+                        apiErrors[0]?.message ||
+                        'Dados inválidos. Verifique e tente novamente.',
+                });
+            } else {
+                setFormMessage({
+                    type: 'error',
+                    text:
+                        messageResponse ||
+                        apiErrors?.[0] ||
+                        (error instanceof Error ? error.message : '') ||
+                        'Não foi possível criar sua conta. Tente novamente.',
+                });
+            }
+
+            if (process.env.NODE_ENV !== 'production') {
+                // eslint-disable-next-line no-console
+                console.error('Erro ao cadastrar usuário', error?.response || error);
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -171,6 +306,8 @@ export default function CadastroPage() {
                                 onBlur={handleBlur('phone')}
                                 hint="Opcional"
                                 error={errors.phone}
+                                inputMode="tel"
+                                maxLength={15}
                             />
 
                             <InputField
@@ -182,6 +319,8 @@ export default function CadastroPage() {
                                 onBlur={handleBlur('cpf')}
                                 hint="Opcional"
                                 error={errors.cpf}
+                                inputMode="numeric"
+                                maxLength={14}
                             />
                         </div>
 
@@ -224,6 +363,28 @@ export default function CadastroPage() {
                         >
                             {isSubmitting ? 'Criando conta...' : 'Criar conta'}
                         </Button>
+
+                        {formMessage && (
+                            <div
+                                className={`rounded-xl border ${
+                                    formMessage.type === 'error'
+                                        ? 'border-[#f2c4c4] bg-[#fbecec] text-[#a22d2d]'
+                                        : 'border-[#c1f1ce] bg-[#e9fbef] text-[#256b3f]'
+                                } p-4 text-sm text-center`}
+                            >
+                                <div className="space-y-2">
+                                    {formMessage.type === 'error' && apiErrorsList.length > 0 && (
+                                        <ul className="list-inside list-disc text-left text-xs">
+                                            {apiErrorsList.map(
+                                                (err: { field?: string; message: string }, index: number) => (
+                                                    <li key={`${err.field ?? 'erro'}-${index}`}>{err.message}</li>
+                                                )
+                                            )}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         <p className="text-center text-xs text-[#5b5866]">
                             Já possui uma conta?{' '}

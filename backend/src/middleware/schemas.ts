@@ -34,12 +34,6 @@ export const registerSchema = Joi.object({
             'string.max': 'Senha deve ter no máximo 128 caracteres',
             'any.required': 'Senha é obrigatória',
         }),
-    role: Joi.string()
-        .valid('client', 'organizer', 'validator')
-        .default('client')
-        .messages({
-            'any.only': 'Role deve ser: client, organizer ou validator',
-        }),
     phone: Joi.string()
         .pattern(/^\(\d{2}\)\s\d{4,5}-\d{4}$/)
         .optional()

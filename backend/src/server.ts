@@ -102,24 +102,41 @@ app.use((req: any, res, next) => {
 });
 
 // CORS - Permitir requisições do frontend, dashboard e QR scanner app (restrito em produção)
+const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '');
+const fallbackOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+const allowedOrigins = Array.from(
+    new Set(
+        [
+            process.env.FRONTEND_URL,
+            process.env.DASHBOARD_URL,
+            process.env.QR_SCANNER_URL,
+            ...fallbackOrigins,
+        ]
+            .filter((value): value is string => Boolean(value))
+            .map(normalizeOrigin),
+    ),
+);
+
 app.use(
     cors({
         origin: (origin, callback) => {
-            const allowed = [
-                process.env.FRONTEND_URL || 'http://localhost:3000',
-                process.env.DASHBOARD_URL || 'http://localhost:3000',
-                process.env.QR_SCANNER_URL || 'http://localhost:5174'
-            ];
-            if (!origin || allowed.includes(origin)) {
+            if (!origin) {
                 return callback(null, true);
             }
-            // Em dev, permitir sem origin (ex.: curl, Postman)
+            const normalizedOrigin = normalizeOrigin(origin);
+            if (allowedOrigins.includes(normalizedOrigin)) {
+                return callback(null, true);
+            }
+            // Em dev, permitir e apenas logar
             if ((process.env.NODE_ENV || 'development') !== 'production') {
+                console.warn(`⚠️  CORS liberado em desenvolvimento para origem não listada: ${origin}`);
                 return callback(null, true);
             }
-            return callback(new Error('CORS: Origin não permitido'));
+            return callback(new Error(`CORS: Origin não permitido (${origin})`));
         },
         credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
     })
 );
 
