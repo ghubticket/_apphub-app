@@ -65,17 +65,18 @@ const tabs: Array<{
     icon: React.ComponentType<{ className?: string }>;
 }> = [
         {
-            key: 'profile',
-            label: 'Meu Perfil',
-            description: 'Dados pessoais, informações de contato e preferências.',
-            icon: HiOutlineUserCircle,
-        },
-        {
             key: 'orders',
             label: 'Meus Pedidos',
             description: 'Histórico de compras, ingressos ativos e detalhes.',
             icon: HiOutlineTicket,
         },
+        {
+            key: 'profile',
+            label: 'Meu Perfil',
+            description: 'Dados pessoais, informações de contato e preferências.',
+            icon: HiOutlineUserCircle,
+        },
+
         {
             key: 'requests',
             label: 'Minhas Solicitações',
