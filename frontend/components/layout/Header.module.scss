@@ -1,0 +1,65 @@
+@import '../../styles/variables';
+
+.headerBackground {
+    background:
+        radial-gradient(circle at top left, rgba(249, 115, 22, 0.12), transparent),
+        linear-gradient(180deg, #09090f 0%, #141428 100%);
+}
+
+.marquee {
+    display: flex;
+    white-space: nowrap;
+    animation: marquee-scroll 25s linear infinite;
+}
+
+.navItem {
+    position: relative;
+    transition: color 0.2s ease;
+
+    &::after {
+        content: '•';
+        display: inline-block;
+        margin-left: 1.75rem;
+        color: rgba(249, 115, 22, 0.5);
+        transition: color 0.2s ease;
+    }
+
+    &:last-child::after {
+        content: '';
+    }
+
+    &:hover {
+        color: #ffffff;
+
+        &::after {
+            color: rgba(249, 115, 22, 0.85);
+        }
+    }
+}
+
+.marqueeItem {
+    position: relative;
+
+    &::after {
+        content: '•';
+        display: inline-block;
+        margin-left: 1.5rem;
+        opacity: 0.35;
+        color: rgba(255, 255, 255, 0.3);
+    }
+
+    &:last-child::after {
+        content: '';
+    }
+}
+
+@keyframes marquee-scroll {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
