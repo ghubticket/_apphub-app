@@ -1,14 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { HiOutlineTicket } from 'react-icons/hi';
-import { HiOutlineUserCircle } from 'react-icons/hi2';
+import { HiOutlineUserCircle, HiOutlineXMark } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import styles from './Header.module.scss';
 import { useAuth } from '@/context/AuthContext';
+import {
+    CART_OPEN_EVENT,
+    CART_STORAGE_KEY,
+    CART_UPDATED_EVENT,
+    CartItem,
+    loadCartItems,
+    removeCartItem,
+} from '@/lib/cart';
 
 const upcomingEvents = [
     { name: '5521 Summer Vibes', city: 'Rio de Janeiro', state: 'RJ', date: '2025-11-15', venue: 'Morro da Urca' },
@@ -33,8 +40,11 @@ const formatDate = (isoDate: string) =>
 
 export default function Header() {
     const headerRef = useRef<HTMLElement>(null);
-    const router = useRouter();
-    const { user, isAuthenticated, logout } = useAuth();
+    const { user, isAuthenticated } = useAuth();
+    const [cartItems, setCartItems] = useState<CartItem[]>([]);
+    const [isCartDrawerVisible, setIsCartDrawerVisible] = useState(false);
+    const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
+    const cartCloseTimeoutRef = useRef<number | null>(null);
 
     const welcomeName = useMemo(() => {
         if (!user) return '';
@@ -59,6 +69,108 @@ export default function Header() {
             window.removeEventListener('resize', updateHeaderHeight);
         };
     }, []);
+
+    const readCartFromStorage = useCallback(() => {
+        setCartItems(loadCartItems());
+    }, []);
+
+    useEffect(() => {
+        readCartFromStorage();
+    }, [readCartFromStorage]);
+
+    const openCartDrawer = useCallback(() => {
+        if (cartCloseTimeoutRef.current) {
+            window.clearTimeout(cartCloseTimeoutRef.current);
+            cartCloseTimeoutRef.current = null;
+        }
+        setIsCartDrawerVisible(true);
+        requestAnimationFrame(() => setIsCartDrawerOpen(true));
+    }, []);
+
+    const closeCartDrawer = useCallback(() => {
+        if (cartCloseTimeoutRef.current) {
+            window.clearTimeout(cartCloseTimeoutRef.current);
+            cartCloseTimeoutRef.current = null;
+        }
+        setIsCartDrawerOpen(false);
+        cartCloseTimeoutRef.current = window.setTimeout(() => {
+            setIsCartDrawerVisible(false);
+            cartCloseTimeoutRef.current = null;
+        }, 280);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const handleStorage = (event: StorageEvent) => {
+            if (!event.key || event.key === CART_STORAGE_KEY) {
+                readCartFromStorage();
+            }
+        };
+        const handleCustomUpdate = () => readCartFromStorage();
+        const handleCartOpen = () => openCartDrawer();
+        window.addEventListener('storage', handleStorage);
+        window.addEventListener(CART_UPDATED_EVENT, handleCustomUpdate);
+        window.addEventListener(CART_OPEN_EVENT, handleCartOpen);
+        return () => {
+            window.removeEventListener('storage', handleStorage);
+            window.removeEventListener(CART_UPDATED_EVENT, handleCustomUpdate);
+            window.removeEventListener(CART_OPEN_EVENT, handleCartOpen);
+        };
+    }, [readCartFromStorage, openCartDrawer]);
+
+    useEffect(
+        () => () => {
+            if (cartCloseTimeoutRef.current) {
+                window.clearTimeout(cartCloseTimeoutRef.current);
+            }
+        },
+        [],
+    );
+
+    useEffect(() => {
+        if (!isCartDrawerVisible) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                closeCartDrawer();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isCartDrawerVisible, closeCartDrawer]);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+
+        if (isCartDrawerVisible) {
+            const original = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = original;
+            };
+        }
+        return undefined;
+    }, [isCartDrawerVisible]);
+
+    const cartSubtotal = useMemo(
+        () =>
+            cartItems.reduce((total, item) => {
+                const quantity = Number.isFinite(item.quantity) ? item.quantity : 0;
+                const price = Number.isFinite(item.price) ? item.price : 0;
+                return total + quantity * price;
+            }, 0),
+        [cartItems],
+    );
+
+    const formatCurrency = useMemo(
+        () =>
+            new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+            }),
+        [],
+    );
 
     return (
         <header ref={headerRef} className={`${styles.headerBackground} relative z-20 w-full`}>
@@ -134,17 +246,145 @@ export default function Header() {
                             </Link>
                         )}
 
-                        <Link
-                            href="/ingressos"
+                        <button
+                            type="button"
+                            onClick={openCartDrawer}
                             className="group relative flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition hover:border-[#f97316] hover:bg-[#f97316]/10"
                             aria-label="Ingressos"
                         >
                             <HiOutlineTicket className="text-xl drop-shadow-[0_0_12px_rgba(249,115,22,0.35)] group-hover:text-[#f97316]" />
-                           
-                        </Link>
+                            {cartItems.length ? (
+                                <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#f97316] px-1 text-[0.6rem] font-semibold text-black">
+                                    {cartItems.length}
+                                </span>
+                            ) : null}
+                        </button>
                     </div>
                 </Container>
             </div>
+
+            {isCartDrawerVisible ? (
+                <div
+                    className={`fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+                        isCartDrawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+                    }`}
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                            closeCartDrawer();
+                        }
+                    }}
+                >
+                    <aside
+                        className={`relative flex h-full w-full max-w-md flex-col bg-white text-[#1a1a1d] shadow-[0_30px_60px_-25px_rgba(20,20,32,0.45)] transition-transform duration-300 ${
+                            isCartDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+                        }`}
+                        onMouseDown={(event) => event.stopPropagation()}
+                    >
+                        <header className="flex items-start justify-between border-b border-[#e5dfd4] px-6 py-6">
+                            <div>
+                                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
+                                    Meus ingressos
+                                </span>
+                                <h2 className="mt-2 text-xl font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
+                                    Carrinho
+                                </h2>
+                                <p className="mt-1 text-sm text-[#6f6b63]">
+                                    Revise seus ingressos antes de finalizar. Você pode editar quantidades ou
+                                    seguir para o checkout.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeCartDrawer}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
+                                aria-label="Fechar carrinho"
+                            >
+                                <HiOutlineXMark className="text-xl" />
+                            </button>
+                        </header>
+
+                        <div className="flex-1 overflow-y-auto px-6 py-6">
+                            {cartItems.length ? (
+                                <ul className="space-y-5">
+                                    {cartItems.map((item) => (
+                                        <li
+                                            key={item.id}
+                                            className="relative rounded-2xl border border-[#ded7ca] bg-[#faf7f0] p-5 shadow-[0_18px_38px_-28px_rgba(20,20,32,0.35)]"
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    removeCartItem(item.id);
+                                                    readCartFromStorage();
+                                                }}
+                                                className="absolute right-5 top-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#ded7ca] text-[#6f6b63] transition hover:border-rose-300 hover:text-rose-500"
+                                                aria-label={`Remover ${item.name} do carrinho`}
+                                            >
+                                                <HiOutlineXMark className="text-lg" />
+                                            </button>
+                                            <div className="flex flex-col gap-3">
+                                                <div className="flex items-start justify-between gap-4 pr-10">
+                                                    <div className="space-y-1">
+                                                        <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
+                                                            Evento
+                                                        </span>
+                                                        <p className="text-base font-semibold uppercase tracking-[0.1em] text-[#1a1a1d]">
+                                                            {item.name}
+                                                        </p>
+                                                    </div>
+                                                    <span className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6b63]">
+                                                        {item.quantity}x
+                                                    </span>
+                                                </div>
+                                                {item.date || item.location ? (
+                                                    <p className="text-xs font-medium text-[#6f6b63]">
+                                                        {item.date ? (
+                                                            <span>{item.date}</span>
+                                                        ) : null}
+                                                        {item.date && item.location ? ' • ' : ''}
+                                                        {item.location ? <span>{item.location}</span> : null}
+                                                    </p>
+                                                ) : null}
+                                                <div className="flex items-center justify-between text-sm font-semibold text-[#1a1a1d]">
+                                                    <span>Subtotal</span>
+                                                    <span>{formatCurrency.format(item.quantity * item.price)}</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-[#ded7ca] bg-white/70 p-6 text-center text-sm text-[#7d796c]">
+                                    Seu carrinho está vazio.
+                                </div>
+                            )}
+                        </div>
+
+                        <footer className="border-t border-[#e5dfd4] px-6 py-6">
+                            <div className="flex items-center justify-between text-sm font-semibold text-[#1a1a1d]">
+                                <span>Total</span>
+                                <span>{formatCurrency.format(cartSubtotal)}</span>
+                            </div>
+                            <div className="mt-4 flex flex-col gap-3">
+                                <Link
+                                    href="/ingressos"
+                                    className="inline-flex items-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                    onClick={closeCartDrawer}
+                                >
+                                    Ir para ingressos
+                                </Link>
+                                <button
+                                    type="button"
+                                    className="inline-flex items-center justify-center rounded-full border border-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                    onClick={closeCartDrawer}
+                                >
+                                    Continuar navegando
+                                </button>
+                            </div>
+                        </footer>
+                    </aside>
+                </div>
+            ) : null}
         </header>
     );
 }

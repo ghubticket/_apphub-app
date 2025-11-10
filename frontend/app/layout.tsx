@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { Quicksand, Jost } from 'next/font/google';
-import Footer from '@/components/layout/Footer';
-import Header from '@/components/layout/Header';
 import { AuthProvider } from '@/context/AuthContext';
+import LayoutShell from '@/components/layout/LayoutShell';
 import './globals.scss';
 
 const quicksand = Quicksand({
@@ -31,9 +30,7 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${quicksand.variable} ${jost.variable}`}>
       <body>
         <AuthProvider>
-          <Header />
-          {children}
-          <Footer />
+          <LayoutShell>{children}</LayoutShell>
         </AuthProvider>
       </body>
     </html>
