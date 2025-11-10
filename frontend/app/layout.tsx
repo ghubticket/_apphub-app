@@ -1,11 +1,18 @@
 import type { Metadata } from 'next';
-import { Quicksand } from 'next/font/google';
+import { Quicksand, Jost } from 'next/font/google';
+import Footer from '@/components/layout/Footer';
 import './globals.scss';
 
 const quicksand = Quicksand({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-quicksand',
+});
+
+const jost = Jost({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-muzicon',
 });
 
 export const metadata: Metadata = {
@@ -19,8 +26,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={quicksand.variable}>
-      <body>{children}</body>
+    <html lang="pt-BR" className={`${quicksand.variable} ${jost.variable}`}>
+      <body>
+        {children}
+        <Footer />
+      </body>
     </html>
   );
 }

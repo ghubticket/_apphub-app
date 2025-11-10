@@ -22,4 +22,9 @@
 
 // Estilos globais customizados (se necessário)
 // Tailwind já cobre a maioria, mas você pode adicionar aqui
+body {
+  font-family: var(--font-muzicon), var(--font-quicksand), $font-family-base;
+  background-color: #06060c;
+  color: $gray-100;
+}
 

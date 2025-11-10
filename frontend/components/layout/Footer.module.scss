@@ -1,0 +1,37 @@
+@import '../../styles/variables';
+
+.footerBackground {
+    background:
+        radial-gradient(circle at top left, rgba(249, 115, 22, 0.12), transparent),
+        linear-gradient(180deg, #09090f 0%, #141428 100%);
+}
+
+.marquee {
+    display: flex;
+    white-space: nowrap;
+    animation: marquee-scroll 20s linear infinite;
+}
+
+.marqueeItem {
+    &::after {
+        content: '•';
+        display: inline-block;
+        margin-left: 1.5rem;
+        opacity: 0.35;
+        color: rgba(255, 255, 255, 0.3);
+    }
+
+    &:last-child::after {
+        content: '';
+    }
+}
+
+@keyframes marquee-scroll {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-50%);
+    }
+}
