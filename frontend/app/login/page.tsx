@@ -75,7 +75,7 @@ export default function LoginPage() {
             className="flex w-full items-center justify-center bg-slate-200"
             style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
         >
-            <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 text-[#1a1a1d]">
+            <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-10 text-[#1a1a1d]">
                 <div className="text-center text-black">
                     <span className="text-xs font-semibold uppercase tracking-[0.35em]">
                         Olá, seja bem-vindo de volta.
