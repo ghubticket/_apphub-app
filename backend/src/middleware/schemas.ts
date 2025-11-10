@@ -177,3 +177,30 @@ export const searchSchema = Joi.object({
             'any.only': 'Ordenação deve ser: name, email, createdAt, -name, -email ou -createdAt',
         }),
 });
+
+export const newsletterSubscriptionSchema = Joi.object({
+    email: Joi.string()
+        .email()
+        .lowercase()
+        .trim()
+        .required()
+        .messages({
+            'string.email': 'Email deve ter um formato válido',
+            'any.required': 'Email é obrigatório',
+        }),
+    name: Joi.string()
+        .max(120)
+        .trim()
+        .optional()
+        .allow('', null)
+        .messages({
+            'string.max': 'Nome não pode ultrapassar 120 caracteres',
+        }),
+    source: Joi.string()
+        .max(60)
+        .trim()
+        .optional()
+        .messages({
+            'string.max': 'Fonte não pode ultrapassar 60 caracteres',
+        }),
+});

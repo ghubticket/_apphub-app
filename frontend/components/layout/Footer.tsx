@@ -1,7 +1,11 @@
+'use client';
+
+import { FormEvent, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FaInstagram, FaYoutube, FaSpotify } from 'react-icons/fa';
 import Container from '@/components/shared/Container';
+import api from '@/lib/api';
 import styles from './Footer.module.scss';
 
 const marqueeLocations = [
@@ -36,11 +40,56 @@ const socialLinks = [
     { label: 'Spotify', href: 'https://spotify.com', icon: FaSpotify },
 ];
 
-const storeLink = { label: 'Loja', href: '/loja' };
-
 export default function Footer() {
     const leftColumn = institutionalLinks.slice(0, 3);
     const rightColumn = institutionalLinks.slice(3);
+    const [email, setEmail] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+    const handleNewsletterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        const trimmedEmail = email.trim();
+        if (!trimmedEmail) {
+            setFeedback({ type: 'error', message: 'Informe um e-mail válido.' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        setFeedback(null);
+
+        try {
+            const response = await api.post('/novidades', {
+                email: trimmedEmail,
+                source: 'footer',
+            });
+
+            const alreadyRegistered = Boolean(response.data?.data?.alreadyRegistered);
+
+            setFeedback({
+                type: 'success',
+                message: alreadyRegistered
+                    ? 'Você já está inscrito nas novidades! ✨'
+                    : 'Inscrição realizada com sucesso! 🎉',
+            });
+
+            if (!alreadyRegistered) {
+                setEmail('');
+            }
+        } catch (error: any) {
+            const message =
+                error?.response?.data?.message ||
+                'Não foi possível concluir sua inscrição. Tente novamente em instantes.';
+
+            setFeedback({
+                type: 'error',
+                message,
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <footer className={`${styles.footerBackground} relative overflow-hidden text-white`}>
@@ -62,23 +111,23 @@ export default function Footer() {
                 </div>
             </div>
 
-            <div className="py-16 md:py-20 lg:py-24">
-                <Container className="flex flex-col items-center gap-12 lg:flex-row lg:justify-between lg:gap-12">
-                    <div className="space-y-8 lg:max-w-sm text-center">
+            <div className="py-16 md:py-20 lg:py-15">
+                <Container className="flex flex-col gap-12 items-center lg:flex-row lg:justify-between lg:gap-16">
+                    <div className="space-y-8 text-left lg:max-w-sm lg:text-center">
                         <div>
                             <Image
                                 src="/images/5521.avif"
                                 alt="Logomarca 5521"
                                 width={250}
                                 height={80}
-                                className="mx-auto h-16 w-auto"
+                                className="h-16 w-auto lg:mx-auto"
                                 priority
                             />
-                            <h3 className="mt-5 text-xl font-semibold uppercase text-white">
+                            <h3 className="mt-5 text-xl font-semibold uppercase text-white lg:text-center">
                                 Institucional
                             </h3>
-                            <div className="mt-4 flex items-center justify-center flex-wrap text-[0.9rem] text-white/80">
-                                <ul className="flex items-center justify-center min-w-[120px] flex-col space-y-0.5">
+                            <div className="mt-4 flex flex-wrap items-start justify-start text-[0.9rem] text-white/80 lg:justify-center">
+                                <ul className="flex min-w-[120px] flex-col items-start justify-start space-y-0.5 lg:items-center">
                                     {leftColumn.map((item) => (
                                         <li key={item.label}>
                                             <Link
@@ -90,7 +139,7 @@ export default function Footer() {
                                         </li>
                                     ))}
                                 </ul>
-                                <ul className="flex min-w-[120px] flex-col space-y-0.5">
+                                <ul className="flex min-w-[120px] flex-col items-start space-y-0.5 lg:items-center">
                                     {rightColumn.map((item) => (
                                         <li key={item.label}>
                                             <Link
@@ -105,7 +154,7 @@ export default function Footer() {
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-center gap-3">
+                        <div className="flex flex-wrap items-center justify-start gap-3 lg:justify-center">
                             {socialLinks.map((social) => {
                                 const Icon = social.icon;
                                 return (
@@ -124,7 +173,7 @@ export default function Footer() {
                     </div>
 
                     <div className="space-y-6 lg:max-w-md lg:text-center">
-                        <h1 className="text-4xl font-black tracking-[0.35em] text-orange-400">5521</h1>
+                        <h1 className="text-4xl text-center font-black text-orange-400">5521</h1>
                         <div className="space-y-4">
                             <h2 className="text-3xl font-bold uppercase leading-tight sm:text-4xl">
                                 A mais<br />
@@ -148,7 +197,7 @@ export default function Footer() {
                     </div>
 
                     <div className="space-y-6 lg:max-w-sm lg:text-right">
-                        <div className="space-y-4 pt-15 lg:items-end lg:text-right">
+                        <div className="space-y-4 lg:items-end lg:text-right">
                             <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-white">
                                 Suporte
                             </h3>
@@ -170,27 +219,45 @@ export default function Footer() {
 
                         <hr />
 
-                        <div className="lg:items-end pt-2 lg:text-right">
+                        <div className="pt-2 lg:items-end lg:text-right">
                             <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-white">
                                 Newsletter
                             </h3>
                             <p className="text-sm text-white/70 py-3">
                                 Receba line-ups em primeira mão <br /> pré-venda exclusiva e conteúdos especiais.
                             </p>
-                            <form className="flex w-full my-3 max-w-md items-center rounded-md border border-white/20 bg-white/5 pl-4 pr-1">
+                            <form
+                                onSubmit={handleNewsletterSubmit}
+                                className="flex w-full my-3 max-w-md items-center rounded-md border border-white/20 bg-white/5 pl-4 pr-1"
+                            >
                                 <input
                                     className="flex-1 bg-transparent py-3 text-sm text-white placeholder:text-white/40 focus:outline-none"
                                     type="email"
                                     placeholder="Seu e-mail"
                                     aria-label="E-mail para newsletter"
+                                    value={email}
+                                    onChange={(event) => setEmail(event.target.value)}
+                                    disabled={isSubmitting}
                                 />
                                 <button
                                     type="submit"
-                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-orange-500 text-sm font-semibold text-[#1c1c24] transition hover:bg-orange-400"
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-orange-500 text-sm font-semibold text-[#1c1c24] transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-orange-500/50"
+                                    disabled={isSubmitting}
                                 >
                                     OK
                                 </button>
                             </form>
+                            <div aria-live="polite" className="min-h-[1.5rem]">
+                                {feedback && (
+                                    <p
+                                        className={`text-xs ${
+                                            feedback.type === 'success' ? 'text-emerald-300' : 'text-orange-300'
+                                        }`}
+                                    >
+                                        {feedback.message}
+                                    </p>
+                                )}
+                            </div>
                             <p className="text-xs text-white/50">
                                 Ao assinar, você concorda com nossa política de privacidade.
                             </p>
@@ -203,16 +270,7 @@ export default function Footer() {
                 <Container className="flex flex-col gap-4 text-xs text-white/60 md:flex-row md:items-center md:justify-between">
                     <span>© {new Date().getFullYear()} 5521 © Todos os direitos reservados | CNPJ 45.380.558/0001-88</span>
                     <div className="flex flex-wrap gap-4">
-                        {socialLinks.map((social) => (
-                            <Link
-                                key={social.label}
-                                href={social.href}
-                                className="text-[0.65rem] uppercase tracking-[0.5em] text-white/50 transition hover:text-orange-400"
-                                aria-label={social.label}
-                            >
-                                {social.label}
-                            </Link>
-                        ))}
+                        <p>Feito com <span className="text-orange-400">❤️</span> por <Link href="https://www.instagram.com/5521/" target="_blank" className="text-orange-400">Vicente</Link></p>
                     </div>
                 </Container>
             </div>
