@@ -8,6 +8,7 @@ import {
     HiOutlineTicket,
     HiOutlineUserCircle,
     HiOutlineExclamationTriangle,
+    HiOutlineChevronDown,
 } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import { useAuth } from '@/context/AuthContext';
@@ -130,6 +131,7 @@ export default function DashboardPage() {
     const [openOrderId, setOpenOrderId] = useState<string | null>(null);
     const [modalSlideIndex, setModalSlideIndex] = useState(0);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
+    const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
     const modalScrollRef = useRef<HTMLDivElement | null>(null);
 
     const greetingName = useMemo(() => {
@@ -334,49 +336,64 @@ export default function DashboardPage() {
 
                     const ticketsConfirmed = order.tickets.filter((ticket) => ticket?.status === 'confirmed').length;
 
+                    const isExpanded = expandedOrderId === order._id;
+
                     return (
                         <article
                             key={order._id}
                             className="rounded-2xl border border-[#ded7ca] bg-white/80 p-6 shadow-[0_25px_45px_-25px_rgba(20,20,32,0.25)] transition hover:shadow-[0_30px_60px_-25px_rgba(20,20,32,0.35)]"
                         >
-                            <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                <div className="space-y-1">
-                                    <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#a38f78]">
-                                        Pedido {order.orderNumber ? `#${order.orderNumber}` : ''}
-                                    </span>
-                                    <h3 className="text-lg font-semibold uppercase tracking-[0.15em] text-[#1a1a1d]">
-                                        {eventName}
-                                    </h3>
-                                    <p className="text-xs text-[#7d796c]">
-                                        {eventDate ? `${eventDate}` : 'Data a confirmar'}
-                                        {eventLocation ? ` • ${eventLocation}` : ''}
-                                    </p>
-                                </div>
-                                <div className="flex flex-col items-start gap-2 md:items-end">
-                                    <span
-                                        className={`inline-flex items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${statusInfo.badgeClass}`}
-                                    >
-                                        {statusInfo.label}
-                                    </span>
-                                    <span className="text-xs uppercase tracking-[0.2em] text-[#7d796c]">
-                                        Criado em {createdAt}
-                                    </span>
-                                </div>
+                            <header>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setExpandedOrderId((current) =>
+                                            current === order._id ? null : order._id,
+                                        )
+                                    }
+                                    className="flex w-full flex-col gap-4 text-left transition hover:text-[#1a1a1d] md:flex-row md:items-center md:justify-between"
+                                >
+                                    <div className="space-y-1">
+                                        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#a38f78]">
+                                            Pedido {order.orderNumber ? `#${order.orderNumber}` : ''}
+                                        </span>
+                                        <h3 className="text-lg font-semibold uppercase tracking-[0.15em] text-[#1a1a1d]">
+                                            {eventName}
+                                        </h3>
+                                        <p className="text-xs text-[#7d796c]">
+                                            {eventDate ? `${eventDate}` : 'Data a confirmar'}
+                                            {eventLocation ? ` • ${eventLocation}` : ''}
+                                        </p>
+                                    </div>
+                                    <div className="flex  items-center gap-10">
+                                        <div className='flex flex-col gap-2'>
+                                            <span
+                                                className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${statusInfo.badgeClass}`}
+                                            >
+                                                {statusInfo.label}
+                                            </span>
+                                            <span className="text-xs uppercase tracking-[0.2em] text-[#7d796c]">
+                                                Criado em {createdAt}
+                                            </span>
+                                            <span className="text-xs font-medium text-[#4c4c55]">
+                                                Valor total {currencyFormatter.format(order.totalAmount ?? 0)}
+                                            </span>
+                                            <span className="text-[0.65rem] uppercase tracking-[0.2em] text-[#a38f78]">
+                                                {paymentLabel}
+                                            </span>
+                                        </div>
+
+                                        <HiOutlineChevronDown
+                                            className={`text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                                            aria-hidden
+                                        />
+                                    </div>
+                                </button>
                             </header>
 
-                            <div className="mt-6 grid gap-4 md:grid-cols-3">
-                                <div className="rounded-2xl border border-[#ded7ca] bg-white/70 p-4">
-                                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
-                                        Valor total
-                                    </span>
-                                    <p className="mt-2 text-2xl font-bold text-[#1a1a1d]">
-                                        {currencyFormatter.format(order.totalAmount ?? 0)}
-                                    </p>
-                                    <p className="mt-1 text-[0.7rem] uppercase tracking-[0.3em] text-[#7d796c]">
-                                        {paymentLabel}
-                                    </p>
-                                </div>
-
+                            <div
+                                className={`overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[420px] pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}
+                            >
                                 <div className="rounded-2xl border border-[#ded7ca] bg-white/70 p-4">
                                     <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
                                         Ingressos
@@ -394,23 +411,11 @@ export default function DashboardPage() {
                                             setModalSlideIndex(0);
                                             setOpenOrderId(order._id);
                                         }}
-                                        className="inline-flex mt-3 items-center gap-3 rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                        className="mt-4 flex gap-3 w-full md:w-fit text-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
                                     >
                                         <HiOutlineTicket className="text-base" />
                                         Abrir ingressos
                                     </button>
-                                </div>
-
-                                <div className="rounded-2xl border border-[#ded7ca] bg-white/70 p-4">
-                                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
-                                        Contato
-                                    </span>
-                                    <p className="mt-2 text-sm font-semibold text-[#1a1a1d]">
-                                        {order.customerData?.name || 'Não informado'}
-                                    </p>
-                                    <p className="text-xs text-[#7d796c]">
-                                        {order.customerData?.email || '—'}
-                                    </p>
                                 </div>
                             </div>
                         </article>
@@ -522,7 +527,7 @@ export default function DashboardPage() {
                                 })}
                             </nav>
 
-                            <section className="rounded-3xl border border-[#ded7ca] bg-white/80 p-8 shadow-[0_35px_60px_-25px_rgba(20,20,32,0.25)]">
+                            <section>
                                 {renderActiveTabContent()}
                             </section>
                         </section>
