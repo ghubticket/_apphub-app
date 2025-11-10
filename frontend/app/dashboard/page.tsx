@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     HiOutlineClipboardDocumentList,
     HiOutlineTicket,
     HiOutlineUserCircle,
+    HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import { useAuth } from '@/context/AuthContext';
@@ -126,6 +128,7 @@ export default function DashboardPage() {
     const [hasFetchedOrders, setHasFetchedOrders] = useState(false);
     const [openOrderId, setOpenOrderId] = useState<string | null>(null);
     const [modalSlideIndex, setModalSlideIndex] = useState(0);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
     const modalScrollRef = useRef<HTMLDivElement | null>(null);
 
     const greetingName = useMemo(() => {
@@ -240,6 +243,15 @@ export default function DashboardPage() {
     }, [isReady, isAuthenticated, router]);
 
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mediaQuery = window.matchMedia('(max-width: 768px)');
+        const update = () => setIsMobileViewport(mediaQuery.matches);
+        update();
+        mediaQuery.addEventListener('change', update);
+        return () => mediaQuery.removeEventListener('change', update);
+    }, []);
+
+    useEffect(() => {
         if (!isReady || !isAuthenticated) return;
         if (activeTab === 'orders' && !hasFetchedOrders) {
             fetchOrders();
@@ -320,7 +332,6 @@ export default function DashboardPage() {
                         (order.status === 'paid' ? 'Pagamento confirmado' : 'Pagamento pendente');
 
                     const ticketsConfirmed = order.tickets.filter((ticket) => ticket?.status === 'confirmed').length;
-                    const totalTickets = order.tickets.length;
 
                     return (
                         <article
@@ -372,9 +383,21 @@ export default function DashboardPage() {
                                     <p className="mt-2 text-2xl font-bold text-[#1a1a1d]">
                                         {order.totalTickets}x
                                     </p>
-                                    <p className="mt-1 text-[0.7rem] uppercase tracking-[0.3em] text-[#7d796c]">
+                                    <p className="mt-1 text-xs font-medium tracking-normal text-[#6a6760]">
                                         {ticketsConfirmed} confirmados
                                     </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setModalSlideIndex(0);
+                                            setOpenOrderId(order._id);
+                                        }}
+                                        className="inline-flex mt-3 items-center gap-3 rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                    >
+                                        <HiOutlineTicket className="text-base" />
+                                        Abrir ingressos
+                                    </button>
                                 </div>
 
                                 <div className="rounded-2xl border border-[#ded7ca] bg-white/70 p-4">
@@ -389,21 +412,6 @@ export default function DashboardPage() {
                                     </p>
                                 </div>
                             </div>
-
-                            {order.tickets.length > 0 && (
-                                <div className="mt-6 flex flex-col items-start gap-4">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
-                                        {totalTickets} ingresso(s) neste pedido
-                                    </p>
-                                    <button
-                                        type="button"
-                                        onClick={() => setOpenOrderId(order._id)}
-                                        className="inline-flex items-center gap-2 rounded-full border border-[#ded7ca] bg-white px-5 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#a38f78] hover:bg-[#f5f1e8]"
-                                    >
-                                        Abrir ingressos
-                                    </button>
-                                </div>
-                            )}
                         </article>
                     );
                 })}
@@ -525,9 +533,13 @@ export default function DashboardPage() {
                 <TicketModal
                     order={activeOrder}
                     slideIndex={modalSlideIndex}
-                    onClose={() => setOpenOrderId(null)}
+                    onClose={() => {
+                        setOpenOrderId(null);
+                        setModalSlideIndex(0);
+                    }}
                     scrollRef={modalScrollRef}
                     onScroll={handleModalScroll}
+                    isMobile={isMobileViewport}
                 />
             ) : null}
         </>
@@ -540,9 +552,63 @@ interface TicketModalProps {
     onClose: () => void;
     scrollRef: React.RefObject<HTMLDivElement>;
     onScroll: () => void;
+    isMobile: boolean;
 }
 
-const TicketModal = ({ order, slideIndex, onClose, scrollRef, onScroll }: TicketModalProps) => {
+const TicketModal = ({
+    order,
+    slideIndex,
+    onClose,
+    scrollRef,
+    onScroll,
+    isMobile,
+}: TicketModalProps) => {
+    const [isVisible, setIsVisible] = useState(false);
+    const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const frame = requestAnimationFrame(() => setIsVisible(true));
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
+    const handleClose = useCallback(() => {
+        setIsVisible(false);
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+        }
+        closeTimeoutRef.current = setTimeout(() => {
+            onClose();
+        }, 250);
+    }, [onClose]);
+
+    useEffect(() => {
+        return () => {
+            if (closeTimeoutRef.current) {
+                clearTimeout(closeTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                handleClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleClose]);
+
+    const handleOverlayClick = useCallback(
+        (event: ReactMouseEvent<HTMLDivElement>) => {
+            if (event.target === event.currentTarget) {
+                handleClose();
+            }
+        },
+        [handleClose],
+    );
+
     const eventName = order.event?.name ?? 'Evento não informado';
     const eventDate = order.event?.date
         ? new Date(order.event.date).toLocaleDateString('pt-BR', {
@@ -559,93 +625,78 @@ const TicketModal = ({ order, slideIndex, onClose, scrollRef, onScroll }: Ticket
             : undefined;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
-            <div className="relative flex w-full max-w-4xl flex-col gap-6 rounded-3xl border border-[#ded7ca] bg-white p-6 text-[#1a1a1d] shadow-[0_40px_80px_-40px_rgba(18,18,24,0.45)] md:p-10">
+        <div
+            className={`fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'
+                }`}
+            onMouseDown={handleOverlayClick}
+        >
+            <div
+                className={`relative flex w-full max-w-4xl flex-col gap-6 rounded-3xl border border-[#ded7ca] bg-white p-6 text-[#1a1a1d] shadow-[0_40px_80px_-40px_rgba(18,18,24,0.45)] transition-all duration-300 md:p-10 ${isVisible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-4 scale-95 opacity-0'
+                    }`}
+            >
                 <button
                     type="button"
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
                     aria-label="Fechar modal de ingressos"
                 >
                     ✕
                 </button>
 
-                <div className="flex flex-col gap-2 text-center">
-                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
-                        Ingressos do pedido #{order.orderNumber ?? order._id.slice(-6)}
-                    </span>
-                    <h2 className="text-2xl font-semibold uppercase tracking-[0.25em] text-[#1a1a1d]">
-                        {eventName}
-                    </h2>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                        {eventDate}
-                        {eventLocation ? ` • ${eventLocation}` : ''}
-                    </p>
-                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
-                        Ingresso {slideIndex + 1} de {order.tickets.length}
-                    </p>
-                </div>
+                {isMobile ? (
+                    <>
+                        <p className="text-xs text-center pt-1 font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
+                            Ingresso {slideIndex + 1} de {order.tickets.length}
+                        </p>
 
-                <div
-                    ref={scrollRef}
-                    onScroll={onScroll}
-                    className="flex snap-x snap-mandatory gap-6 overflow-x-auto pb-6"
-                >
-                    {order.tickets.map((ticket, index) => {
-                        const ticketConfirmed = ticket.status === 'confirmed';
-                        const ticketPrice = formatCurrency(ticket.price);
+                        <div
+                            ref={scrollRef}
+                            onScroll={onScroll}
+                            className="flex snap-x snap-mandatory gap-6 overflow-x-auto pb-6"
+                        >
+                            {order.tickets.map((ticket, index) => {
+                                const ticketConfirmed = ticket.status === 'confirmed';
+                                const ticketPrice = formatCurrency(ticket.price);
 
-                        return (
-                            <div
-                                key={ticket._id ?? ticket.code ?? index}
-                                className="flex min-w-full snap-center flex-col items-center gap-6 text-center"
-                            >
-                                <div className="space-y-3">
-                                    <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#a38f78]">
-                                        Código do Ticket
-                                    </span>
-                                    <p className="text-2xl font-semibold uppercase tracking-[0.35em] text-[#1a1a1d]">
-                                        {ticket.code ?? 'Não informado'}
-                                    </p>
-                                </div>
+                                return (
+                                    <div
+                                        key={ticket._id ?? ticket.code ?? index}
+                                        className="flex min-w-full snap-center flex-col items-center gap-6 text-center"
+                                    >
 
-                                <div className="flex flex-col items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#4c4c55]">
-                                    <p className="flex items-center gap-2">
-                                        <span className="text-[#a38f78]">Status:</span>
-                                        <span
-                                            className={`inline-flex items-center rounded-full px-3 py-[4px] text-[0.6rem] ${ticketConfirmed
-                                                    ? 'bg-emerald-500/15 text-emerald-600'
-                                                    : 'bg-[#f5f1e8] text-[#7d796c]'
-                                                }`}
-                                        >
-                                            {ticket.status ?? 'Pendente'}
-                                        </span>
-                                    </p>
-                                    {ticketPrice ? (
-                                        <p>
-                                            <span className="text-[#a38f78]">Valor:</span> {ticketPrice}
-                                        </p>
-                                    ) : null}
-                                </div>
-
-                                <div className="rounded-3xl border border-[#ded7ca] bg-white p-4 shadow-[0_20px_45px_-25px_rgba(20,20,32,0.25)]">
-                                    {ticketConfirmed && ticket.qrCode ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={ticket.qrCode}
-                                            alt={`QR Code do ingresso ${ticket.code ?? ''}`}
-                                            className="h-56 w-56 object-contain"
-                                        />
-                                    ) : (
-                                        <div className="flex h-56 w-56 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
-                                            Aguardando confirmação do pagamento
+                                        <div className="rounded-3xl border border-[#ded7ca] bg-white p-4 shadow-[0_20px_45px_-25px_rgba(20,20,32,0.25)]">
+                                            {ticketConfirmed && ticket.qrCode ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={ticket.qrCode}
+                                                    alt={`QR Code do ingresso ${ticket.code ?? ''}`}
+                                                    className="h-56 w-56 object-contain"
+                                                />
+                                            ) : (
+                                                <div className="flex h-56 w-56 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
+                                                    Aguardando confirmação do pagamento
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+
+                    </>
+                ) : (
+                    <div className="rounded-3xl border mt-5 border-amber-200 bg-amber-50 p-8 text-center text-amber-700">
+                        <HiOutlineExclamationTriangle className="mx-auto mb-4 text-3xl" />
+                        <h3 className="text-lg font-semibold uppercase">
+                            Disponível apenas no mobile
+                        </h3>
+                        <p className="mt-3 text-sm font-medium tracking-normal text-[#8a6942]">
+                            Para sua segurança, seus ingressos estão disponíveis somente na versão mobile. <br></br> Acesse pelo
+                            seu celular para visualizar o QR Code.
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
