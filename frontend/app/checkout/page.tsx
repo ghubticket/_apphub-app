@@ -3,22 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-    HiOutlineTicket,
-    HiOutlineTrash,
-    HiOutlineClipboardDocument,
     HiOutlineCreditCard,
-    HiOutlineCalendar,
-    HiOutlineLockClosed,
-    HiOutlineUser,
-    HiOutlineEnvelope,
-    HiOutlinePhone,
-    HiOutlineIdentification,
-    HiOutlineDocumentText,
-    HiOutlineSquaresPlus,
     HiOutlineChevronDown,
 } from 'react-icons/hi2';
 import { SiPix } from 'react-icons/si';
-import type { IconType } from 'react-icons';
 import Container from '@/components/shared/Container';
 import { useAuth } from '@/context/AuthContext';
 import { useMercadoPago } from '@/hooks/useMercadoPago';
@@ -36,6 +24,23 @@ import {
     formatCpfDisplay,
     formatPhoneDisplay,
 } from '@/utils/sanitize';
+import type {
+    CardFieldKey,
+    CheckoutCartItem,
+    CheckoutCustomerData,
+    CreatedOrder,
+    PixPaymentResult,
+} from './types';
+import {
+    CARD_ERROR_CODE_MAP,
+    CARD_ERROR_MESSAGES,
+    CARD_FIELD_REQUIRED_MESSAGES,
+} from './utils/cardMessages';
+import { CardPaymentForm } from './components/CardPaymentForm';
+import { CheckoutCartSummary } from './components/CheckoutCartSummary';
+import { CustomerDataForm } from './components/CustomerDataForm';
+import { PixPaymentSection } from './components/PixPaymentSection';
+import { registerNumericMask } from './utils/inputMasks';
 
 declare global {
     interface Window {
@@ -43,267 +48,9 @@ declare global {
     }
 }
 
-type CheckoutCartItem = CartItem & {
-    subtotal: number;
-    platformFeeValue: number;
-    fixedFeeValue: number;
-    total: number;
-};
-
-type CreatedOrder = {
-    _id: string;
-    orderNumber: string;
-    totalAmount: number;
-    totalTickets: number;
-    status: string;
-    event?: {
-        name?: string;
-        date?: string;
-        location?: string;
-    };
-    customerData?: {
-        name?: string;
-        email?: string;
-        cpf?: string;
-        phone?: string;
-    };
-};
-
-type PixPaymentResult = {
-    paymentId: string;
-    qrCode?: string;
-    qrCodeBase64?: string;
-    ticketUrl?: string;
-    expiresAt?: string;
-    expirationMinutes?: number;
-    status: string;
-    statusDetail?: string;
-    statusInfo?: {
-        userMessage?: string;
-        adminMessage?: string;
-        color?: string;
-        requiresAction?: boolean;
-        canRetry?: boolean;
-        internalStatus?: string;
-    };
-};
-
 const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
 const CHECKOUT_CUSTOMER_STORAGE_KEY = 'checkout:customer-data';
 const CHECKOUT_DEVICE_STORAGE_KEY = 'checkout:mp-device';
-
-const INPUT_BASE_CLASS =
-    "w-full font-[var(--font-quicksand)] rounded-2xl border border-[#ded7ca] bg-[#faf7f0] text-sm text-[#1a1a1d] font-normal tracking-normal outline-none transition focus:border-[#a38f78] placeholder:text-[#b5aa92] placeholder:font-normal placeholder:tracking-normal disabled:cursor-not-allowed disabled:opacity-60";
-const SELECT_BASE_CLASS =
-    "w-full appearance-none font-[var(--font-quicksand)] rounded-2xl border border-[#ded7ca] bg-[#faf7f0] text-sm text-[#1a1a1d] font-normal tracking-normal outline-none transition focus:border-[#a38f78] disabled:cursor-not-allowed disabled:opacity-60";
-
-const CARD_ERROR_MESSAGES: Record<string, string> = {
-    '205': 'Informe o número do cartão.',
-    '208': 'Informe o mês de validade do cartão.',
-    '209': 'Informe o ano de validade do cartão.',
-    '212': 'Informe o código de segurança (CVV).',
-    '214': 'Informe o nome exatamente como aparece no cartão.',
-    '221': 'Informe o CPF do titular do cartão.',
-    '224': 'Informe o código de segurança (CVV).',
-    'E301': 'Número do cartão inválido.',
-    'E302': 'Código de segurança inválido.',
-};
-
-type CheckoutCustomerData = {
-    name: string;
-    email: string;
-    cpf: string;
-    phone: string;
-};
-
-type MpSelectProps = {
-    label: string;
-    selectId: string;
-    selectName: string;
-    icon: IconType;
-    badgeLabel?: string;
-    loadingText?: string;
-    placeholder?: string;
-    disabled?: boolean;
-    classNameOverride?: string;
-};
-
-type MpSelectOption = {
-    value: string;
-    text: string;
-    disabled: boolean;
-};
-
-function MpSelect({
-    label,
-    selectId,
-    selectName,
-    icon: Icon,
-    badgeLabel,
-    loadingText,
-    placeholder,
-    disabled,
-    classNameOverride,
-}: MpSelectProps) {
-    const [displayText, setDisplayText] = useState('');
-    const [selectedValue, setSelectedValue] = useState('');
-    const [options, setOptions] = useState<MpSelectOption[]>([]);
-    const [isOpen, setIsOpen] = useState(false);
-    const containerRef = useRef<HTMLLabelElement | null>(null);
-    const selectRef = useRef<HTMLSelectElement | null>(null);
-    const triggerRef = useRef<HTMLButtonElement | null>(null);
-
-    useEffect(() => {
-        const selectElement = document.getElementById(selectId) as HTMLSelectElement | null;
-        selectRef.current = selectElement;
-        if (!selectElement) {
-            setDisplayText('');
-            setOptions([]);
-            setSelectedValue('');
-            return;
-        }
-
-        const syncFromSelect = () => {
-            const option = selectElement.options[selectElement.selectedIndex];
-            setDisplayText(option ? option.text : '');
-            setSelectedValue(selectElement.value || '');
-            const mappedOptions: MpSelectOption[] = Array.from(selectElement.options).map((opt) => ({
-                value: opt.value,
-                text: opt.text,
-                disabled: opt.disabled,
-            }));
-            setOptions(mappedOptions);
-        };
-
-        syncFromSelect();
-        selectElement.addEventListener('change', syncFromSelect);
-
-        const observer = new MutationObserver(syncFromSelect);
-        observer.observe(selectElement, { childList: true, subtree: true, attributes: true });
-
-        return () => {
-            selectElement.removeEventListener('change', syncFromSelect);
-            observer.disconnect();
-        };
-    }, [selectId]);
-
-    useEffect(() => {
-        if (!isOpen) return;
-        const handleClickOutside = (event: MouseEvent) => {
-            if (!containerRef.current) return;
-            if (!containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen]);
-
-    useEffect(() => {
-        if (disabled && isOpen) {
-            setIsOpen(false);
-        }
-    }, [disabled, isOpen]);
-
-    useEffect(() => {
-        if (!isOpen) {
-            triggerRef.current?.blur();
-        }
-    }, [isOpen]);
-
-    const fallbackText = disabled ? loadingText ?? '' : '';
-    const rawDisplay = (displayText || fallbackText || '').trim();
-    const hideLoadingText = /carregando|detectando/i.test(rawDisplay);
-    const effectivePlaceholder = placeholder || 'Selecione uma opção';
-    const textToShow = !rawDisplay || hideLoadingText ? effectivePlaceholder : rawDisplay;
-    const IconColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
-    const ArrowColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
-    const hasOptions = options.length > 0;
-
-    const toggleDropdown = () => {
-        if (disabled || !hasOptions) return;
-        setIsOpen((prev) => !prev);
-    };
-
-    const handleOptionSelect = (option: MpSelectOption) => {
-        if (option.disabled) return;
-        const selectElement = selectRef.current;
-        if (!selectElement) return;
-        requestAnimationFrame(() => {
-            selectElement.value = option.value;
-            selectElement.dispatchEvent(new Event('change', { bubbles: true }));
-            setDisplayText(option.text);
-            setSelectedValue(option.value);
-        });
-        setIsOpen(false);
-    };
-
-    return (
-        <label
-            ref={containerRef}
-            className={`relative flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2 ${classNameOverride || ''
-                }`}
-        >
-            <span className="flex items-center justify-between">
-                <span>{label}</span>
-            </span>
-            <div className="relative">
-                <Icon className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${IconColor}`} />
-                <button
-                    type="button"
-                    disabled={disabled || !hasOptions}
-                    onClick={toggleDropdown}
-                    ref={triggerRef}
-                    className={`${SELECT_BASE_CLASS} flex w-full items-center justify-between py-3 pl-11 pr-10 text-left ${
-                        disabled ? 'text-[#b5aa92]' : 'text-[#1a1a1d]'
-                        } ${disabled || !hasOptions ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                    <span className="block w-full truncate">{textToShow || '\u00A0'}</span>
-                    <HiOutlineChevronDown
-                        className={`ml-3 shrink-0 transition-transform ${ArrowColor} ${isOpen ? 'rotate-180' : ''}`}
-                    />
-                </button>
-                <select
-                    id={selectId}
-                    name={selectName}
-                    disabled={disabled}
-                    tabIndex={-1}
-                    aria-hidden="true"
-                    className="sr-only"
-                />
-                {isOpen ? (
-                    <div className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-[#ded7ca] bg-white shadow-[0_25px_50px_-25px_rgba(26,26,29,0.4)]">
-                        <ul className="max-h-64 overflow-y-auto py-2">
-                            {options.map((option) => {
-                                const isSelected = option.value === selectedValue;
-                                return (
-                                    <li key={`${selectId}-${option.value}`}>
-                                        <button
-                                            type="button"
-                                            disabled={option.disabled}
-                                            onClick={() => handleOptionSelect(option)}
-                                            className={`flex w-full items-center tracking-normal justify-between px-4 py-2 text-sm text-left transition ${option.disabled
-                                                ? 'cursor-not-allowed text-[#c5bcaa]'
-                                                : 'cursor-pointer text-[#1a1a1d] hover:bg-[#f5f1e8]'
-                                                } ${isSelected ? 'bg-[#f5f1e8] font-semibold text-[#a38f78]' : ''}`}
-                                        >
-                                            <span className="truncate">{option.text}</span>
-                                            {isSelected ? (
-                                                <span className="ml-3 text-[0.65rem] uppercase tracking-[0.2em] text-[#a38f78]">
-                                                    Selecionado
-                                                </span>
-                                            ) : null}
-                                        </button>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </div>
-                ) : null}
-            </div>
-        </label>
-    );
-}
 
 export default function CheckoutPage() {
     const router = useRouter();
@@ -353,6 +100,7 @@ export default function CheckoutPage() {
     const [deviceId, setDeviceId] = useState<string | null>(initialDeviceId);
     const [deviceChecks, setDeviceChecks] = useState(0);
     const [cardErrors, setCardErrors] = useState<string[]>([]);
+    const [cardFieldErrors, setCardFieldErrors] = useState<Partial<Record<CardFieldKey, string>>>({});
     const [cardBrand, setCardBrand] = useState<string>('');
     const cardBrandDisplay = useMemo(() => {
         if (!cardBrand) return '';
@@ -363,7 +111,56 @@ export default function CheckoutPage() {
         }
         return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase();
     }, [cardBrand]);
-    const [mpSelectReady, setMpSelectReady] = useState({ issuer: false, installments: false, docType: false });
+    const [mpSelectReady, setMpSelectReady] = useState({ installments: false, docType: false });
+    const [selectedDocType, setSelectedDocType] = useState<string>('CPF');
+    useEffect(() => {
+        if (!mpSelectReady.docType) return;
+        const input = document.getElementById('form-checkout__identificationNumber') as HTMLInputElement | null;
+        if (!input) return;
+
+        const formatCpf = (value: string) => {
+            return value
+                .replace(/(\d{3})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        };
+
+        const formatCnpj = (value: string) => {
+            return value
+                .replace(/(\d{2})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d)/, '$1/$2')
+                .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+        };
+
+        const handler = (event: Event) => {
+            const target = event.target as HTMLInputElement;
+            const digitsOnly = target.value.replace(/\D/g, '');
+            const limit = selectedDocType?.toUpperCase() === 'CNPJ' ? 14 : 11;
+            const trimmed = digitsOnly.slice(0, limit);
+            const formatted =
+                selectedDocType?.toUpperCase() === 'CNPJ'
+                    ? formatCnpj(trimmed)
+                    : formatCpf(trimmed);
+            target.value = formatted;
+
+            if (trimmed.length === limit) {
+                setCardFieldErrors((prev) => {
+                    if (!prev.identificationNumber) return prev;
+                    const next = { ...prev };
+                    delete next.identificationNumber;
+                    return next;
+                });
+            }
+        };
+
+        input.placeholder = selectedDocType?.toUpperCase() === 'CNPJ' ? '00.000.000/0000-00' : '000.000.000-00';
+        input.value = '';
+        input.addEventListener('input', handler);
+        return () => {
+            input.removeEventListener('input', handler);
+        };
+    }, [selectedDocType, mpSelectReady.docType, setCardFieldErrors]);
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
     const [paypalLoading, setPaypalLoading] = useState(false);
 
@@ -531,32 +328,6 @@ export default function CheckoutPage() {
         } catch (error) {
             console.warn('Não foi possível atualizar os dados dos ingressos:', error);
         }
-    }, []);
-
-    const attachNumericMask = useCallback((id: string, maxLength: number, allowSpaces = false) => {
-        if (typeof document === 'undefined') return () => { };
-        const input = document.getElementById(id) as HTMLInputElement | null;
-        if (!input) return () => { };
-
-        const handler = (event: Event) => {
-            const target = event.target as HTMLInputElement;
-            const digitsOnly = target.value.replace(/[^\d]/g, '');
-            if (allowSpaces) {
-                target.value = digitsOnly
-                    .slice(0, maxLength)
-                    .replace(/(\d{4})(?=\d)/g, '$1 ')
-                    .trim();
-            } else {
-                target.value = digitsOnly.slice(0, maxLength);
-            }
-        };
-
-        input.inputMode = 'numeric';
-        input.addEventListener('input', handler);
-
-        return () => {
-            input.removeEventListener('input', handler);
-        };
     }, []);
 
     useEffect(() => {
@@ -868,9 +639,16 @@ export default function CheckoutPage() {
     }, [mercadoPago, totalAmount]);
 
     useEffect(() => {
+        if (selectedTab !== 'card') {
+            setCardErrors([]);
+            setCardFieldErrors({});
+        }
+    }, [selectedTab]);
+
+    useEffect(() => {
         if (selectedTab !== 'card') return;
 
-        setMpSelectReady({ issuer: false, installments: false, docType: false });
+        setMpSelectReady({ installments: false, docType: false });
 
         let attempts = 0;
         const maxAttempts = 50;
@@ -878,45 +656,38 @@ export default function CheckoutPage() {
         const interval = setInterval(() => {
             attempts += 1;
 
-            const issuerSelect = document.getElementById('form-checkout__issuer') as HTMLSelectElement | null;
             const installmentsSelect = document.getElementById('form-checkout__installments') as HTMLSelectElement | null;
             const docTypeSelect = document.getElementById('form-checkout__identificationType') as HTMLSelectElement | null;
 
-            const issuerReady = Boolean(issuerSelect && issuerSelect.options.length > 0);
             const installmentsReady = Boolean(installmentsSelect && installmentsSelect.options.length > 0);
             const docTypeReady = Boolean(docTypeSelect && docTypeSelect.options.length > 0);
 
             const nextState = {
-                issuer: issuerReady,
                 installments: installmentsReady,
                 docType: docTypeReady,
             };
 
             setMpSelectReady((prev) => {
-                if (
-                    prev.issuer === nextState.issuer &&
-                    prev.installments === nextState.installments &&
-                    prev.docType === nextState.docType
-                ) {
+                if (prev.installments === nextState.installments && prev.docType === nextState.docType) {
                     return prev;
                 }
                 return nextState;
             });
 
-            if ((issuerReady && installmentsReady && docTypeReady) || attempts >= maxAttempts) {
+            if (nextState.installments && nextState.docType) {
                 clearInterval(interval);
             }
         }, 200);
 
         return () => clearInterval(interval);
-    }, [selectedTab, deviceChecks, mercadoPago]);
+    }, [selectedTab]);
 
     useEffect(() => {
-        const detachCard = attachNumericMask('form-checkout__cardNumber', 16, true);
-        const detachMonth = attachNumericMask('form-checkout__cardExpirationMonth', 2);
-        const detachYear = attachNumericMask('form-checkout__cardExpirationYear', 2);
-        const detachCvv = attachNumericMask('form-checkout__securityCode', 4);
-        const detachDocument = attachNumericMask('form-checkout__identificationNumber', 11);
+        const detachCard = registerNumericMask('form-checkout__cardNumber', 16, true);
+        const detachMonth = registerNumericMask('form-checkout__cardExpirationMonth', 2);
+        const detachYear = registerNumericMask('form-checkout__cardExpirationYear', 2);
+        const detachCvv = registerNumericMask('form-checkout__securityCode', 4);
+        const detachDocument = registerNumericMask('form-checkout__identificationNumber', 11);
 
         return () => {
             detachCard();
@@ -925,7 +696,7 @@ export default function CheckoutPage() {
             detachCvv();
             detachDocument();
         };
-    }, [attachNumericMask, selectedTab]);
+    }, [selectedTab]);
 
     useEffect(() => {
         let retryTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -975,10 +746,6 @@ export default function CheckoutPage() {
             }
         };
     }, [customerData.cpf, customerData.email, selectedTab]);
-
-    useEffect(() => {
-        setCardErrors([]);
-    }, [selectedTab]);
 
     const handleCustomerChange = (field: keyof CheckoutCustomerData, value: string) => {
         if (pixPaymentActive) {
@@ -1033,49 +800,88 @@ export default function CheckoutPage() {
         return true;
     }, [summarizedCart]);
 
-    const handleCardFormValidationErrors = useCallback((cardFormData: any): boolean => {
-        const rawErrors =
-            cardFormData?.errorMessages ||
-            cardFormData?.formErrors ||
-            cardFormData?.fieldErrors ||
-            cardFormData?.errors ||
-            [];
+    const handleCardFormValidationErrors = useCallback(
+        (cardFormData: any) => {
+            if (!cardFormData) return false;
 
-        if (!Array.isArray(rawErrors) || rawErrors.length === 0) {
+            const extractMessages = (field: any): string[] => {
+                if (!field) return [];
+                if (Array.isArray(field)) {
+                    return field.flatMap((item) => extractMessages(item));
+                }
+                if (typeof field === 'string') return [field];
+                if (typeof field === 'object' && field.message) return [String(field.message)];
+                if (typeof field === 'object' && field.messages) {
+                    const messages = Array.isArray(field.messages) ? field.messages : [field.messages];
+                    return messages.map((msg: any) => String(msg));
+                }
+                return [];
+            };
+
+            const translated: string[] = [];
+            const fieldErrors: Partial<Record<CardFieldKey, string>> = {};
+
+            Object.entries(cardFormData).forEach(([key, value]) => {
+                const messages = extractMessages(value);
+                messages.forEach((message) => {
+                    const normalized = message.toLowerCase();
+                    if (normalized.includes('cardnumber') || normalized.includes('card number')) {
+                        fieldErrors.cardNumber = CARD_FIELD_REQUIRED_MESSAGES.cardNumber;
+                        translated.push(CARD_FIELD_REQUIRED_MESSAGES.cardNumber);
+                        return;
+                    }
+                    if (normalized.includes('cardholdername') || normalized.includes('card holder name')) {
+                        fieldErrors.cardholderName = CARD_FIELD_REQUIRED_MESSAGES.cardholderName;
+                        translated.push(CARD_FIELD_REQUIRED_MESSAGES.cardholderName);
+                        return;
+                    }
+                    if (normalized.includes('cardholderemail') || normalized.includes('card holder email')) {
+                        fieldErrors.cardholderEmail = CARD_FIELD_REQUIRED_MESSAGES.cardholderEmail;
+                        translated.push(CARD_FIELD_REQUIRED_MESSAGES.cardholderEmail);
+                        return;
+                    }
+                    if (normalized.includes('cardexpirationmonth')) {
+                        fieldErrors.cardExpirationMonth = CARD_FIELD_REQUIRED_MESSAGES.cardExpirationMonth;
+                        translated.push(CARD_FIELD_REQUIRED_MESSAGES.cardExpirationMonth);
+                        return;
+                    }
+                    if (normalized.includes('cardexpirationyear')) {
+                        fieldErrors.cardExpirationYear = CARD_FIELD_REQUIRED_MESSAGES.cardExpirationYear;
+                        translated.push(CARD_FIELD_REQUIRED_MESSAGES.cardExpirationYear);
+                        return;
+                    }
+                    if (normalized.includes('securitycode')) {
+                        fieldErrors.securityCode = CARD_FIELD_REQUIRED_MESSAGES.securityCode;
+                        translated.push(CARD_FIELD_REQUIRED_MESSAGES.securityCode);
+                        return;
+                    }
+                    if (normalized.includes('identificationnumber')) {
+                        const docMessage =
+                            selectedDocType?.toUpperCase() === 'CNPJ'
+                                ? 'Informe o CNPJ do titular do cartão (14 dígitos).'
+                                : 'Informe o CPF do titular do cartão (11 dígitos).';
+                        fieldErrors.identificationNumber = docMessage;
+                        translated.push(docMessage);
+                        return;
+                    }
+                    translated.push(message || 'Existem campos obrigatórios não preenchidos.');
+                });
+            });
+
+            if (Object.keys(fieldErrors).length) {
+                setCardFieldErrors((prev) => ({ ...prev, ...fieldErrors }));
+            }
+
+            if (translated.length) {
+                const uniqueErrors = Array.from(new Set(translated));
+                setCardErrors(uniqueErrors);
+                return true;
+            }
+
             return false;
-        }
-
-        const translated = rawErrors
-            .map((item: any) => {
-                const code = typeof item === 'object' ? item?.code : undefined;
-                const message = typeof item === 'object' ? item?.message : item;
-                if (code && CARD_ERROR_MESSAGES[code]) {
-                    return CARD_ERROR_MESSAGES[code];
-                }
-                if (typeof message === 'string' && message.toLowerCase().includes('cardnumber')) {
-                    return 'Informe o número do cartão.';
-                }
-                if (typeof message === 'string' && message.toLowerCase().includes('cardexpirationmonth')) {
-                    return 'Informe o mês de validade do cartão.';
-                }
-                if (typeof message === 'string' && message.toLowerCase().includes('cardexpirationyear')) {
-                    return 'Informe o ano de validade do cartão.';
-                }
-                if (typeof message === 'string' && message.toLowerCase().includes('securitycode')) {
-                    return 'Informe o código de segurança (CVV).';
-                }
-                return message || 'Existem campos obrigatórios não preenchidos.';
-            })
-            .filter(Boolean);
-
-        if (translated.length) {
-            const uniqueErrors = Array.from(new Set(translated));
-            setCardErrors(uniqueErrors);
-            return true;
-        }
-
-        return false;
-    }, []);
+        },
+        [selectedDocType],
+    );
 
     const validateCardFormFields = useCallback(() => {
         const cardNumberInput = document.getElementById('form-checkout__cardNumber') as HTMLInputElement | null;
@@ -1092,47 +898,76 @@ export default function CheckoutPage() {
         const documentInput = document.getElementById('form-checkout__identificationNumber') as HTMLInputElement | null;
 
         const errors: string[] = [];
+        const fieldErrors: Partial<Record<CardFieldKey, string>> = {};
 
         const cardNumberDigits = cardNumberInput?.value.replace(/\D/g, '') || '';
         if (cardNumberDigits.length < 13 || cardNumberDigits.length > 19) {
-            errors.push('Número do cartão inválido.');
+            const message = CARD_FIELD_REQUIRED_MESSAGES.cardNumber;
+            errors.push(message);
+            fieldErrors.cardNumber = message;
         }
 
         if (!cardholderNameInput?.value.trim()) {
-            errors.push('Informe o nome exatamente como aparece no cartão.');
+            const message = CARD_FIELD_REQUIRED_MESSAGES.cardholderName;
+            errors.push(message);
+            fieldErrors.cardholderName = message;
         }
 
         const emailValue = cardholderEmailInput?.value.trim() || '';
         if (!emailValue || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
-            errors.push('Informe um e-mail válido para o recibo.');
+            const message = CARD_FIELD_REQUIRED_MESSAGES.cardholderEmail;
+            errors.push(message);
+            fieldErrors.cardholderEmail = message;
         }
 
-        const monthValue = Number(expirationMonthInput?.value || 0);
+        const monthDigits = expirationMonthInput?.value.replace(/\D/g, '') || '';
+        const monthValue = Number(monthDigits);
         if (monthValue < 1 || monthValue > 12) {
-            errors.push('Informe o mês de validade do cartão (01-12).');
+            const message = CARD_FIELD_REQUIRED_MESSAGES.cardExpirationMonth;
+            errors.push(message);
+            fieldErrors.cardExpirationMonth = message;
+        } else if (monthDigits.length !== 2) {
+            const message = 'Use dois dígitos para o mês (ex: 09).';
+            errors.push(message);
+            fieldErrors.cardExpirationMonth = message;
         }
 
-        const yearValue = Number(expirationYearInput?.value || 0);
-        if (yearValue < 0) {
-            errors.push('Informe o ano de validade do cartão.');
+        const yearDigits = expirationYearInput?.value.replace(/\D/g, '') || '';
+        const yearValue = Number(yearDigits);
+        if (yearDigits.length !== 2 || yearValue < 0) {
+            const message = CARD_FIELD_REQUIRED_MESSAGES.cardExpirationYear;
+            errors.push(message);
+            fieldErrors.cardExpirationYear = message;
         }
 
-        if (!securityCodeInput?.value || securityCodeInput.value.length < 3) {
-            errors.push('Informe o código de segurança (CVV).');
+        const securityDigits = securityCodeInput?.value.replace(/\D/g, '') || '';
+        if (securityDigits.length < 3) {
+            const message = CARD_FIELD_REQUIRED_MESSAGES.securityCode;
+            errors.push(message);
+            fieldErrors.securityCode = message;
         }
 
         const documentDigits = documentInput?.value.replace(/\D/g, '') || '';
-        if (documentDigits.length !== 11) {
-            errors.push('Informe o CPF do titular do cartão (11 dígitos).');
+        const expectedDocLength = selectedDocType?.toUpperCase() === 'CNPJ' ? 14 : 11;
+        if (documentDigits.length !== expectedDocLength) {
+            const message =
+                selectedDocType?.toUpperCase() === 'CNPJ'
+                    ? 'Informe o CNPJ do titular do cartão (14 dígitos).'
+                    : 'Informe o CPF do titular do cartão (11 dígitos).';
+            errors.push(message);
+            fieldErrors.identificationNumber = message;
         }
 
         if (!installmentsSelect?.value) {
-            errors.push('Selecione o número de parcelas.');
+            const message = CARD_FIELD_REQUIRED_MESSAGES.installments;
+            errors.push(message);
+            fieldErrors.installments = message;
         }
 
-        setCardErrors(errors);
+        setCardErrors(Array.from(new Set(errors)));
+        setCardFieldErrors(fieldErrors);
         return errors.length === 0;
-    }, []);
+    }, [selectedDocType]);
 
     const ensureOrder = useCallback(async () => {
         if (order) return order;
@@ -1214,6 +1049,7 @@ export default function CheckoutPage() {
             }
             setGlobalError('');
             setCardErrors([]);
+            setCardFieldErrors({});
         },
         [],
     );
@@ -1259,6 +1095,7 @@ export default function CheckoutPage() {
             try {
                 setIsProcessing(true);
                 setCardErrors([]);
+                setCardFieldErrors({});
 
                 const isValid = validateCardFormFields();
                 if (!isValid) {
@@ -1297,14 +1134,38 @@ export default function CheckoutPage() {
             } catch (error: any) {
                 console.error('Erro no pagamento com cartão:', error);
                 if (error?.response?.data?.errors) {
-                    const errorList = Array.isArray(error.response.data.errors)
-                        ? error.response.data.errors.map((err: any) => String(err))
-                        : [String(error.response.data.errors)];
-                    setCardErrors(errorList);
+                    const rawErrors = Array.isArray(error.response.data.errors)
+                        ? error.response.data.errors
+                        : [error.response.data.errors];
+                    const fieldErrors: Partial<Record<CardFieldKey, string>> = {};
+                    const messages: string[] = [];
+
+                    rawErrors.forEach((err: any) => {
+                        const code = String(err?.code || '').toUpperCase();
+                        const fallbackMessage = typeof err?.message === 'string' ? err.message : undefined;
+                        const mapped = CARD_ERROR_CODE_MAP[code];
+                        if (mapped) {
+                            const customMessage =
+                                mapped.field === 'identificationNumber' && selectedDocType?.toUpperCase() === 'CNPJ'
+                                    ? 'Informe o CNPJ do titular do cartão (14 dígitos).'
+                                    : mapped.message;
+                            fieldErrors[mapped.field] = customMessage;
+                            messages.push(customMessage);
+                        } else if (fallbackMessage) {
+                            messages.push(fallbackMessage);
+                        }
+                    });
+
+                    if (messages.length) {
+                        setCardErrors(Array.from(new Set(messages)));
+                    }
+                    if (Object.keys(fieldErrors).length) {
+                        setCardFieldErrors((prev) => ({ ...prev, ...fieldErrors }));
+                    }
                 }
                 const message =
                     error?.response?.data?.message ||
-                    error?.response?.data?.errors?.[0] ||
+                    error?.response?.data?.errors?.[0]?.message ||
                     error?.message ||
                     'Não foi possível processar o pagamento. Verifique os dados e tente novamente.';
                 setGlobalError(message);
@@ -1312,7 +1173,7 @@ export default function CheckoutPage() {
                 setIsProcessing(false);
             }
         },
-        [ensureDeviceIdAvailable, ensureOrder, ensureSingleItem, finalizeSuccess, handleCardFormValidationErrors, primaryCartItem, validateCardFormFields],
+        [ensureDeviceIdAvailable, ensureOrder, ensureSingleItem, finalizeSuccess, handleCardFormValidationErrors, primaryCartItem, selectedDocType, validateCardFormFields],
     );
 
     const handlePixPayment = useCallback(
@@ -1387,7 +1248,69 @@ export default function CheckoutPage() {
         summarizedCart.length > 0 &&
         primaryCartItem?.quantity > 0 &&
         totalAmount > 0 &&
-        MP_PUBLIC_KEY;
+        Boolean(MP_PUBLIC_KEY);
+
+    const clearCardFieldError = useCallback((field: CardFieldKey, extraMessages: string[] = []) => {
+        setCardFieldErrors((prev) => {
+            if (!prev || !prev[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+        setCardErrors((prev) => {
+            const next = prev.filter((message) => {
+                if (field === 'identificationNumber') {
+                    const cpfMessage = 'Informe o CPF do titular do cartão (11 dígitos).';
+                    const cnpjMessage = 'Informe o CNPJ do titular do cartão (14 dígitos).';
+                    return message !== cpfMessage && message !== cnpjMessage && message !== CARD_FIELD_REQUIRED_MESSAGES[field];
+                }
+                return message !== CARD_FIELD_REQUIRED_MESSAGES[field] && !extraMessages.includes(message);
+            });
+            if (next.length === prev.length) {
+                let changed = false;
+                for (let index = 0; index < prev.length; index += 1) {
+                    if (prev[index] !== next[index]) {
+                        changed = true;
+                        break;
+                    }
+                }
+                if (!changed) {
+                    return prev;
+                }
+            }
+            return next;
+        });
+    }, []);
+
+    const handleDocumentTypeSelection = useCallback(
+        (value: string) => {
+            setSelectedDocType(value ? value.toUpperCase() : 'CPF');
+            const input = document.getElementById('form-checkout__identificationNumber') as HTMLInputElement | null;
+            if (input) {
+                input.value = '';
+            }
+            setCardErrors((prev) =>
+                prev.filter(
+                    (message) =>
+                        message !== 'Informe o CPF do titular do cartão (11 dígitos).' &&
+                        message !== 'Informe o CNPJ do titular do cartão (14 dígitos).' &&
+                        message !== CARD_FIELD_REQUIRED_MESSAGES.identificationNumber,
+                ),
+            );
+        },
+        [],
+    );
+
+    const handleCopyPixCode = useCallback(async () => {
+        if (!pixResult?.ticketUrl) return;
+        try {
+            await navigator.clipboard.writeText(pixResult.ticketUrl);
+            setPixCopySuccess(true);
+            setTimeout(() => setPixCopySuccess(false), 5000);
+        } catch (clipboardError) {
+            console.error('Não foi possível copiar código PIX:', clipboardError);
+        }
+    }, [pixResult?.ticketUrl]);
 
     return (
         <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
@@ -1420,189 +1343,20 @@ export default function CheckoutPage() {
                 ) : (
                     <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr]">
                         <section className="space-y-6">
-                            <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
-                                <header className="flex items-center justify-between">
-                                    <div>
-                                        <h2 className="text-lg font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
-                                            Resumo do pedido
-                                        </h2>
-                                        <p className="text-xs text-[#7d796c]">
-                                            Revise os ingressos antes de finalizar o pagamento.
-                                        </p>
-                                    </div>
-                                    <span className="rounded-full border border-[#ded7ca] bg-[#f5f1e8] px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-[#6f6b63]">
-                                        {totalTickets} ingresso(s)
-                                    </span>
-                                </header>
+                            <CheckoutCartSummary
+                                items={summarizedCart}
+                                totalTickets={totalTickets}
+                                totalAmount={totalAmount}
+                                pixPaymentActive={pixPaymentActive}
+                                onRemoveItem={handleRemoveItem}
+                            />
 
-                                <div className="mt-6 space-y-4">
-                                    {summarizedCart.map((item) => (
-                                        <div
-                                            key={item.id}
-                                            className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] p-5 shadow-[0_15px_35px_-30px_rgba(20,20,32,0.35)]"
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="space-y-1">
-                                                    <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
-                                                        <HiOutlineTicket className="text-sm" />
-                                                        {item.metadata?.category ?? 'Ingresso'}
-                                                    </span>
-                                                    <p className="text-base font-semibold uppercase tracking-[0.15em] text-[#1a1a1d]">
-                                                        {item.name}
-                                                    </p>
-                                                    {item.date || item.location ? (
-                                                        <p className="text-xs text-[#7d796c]">
-                                                            {item.date}
-                                                            {item.date && item.location ? ' • ' : ''}
-                                                            {item.location}
-                                                        </p>
-                                                    ) : null}
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    disabled={pixPaymentActive}
-                                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${pixPaymentActive
-                                                        ? 'border-[#ded7ca] text-[#b5aa92] opacity-60 cursor-not-allowed'
-                                                        : 'border-[#ded7ca] text-[#7d796c] hover:border-rose-300 hover:text-rose-500'
-                                                        }`}
-                                                    onClick={() => handleRemoveItem(item.id)}
-                                                    aria-label="Remover do carrinho"
-                                                >
-                                                    <HiOutlineTrash className="text-sm" />
-                                                </button>
-                                            </div>
-
-                                            <div className="mt-4 grid gap-3 text-sm text-[#4c4c55] md:grid-cols-2">
-                                                <div>
-                                                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                        Quantidade
-                                                    </span>
-                                                    <p className="mt-1 text-sm font-semibold text-[#1a1a1d]">
-                                                        {item.quantity} ingresso(s)
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                        Subtotal
-                                                    </span>
-                                                    <p className="mt-1 text-sm text-[#1a1a1d]">
-                                                        R$ {item.subtotal.toFixed(2).replace('.', ',')}
-                                                    </p>
-                                                </div>
-                                                {item.platformFeeValue > 0 || item.fixedFeeValue > 0 ? (
-                                                    <div className="md:col-span-2">
-                                                        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                            Taxas
-                                                        </span>
-                                                        <p className="mt-1 text-sm text-[#1a1a1d]">
-                                                            R${' '}
-                                                            {(
-                                                                item.platformFeeValue + item.fixedFeeValue
-                                                            ).toFixed(2).replace('.', ',')}
-                                                        </p>
-                                                    </div>
-                                                ) : null}
-                                                <div className="md:col-span-2">
-                                                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                        Total deste ingresso
-                                                    </span>
-                                                    <p className="mt-1 text-sm font-semibold text-[#1a1a1d]">
-                                                        R$ {item.total.toFixed(2).replace('.', ',')}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <footer className="mt-6 rounded-2xl border border-[#ede5d8] bg-white px-5 py-4">
-                                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                        Total a pagar
-                                    </span>
-                                    <p className="mt-2 text-2xl font-bold text-[#1a1a1d]">
-                                        R$ {totalAmount.toFixed(2).replace('.', ',')}
-                                    </p>
-                                </footer>
-                            </div>
-
-                            <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
-                                <h2 className="text-lg font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
-                                    Dados do comprador
-                                </h2>
-                                <p className="text-xs text-[#7d796c]">
-                                    Usaremos essas informações para gerar o pedido e os ingressos.
-                                </p>
-
-                                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
-                                        Nome completo
-                                        <div className="relative">
-                                            <HiOutlineUser className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                                            <input
-                                                type="text"
-                                                value={customerData.name}
-                                                onChange={(event) => handleCustomerChange('name', event.target.value)}
-                                                readOnly={pixPaymentActive}
-                                                aria-readonly={pixPaymentActive}
-                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${pixPaymentActive ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''
-                                                    }`}
-                                                placeholder="Como aparece no documento"
-                                            />
-                                        </div>
-                                    </label>
-                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
-                                        E-mail
-                                        <div className="relative">
-                                            <HiOutlineEnvelope className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                                            <input
-                                                type="email"
-                                                value={customerData.email}
-                                                onChange={(event) => handleCustomerChange('email', event.target.value)}
-                                                readOnly={pixPaymentActive}
-                                                aria-readonly={pixPaymentActive}
-                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${pixPaymentActive ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''
-                                                    }`}
-                                                placeholder="email@exemplo.com"
-                                            />
-                                        </div>
-                                    </label>
-                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
-                                        CPF
-                                        <div className="relative">
-                                            <HiOutlineIdentification
-                                                className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${mpSelectReady.docType ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
-                                                    }`}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={customerData.cpf}
-                                                onChange={(event) => handleCustomerChange('cpf', event.target.value)}
-                                                readOnly={pixPaymentActive}
-                                                aria-readonly={pixPaymentActive}
-                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${pixPaymentActive ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''
-                                                    }`}
-                                                placeholder="000.000.000-00"
-                                            />
-                                        </div>
-                                    </label>
-                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
-                                        Celular
-                                        <div className="relative">
-                                            <HiOutlinePhone className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                                            <input
-                                                type="tel"
-                                                value={customerData.phone}
-                                                onChange={(event) => handleCustomerChange('phone', event.target.value)}
-                                                readOnly={pixPaymentActive}
-                                                aria-readonly={pixPaymentActive}
-                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${pixPaymentActive ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''
-                                                    }`}
-                                                placeholder="(11) 99999-9999"
-                                            />
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
+                            <CustomerDataForm
+                                data={customerData}
+                                disabled={pixPaymentActive}
+                                onChange={handleCustomerChange}
+                                docTypeReady={mpSelectReady.docType}
+                            />
                         </section>
 
                         <section className="space-y-6">
@@ -1620,7 +1374,7 @@ export default function CheckoutPage() {
 
                                 {!MP_PUBLIC_KEY ? (
                                     <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-                                        Configure a variável <code className="font-mono text-xs">NEXT_PUBLIC_MP_PUBLIC_KEY</code>{' '}
+                                        Configure a variável <span className="rounded bg-[#f5f1e8] px-1 font-mono text-xs">NEXT_PUBLIC_MP_PUBLIC_KEY</span>{' '}
                                         para habilitar o checkout do Mercado Pago.
                                     </div>
                                 ) : null}
@@ -1666,235 +1420,42 @@ export default function CheckoutPage() {
                                         {globalSuccess}
                                     </div>
                                 ) : null}
+                                {cardErrors.length ? (
+                                    <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                                        <ul className="space-y-2">
+                                            {cardErrors.map((errorMessage, index) => (
+                                                <li key={`${errorMessage}-${index}`}>{errorMessage}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ) : null}
 
                                 {selectedTab === 'card' ? (
-                                    <form
-                                        id="checkout-card-form"
-                                        className="mt-6 space-y-4"
+                                    <CardPaymentForm
                                         onSubmit={handleCardPayment}
-                                    >
-                                        <div className="grid gap-4 md:grid-cols-4">
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-4">
-                                                Número do cartão
-                                                <div className="relative">
-                                                    <HiOutlineCreditCard className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                                                    <input
-                                                        id="form-checkout__cardNumber"
-                                                        name="cardNumber"
-                                                        type="text"
-                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
-                                                        placeholder="0000 0000 0000 0000"
-                                                    />
-                                                    {cardBrandDisplay ? (
-                                                        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-[#a38f78]/40 bg-[#f5f1e8] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
-                                                            {cardBrandDisplay}
-                                                        </span>
-                                                    ) : null}
-                                                </div>
-                                            </label>
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-1">
-                                                Mês
-                                                <div className="relative">
-                                                    <HiOutlineCalendar className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                                                    <input
-                                                        id="form-checkout__cardExpirationMonth"
-                                                        name="cardExpirationMonth"
-                                                        type="text"
-                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
-                                                        placeholder="MM"
-                                                    />
-                                                </div>
-                                            </label>
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-1">
-                                                Ano
-                                                <div className="relative">
-                                                    <HiOutlineCalendar className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                                                    <input
-                                                        id="form-checkout__cardExpirationYear"
-                                                        name="cardExpirationYear"
-                                                        type="text"
-                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
-                                                        placeholder="AA"
-                                                    />
-                                                </div>
-                                            </label>
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
-                                                CVV
-                                                <div className="relative">
-                                                    <HiOutlineLockClosed className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                                                    <input
-                                                        id="form-checkout__securityCode"
-                                                        name="securityCode"
-                                                        type="text"
-                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
-                                                        placeholder="CVV"
-                                                    />
-                                                </div>
-                                            </label>
-
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-4">
-                                                Nome igual ao cartão
-                                                <div className="relative">
-                                                    <HiOutlineUser className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                                                    <input
-                                                        id="form-checkout__cardholderName"
-                                                        name="cardholderName"
-                                                        type="text"
-                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
-                                                        placeholder="Nome completo"
-                                                    />
-                                                </div>
-                                            </label>
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-4">
-                                                E-mail para recibo
-                                                <div className="relative">
-                                                    <HiOutlineEnvelope className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                                                    <input
-                                                        id="form-checkout__cardholderEmail"
-                                                        name="cardholderEmail"
-                                                        type="email"
-                                                        defaultValue={customerData.email}
-                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
-                                                        placeholder="email@testuser.com"
-                                                    />
-                                                </div>
-                                            </label>
-                                            <select
-                                                id="form-checkout__issuer"
-                                                name="issuer"
-                                                className="sr-only"
-                                                aria-hidden="true"
-                                            />
-                                            <MpSelect
-                                                label="Parcelas"
-                                                selectId="form-checkout__installments"
-                                                selectName="installments"
-                                                icon={HiOutlineSquaresPlus}
-                                                loadingText="Carregando…"
-                                                placeholder="Selecione as parcelas"
-                                                disabled={!cardBrand || !mpSelectReady.installments}
-                                                classNameOverride="md:col-span-4"
-                                            />
-                                            <MpSelect
-                                                label="Tipo de documento"
-                                                selectId="form-checkout__identificationType"
-                                                selectName="identificationType"
-                                                icon={HiOutlineDocumentText}
-                                                loadingText="Carregando…"
-                                                placeholder="Selecione o documento"
-                                                disabled={!cardBrand || !mpSelectReady.docType}
-                                            />
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
-                                                CPF
-                                                <div className="relative">
-                                                    <HiOutlineIdentification
-                                                        className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${mpSelectReady.docType ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
-                                                            }`}
-                                                    />
-                                                    <input
-                                                        id="form-checkout__identificationNumber"
-                                                        name="identificationNumber"
-                                                        type="text"
-                                                        disabled={!cardBrand || !mpSelectReady.docType}
-                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
-                                                        placeholder="000.000.000-00"
-                                                    />
-                                                </div>
-                                            </label>
-                                        </div>
-
-                                        <button
-                                            type="submit"
-                                            disabled={!isCheckoutReady || isProcessing}
-                                            className="flex w-full items-center justify-center gap-3 rounded-full bg-[#1a1a1d] px-6 py-4 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_25px_55px_-30px_rgba(20,20,32,0.45)] transition hover:bg-[#f97316] hover:text-[#1a1a1d] disabled:cursor-not-allowed disabled:border-[#c9c3b8] disabled:bg-[#c9c3b8]"
-                                        >
-                                            {isProcessing ? 'Processando…' : 'Pagar com cartão'}
-                                        </button>
-                                    </form>
+                                        isCheckoutReady={isCheckoutReady}
+                                        isProcessing={isProcessing}
+                                        cardBrandDisplay={cardBrandDisplay}
+                                        cardFieldErrors={cardFieldErrors}
+                                        cardBrand={cardBrand}
+                                        mpSelectReady={mpSelectReady}
+                                        selectedDocType={selectedDocType}
+                                        customerEmail={customerData.email}
+                                        onDocumentTypeChange={handleDocumentTypeSelection}
+                                        clearFieldError={clearCardFieldError}
+                                    />
                                 ) : (
-                                    <form className="mt-6 space-y-4" onSubmit={handlePixPayment}>
-                                        {!pixResult ? (
-                                            <>
-                                                <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-sm text-[#4c4c55]">
-                                                    Gere um QR Code instantâneo via Mercado Pago. O pagamento deve ser efetuado em
-                                                    até {pixGenerationDeadlineMinutes} minutos.
-                                                </div>
-
-                                                <button
-                                                    type="submit"
-                                                    disabled={!isCheckoutReady || isProcessing || pixPaymentActive}
-                                                    className="flex w-full items-center justify-center gap-3 rounded-full border border-[#a38f78] px-6 py-4 text-xs font-semibold uppercase  text-[#a38f78] transition hover:border-[#f97316] hover:text-[#f97316] disabled:cursor-not-allowed disabled:border-[#c9c3b8] disabled:text-[#c9c3b8]"
-                                                >
-                                                    {isProcessing ? 'Gerando PIX…' : 'Garantir meu Ingresso via Vip'}
-                                                </button>
-                                            </>
-                                        ) : null}
-
-                                        {pixResult ? (
-                                            <div className="space-y-4 rounded-2xl border border-[#ded7ca] bg-white p-5">
-                                                <div className="rounded-2xl border border-[#b6f0d2] bg-[#f1fff6] px-4 py-3 text-sm text-[#1f5d3d]">
-                                                    <p className="font-semibold">Seu pedido está criado e aguardando pagamento via PIX.</p>
-                                                    {pixExpirationDescription ? (
-                                                        <p className="mt-1 text-xs text-[#2b6b47]">{pixExpirationDescription}</p>
-                                                    ) : null}
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f1e8] text-[#a38f78]">
-                                                        <HiOutlineClipboardDocument className="text-xl" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-semibold text-[#1a1a1d]">
-                                                            Escaneie o QR Code ou copie o código PIX abaixo.
-                                                        </p>
-                                                        <p className="text-xs text-[#7d796c]">
-                                                            O pagamento é processado pelo Mercado Pago.
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {pixResult.qrCodeBase64 ? (
-                                                    <img
-                                                        src={`data:image/png;base64,${pixResult.qrCodeBase64}`}
-                                                        alt="QR Code PIX"
-                                                        className="mx-auto h-48 w-48 rounded-2xl border border-[#ded7ca] bg-white p-3"
-                                                    />
-                                                ) : null}
-
-                                                {pixResult.ticketUrl ? (
-                                                    <div className="space-y-3 rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3">
-                                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                            Código copia e cola
-                                                        </p>
-                                                        <p className="mt-2 break-all text-sm text-[#1a1a1d]">
-                                                            {pixResult.ticketUrl}
-                                                        </p>
-                                                        <div className="flex flex-wrap items-center gap-3">
-                                                            <button
-                                                                type="button"
-                                                                className="inline-flex items-center justify-center rounded-full border border-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        await navigator.clipboard.writeText(pixResult.ticketUrl || '');
-                                                                        setPixCopySuccess(true);
-                                                                        setTimeout(() => setPixCopySuccess(false), 5000);
-                                                                    } catch (clipboardError) {
-                                                                        console.error('Não foi possível copiar código PIX:', clipboardError);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                Copiar código
-                                                            </button>
-                                                            {pixCopySuccess ? (
-                                                                <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-700">
-                                                                    Código copiado!
-                                                                </span>
-                                                            ) : null}
-                                                        </div>
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                        ) : null}
-                                    </form>
+                                    <PixPaymentSection
+                                        pixResult={pixResult}
+                                        pixExpirationDescription={pixExpirationDescription}
+                                        pixGenerationDeadlineMinutes={pixGenerationDeadlineMinutes}
+                                        isCheckoutReady={isCheckoutReady}
+                                        isProcessing={isProcessing}
+                                        pixPaymentActive={pixPaymentActive}
+                                        pixCopySuccess={pixCopySuccess}
+                                        onCopyCode={handleCopyPixCode}
+                                        onSubmit={handlePixPayment}
+                                    />
                                 )}
 
                                 <div className="mt-6 rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
@@ -1916,5 +1477,3 @@ export default function CheckoutPage() {
         </main>
     );
 }
-
-

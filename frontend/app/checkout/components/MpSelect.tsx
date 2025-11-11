@@ -1,0 +1,214 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import type { IconType } from 'react-icons';
+import { HiOutlineChevronDown } from 'react-icons/hi2';
+import { SELECT_BASE_CLASS } from '../constants';
+
+type MpSelectProps = {
+    label: string;
+    selectId: string;
+    selectName: string;
+    icon: IconType;
+    badgeLabel?: string;
+    loadingText?: string;
+    placeholder?: string;
+    disabled?: boolean;
+    classNameOverride?: string;
+    onSelectionChange?: (value: string) => void;
+    errorText?: string;
+};
+
+type MpSelectOption = {
+    value: string;
+    text: string;
+    disabled: boolean;
+};
+
+export default function MpSelect({
+    label,
+    selectId,
+    selectName,
+    icon: Icon,
+    badgeLabel,
+    loadingText,
+    placeholder,
+    disabled,
+    classNameOverride,
+    onSelectionChange,
+    errorText,
+}: MpSelectProps) {
+    const [displayText, setDisplayText] = useState('');
+    const [selectedValue, setSelectedValue] = useState('');
+    const [options, setOptions] = useState<MpSelectOption[]>([]);
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLLabelElement | null>(null);
+    const selectRef = useRef<HTMLSelectElement | null>(null);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+    useEffect(() => {
+        const selectElement = document.getElementById(selectId) as HTMLSelectElement | null;
+        selectRef.current = selectElement;
+        if (!selectElement) {
+            setDisplayText('');
+            setOptions([]);
+            setSelectedValue('');
+            return;
+        }
+
+        const syncFromSelect = () => {
+            const option = selectElement.options[selectElement.selectedIndex];
+            const nextValue = selectElement.value || '';
+            setDisplayText(option ? option.text : '');
+            setSelectedValue(nextValue);
+            const mappedOptions: MpSelectOption[] = Array.from(selectElement.options).map((opt) => ({
+                value: opt.value,
+                text: opt.text,
+                disabled: opt.disabled,
+            }));
+            setOptions(mappedOptions);
+            if (onSelectionChange) {
+                onSelectionChange(nextValue);
+            }
+        };
+
+        syncFromSelect();
+        selectElement.addEventListener('change', syncFromSelect);
+
+        const observer = new MutationObserver(syncFromSelect);
+        observer.observe(selectElement, { childList: true, subtree: true, attributes: true });
+
+        return () => {
+            selectElement.removeEventListener('change', syncFromSelect);
+            observer.disconnect();
+        };
+    }, [selectId, onSelectionChange]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (!containerRef.current) return;
+            if (!containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (disabled && isOpen) {
+            setIsOpen(false);
+        }
+    }, [disabled, isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            triggerRef.current?.blur();
+        }
+    }, [isOpen]);
+
+    const fallbackText = disabled ? loadingText ?? '' : '';
+    const rawDisplay = (displayText || fallbackText || '').trim();
+    const hideLoadingText = /carregando|detectando/i.test(rawDisplay);
+    const effectivePlaceholder = placeholder || 'Selecione uma opção';
+    const textToShow = !rawDisplay || hideLoadingText ? effectivePlaceholder : rawDisplay;
+    const IconColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
+    const ArrowColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
+    const hasOptions = options.length > 0;
+    const errorClass = errorText ? 'border-rose-400 focus:border-rose-500 text-[#1a1a1d]' : '';
+
+    const toggleDropdown = () => {
+        if (disabled || !hasOptions) return;
+        setIsOpen((prev) => !prev);
+    };
+
+    const handleOptionSelect = (option: MpSelectOption) => {
+        if (option.disabled) return;
+        const selectElement = selectRef.current;
+        if (!selectElement) return;
+        selectElement.value = option.value;
+        selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+        setDisplayText(option.text);
+        setSelectedValue(option.value);
+        if (onSelectionChange) {
+            onSelectionChange(option.value);
+        }
+        setTimeout(() => setIsOpen(false), 0);
+    };
+
+    return (
+        <label
+            ref={containerRef}
+            className={`relative flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2 ${
+                classNameOverride || ''
+            }`}
+        >
+            <span className="flex items-center justify-between">
+                <span>{label}</span>
+                {badgeLabel ? (
+                    <span className="rounded-full border border-[#a38f78]/40 bg-[#f5f1e8] px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
+                        {badgeLabel}
+                    </span>
+                ) : null}
+            </span>
+            <div className="relative">
+                <Icon className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${IconColor}`} />
+                <button
+                    type="button"
+                    disabled={disabled || !hasOptions}
+                    onClick={toggleDropdown}
+                    ref={triggerRef}
+                    className={`${SELECT_BASE_CLASS} flex w-full items-center justify-between py-3 pl-11 pr-10 text-left ${
+                        disabled ? 'text-[#b5aa92]' : 'text-[#1a1d]'
+                    } ${disabled || !hasOptions ? 'cursor-not-allowed' : 'cursor-pointer'} ${errorClass}`}
+                >
+                    <span className="block w-full truncate">{textToShow || '\u00A0'}</span>
+                    <HiOutlineChevronDown className={`ml-3 shrink-0 transition-transform ${ArrowColor} ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+                <select
+                    id={selectId}
+                    name={selectName}
+                    disabled={disabled}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    className="sr-only"
+                />
+                {isOpen ? (
+                    <div className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-[#ded7ca] bg-white shadow-[0_25px_50px_-25px_rgba(26,26,29,0.4)]">
+                        <ul className="max-h-64 overflow-y-auto py-2">
+                            {options.map((option) => {
+                                const isSelected = option.value === selectedValue;
+                                return (
+                                    <li key={`${selectId}-${option.value}`}>
+                                        <button
+                                            type="button"
+                                            disabled={option.disabled}
+                                            onClick={() => handleOptionSelect(option)}
+                                            className={`flex w-full items-center tracking-normal justify-between px-4 py-2 text-sm text-left transition ${
+                                                option.disabled
+                                                    ? 'cursor-not-allowed text-[#c5bcaa]'
+                                                    : 'cursor-pointer text-[#1a1a1d] hover:bg-[#f5f1e8]'
+                                            } ${isSelected ? 'bg-[#f5f1e8] font-semibold text-[#a38f78]' : ''}`}
+                                        >
+                                            <span className="truncate">{option.text}</span>
+                                            {isSelected ? (
+                                                <span className="ml-3 text-[0.65rem] uppercase tracking-normal text-[#a38f78]">
+                                                    Selecionado
+                                                </span>
+                                            ) : null}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                ) : null}
+                {errorText ? (
+                    <span className="mt-1 block text-[0.65rem] font-normal uppercase tracking-normal text-rose-600">{errorText}</span>
+                ) : null}
+            </div>
+        </label>
+    );
+}
+
