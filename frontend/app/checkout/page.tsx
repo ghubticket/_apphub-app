@@ -6,7 +6,6 @@ import {
     HiOutlineTicket,
     HiOutlineTrash,
     HiOutlineClipboardDocument,
-    HiOutlineSparkles,
     HiOutlineCreditCard,
     HiOutlineCalendar,
     HiOutlineLockClosed,
@@ -18,6 +17,7 @@ import {
     HiOutlineSquaresPlus,
     HiOutlineChevronDown,
 } from 'react-icons/hi2';
+import { SiPix } from 'react-icons/si';
 import type { IconType } from 'react-icons';
 import Container from '@/components/shared/Container';
 import { useAuth } from '@/context/AuthContext';
@@ -123,7 +123,15 @@ type MpSelectProps = {
     icon: IconType;
     badgeLabel?: string;
     loadingText?: string;
+    placeholder?: string;
     disabled?: boolean;
+    classNameOverride?: string;
+};
+
+type MpSelectOption = {
+    value: string;
+    text: string;
+    disabled: boolean;
 };
 
 function MpSelect({
@@ -133,69 +141,165 @@ function MpSelect({
     icon: Icon,
     badgeLabel,
     loadingText,
+    placeholder,
     disabled,
+    classNameOverride,
 }: MpSelectProps) {
     const [displayText, setDisplayText] = useState('');
+    const [selectedValue, setSelectedValue] = useState('');
+    const [options, setOptions] = useState<MpSelectOption[]>([]);
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLLabelElement | null>(null);
+    const selectRef = useRef<HTMLSelectElement | null>(null);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
 
     useEffect(() => {
         const selectElement = document.getElementById(selectId) as HTMLSelectElement | null;
+        selectRef.current = selectElement;
         if (!selectElement) {
             setDisplayText('');
+            setOptions([]);
+            setSelectedValue('');
             return;
         }
 
-        const updateDisplay = () => {
+        const syncFromSelect = () => {
             const option = selectElement.options[selectElement.selectedIndex];
             setDisplayText(option ? option.text : '');
+            setSelectedValue(selectElement.value || '');
+            const mappedOptions: MpSelectOption[] = Array.from(selectElement.options).map((opt) => ({
+                value: opt.value,
+                text: opt.text,
+                disabled: opt.disabled,
+            }));
+            setOptions(mappedOptions);
         };
 
-        updateDisplay();
-        selectElement.addEventListener('change', updateDisplay);
+        syncFromSelect();
+        selectElement.addEventListener('change', syncFromSelect);
 
-        const observer = new MutationObserver(updateDisplay);
-        observer.observe(selectElement, { childList: true, subtree: false, attributes: true });
+        const observer = new MutationObserver(syncFromSelect);
+        observer.observe(selectElement, { childList: true, subtree: true, attributes: true });
 
         return () => {
-            selectElement.removeEventListener('change', updateDisplay);
+            selectElement.removeEventListener('change', syncFromSelect);
             observer.disconnect();
         };
     }, [selectId]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (!containerRef.current) return;
+            if (!containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (disabled && isOpen) {
+            setIsOpen(false);
+        }
+    }, [disabled, isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            triggerRef.current?.blur();
+        }
+    }, [isOpen]);
+
     const fallbackText = disabled ? loadingText ?? '' : '';
-    const textToShow = displayText || fallbackText;
+    const rawDisplay = (displayText || fallbackText || '').trim();
+    const hideLoadingText = /carregando|detectando/i.test(rawDisplay);
+    const effectivePlaceholder = placeholder || 'Selecione uma opção';
+    const textToShow = !rawDisplay || hideLoadingText ? effectivePlaceholder : rawDisplay;
     const IconColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
     const ArrowColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
+    const hasOptions = options.length > 0;
+
+    const toggleDropdown = () => {
+        if (disabled || !hasOptions) return;
+        setIsOpen((prev) => !prev);
+    };
+
+    const handleOptionSelect = (option: MpSelectOption) => {
+        if (option.disabled) return;
+        const selectElement = selectRef.current;
+        if (!selectElement) return;
+        requestAnimationFrame(() => {
+            selectElement.value = option.value;
+            selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+            setDisplayText(option.text);
+            setSelectedValue(option.value);
+        });
+        setIsOpen(false);
+    };
 
     return (
-        <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
+        <label
+            ref={containerRef}
+            className={`relative flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2 ${classNameOverride || ''
+                }`}
+        >
             <span className="flex items-center justify-between">
                 <span>{label}</span>
-                {badgeLabel ? (
-                    <span className="rounded-full border border-[#a38f78]/40 bg-[#f5f1e8] px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
-                        {badgeLabel}
-                    </span>
-                ) : loadingText && disabled ? (
-                    <span className="text-[0.6rem] uppercase tracking-[0.25em] text-[#b5aa92]">{loadingText}</span>
-                ) : null}
             </span>
             <div className="relative">
                 <Icon className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${IconColor}`} />
-                <div
-                    className={`${SELECT_BASE_CLASS} pointer-events-none py-3 pl-11 pr-10 ${
+                <button
+                    type="button"
+                    disabled={disabled || !hasOptions}
+                    onClick={toggleDropdown}
+                    ref={triggerRef}
+                    className={`${SELECT_BASE_CLASS} flex w-full items-center justify-between py-3 pl-11 pr-10 text-left ${
                         disabled ? 'text-[#b5aa92]' : 'text-[#1a1a1d]'
-                    }`}
+                        } ${disabled || !hasOptions ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 >
-                    {textToShow || ' A0'}
-                </div>
+                    <span className="block w-full truncate">{textToShow || '\u00A0'}</span>
+                    <HiOutlineChevronDown
+                        className={`ml-3 shrink-0 transition-transform ${ArrowColor} ${isOpen ? 'rotate-180' : ''}`}
+                    />
+                </button>
                 <select
                     id={selectId}
                     name={selectName}
                     disabled={disabled}
-                    className={`absolute inset-0 h-full w-full appearance-none bg-transparent ${
-                        disabled ? 'cursor-not-allowed' : 'cursor-pointer'
-                    } opacity-0`}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    className="sr-only"
                 />
-                <HiOutlineChevronDown className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${ArrowColor}`} />
+                {isOpen ? (
+                    <div className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-[#ded7ca] bg-white shadow-[0_25px_50px_-25px_rgba(26,26,29,0.4)]">
+                        <ul className="max-h-64 overflow-y-auto py-2">
+                            {options.map((option) => {
+                                const isSelected = option.value === selectedValue;
+                                return (
+                                    <li key={`${selectId}-${option.value}`}>
+                                        <button
+                                            type="button"
+                                            disabled={option.disabled}
+                                            onClick={() => handleOptionSelect(option)}
+                                            className={`flex w-full items-center tracking-normal justify-between px-4 py-2 text-sm text-left transition ${option.disabled
+                                                ? 'cursor-not-allowed text-[#c5bcaa]'
+                                                : 'cursor-pointer text-[#1a1a1d] hover:bg-[#f5f1e8]'
+                                                } ${isSelected ? 'bg-[#f5f1e8] font-semibold text-[#a38f78]' : ''}`}
+                                        >
+                                            <span className="truncate">{option.text}</span>
+                                            {isSelected ? (
+                                                <span className="ml-3 text-[0.65rem] uppercase tracking-[0.2em] text-[#a38f78]">
+                                                    Selecionado
+                                                </span>
+                                            ) : null}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                ) : null}
             </div>
         </label>
     );
@@ -212,12 +316,53 @@ export default function CheckoutPage() {
     const [globalSuccess, setGlobalSuccess] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [pixResult, setPixResult] = useState<PixPaymentResult | null>(null);
+    const pixPaymentActive = Boolean(pixResult);
+    const pixGenerationDeadlineMinutes = pixResult?.expirationMinutes ?? 30;
+    const [pixCopySuccess, setPixCopySuccess] = useState(false);
+    const pixExpirationDescription = useMemo(() => {
+        if (!pixResult) return '';
+        const minutesFromResponse =
+            typeof pixResult.expirationMinutes === 'number' && Number.isFinite(pixResult.expirationMinutes)
+                ? Math.max(1, Math.round(pixResult.expirationMinutes))
+                : null;
+        if (pixResult.expiresAt) {
+            const expiresAtDate = new Date(pixResult.expiresAt);
+            if (!Number.isNaN(expiresAtDate.getTime())) {
+                const formattedTime = expiresAtDate.toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                const now = new Date();
+                const diffMinutes = Math.max(
+                    1,
+                    Math.round((expiresAtDate.getTime() - now.getTime()) / 60000),
+                );
+                const minutesLabel = minutesFromResponse ?? diffMinutes;
+                return `O QR Code expira às ${formattedTime} (em aproximadamente ${minutesLabel} minuto${minutesLabel > 1 ? 's' : ''
+                    }).`;
+            }
+        }
+        if (minutesFromResponse) {
+            return `O QR Code expira em aproximadamente ${minutesFromResponse} minuto${minutesFromResponse > 1 ? 's' : ''
+                }.`;
+        }
+        return '';
+    }, [pixResult]);
     const initialDeviceId =
         typeof window !== 'undefined' ? window.localStorage.getItem(CHECKOUT_DEVICE_STORAGE_KEY) : null;
     const [deviceId, setDeviceId] = useState<string | null>(initialDeviceId);
     const [deviceChecks, setDeviceChecks] = useState(0);
     const [cardErrors, setCardErrors] = useState<string[]>([]);
     const [cardBrand, setCardBrand] = useState<string>('');
+    const cardBrandDisplay = useMemo(() => {
+        if (!cardBrand) return '';
+        const normalized = cardBrand.trim();
+        if (!normalized) return '';
+        if (normalized.length <= 3) {
+            return normalized.toUpperCase();
+        }
+        return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase();
+    }, [cardBrand]);
     const [mpSelectReady, setMpSelectReady] = useState({ issuer: false, installments: false, docType: false });
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
     const [paypalLoading, setPaypalLoading] = useState(false);
@@ -251,6 +396,7 @@ export default function CheckoutPage() {
             phone: '',
         };
     });
+    const [persistCustomerData, setPersistCustomerData] = useState(true);
 
     const mercadoPago = useMercadoPago(MP_PUBLIC_KEY);
     const cardFormRef = useRef<any>(null);
@@ -443,9 +589,9 @@ export default function CheckoutPage() {
     }, [user]);
 
     useEffect(() => {
-        if (typeof window === 'undefined') return;
+        if (typeof window === 'undefined' || !persistCustomerData) return;
         window.localStorage.setItem(CHECKOUT_CUSTOMER_STORAGE_KEY, JSON.stringify(customerData));
-    }, [customerData]);
+    }, [customerData, persistCustomerData]);
 
     useEffect(() => {
         if (!isReady) return;
@@ -835,6 +981,10 @@ export default function CheckoutPage() {
     }, [selectedTab]);
 
     const handleCustomerChange = (field: keyof CheckoutCustomerData, value: string) => {
+        if (pixPaymentActive) {
+            return;
+        }
+        setPersistCustomerData(true);
         setCustomerData((prev) => {
             const next = { ...prev };
             if (field === 'name') {
@@ -1033,24 +1183,39 @@ export default function CheckoutPage() {
 
     const handleRemoveItem = useCallback(
         (id: string) => {
+            if (pixPaymentActive) return;
             removeCartItemFromStorage(id);
             setOrder(null);
             setPixResult(null);
             setGlobalSuccess('');
             refreshCart();
         },
-        [refreshCart],
+        [pixPaymentActive, refreshCart],
     );
 
     const finalizeSuccess = useCallback(
-        (message: string) => {
+        (
+            message: string,
+            options: { preserveCartState?: boolean; showGlobalMessage?: boolean } = {},
+        ) => {
+            const { preserveCartState = false, showGlobalMessage = true } = options;
+            setPersistCustomerData(false);
             clearCartItems();
-            refreshCart();
-            setGlobalSuccess(message);
+            if (typeof window !== 'undefined') {
+                window.localStorage.removeItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
+            }
+            if (!preserveCartState) {
+                setCartItems([]);
+            }
+            if (showGlobalMessage) {
+                setGlobalSuccess(message);
+            } else {
+                setGlobalSuccess('');
+            }
             setGlobalError('');
             setCardErrors([]);
         },
-        [refreshCart],
+        [],
     );
 
     const handleCardPayment = useCallback(
@@ -1197,7 +1362,11 @@ export default function CheckoutPage() {
 
                 const data = response.data?.data;
                 setPixResult(data);
-                setGlobalSuccess('Pagamento PIX gerado! Use o QR Code ou código copia e cola.');
+                setSelectedTab('pix');
+                finalizeSuccess('Pagamento PIX gerado! Use o QR Code ou código copia e cola.', {
+                    preserveCartState: true,
+                    showGlobalMessage: false,
+                });
             } catch (error: any) {
                 console.error('Erro ao gerar PIX:', error);
                 const message =
@@ -1210,7 +1379,7 @@ export default function CheckoutPage() {
                 setIsProcessing(false);
             }
         },
-        [ensureDeviceIdAvailable, ensureOrder, ensureSingleItem, primaryCartItem],
+        [ensureDeviceIdAvailable, ensureOrder, ensureSingleItem, finalizeSuccess, primaryCartItem],
     );
 
     const isCheckoutReady =
@@ -1238,7 +1407,8 @@ export default function CheckoutPage() {
                     </div>
                 ) : summarizedCart.length === 0 ? (
                     <div className="rounded-3xl border border-dashed border-[#ded7ca] bg-white/70 p-10 text-center text-sm text-[#7d796c]">
-                        Seu carrinho está vazio. Explore nossos eventos e selecione os ingressos desejados.
+                        <p> Seu carrinho está vazio. Explore nossos eventos e selecione os ingressos desejados.</p>
+
                         <button
                             type="button"
                             className="mt-6 inline-flex items-center justify-center rounded-full border border-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
@@ -1290,7 +1460,11 @@ export default function CheckoutPage() {
                                                 </div>
                                                 <button
                                                     type="button"
-                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#ded7ca] text-[#7d796c] transition hover:border-rose-300 hover:text-rose-500"
+                                                    disabled={pixPaymentActive}
+                                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${pixPaymentActive
+                                                        ? 'border-[#ded7ca] text-[#b5aa92] opacity-60 cursor-not-allowed'
+                                                        : 'border-[#ded7ca] text-[#7d796c] hover:border-rose-300 hover:text-rose-500'
+                                                        }`}
                                                     onClick={() => handleRemoveItem(item.id)}
                                                     aria-label="Remover do carrinho"
                                                 >
@@ -1368,7 +1542,10 @@ export default function CheckoutPage() {
                                                 type="text"
                                                 value={customerData.name}
                                                 onChange={(event) => handleCustomerChange('name', event.target.value)}
-                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                readOnly={pixPaymentActive}
+                                                aria-readonly={pixPaymentActive}
+                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${pixPaymentActive ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''
+                                                    }`}
                                                 placeholder="Como aparece no documento"
                                             />
                                         </div>
@@ -1381,7 +1558,10 @@ export default function CheckoutPage() {
                                                 type="email"
                                                 value={customerData.email}
                                                 onChange={(event) => handleCustomerChange('email', event.target.value)}
-                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                readOnly={pixPaymentActive}
+                                                aria-readonly={pixPaymentActive}
+                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${pixPaymentActive ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''
+                                                    }`}
                                                 placeholder="email@exemplo.com"
                                             />
                                         </div>
@@ -1390,15 +1570,17 @@ export default function CheckoutPage() {
                                         CPF
                                         <div className="relative">
                                             <HiOutlineIdentification
-                                                className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${
-                                                    mpSelectReady.docType ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
-                                                }`}
+                                                className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${mpSelectReady.docType ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
+                                                    }`}
                                             />
                                             <input
                                                 type="text"
                                                 value={customerData.cpf}
                                                 onChange={(event) => handleCustomerChange('cpf', event.target.value)}
-                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                readOnly={pixPaymentActive}
+                                                aria-readonly={pixPaymentActive}
+                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${pixPaymentActive ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''
+                                                    }`}
                                                 placeholder="000.000.000-00"
                                             />
                                         </div>
@@ -1411,7 +1593,10 @@ export default function CheckoutPage() {
                                                 type="tel"
                                                 value={customerData.phone}
                                                 onChange={(event) => handleCustomerChange('phone', event.target.value)}
-                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                readOnly={pixPaymentActive}
+                                                aria-readonly={pixPaymentActive}
+                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${pixPaymentActive ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''
+                                                    }`}
                                                 placeholder="(11) 99999-9999"
                                             />
                                         </div>
@@ -1443,23 +1628,31 @@ export default function CheckoutPage() {
                                 <div className="mt-6 flex gap-3">
                                     <button
                                         type="button"
-                                        onClick={() => setSelectedTab('card')}
-                                        className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.25em] transition ${selectedTab === 'card'
+                                        onClick={() => !pixPaymentActive && setSelectedTab('card')}
+                                        disabled={pixPaymentActive}
+                                        aria-disabled={pixPaymentActive}
+                                        className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.10em] transition disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none ${selectedTab === 'card'
                                             ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
                                             : 'border-[#ded7ca] bg-[#faf7f0] text-[#4c4c55] hover:border-[#a38f78]'
                                             }`}
                                     >
-                                        Cartão de crédito
+                                        <span className="flex items-center justify-center gap-2">
+                                            <HiOutlineCreditCard className="text-base" />
+                                            Cartão de crédito
+                                        </span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setSelectedTab('pix')}
-                                        className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.25em] transition ${selectedTab === 'pix'
+                                        className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.10em] transition ${selectedTab === 'pix'
                                             ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
                                             : 'border-[#ded7ca] bg-[#faf7f0] text-[#4c4c55] hover:border-[#a38f78]'
                                             }`}
                                     >
-                                        Pagamento via PIX
+                                        <span className="flex items-center justify-center gap-2">
+                                            <SiPix className="text-base" />
+                                            Pagamento via PIX
+                                        </span>
                                     </button>
                                 </div>
 
@@ -1492,6 +1685,11 @@ export default function CheckoutPage() {
                                                         className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
                                                         placeholder="0000 0000 0000 0000"
                                                     />
+                                                    {cardBrandDisplay ? (
+                                                        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-[#a38f78]/40 bg-[#f5f1e8] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
+                                                            {cardBrandDisplay}
+                                                        </span>
+                                                    ) : null}
                                                 </div>
                                             </label>
                                             <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-1">
@@ -1561,14 +1759,11 @@ export default function CheckoutPage() {
                                                     />
                                                 </div>
                                             </label>
-                                            <MpSelect
-                                                label="Bandeira"
-                                                selectId="form-checkout__issuer"
-                                                selectName="issuer"
-                                                icon={HiOutlineCreditCard}
-                                                badgeLabel={cardBrand || undefined}
-                                                loadingText="Detectando…"
-                                                disabled={!mpSelectReady.issuer}
+                                            <select
+                                                id="form-checkout__issuer"
+                                                name="issuer"
+                                                className="sr-only"
+                                                aria-hidden="true"
                                             />
                                             <MpSelect
                                                 label="Parcelas"
@@ -1576,7 +1771,9 @@ export default function CheckoutPage() {
                                                 selectName="installments"
                                                 icon={HiOutlineSquaresPlus}
                                                 loadingText="Carregando…"
-                                                disabled={!mpSelectReady.installments}
+                                                placeholder="Selecione as parcelas"
+                                                disabled={!cardBrand || !mpSelectReady.installments}
+                                                classNameOverride="md:col-span-4"
                                             />
                                             <MpSelect
                                                 label="Tipo de documento"
@@ -1584,21 +1781,21 @@ export default function CheckoutPage() {
                                                 selectName="identificationType"
                                                 icon={HiOutlineDocumentText}
                                                 loadingText="Carregando…"
-                                                disabled={!mpSelectReady.docType}
+                                                placeholder="Selecione o documento"
+                                                disabled={!cardBrand || !mpSelectReady.docType}
                                             />
                                             <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
                                                 CPF
                                                 <div className="relative">
                                                     <HiOutlineIdentification
-                                                        className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${
-                                                            mpSelectReady.docType ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
-                                                        }`}
+                                                        className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${mpSelectReady.docType ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
+                                                            }`}
                                                     />
                                                     <input
                                                         id="form-checkout__identificationNumber"
                                                         name="identificationNumber"
                                                         type="text"
-                                                        disabled={!mpSelectReady.docType}
+                                                        disabled={!cardBrand || !mpSelectReady.docType}
                                                         className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
                                                         placeholder="000.000.000-00"
                                                     />
@@ -1616,21 +1813,31 @@ export default function CheckoutPage() {
                                     </form>
                                 ) : (
                                     <form className="mt-6 space-y-4" onSubmit={handlePixPayment}>
-                                        <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-sm text-[#4c4c55]">
-                                            Gere um QR Code instantâneo via Mercado Pago. O pagamento deve ser efetuado em
-                                            até {pixResult?.expirationMinutes || 30} minutos.
-                                        </div>
+                                        {!pixResult ? (
+                                            <>
+                                                <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-sm text-[#4c4c55]">
+                                                    Gere um QR Code instantâneo via Mercado Pago. O pagamento deve ser efetuado em
+                                                    até {pixGenerationDeadlineMinutes} minutos.
+                                                </div>
 
-                                        <button
-                                            type="submit"
-                                            disabled={!isCheckoutReady || isProcessing}
-                                            className="flex w-full items-center justify-center gap-3 rounded-full border border-[#a38f78] px-6 py-4 text-xs font-semibold uppercase tracking-[0.3em] text-[#a38f78] transition hover:border-[#f97316] hover:text-[#f97316] disabled:cursor-not-allowed disabled:border-[#c9c3b8] disabled:text-[#c9c3b8]"
-                                        >
-                                            {isProcessing ? 'Gerando PIX…' : 'Gerar PIX'}
-                                        </button>
+                                                <button
+                                                    type="submit"
+                                                    disabled={!isCheckoutReady || isProcessing || pixPaymentActive}
+                                                    className="flex w-full items-center justify-center gap-3 rounded-full border border-[#a38f78] px-6 py-4 text-xs font-semibold uppercase  text-[#a38f78] transition hover:border-[#f97316] hover:text-[#f97316] disabled:cursor-not-allowed disabled:border-[#c9c3b8] disabled:text-[#c9c3b8]"
+                                                >
+                                                    {isProcessing ? 'Gerando PIX…' : 'Garantir meu Ingresso via Vip'}
+                                                </button>
+                                            </>
+                                        ) : null}
 
                                         {pixResult ? (
                                             <div className="space-y-4 rounded-2xl border border-[#ded7ca] bg-white p-5">
+                                                <div className="rounded-2xl border border-[#b6f0d2] bg-[#f1fff6] px-4 py-3 text-sm text-[#1f5d3d]">
+                                                    <p className="font-semibold">Seu pedido está criado e aguardando pagamento via PIX.</p>
+                                                    {pixExpirationDescription ? (
+                                                        <p className="mt-1 text-xs text-[#2b6b47]">{pixExpirationDescription}</p>
+                                                    ) : null}
+                                                </div>
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f1e8] text-[#a38f78]">
                                                         <HiOutlineClipboardDocument className="text-xl" />
@@ -1654,22 +1861,35 @@ export default function CheckoutPage() {
                                                 ) : null}
 
                                                 {pixResult.ticketUrl ? (
-                                                    <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3">
+                                                    <div className="space-y-3 rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3">
                                                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
                                                             Código copia e cola
                                                         </p>
                                                         <p className="mt-2 break-all text-sm text-[#1a1a1d]">
                                                             {pixResult.ticketUrl}
                                                         </p>
-                                                        <button
-                                                            type="button"
-                                                            className="mt-3 inline-flex items-center justify-center rounded-full border border-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
-                                                            onClick={() => {
-                                                                navigator.clipboard.writeText(pixResult.ticketUrl || '');
-                                                            }}
-                                                        >
-                                                            Copiar código
-                                                        </button>
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            <button
+                                                                type="button"
+                                                                className="inline-flex items-center justify-center rounded-full border border-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        await navigator.clipboard.writeText(pixResult.ticketUrl || '');
+                                                                        setPixCopySuccess(true);
+                                                                        setTimeout(() => setPixCopySuccess(false), 5000);
+                                                                    } catch (clipboardError) {
+                                                                        console.error('Não foi possível copiar código PIX:', clipboardError);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Copiar código
+                                                            </button>
+                                                            {pixCopySuccess ? (
+                                                                <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-700">
+                                                                    Código copiado!
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
                                                     </div>
                                                 ) : null}
                                             </div>
@@ -1678,9 +1898,9 @@ export default function CheckoutPage() {
                                 )}
 
                                 <div className="mt-6 rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
-                                    <div className="flex items-start gap-3">
+                                    <div className="flex items-center gap-3">
                                         <span className="mt-0.5 text-[#a38f78]">
-                                            <HiOutlineSparkles className="text-base" />
+                                            <SiPix className="text-base" />
                                         </span>
                                         <p>
                                             Pagamentos processados pelo Mercado Pago (Checkout Transparente). Ambiente seguro,

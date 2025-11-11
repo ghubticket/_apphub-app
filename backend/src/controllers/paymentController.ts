@@ -149,8 +149,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
         // Atualizar pedido com informações completas do pagamento (Orders API)
         // Salvar orderId do Mercado Pago se disponível
         if (pixPayment.orderId) {
-            // Guardar orderId do MP em metadata ou campo adicional se necessário
-            // Por enquanto, mantemos paymentId como principal
+            order.paymentOrderId = pixPayment.orderId;
         }
         order.paymentId = pixPayment.paymentId;
         order.paymentStatus = pixPayment.status;

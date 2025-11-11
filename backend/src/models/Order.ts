@@ -15,6 +15,7 @@ export interface IOrder extends Document {
     status: 'pending' | 'paid' | 'cancelled' | 'refunded';
     paymentMethod?: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free'; // VIP não requer pagamento
     paymentId?: string; // ID do pagamento no Mercado Pago
+    paymentOrderId?: string; // ID da Order no Mercado Pago (Orders API)
     paymentStatus?: string; // Status do pagamento (status principal)
     paymentStatusDetail?: string; // Status detalhado (status_detail)
     paymentMessage?: string; // Mensagem amigável para o usuário
@@ -120,6 +121,10 @@ const orderSchema = new Schema<IOrder>(
             // Não é obrigatório se for VIP (será 'vip_free' automaticamente)
         },
         paymentId: {
+            type: String,
+            trim: true,
+        },
+        paymentOrderId: {
             type: String,
             trim: true,
         },

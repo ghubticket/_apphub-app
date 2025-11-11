@@ -47,6 +47,7 @@ const payment = new Payment(client);
 // Tempo de expiração do PIX (30 minutos em milissegundos)
 const PIX_EXPIRATION_MINUTES = 30;
 const PIX_EXPIRATION_MS = PIX_EXPIRATION_MINUTES * 60 * 1000;
+const MP_PIX_EXPIRATION_ISO = 'PT30M';
 
 export interface CreatePixPaymentParams {
     orderId: string;
@@ -171,17 +172,17 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
     try {
         // Re-validar token (pode ter mudado após inicialização)
         const currentToken = process.env.MP_ACCESS_TOKEN?.trim() || accessToken;
-        
+
         // Validar se o Access Token está configurado
         if (!currentToken || currentToken === '') {
             throw new Error('MP_ACCESS_TOKEN não está configurado. Por favor, adicione MP_ACCESS_TOKEN no arquivo .env');
         }
-        
+
         // Log de debug
         if (process.env.NODE_ENV !== 'production') {
             console.log('🔍 Criando pagamento PIX com token:', currentToken.substring(0, 20) + '...');
         }
-        
+
         // Recriar cliente com token atualizado (garantir que o token está sendo usado)
         const currentClient = new MercadoPagoConfig({
             accessToken: currentToken,
@@ -189,14 +190,14 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 timeout: 10000
             }
         });
-        
+
         // Verificar se o cliente foi criado corretamente
         if (process.env.NODE_ENV !== 'production') {
             console.log('🔍 DEBUG - Token passado para cliente:', currentToken.substring(0, 30) + '...');
             console.log('🔍 DEBUG - Token no cliente após criação:', currentClient.accessToken ? currentClient.accessToken.substring(0, 30) + '...' : 'NÃO TEM TOKEN');
             console.log('🔍 DEBUG - Token completo tem', currentToken.length, 'caracteres');
         }
-        
+
         // Criar instância de Order com cliente atualizado
         const currentOrder = new Order(currentClient);
 
@@ -204,7 +205,6 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         validatePaymentData(params);
 
         const { orderId, orderNumber, totalAmount, customerData, description, items } = params;
-        const MP_PIX_EXPIRATION_ISO = process.env.MP_PIX_EXPIRATION_ISO?.trim() || 'PT15M';
 
         // Calcular data de expiração
         const expirationDate = new Date();
@@ -243,7 +243,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                             type: 'bank_transfer'
                         },
                         // Orders API aceita expiration_time (ISO-8601 duration)
-                        // Ex.: PT15M (15 minutos)
+                        // Aqui fixamos em 30 minutos para alinhar com o comportamento oficial do MP
                         expiration_time: MP_PIX_EXPIRATION_ISO
                     }
                 ]
@@ -253,7 +253,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         // Criar opções com Device ID e Idempotency Key
         // X-Idempotency-Key é obrigatório conforme documentação
         const idempotencyKey = `${orderId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-        
+
         const options: any = {
             body: orderData as any,
             requestOptions: {
@@ -268,7 +268,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         if (deviceId) {
             options.requestOptions.headers['X-meli-session-id'] = deviceId;
         }
-        
+
         // Log para debug
         if (process.env.NODE_ENV !== 'production') {
             console.log('🔍 DEBUG - Headers da requisição:', {
@@ -316,44 +316,44 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             qrCodeBase64: qrCodeBase64,
             ticketUrl: ticketUrl,
             expiresAt: paymentInfo.date_of_expiration,
-            expirationMinutes: MP_PIX_EXPIRATION_ISO.startsWith('PT') ? PIX_EXPIRATION_MINUTES : PIX_EXPIRATION_MINUTES,
+            expirationMinutes: PIX_EXPIRATION_MINUTES,
             orderStatus: orderResponse.status // Status da Order
         };
     } catch (error: any) {
         console.error('Erro ao criar pagamento PIX (Orders API):', error);
-        
+
         // Log detalhado para debug
         if (process.env.NODE_ENV !== 'production') {
             console.error('🔍 DEBUG - Token configurado:', accessToken ? 'SIM' : 'NÃO');
             console.error('🔍 DEBUG - Token (primeiros 20 chars):', accessToken?.substring(0, 20) || 'N/A');
             console.error('🔍 DEBUG - Erro completo:', JSON.stringify(error, null, 2));
         }
-        
+
         // Tratamento específico para erro de autenticação
-        if (error.message?.includes('authorization') || 
+        if (error.message?.includes('authorization') ||
             error.message?.includes('not present') ||
             error.code === 'unauthorized' ||
             (error.response?.data && error.response.data.code === 'unauthorized')) {
-            
+
             console.error('❌ Erro de autenticação com Mercado Pago');
             console.error('   Verifique se o MP_ACCESS_TOKEN está correto no arquivo .env');
             console.error('   Certifique-se de que o servidor foi reiniciado após editar o .env');
-            
+
             throw new Error('MP_ACCESS_TOKEN não está configurado ou é inválido. Verifique o arquivo backend/.env e adicione: MP_ACCESS_TOKEN=SEU_TOKEN. Certifique-se de reiniciar o servidor após editar o .env');
         }
-        
+
         // Tratamento específico para erro de email em sandbox
         if (error.errors && Array.isArray(error.errors)) {
             const sandboxEmailError = error.errors.find((e: any) => e.code === 'invalid_email_for_sandbox');
             if (sandboxEmailError) {
                 throw new Error(`Email inválido para ambiente de teste. Em sandbox, o email deve terminar com '@testuser.com'. Email usado: ${params.customerData.email}`);
             }
-            
+
             // Tratamento para outros erros específicos
             const errorMessages = error.errors.map((e: any) => e.message || e.code).join(', ');
             throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
         }
-        
+
         // Tratamento para outros erros do Mercado Pago
         if (error.response?.data) {
             const mpError = error.response.data;
@@ -363,7 +363,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             }
             throw new Error(`Erro do Mercado Pago: ${mpError.message || JSON.stringify(mpError)}`);
         }
-        
+
         throw new Error(`Erro ao criar pagamento PIX: ${error.message || 'Erro desconhecido'}`);
     }
 };
@@ -383,12 +383,12 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
     try {
         // Re-validar token (pode ter mudado após inicialização)
         const currentToken = process.env.MP_ACCESS_TOKEN?.trim() || accessToken;
-        
+
         // Validar se o Access Token está configurado
         if (!currentToken || currentToken === '') {
             throw new Error('MP_ACCESS_TOKEN não está configurado. Por favor, adicione MP_ACCESS_TOKEN no arquivo .env');
         }
-        
+
         // Recriar cliente com token atualizado (garantir que o token está sendo usado)
         const currentClient = new MercadoPagoConfig({
             accessToken: currentToken,
@@ -396,10 +396,10 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                 timeout: 10000
             }
         });
-        
+
         // Criar instância de Order com cliente atualizado
         const currentOrder = new Order(currentClient);
-        
+
         // Validar dados
         validatePaymentData(params);
 
@@ -492,7 +492,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         // Criar opções com Device ID e Idempotency Key
         // X-Idempotency-Key é obrigatório conforme documentação
         const idempotencyKey = `${orderId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-        
+
         const options: any = {
             body: orderData as any,
             requestOptions: {
@@ -589,6 +589,19 @@ export const getOrderById = async (orderId: string) => {
 };
 
 /**
+ * Cancela uma Order no Mercado Pago (Orders API) - útil para PIX
+ */
+export const cancelOrderById = async (orderId: string) => {
+    try {
+        const response = await order.cancel({ id: orderId });
+        return response as any;
+    } catch (error: any) {
+        console.error('Erro ao cancelar order:', error);
+        throw new Error(`Erro ao cancelar order: ${error.message || 'Erro desconhecido'}`);
+    }
+};
+
+/**
  * Busca informações de um pagamento pelo ID (mantido para compatibilidade)
  */
 export const getPaymentById = async (paymentId: string) => {
@@ -620,7 +633,7 @@ export const mapPaymentMethod = (paymentTypeId: string, paymentMethodId?: string
     if (paymentTypeId === 'debit_card') return 'debit_card';
     if (paymentTypeId === 'bank_transfer' && paymentMethodId === 'pix') return 'pix';
     if (paymentTypeId === 'ticket') return 'bank_slip';
-    
+
     return 'credit_card'; // Default
 };
 
