@@ -367,8 +367,25 @@ export default function Header() {
                             </div>
                             <div className="mt-4 flex flex-col gap-3">
                                 <Link
+                                    href="/checkout"
+                                    className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] transition ${
+                                        cartItems.length
+                                            ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-[#1a1a1d]'
+                                            : 'cursor-not-allowed border border-[#c9c3b8] bg-[#c9c3b8] text-white/70'
+                                    }`}
+                                    onClick={(event) => {
+                                        if (!cartItems.length) {
+                                            event.preventDefault();
+                                            return;
+                                        }
+                                        closeCartDrawer();
+                                    }}
+                                >
+                                    Finalizar compra
+                                </Link>
+                                <Link
                                     href="/ingressos"
-                                    className="inline-flex items-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                    className="inline-flex items-center justify-center rounded-full border border-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
                                     onClick={closeCartDrawer}
                                 >
                                     Ir para ingressos

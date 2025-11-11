@@ -398,24 +398,32 @@ export default function DashboardPage() {
                                     <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
                                         Ingressos
                                     </span>
-                                    <p className="mt-2 text-2xl font-bold text-[#1a1a1d]">
-                                        {order.totalTickets}x
-                                    </p>
-                                    <p className="mt-1 text-xs font-medium tracking-normal text-[#6a6760]">
-                                        {ticketsConfirmed} confirmados
-                                    </p>
+                                    {order.status === 'cancelled' ? (
+                                        <p className="mt-3 text-xs font-medium text-[#a22d2d]">
+                                            Pedido cancelado. Os ingressos não ficam disponíveis neste status.
+                                        </p>
+                                    ) : (
+                                        <>
+                                            <p className="mt-2 text-2xl font-bold text-[#1a1a1d]">
+                                                {order.totalTickets}x
+                                            </p>
+                                            <p className="mt-1 text-xs font-medium tracking-normal text-[#6a6760]">
+                                                {ticketsConfirmed} confirmados
+                                            </p>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setModalSlideIndex(0);
-                                            setOpenOrderId(order._id);
-                                        }}
-                                        className="mt-4 flex gap-3 w-full md:w-fit text-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
-                                    >
-                                        <HiOutlineTicket className="text-base" />
-                                        Abrir ingressos
-                                    </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setModalSlideIndex(0);
+                                                    setOpenOrderId(order._id);
+                                                }}
+                                                className="mt-4 flex gap-3 w-full md:w-fit text-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                            >
+                                                <HiOutlineTicket className="text-base" />
+                                                Abrir ingressos
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </article>

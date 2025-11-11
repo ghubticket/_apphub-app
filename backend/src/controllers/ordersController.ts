@@ -23,6 +23,29 @@ const normalizeEmail = (email: string | undefined): string | null => {
     return email.trim().toLowerCase();
 };
 
+const ORDER_NUMBER_LENGTH = 10;
+
+const generateOrderNumber = async (): Promise<string> => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const buildCode = () =>
+        Array.from({ length: ORDER_NUMBER_LENGTH })
+            .map(() => characters.charAt(Math.floor(Math.random() * characters.length)))
+            .join('');
+
+    let orderNumber = buildCode();
+    // Garantir unicidade
+    // Em casos raros de colisão, tenta novamente
+    // Limite de 5 tentativas para evitar loop infinito
+    for (let attempts = 0; attempts < 5; attempts += 1) {
+        const exists = await Order.findOne({ orderNumber }).select('_id').lean();
+        if (!exists) {
+            return orderNumber;
+        }
+        orderNumber = buildCode();
+    }
+    return orderNumber;
+};
+
 /**
  * Conta quantos ingressos um CPF/Email já comprou para um tipo específico
  * Considera apenas pedidos pagos (status = 'paid')
@@ -103,7 +126,6 @@ interface CreateOrderRequest {
  * Para outros: status = 'pending', aguarda pagamento
  */
 export const createOrder = async (req: Request, res: Response) => {
-    let session: mongoose.ClientSession | null = null;
     try {
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id; // Do middleware authenticate
         const { eventId, ticketTypeId, quantity, promoterCode, customerData } = req.body as CreateOrderRequest;
@@ -285,11 +307,9 @@ export const createOrder = async (req: Request, res: Response) => {
             ticketStatus = 'pending';
         }
 
-        // Iniciar transação (atomicidade)
-        session = await mongoose.startSession();
-        session.startTransaction();
         try {
         // Criar pedido
+        const orderNumber = await generateOrderNumber();
         const order = new Order({
             customer: userId || null,
             event: eventId,
@@ -303,6 +323,7 @@ export const createOrder = async (req: Request, res: Response) => {
             status: orderStatus,
             paymentMethod: paymentMethod,
             paidAt: isVIP ? new Date() : undefined,
+            orderNumber,
             customerData: {
                 name: customerData?.name || user?.name || 'Não informado',
                 email: customerData?.email || user?.email || 'Não informado',
@@ -311,14 +332,13 @@ export const createOrder = async (req: Request, res: Response) => {
             },
         });
 
-        await order.save({ session });
+        await order.save();
         
         // Incrementar contador de uso do código de promotor (se usado)
         if (usedPromoterCode) {
             await PromoterCode.updateOne(
                 { code: usedPromoterCode },
                 { $inc: { currentUses: 1 } },
-                { session }
             );
         }
 
@@ -336,18 +356,18 @@ export const createOrder = async (req: Request, res: Response) => {
             });
 
             // Salvar para gerar o código único (pre-save hook)
-            await ticket.save({ session });
+            await ticket.save();
 
             // ⚠️ SEGURANÇA: Gerar QR Code APENAS se o pedido estiver PAID ou for VIP
             // QR codes só devem ser gerados para ingressos confirmados (pedidos pagos)
             if (orderStatus === 'paid' || isVIP) {
                 const qrCode = await generateQRCode(ticket.code);
                 ticket.qrCode = qrCode;
-                await ticket.save({ session });
+                await ticket.save();
             } else {
                 // Para pedidos pendentes, deixar qrCode vazio
                 ticket.qrCode = '';
-                await ticket.save({ session });
+                await ticket.save();
             }
 
             createdTickets.push(ticket);
@@ -355,14 +375,11 @@ export const createOrder = async (req: Request, res: Response) => {
 
         // Atualizar pedido com os tickets
         order.tickets = createdTickets.map(t => t._id as mongoose.Types.ObjectId);
-        await order.save({ session });
+        await order.save();
 
         // Atualizar quantidade vendida do tipo de ingresso
         ticketType.soldQuantity += quantity;
-        await ticketType.save({ session });
-
-        await session.commitTransaction();
-        session.endSession();
+        await ticketType.save();
 
         // Popular dados para resposta
         const populatedOrder = await Order.findById(order._id)
@@ -486,11 +503,6 @@ export const createOrder = async (req: Request, res: Response) => {
         });
 
     } catch (error: any) {
-        // Rollback seguro caso a transação tenha falhado
-        if (session) {
-            try { await session.abortTransaction(); } catch {}
-            try { session.endSession(); } catch {}
-        }
         console.error('Erro ao criar pedido:', error);
         return res.status(500).json({
             success: false,

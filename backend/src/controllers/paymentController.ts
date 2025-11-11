@@ -28,7 +28,20 @@ const validateAndGetOrder = async (orderId: string, userId: string, req: Request
 
     // Verificar permissão
     const isAdmin = (req as any).user?.role === 'ADMIN';
-    const isOwner = String(order.customer) === String(userId);
+    const customerId =
+        order.customer && (order.customer as any)._id
+            ? (order.customer as any)._id.toString()
+            : order.customer
+              ? order.customer.toString()
+              : null;
+    const customerEmail =
+        order.customer && (order.customer as any).email
+            ? (order.customer as any).email
+            : order.customerData?.email;
+    const requestUserEmail = (req as any).user?.email;
+    const isOwner =
+        (customerId && customerId === String(userId)) ||
+        (customerEmail && requestUserEmail && customerEmail.toLowerCase() === requestUserEmail.toLowerCase());
 
     if (!isAdmin && !isOwner) {
         throw new Error('Você não tem permissão para acessar este pedido');

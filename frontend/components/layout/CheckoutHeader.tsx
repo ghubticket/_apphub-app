@@ -7,7 +7,7 @@ import Container from '@/components/shared/Container';
 
 export default function CheckoutHeader() {
     return (
-        <header className="bg-[#f5f1e8]">
+        <header className="bg-[#F58A18]">
             <Container className="flex items-center justify-between py-6">
                 <Link href="/" className="flex items-center gap-3">
                     <Image

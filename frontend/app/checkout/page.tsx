@@ -2,7 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { HiOutlineTicket, HiOutlineTrash, HiOutlineClipboardDocument, HiOutlineSparkles } from 'react-icons/hi2';
+import {
+    HiOutlineTicket,
+    HiOutlineTrash,
+    HiOutlineClipboardDocument,
+    HiOutlineSparkles,
+    HiOutlineCreditCard,
+    HiOutlineCalendar,
+    HiOutlineLockClosed,
+    HiOutlineUser,
+    HiOutlineEnvelope,
+    HiOutlinePhone,
+    HiOutlineIdentification,
+    HiOutlineDocumentText,
+    HiOutlineSquaresPlus,
+    HiOutlineChevronDown,
+} from 'react-icons/hi2';
+import type { IconType } from 'react-icons';
 import Container from '@/components/shared/Container';
 import { useAuth } from '@/context/AuthContext';
 import { useMercadoPago } from '@/hooks/useMercadoPago';
@@ -13,6 +29,19 @@ import {
     loadCartItems,
     removeCartItem as removeCartItemFromStorage,
 } from '@/lib/cart';
+import {
+    sanitizeInput,
+    normalizeCpf,
+    normalizePhone,
+    formatCpfDisplay,
+    formatPhoneDisplay,
+} from '@/utils/sanitize';
+
+declare global {
+    interface Window {
+        MP_DEVICE_SESSION_ID?: string;
+    }
+}
 
 type CheckoutCartItem = CartItem & {
     subtotal: number;
@@ -60,6 +89,117 @@ type PixPaymentResult = {
 };
 
 const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
+const CHECKOUT_CUSTOMER_STORAGE_KEY = 'checkout:customer-data';
+const CHECKOUT_DEVICE_STORAGE_KEY = 'checkout:mp-device';
+
+const INPUT_BASE_CLASS =
+    "w-full font-[var(--font-quicksand)] rounded-2xl border border-[#ded7ca] bg-[#faf7f0] text-sm text-[#1a1a1d] font-normal tracking-normal outline-none transition focus:border-[#a38f78] placeholder:text-[#b5aa92] placeholder:font-normal placeholder:tracking-normal disabled:cursor-not-allowed disabled:opacity-60";
+const SELECT_BASE_CLASS =
+    "w-full appearance-none font-[var(--font-quicksand)] rounded-2xl border border-[#ded7ca] bg-[#faf7f0] text-sm text-[#1a1a1d] font-normal tracking-normal outline-none transition focus:border-[#a38f78] disabled:cursor-not-allowed disabled:opacity-60";
+
+const CARD_ERROR_MESSAGES: Record<string, string> = {
+    '205': 'Informe o número do cartão.',
+    '208': 'Informe o mês de validade do cartão.',
+    '209': 'Informe o ano de validade do cartão.',
+    '212': 'Informe o código de segurança (CVV).',
+    '214': 'Informe o nome exatamente como aparece no cartão.',
+    '221': 'Informe o CPF do titular do cartão.',
+    '224': 'Informe o código de segurança (CVV).',
+    'E301': 'Número do cartão inválido.',
+    'E302': 'Código de segurança inválido.',
+};
+
+type CheckoutCustomerData = {
+    name: string;
+    email: string;
+    cpf: string;
+    phone: string;
+};
+
+type MpSelectProps = {
+    label: string;
+    selectId: string;
+    selectName: string;
+    icon: IconType;
+    badgeLabel?: string;
+    loadingText?: string;
+    disabled?: boolean;
+};
+
+function MpSelect({
+    label,
+    selectId,
+    selectName,
+    icon: Icon,
+    badgeLabel,
+    loadingText,
+    disabled,
+}: MpSelectProps) {
+    const [displayText, setDisplayText] = useState('');
+
+    useEffect(() => {
+        const selectElement = document.getElementById(selectId) as HTMLSelectElement | null;
+        if (!selectElement) {
+            setDisplayText('');
+            return;
+        }
+
+        const updateDisplay = () => {
+            const option = selectElement.options[selectElement.selectedIndex];
+            setDisplayText(option ? option.text : '');
+        };
+
+        updateDisplay();
+        selectElement.addEventListener('change', updateDisplay);
+
+        const observer = new MutationObserver(updateDisplay);
+        observer.observe(selectElement, { childList: true, subtree: false, attributes: true });
+
+        return () => {
+            selectElement.removeEventListener('change', updateDisplay);
+            observer.disconnect();
+        };
+    }, [selectId]);
+
+    const fallbackText = disabled ? loadingText ?? '' : '';
+    const textToShow = displayText || fallbackText;
+    const IconColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
+    const ArrowColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
+
+    return (
+        <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
+            <span className="flex items-center justify-between">
+                <span>{label}</span>
+                {badgeLabel ? (
+                    <span className="rounded-full border border-[#a38f78]/40 bg-[#f5f1e8] px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
+                        {badgeLabel}
+                    </span>
+                ) : loadingText && disabled ? (
+                    <span className="text-[0.6rem] uppercase tracking-[0.25em] text-[#b5aa92]">{loadingText}</span>
+                ) : null}
+            </span>
+            <div className="relative">
+                <Icon className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${IconColor}`} />
+                <div
+                    className={`${SELECT_BASE_CLASS} pointer-events-none py-3 pl-11 pr-10 ${
+                        disabled ? 'text-[#b5aa92]' : 'text-[#1a1a1d]'
+                    }`}
+                >
+                    {textToShow || ' A0'}
+                </div>
+                <select
+                    id={selectId}
+                    name={selectName}
+                    disabled={disabled}
+                    className={`absolute inset-0 h-full w-full appearance-none bg-transparent ${
+                        disabled ? 'cursor-not-allowed' : 'cursor-pointer'
+                    } opacity-0`}
+                />
+                <HiOutlineChevronDown className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${ArrowColor}`} />
+            </div>
+        </label>
+    );
+}
 
 export default function CheckoutPage() {
     const router = useRouter();
@@ -72,17 +212,89 @@ export default function CheckoutPage() {
     const [globalSuccess, setGlobalSuccess] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [pixResult, setPixResult] = useState<PixPaymentResult | null>(null);
-    const [deviceId, setDeviceId] = useState<string | null>(null);
+    const initialDeviceId =
+        typeof window !== 'undefined' ? window.localStorage.getItem(CHECKOUT_DEVICE_STORAGE_KEY) : null;
+    const [deviceId, setDeviceId] = useState<string | null>(initialDeviceId);
+    const [deviceChecks, setDeviceChecks] = useState(0);
+    const [cardErrors, setCardErrors] = useState<string[]>([]);
+    const [cardBrand, setCardBrand] = useState<string>('');
+    const [mpSelectReady, setMpSelectReady] = useState({ issuer: false, installments: false, docType: false });
+    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+    const [paypalLoading, setPaypalLoading] = useState(false);
 
-    const [customerData, setCustomerData] = useState({
-        name: user?.name || '',
-        email: user?.email || '',
-        cpf: '',
-        phone: '',
+    const greetingName = useMemo(() => {
+        if (!user) return 'Bem-vindo';
+        return `Bem-vindo, ${user.name}`;
+    }, [user]);
+
+    const [customerData, setCustomerData] = useState<CheckoutCustomerData>(() => {
+        if (typeof window !== 'undefined') {
+            const raw = window.localStorage.getItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw) as Partial<CheckoutCustomerData>;
+                    return {
+                        name: parsed.name ?? '',
+                        email: parsed.email ?? '',
+                        cpf: parsed.cpf ?? '',
+                        phone: parsed.phone ?? '',
+                    };
+                } catch {
+                    // ignore parse errors
+                }
+            }
+        }
+        return {
+            name: '',
+            email: '',
+            cpf: '',
+            phone: '',
+        };
     });
 
     const mercadoPago = useMercadoPago(MP_PUBLIC_KEY);
     const cardFormRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const existing = document.querySelector<HTMLScriptElement>('script[data-mp-security="true"]');
+        if (existing) {
+            if (window.MP_DEVICE_SESSION_ID) {
+                console.debug('[checkout][security] existing device session', window.MP_DEVICE_SESSION_ID);
+            }
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://www.mercadopago.com/v2/security.js';
+        script.async = true;
+        script.setAttribute('view', 'checkout');
+        script.setAttribute('data-mp-security', 'true');
+        script.onload = () => {
+            if (window.MP_DEVICE_SESSION_ID) {
+                console.debug('[checkout][security] script loaded deviceId', window.MP_DEVICE_SESSION_ID);
+                setDeviceId((prev) => {
+                    if (prev === window.MP_DEVICE_SESSION_ID) {
+                        return prev;
+                    }
+                    if (window.MP_DEVICE_SESSION_ID) {
+                        window.localStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, window.MP_DEVICE_SESSION_ID);
+                        window.sessionStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, window.MP_DEVICE_SESSION_ID);
+                    }
+                    return window.MP_DEVICE_SESSION_ID || prev;
+                });
+            }
+        };
+        script.onerror = (error) => {
+            console.error('Não foi possível carregar o script de segurança do Mercado Pago.', error);
+        };
+        document.body.appendChild(script);
+
+        return () => {
+            script.onload = null;
+            script.onerror = null;
+        };
+    }, []);
 
     const calculateItem = useCallback(
         (item: CartItem): CheckoutCartItem => {
@@ -175,9 +387,65 @@ export default function CheckoutPage() {
         }
     }, []);
 
+    const attachNumericMask = useCallback((id: string, maxLength: number, allowSpaces = false) => {
+        if (typeof document === 'undefined') return () => { };
+        const input = document.getElementById(id) as HTMLInputElement | null;
+        if (!input) return () => { };
+
+        const handler = (event: Event) => {
+            const target = event.target as HTMLInputElement;
+            const digitsOnly = target.value.replace(/[^\d]/g, '');
+            if (allowSpaces) {
+                target.value = digitsOnly
+                    .slice(0, maxLength)
+                    .replace(/(\d{4})(?=\d)/g, '$1 ')
+                    .trim();
+            } else {
+                target.value = digitsOnly.slice(0, maxLength);
+            }
+        };
+
+        input.inputMode = 'numeric';
+        input.addEventListener('input', handler);
+
+        return () => {
+            input.removeEventListener('input', handler);
+        };
+    }, []);
+
     useEffect(() => {
         refreshCart();
     }, [refreshCart]);
+
+    useEffect(() => {
+        if (!user) return;
+        setCustomerData((prev) => {
+            const next = { ...prev };
+            let changed = false;
+            if (!next.name && user.name) {
+                next.name = sanitizeInput(user.name);
+                changed = true;
+            }
+            if (!next.email && user.email) {
+                next.email = sanitizeInput(user.email).toLowerCase();
+                changed = true;
+            }
+            if (!next.cpf && user.cpf) {
+                next.cpf = formatCpfDisplay(user.cpf);
+                changed = true;
+            }
+            if (!next.phone && user.phone) {
+                next.phone = formatPhoneDisplay(user.phone);
+                changed = true;
+            }
+            return changed ? next : prev;
+        });
+    }, [user]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.setItem(CHECKOUT_CUSTOMER_STORAGE_KEY, JSON.stringify(customerData));
+    }, [customerData]);
 
     useEffect(() => {
         if (!isReady) return;
@@ -186,17 +454,153 @@ export default function CheckoutPage() {
         }
     }, [isReady, isAuthenticated, router]);
 
+    const ensureDeviceIdAvailable = useCallback(
+        async (forceReload = false, source: string = 'unknown') => {
+            const resolveMaybePromise = async <T,>(value: T | Promise<T> | undefined | null): Promise<T | null> => {
+                if (!value) return null;
+                if (typeof (value as any).then === 'function') {
+                    try {
+                        return await (value as Promise<T>);
+                    } catch {
+                        return null;
+                    }
+                }
+                return value as T;
+            };
+
+            if (!forceReload && deviceId) {
+                console.debug('[checkout][deviceId]', source, 'using cached value', deviceId);
+                return deviceId;
+            }
+
+            if (typeof window !== 'undefined') {
+                const stored =
+                    window.sessionStorage.getItem(CHECKOUT_DEVICE_STORAGE_KEY) ??
+                    window.localStorage.getItem(CHECKOUT_DEVICE_STORAGE_KEY);
+                if (stored && !forceReload) {
+                    console.debug('[checkout][deviceId]', source, 'using stored value', stored);
+                    setDeviceId(stored);
+                    return stored;
+                }
+            }
+
+            if (!forceReload && typeof window !== 'undefined' && window.MP_DEVICE_SESSION_ID) {
+                console.debug('[checkout][deviceId]', source, 'using MP_DEVICE_SESSION_ID', window.MP_DEVICE_SESSION_ID);
+                setDeviceId(window.MP_DEVICE_SESSION_ID);
+                window.sessionStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, window.MP_DEVICE_SESSION_ID);
+                window.localStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, window.MP_DEVICE_SESSION_ID);
+                return window.MP_DEVICE_SESSION_ID;
+            }
+
+            let candidate: string | null = null;
+
+            if (mercadoPago) {
+                candidate = (await resolveMaybePromise<string>(mercadoPago.getDeviceId?.())) ?? null;
+                if (candidate) {
+                    console.debug('[checkout][deviceId]', source, 'via mercadoPago.getDeviceId', candidate);
+                }
+
+                if (!candidate) {
+                    candidate = (await resolveMaybePromise<string>(mercadoPago.device?.getId?.())) ?? null;
+                    if (candidate) {
+                        console.debug('[checkout][deviceId]', source, 'via mercadoPago.device.getId', candidate);
+                    }
+                }
+
+                if (!candidate && typeof mercadoPago.security === 'function') {
+                    try {
+                        const security = mercadoPago.security();
+                        if (security?.getDeviceId) {
+                            candidate = (await resolveMaybePromise<string>(security.getDeviceId())) ?? null;
+                            if (candidate) {
+                                console.debug('[checkout][deviceId]', source, 'via security.getDeviceId', candidate);
+                            }
+                        }
+                        if (!candidate && security?.createDevice) {
+                            candidate = (await resolveMaybePromise<string>(security.createDevice())) ?? null;
+                            if (candidate) {
+                                console.debug('[checkout][deviceId]', source, 'via security.createDevice', candidate);
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('[checkout][deviceId]', source, 'security helper failed', error);
+                    }
+                }
+            }
+
+            if (!candidate && cardFormRef.current?.getCardFormData) {
+                try {
+                    const formData = cardFormRef.current.getCardFormData();
+                    candidate = formData?.deviceId || formData?.additional_info?.device_id || null;
+                    if (candidate) {
+                        console.debug('[checkout][deviceId]', source, 'via cardFormData', candidate);
+                    }
+                } catch (error) {
+                    console.warn('[checkout][deviceId]', source, 'cardFormData lookup failed', error);
+                    candidate = null;
+                }
+            }
+
+            if (!candidate && typeof window !== 'undefined' && window.MP_DEVICE_SESSION_ID) {
+                console.debug('[checkout][deviceId]', source, 'late MP_DEVICE_SESSION_ID', window.MP_DEVICE_SESSION_ID);
+                candidate = window.MP_DEVICE_SESSION_ID;
+            }
+
+            if (
+                !candidate &&
+                typeof window !== 'undefined' &&
+                (window as any).MercadoPago?.device?.getId
+            ) {
+                candidate = await resolveMaybePromise<string>((window as any).MercadoPago.device.getId());
+                if (candidate) {
+                    console.debug('[checkout][deviceId]', source, 'via window.MercadoPago.device.getId', candidate);
+                }
+            }
+
+            if (candidate) {
+                setDeviceId(candidate);
+                if (typeof window !== 'undefined') {
+                    window.sessionStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, candidate);
+                    window.localStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, candidate);
+                    window.MP_DEVICE_SESSION_ID = candidate;
+                }
+                console.debug('[checkout][deviceId]', source, 'stored candidate', candidate);
+                return candidate;
+            }
+
+            console.warn('[checkout][deviceId]', source, 'failed to resolve candidate');
+            return null;
+        }, [deviceId, mercadoPago]);
+
     useEffect(() => {
         if (!mercadoPago) return;
-        try {
-            const id = mercadoPago.getDeviceId?.();
-            if (id) {
+        let cancelled = false;
+        const capture = async () => {
+            const id = await ensureDeviceIdAvailable(false, 'mount');
+            if (!cancelled && id) {
                 setDeviceId(id);
+                console.debug('[checkout][deviceId] mount captured', id);
             }
-        } catch (error) {
-            console.warn('Não foi possível obter o deviceId do Mercado Pago:', error);
-        }
-    }, [mercadoPago]);
+        };
+        capture();
+        return () => {
+            cancelled = true;
+        };
+    }, [mercadoPago, ensureDeviceIdAvailable]);
+
+    useEffect(() => {
+        if (deviceId) return;
+        if (deviceChecks > 10) return;
+        const timer = setTimeout(async () => {
+            const id = await ensureDeviceIdAvailable(false, `retry-${deviceChecks + 1}`);
+            if (!id) {
+                setDeviceChecks((prev) => prev + 1);
+            } else {
+                console.debug('[checkout][deviceId] retry success', id);
+            }
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [deviceId, deviceChecks, ensureDeviceIdAvailable]);
 
     useEffect(() => {
         if (!mercadoPago || !MP_PUBLIC_KEY) return;
@@ -255,7 +659,52 @@ export default function CheckoutPage() {
                 callbacks: {
                     onFormMounted: (error: any) => {
                         if (error) {
-                            console.warn('Erro ao montar cardForm:', error);
+                            setCardErrors([error.message ?? 'Não foi possível montar o formulário do cartão.']);
+                        }
+                    },
+                    onPaymentMethodsReceived: (error: any, paymentMethods: any[]) => {
+                        if (!error && Array.isArray(paymentMethods) && paymentMethods.length > 0) {
+                            setCardBrand(paymentMethods[0]?.name || '');
+                        }
+                    },
+                    onFetchInstallments: (error: any) => {
+                        if (error) {
+                            setCardErrors((prev) => [
+                                ...prev,
+                                'Não foi possível carregar as opções de parcelamento. Verifique os dados do cartão.',
+                            ]);
+                        }
+                    },
+                    onError: (error: any) => {
+                        if (error?.type === 'invalid_card_number') {
+                            setCardErrors(['Número do cartão inválido.']);
+                            return;
+                        }
+                        if (error?.type === 'invalid_security_code') {
+                            setCardErrors(['Código de segurança inválido.']);
+                            return;
+                        }
+                        if (error?.type === 'invalid_email') {
+                            setCardErrors(['Informe um e-mail válido para o recibo.']);
+                            return;
+                        }
+                        if (error?.type === 'invalid_cardholder_name') {
+                            setCardErrors(['Informe o nome exatamente como está no cartão.']);
+                            return;
+                        }
+                        if (error?.type === 'invalid_cardholder_identification_number') {
+                            setCardErrors(['Informe um CPF válido.']);
+                            return;
+                        }
+
+                        if (error?.message?.includes('secure connection') || error?.message?.includes('SSL')) {
+                            setCardErrors([
+                                'O Mercado Pago exige conexão segura (HTTPS) para processar cartões. Abra o checkout em https:// e tente novamente.',
+                            ]);
+                        } else {
+                            setCardErrors([
+                                error?.message || 'Não foi possível processar os dados do cartão. Verifique e tente novamente.',
+                            ]);
                         }
                     },
                 },
@@ -268,30 +717,157 @@ export default function CheckoutPage() {
             if (cardFormRef.current?.destroy) {
                 cardFormRef.current.destroy();
             }
+            setCardBrand('');
         };
     }, [mercadoPago, totalAmount]);
 
-    const handleCustomerChange = (field: keyof typeof customerData, value: string) => {
-        setCustomerData((prev) => ({
-            ...prev,
-            [field]: value,
-        }));
+    useEffect(() => {
+        if (selectedTab !== 'card') return;
+
+        setMpSelectReady({ issuer: false, installments: false, docType: false });
+
+        let attempts = 0;
+        const maxAttempts = 50;
+
+        const interval = setInterval(() => {
+            attempts += 1;
+
+            const issuerSelect = document.getElementById('form-checkout__issuer') as HTMLSelectElement | null;
+            const installmentsSelect = document.getElementById('form-checkout__installments') as HTMLSelectElement | null;
+            const docTypeSelect = document.getElementById('form-checkout__identificationType') as HTMLSelectElement | null;
+
+            const issuerReady = Boolean(issuerSelect && issuerSelect.options.length > 0);
+            const installmentsReady = Boolean(installmentsSelect && installmentsSelect.options.length > 0);
+            const docTypeReady = Boolean(docTypeSelect && docTypeSelect.options.length > 0);
+
+            const nextState = {
+                issuer: issuerReady,
+                installments: installmentsReady,
+                docType: docTypeReady,
+            };
+
+            setMpSelectReady((prev) => {
+                if (
+                    prev.issuer === nextState.issuer &&
+                    prev.installments === nextState.installments &&
+                    prev.docType === nextState.docType
+                ) {
+                    return prev;
+                }
+                return nextState;
+            });
+
+            if ((issuerReady && installmentsReady && docTypeReady) || attempts >= maxAttempts) {
+                clearInterval(interval);
+            }
+        }, 200);
+
+        return () => clearInterval(interval);
+    }, [selectedTab, deviceChecks, mercadoPago]);
+
+    useEffect(() => {
+        const detachCard = attachNumericMask('form-checkout__cardNumber', 16, true);
+        const detachMonth = attachNumericMask('form-checkout__cardExpirationMonth', 2);
+        const detachYear = attachNumericMask('form-checkout__cardExpirationYear', 2);
+        const detachCvv = attachNumericMask('form-checkout__securityCode', 4);
+        const detachDocument = attachNumericMask('form-checkout__identificationNumber', 11);
+
+        return () => {
+            detachCard();
+            detachMonth();
+            detachYear();
+            detachCvv();
+            detachDocument();
+        };
+    }, [attachNumericMask, selectedTab]);
+
+    useEffect(() => {
+        let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+
+        const applyPrefill = () => {
+            const docInput = document.getElementById('form-checkout__identificationNumber') as HTMLInputElement | null;
+            const docTypeSelect = document.getElementById('form-checkout__identificationType') as HTMLSelectElement | null;
+            const emailInput = document.getElementById('form-checkout__cardholderEmail') as HTMLInputElement | null;
+
+            const normalizedCpf = normalizeCpf(customerData.cpf);
+
+            if (emailInput && customerData.email && !emailInput.value) {
+                emailInput.value = customerData.email;
+            }
+
+            if (docInput && normalizedCpf) {
+                if (docInput.value !== normalizedCpf) {
+                    docInput.value = normalizedCpf;
+                    docInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+
+            if (docTypeSelect && normalizedCpf) {
+                if (docTypeSelect.options.length === 0) {
+                    return false;
+                }
+                const hasCpfOption = Array.from(docTypeSelect.options).some((option) => option.value === 'CPF');
+                if (hasCpfOption && docTypeSelect.value !== 'CPF') {
+                    docTypeSelect.value = 'CPF';
+                    docTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            return true;
+        };
+
+        const applied = applyPrefill();
+        if (!applied) {
+            retryTimeout = setTimeout(() => {
+                applyPrefill();
+            }, 250);
+        }
+
+        return () => {
+            if (retryTimeout) {
+                clearTimeout(retryTimeout);
+            }
+        };
+    }, [customerData.cpf, customerData.email, selectedTab]);
+
+    useEffect(() => {
+        setCardErrors([]);
+    }, [selectedTab]);
+
+    const handleCustomerChange = (field: keyof CheckoutCustomerData, value: string) => {
+        setCustomerData((prev) => {
+            const next = { ...prev };
+            if (field === 'name') {
+                next.name = sanitizeInput(value);
+            } else if (field === 'email') {
+                next.email = sanitizeInput(value).toLowerCase();
+            } else if (field === 'cpf') {
+                next.cpf = formatCpfDisplay(value);
+            } else if (field === 'phone') {
+                next.phone = formatPhoneDisplay(value);
+            }
+            return next;
+        });
     };
 
     const validateCustomerData = useCallback(() => {
+        setGlobalError('');
+        const normalizedCpf = normalizeCpf(customerData.cpf);
+        const normalizedPhone = normalizePhone(customerData.phone);
+
         if (!customerData.name.trim()) {
             setGlobalError('Informe o nome completo.');
             return false;
         }
-        if (!customerData.email.trim()) {
+        if (!customerData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerData.email)) {
             setGlobalError('Informe um e-mail válido.');
             return false;
         }
-        if (!customerData.cpf.trim() || customerData.cpf.replace(/\D/g, '').length !== 11) {
+        if (normalizedCpf.length !== 11) {
             setGlobalError('Informe um CPF válido (11 dígitos).');
             return false;
         }
-        if (!customerData.phone.trim() || customerData.phone.replace(/\D/g, '').length < 10) {
+        if (normalizedPhone.length < 10) {
             setGlobalError('Informe um telefone válido com DDD.');
             return false;
         }
@@ -307,6 +883,107 @@ export default function CheckoutPage() {
         return true;
     }, [summarizedCart]);
 
+    const handleCardFormValidationErrors = useCallback((cardFormData: any): boolean => {
+        const rawErrors =
+            cardFormData?.errorMessages ||
+            cardFormData?.formErrors ||
+            cardFormData?.fieldErrors ||
+            cardFormData?.errors ||
+            [];
+
+        if (!Array.isArray(rawErrors) || rawErrors.length === 0) {
+            return false;
+        }
+
+        const translated = rawErrors
+            .map((item: any) => {
+                const code = typeof item === 'object' ? item?.code : undefined;
+                const message = typeof item === 'object' ? item?.message : item;
+                if (code && CARD_ERROR_MESSAGES[code]) {
+                    return CARD_ERROR_MESSAGES[code];
+                }
+                if (typeof message === 'string' && message.toLowerCase().includes('cardnumber')) {
+                    return 'Informe o número do cartão.';
+                }
+                if (typeof message === 'string' && message.toLowerCase().includes('cardexpirationmonth')) {
+                    return 'Informe o mês de validade do cartão.';
+                }
+                if (typeof message === 'string' && message.toLowerCase().includes('cardexpirationyear')) {
+                    return 'Informe o ano de validade do cartão.';
+                }
+                if (typeof message === 'string' && message.toLowerCase().includes('securitycode')) {
+                    return 'Informe o código de segurança (CVV).';
+                }
+                return message || 'Existem campos obrigatórios não preenchidos.';
+            })
+            .filter(Boolean);
+
+        if (translated.length) {
+            const uniqueErrors = Array.from(new Set(translated));
+            setCardErrors(uniqueErrors);
+            return true;
+        }
+
+        return false;
+    }, []);
+
+    const validateCardFormFields = useCallback(() => {
+        const cardNumberInput = document.getElementById('form-checkout__cardNumber') as HTMLInputElement | null;
+        const cardholderNameInput = document.getElementById('form-checkout__cardholderName') as HTMLInputElement | null;
+        const cardholderEmailInput = document.getElementById('form-checkout__cardholderEmail') as HTMLInputElement | null;
+        const expirationMonthInput = document.getElementById(
+            'form-checkout__cardExpirationMonth',
+        ) as HTMLInputElement | null;
+        const expirationYearInput = document.getElementById(
+            'form-checkout__cardExpirationYear',
+        ) as HTMLInputElement | null;
+        const securityCodeInput = document.getElementById('form-checkout__securityCode') as HTMLInputElement | null;
+        const installmentsSelect = document.getElementById('form-checkout__installments') as HTMLSelectElement | null;
+        const documentInput = document.getElementById('form-checkout__identificationNumber') as HTMLInputElement | null;
+
+        const errors: string[] = [];
+
+        const cardNumberDigits = cardNumberInput?.value.replace(/\D/g, '') || '';
+        if (cardNumberDigits.length < 13 || cardNumberDigits.length > 19) {
+            errors.push('Número do cartão inválido.');
+        }
+
+        if (!cardholderNameInput?.value.trim()) {
+            errors.push('Informe o nome exatamente como aparece no cartão.');
+        }
+
+        const emailValue = cardholderEmailInput?.value.trim() || '';
+        if (!emailValue || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+            errors.push('Informe um e-mail válido para o recibo.');
+        }
+
+        const monthValue = Number(expirationMonthInput?.value || 0);
+        if (monthValue < 1 || monthValue > 12) {
+            errors.push('Informe o mês de validade do cartão (01-12).');
+        }
+
+        const yearValue = Number(expirationYearInput?.value || 0);
+        if (yearValue < 0) {
+            errors.push('Informe o ano de validade do cartão.');
+        }
+
+        if (!securityCodeInput?.value || securityCodeInput.value.length < 3) {
+            errors.push('Informe o código de segurança (CVV).');
+        }
+
+        const documentDigits = documentInput?.value.replace(/\D/g, '') || '';
+        if (documentDigits.length !== 11) {
+            errors.push('Informe o CPF do titular do cartão (11 dígitos).');
+        }
+
+        if (!installmentsSelect?.value) {
+            errors.push('Selecione o número de parcelas.');
+        }
+
+        setCardErrors(errors);
+        return errors.length === 0;
+    }, []);
+
     const ensureOrder = useCallback(async () => {
         if (order) return order;
         if (!primaryCartItem) {
@@ -319,24 +996,39 @@ export default function CheckoutPage() {
             throw new Error('Dados do comprador inválidos.');
         }
 
-        const response = await api.post('/orders', {
-            eventId: primaryCartItem.eventId,
-            ticketTypeId: primaryCartItem.ticketTypeId ?? primaryCartItem.id,
-            quantity: primaryCartItem.quantity,
-            customerData: {
-                name: customerData.name,
-                email: customerData.email,
-                phone: customerData.phone,
-                cpf: customerData.cpf,
-            },
-        });
+        const normalizedCpf = normalizeCpf(customerData.cpf);
+        const normalizedPhone = normalizePhone(customerData.phone);
+        const formattedCpf = formatCpfDisplay(normalizedCpf);
+        const formattedPhone = formatPhoneDisplay(normalizedPhone);
 
-        const createdOrder = response.data?.data?.order;
-        if (!createdOrder?._id) {
-            throw new Error('Não foi possível criar o pedido.');
+        try {
+            const response = await api.post('/orders', {
+                eventId: primaryCartItem.eventId,
+                ticketTypeId: primaryCartItem.ticketTypeId ?? primaryCartItem.id,
+                quantity: primaryCartItem.quantity,
+                customerData: {
+                    name: sanitizeInput(customerData.name),
+                    email: sanitizeInput(customerData.email).toLowerCase(),
+                    phone: formattedPhone,
+                    cpf: formattedCpf,
+                },
+            });
+
+            const createdOrder = response.data?.data?.order;
+            if (!createdOrder?._id) {
+                throw new Error('Não foi possível criar o pedido.');
+            }
+            setOrder(createdOrder);
+            return createdOrder;
+        } catch (error: any) {
+            const message =
+                error?.response?.data?.message ||
+                (Array.isArray(error?.response?.data?.errors) ? error.response.data.errors.join(', ') : undefined) ||
+                error?.message ||
+                'Não foi possível criar o pedido. Tente novamente.';
+            setGlobalError(message);
+            throw error;
         }
-        setOrder(createdOrder);
-        return createdOrder;
     }, [customerData, order, primaryCartItem, validateCustomerData]);
 
     const handleRemoveItem = useCallback(
@@ -356,6 +1048,7 @@ export default function CheckoutPage() {
             refreshCart();
             setGlobalSuccess(message);
             setGlobalError('');
+            setCardErrors([]);
         },
         [refreshCart],
     );
@@ -380,10 +1073,39 @@ export default function CheckoutPage() {
                 setGlobalError('O formulário de cartão ainda não está pronto. Aguarde alguns segundos e tente novamente.');
                 return;
             }
+            if (typeof window !== 'undefined' && window.location.protocol !== 'https:') {
+                setCardErrors([
+                    'O Mercado Pago exige conexão segura (HTTPS) para processar cartões. Acesse o checkout via https:// para continuar.',
+                ]);
+                return;
+            }
+
+            console.debug('[checkout][card] requesting deviceId', { hasExisting: Boolean(deviceId) });
+            const currentDeviceId = await ensureDeviceIdAvailable(deviceId !== null, 'card-submit');
+            if (!currentDeviceId) {
+                console.warn('[checkout][card] deviceId unavailable');
+                setCardErrors([
+                    'Não foi possível obter o deviceId do Mercado Pago. Recarregue a página (em HTTPS) e tente novamente.',
+                ]);
+                return;
+            }
+            console.debug('[checkout][card] using deviceId', currentDeviceId);
 
             try {
                 setIsProcessing(true);
+                setCardErrors([]);
+
+                const isValid = validateCardFormFields();
+                if (!isValid) {
+                    setIsProcessing(false);
+                    return;
+                }
+
                 const cardFormData = cardFormRef.current.getCardFormData();
+                if (handleCardFormValidationErrors(cardFormData)) {
+                    setIsProcessing(false);
+                    return;
+                }
                 if (!cardFormData?.token) {
                     throw new Error('Não foi possível gerar o token do cartão. Verifique os dados e tente novamente.');
                 }
@@ -401,16 +1123,20 @@ export default function CheckoutPage() {
                 };
 
                 await api.post(`/payments/${createdOrder._id}/card`, payload, {
-                    headers: deviceId
-                        ? {
-                              'X-meli-session-id': deviceId,
-                          }
-                        : undefined,
+                    headers: {
+                        'X-meli-session-id': currentDeviceId,
+                    },
                 });
 
                 finalizeSuccess('Pagamento aprovado! Seus ingressos serão liberados em instantes.');
             } catch (error: any) {
                 console.error('Erro no pagamento com cartão:', error);
+                if (error?.response?.data?.errors) {
+                    const errorList = Array.isArray(error.response.data.errors)
+                        ? error.response.data.errors.map((err: any) => String(err))
+                        : [String(error.response.data.errors)];
+                    setCardErrors(errorList);
+                }
                 const message =
                     error?.response?.data?.message ||
                     error?.response?.data?.errors?.[0] ||
@@ -421,7 +1147,7 @@ export default function CheckoutPage() {
                 setIsProcessing(false);
             }
         },
-        [deviceId, ensureOrder, ensureSingleItem, finalizeSuccess, primaryCartItem],
+        [ensureDeviceIdAvailable, ensureOrder, ensureSingleItem, finalizeSuccess, handleCardFormValidationErrors, primaryCartItem, validateCardFormFields],
     );
 
     const handlePixPayment = useCallback(
@@ -441,6 +1167,17 @@ export default function CheckoutPage() {
                 return;
             }
 
+            console.debug('[checkout][pix] requesting deviceId', { hasExisting: Boolean(deviceId) });
+            const currentDeviceId = await ensureDeviceIdAvailable(deviceId !== null, 'pix payment');
+            if (!currentDeviceId) {
+                console.warn('[checkout][pix] deviceId unavailable');
+                setGlobalError(
+                    'Não foi possível obter o deviceId do Mercado Pago. Recarregue a página (em HTTPS) e tente novamente.',
+                );
+                return;
+            }
+            console.debug('[checkout][pix] using deviceId', currentDeviceId);
+
             try {
                 setIsProcessing(true);
 
@@ -449,14 +1186,12 @@ export default function CheckoutPage() {
                 const response = await api.post(
                     `/payments/${createdOrder._id}/pix`,
                     {
-                        deviceId,
+                        deviceId: currentDeviceId,
                     },
                     {
-                        headers: deviceId
-                            ? {
-                                  'X-meli-session-id': deviceId,
-                              }
-                            : undefined,
+                        headers: {
+                            'X-meli-session-id': currentDeviceId,
+                        },
                     },
                 );
 
@@ -475,7 +1210,7 @@ export default function CheckoutPage() {
                 setIsProcessing(false);
             }
         },
-        [deviceId, ensureOrder, ensureSingleItem, primaryCartItem],
+        [ensureDeviceIdAvailable, ensureOrder, ensureSingleItem, primaryCartItem],
     );
 
     const isCheckoutReady =
@@ -625,45 +1360,61 @@ export default function CheckoutPage() {
                                 </p>
 
                                 <div className="mt-4 grid gap-4 md:grid-cols-2">
-                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
+                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
                                         Nome completo
-                                        <input
-                                            type="text"
-                                            value={customerData.name}
-                                            onChange={(event) => handleCustomerChange('name', event.target.value)}
-                                            className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
-                                            placeholder="Como aparece no documento"
-                                        />
+                                        <div className="relative">
+                                            <HiOutlineUser className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
+                                            <input
+                                                type="text"
+                                                value={customerData.name}
+                                                onChange={(event) => handleCustomerChange('name', event.target.value)}
+                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                placeholder="Como aparece no documento"
+                                            />
+                                        </div>
                                     </label>
-                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
+                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
                                         E-mail
-                                        <input
-                                            type="email"
-                                            value={customerData.email}
-                                            onChange={(event) => handleCustomerChange('email', event.target.value)}
-                                            className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
-                                            placeholder="email@exemplo.com"
-                                        />
+                                        <div className="relative">
+                                            <HiOutlineEnvelope className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
+                                            <input
+                                                type="email"
+                                                value={customerData.email}
+                                                onChange={(event) => handleCustomerChange('email', event.target.value)}
+                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                placeholder="email@exemplo.com"
+                                            />
+                                        </div>
                                     </label>
-                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
+                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
                                         CPF
-                                        <input
-                                            type="text"
-                                            value={customerData.cpf}
-                                            onChange={(event) => handleCustomerChange('cpf', event.target.value)}
-                                            className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
-                                            placeholder="000.000.000-00"
-                                        />
+                                        <div className="relative">
+                                            <HiOutlineIdentification
+                                                className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${
+                                                    mpSelectReady.docType ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
+                                                }`}
+                                            />
+                                            <input
+                                                type="text"
+                                                value={customerData.cpf}
+                                                onChange={(event) => handleCustomerChange('cpf', event.target.value)}
+                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                placeholder="000.000.000-00"
+                                            />
+                                        </div>
                                     </label>
-                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
+                                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
                                         Celular
-                                        <input
-                                            type="tel"
-                                            value={customerData.phone}
-                                            onChange={(event) => handleCustomerChange('phone', event.target.value)}
-                                            className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
-                                            placeholder="(11) 99999-9999"
-                                        />
+                                        <div className="relative">
+                                            <HiOutlinePhone className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
+                                            <input
+                                                type="tel"
+                                                value={customerData.phone}
+                                                onChange={(event) => handleCustomerChange('phone', event.target.value)}
+                                                className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                placeholder="(11) 99999-9999"
+                                            />
+                                        </div>
                                     </label>
                                 </div>
                             </div>
@@ -693,22 +1444,20 @@ export default function CheckoutPage() {
                                     <button
                                         type="button"
                                         onClick={() => setSelectedTab('card')}
-                                        className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.25em] transition ${
-                                            selectedTab === 'card'
-                                                ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
-                                                : 'border-[#ded7ca] bg-[#faf7f0] text-[#4c4c55] hover:border-[#a38f78]'
-                                        }`}
+                                        className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.25em] transition ${selectedTab === 'card'
+                                            ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
+                                            : 'border-[#ded7ca] bg-[#faf7f0] text-[#4c4c55] hover:border-[#a38f78]'
+                                            }`}
                                     >
                                         Cartão de crédito
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setSelectedTab('pix')}
-                                        className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.25em] transition ${
-                                            selectedTab === 'pix'
-                                                ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
-                                                : 'border-[#ded7ca] bg-[#faf7f0] text-[#4c4c55] hover:border-[#a38f78]'
-                                        }`}
+                                        className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.25em] transition ${selectedTab === 'pix'
+                                            ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
+                                            : 'border-[#ded7ca] bg-[#faf7f0] text-[#4c4c55] hover:border-[#a38f78]'
+                                            }`}
                                     >
                                         Pagamento via PIX
                                     </button>
@@ -731,106 +1480,130 @@ export default function CheckoutPage() {
                                         className="mt-6 space-y-4"
                                         onSubmit={handleCardPayment}
                                     >
-                                        <div className="grid gap-4">
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
+                                        <div className="grid gap-4 md:grid-cols-4">
+                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-4">
                                                 Número do cartão
-                                                <input
-                                                    id="form-checkout__cardNumber"
-                                                    name="cardNumber"
-                                                    type="text"
-                                                    className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
-                                                    placeholder="0000 0000 0000 0000"
-                                                />
+                                                <div className="relative">
+                                                    <HiOutlineCreditCard className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
+                                                    <input
+                                                        id="form-checkout__cardNumber"
+                                                        name="cardNumber"
+                                                        type="text"
+                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                        placeholder="0000 0000 0000 0000"
+                                                    />
+                                                </div>
                                             </label>
-                                            <div className="grid gap-4 md:grid-cols-3">
-                                                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                    Mês
+                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-1">
+                                                Mês
+                                                <div className="relative">
+                                                    <HiOutlineCalendar className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
                                                     <input
                                                         id="form-checkout__cardExpirationMonth"
                                                         name="cardExpirationMonth"
                                                         type="text"
-                                                        className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
+                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
                                                         placeholder="MM"
                                                     />
-                                                </label>
-                                                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                    Ano
+                                                </div>
+                                            </label>
+                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-1">
+                                                Ano
+                                                <div className="relative">
+                                                    <HiOutlineCalendar className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
                                                     <input
                                                         id="form-checkout__cardExpirationYear"
                                                         name="cardExpirationYear"
                                                         type="text"
-                                                        className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
+                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
                                                         placeholder="AA"
                                                     />
-                                                </label>
-                                                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                    CVV
+                                                </div>
+                                            </label>
+                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
+                                                CVV
+                                                <div className="relative">
+                                                    <HiOutlineLockClosed className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
                                                     <input
                                                         id="form-checkout__securityCode"
                                                         name="securityCode"
                                                         type="text"
-                                                        className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
+                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
                                                         placeholder="CVV"
                                                     />
-                                                </label>
-                                            </div>
+                                                </div>
+                                            </label>
 
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
+                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-4">
                                                 Nome igual ao cartão
-                                                <input
-                                                    id="form-checkout__cardholderName"
-                                                    name="cardholderName"
-                                                    type="text"
-                                                    className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
-                                                    placeholder="Nome completo"
-                                                />
+                                                <div className="relative">
+                                                    <HiOutlineUser className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
+                                                    <input
+                                                        id="form-checkout__cardholderName"
+                                                        name="cardholderName"
+                                                        type="text"
+                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                        placeholder="Nome completo"
+                                                    />
+                                                </div>
                                             </label>
-                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
+                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-4">
                                                 E-mail para recibo
-                                                <input
-                                                    id="form-checkout__cardholderEmail"
-                                                    name="cardholderEmail"
-                                                    type="email"
-                                                    defaultValue={customerData.email}
-                                                    className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
-                                                    placeholder="email@testuser.com"
-                                                />
+                                                <div className="relative">
+                                                    <HiOutlineEnvelope className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
+                                                    <input
+                                                        id="form-checkout__cardholderEmail"
+                                                        name="cardholderEmail"
+                                                        type="email"
+                                                        defaultValue={customerData.email}
+                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                        placeholder="email@testuser.com"
+                                                    />
+                                                </div>
                                             </label>
-                                            <div className="grid gap-4 md:grid-cols-3">
-                                                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                    Bandeira
-                                                    <select
-                                                        id="form-checkout__issuer"
-                                                        name="issuer"
-                                                        className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
+                                            <MpSelect
+                                                label="Bandeira"
+                                                selectId="form-checkout__issuer"
+                                                selectName="issuer"
+                                                icon={HiOutlineCreditCard}
+                                                badgeLabel={cardBrand || undefined}
+                                                loadingText="Detectando…"
+                                                disabled={!mpSelectReady.issuer}
+                                            />
+                                            <MpSelect
+                                                label="Parcelas"
+                                                selectId="form-checkout__installments"
+                                                selectName="installments"
+                                                icon={HiOutlineSquaresPlus}
+                                                loadingText="Carregando…"
+                                                disabled={!mpSelectReady.installments}
+                                            />
+                                            <MpSelect
+                                                label="Tipo de documento"
+                                                selectId="form-checkout__identificationType"
+                                                selectName="identificationType"
+                                                icon={HiOutlineDocumentText}
+                                                loadingText="Carregando…"
+                                                disabled={!mpSelectReady.docType}
+                                            />
+                                            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
+                                                CPF
+                                                <div className="relative">
+                                                    <HiOutlineIdentification
+                                                        className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${
+                                                            mpSelectReady.docType ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
+                                                        }`}
                                                     />
-                                                </label>
-                                                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                    Parcelas
-                                                    <select
-                                                        id="form-checkout__installments"
-                                                        name="installments"
-                                                        className="rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
+                                                    <input
+                                                        id="form-checkout__identificationNumber"
+                                                        name="identificationNumber"
+                                                        type="text"
+                                                        disabled={!mpSelectReady.docType}
+                                                        className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4`}
+                                                        placeholder="000.000.000-00"
                                                     />
-                                                </label>
-                                                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7d796c]">
-                                                    Documento
-                                                    <div className="flex gap-2">
-                                                        <select
-                                                            id="form-checkout__identificationType"
-                                                            name="identificationType"
-                                                            className="w-24 rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-3 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
-                                                        />
-                                                        <input
-                                                            id="form-checkout__identificationNumber"
-                                                            name="identificationNumber"
-                                                            type="text"
-                                                            className="flex-1 rounded-2xl border border-[#ded7ca] bg-[#faf7f0] px-4 py-3 text-sm text-[#1a1a1d] outline-none transition focus:border-[#a38f78]"
-                                                            placeholder="Documento"
-                                                        />
-                                                    </div>
-                                                </label>
-                                            </div>
+                                                </div>
+                                            </label>
                                         </div>
 
                                         <button
