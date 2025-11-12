@@ -12,7 +12,7 @@ export interface IOrder extends Document {
     totalAmount: number; // Valor total do pedido (subtotal - desconto + platformFee)
     promoterCode?: string; // Código de promotor usado (se houver)
     totalTickets: number; // Quantidade total de ingressos
-    status: 'pending' | 'paid' | 'cancelled' | 'refunded';
+    status: 'pending' | 'paid' | 'cancelled' | 'refunded' | 'failed';
     paymentMethod?: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free'; // VIP não requer pagamento
     paymentId?: string; // ID do pagamento no Mercado Pago
     paymentOrderId?: string; // ID da Order no Mercado Pago (Orders API)
@@ -32,6 +32,7 @@ export interface IOrder extends Document {
         cpf?: string;
     };
     isActive: boolean;
+    cardAttempts: number;
     deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     createdAt: Date;
     updatedAt: Date;
@@ -107,7 +108,7 @@ const orderSchema = new Schema<IOrder>(
         status: {
             type: String,
             enum: {
-                values: ['pending', 'paid', 'cancelled', 'refunded'],
+                values: ['pending', 'paid', 'cancelled', 'refunded', 'failed'],
                 message: 'Status deve ser: pending, paid, cancelled ou refunded',
             },
             default: 'pending',
@@ -202,6 +203,11 @@ const orderSchema = new Schema<IOrder>(
             type: Boolean,
             default: true,
         },
+        cardAttempts: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
         deletedAt: {
             type: Date,
             default: null,
@@ -222,16 +228,18 @@ orderSchema.index({ event: 1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ paymentId: 1 });
 orderSchema.index({ isActive: 1 });
+orderSchema.index({ cardAttempts: 1 });
 // Índices para validação de limites por CPF/Email
 orderSchema.index({ 'customerData.cpf': 1, event: 1, status: 1 });
 orderSchema.index({ 'customerData.email': 1, event: 1, status: 1 });
 
 // Regras de transição de status
 const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
-    pending: ['paid', 'cancelled'],
+    pending: ['paid', 'cancelled', 'failed'],
     paid: ['refunded'],
     cancelled: [],
     refunded: [],
+    failed: [],
 };
 
 // Virtual para verificar se foi pago
@@ -252,6 +260,10 @@ orderSchema.virtual('isCancelled').get(function () {
 // Virtual para verificar se foi reembolsado
 orderSchema.virtual('isRefunded').get(function () {
     return this.status === 'refunded';
+});
+
+orderSchema.virtual('isFailed').get(function () {
+    return this.status === 'failed';
 });
 
 // Middleware para gerar número único do pedido antes de salvar

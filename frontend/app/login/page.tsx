@@ -39,7 +39,7 @@ export default function LoginPage() {
     const [formData, setFormData] = useState({
         email: '',
         password: '',
-        remember: false,
+        remember: true,
     });
 
     const [errors, setErrors] = useState<Record<LoginFormFields, string>>({

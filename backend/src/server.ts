@@ -116,6 +116,7 @@ const allowedOrigins = Array.from(
             .map(normalizeOrigin),
     ),
 );
+const warnedCorsOrigins = new Set<string>();
 
 app.use(
     cors({
@@ -129,7 +130,10 @@ app.use(
             }
             // Em dev, permitir e apenas logar
             if ((process.env.NODE_ENV || 'development') !== 'production') {
-                console.warn(`⚠️  CORS liberado em desenvolvimento para origem não listada: ${origin}`);
+                if (!warnedCorsOrigins.has(normalizedOrigin)) {
+                    console.warn(`⚠️  CORS liberado em desenvolvimento para origem não listada: ${origin}`);
+                    warnedCorsOrigins.add(normalizedOrigin);
+                }
                 return callback(null, true);
             }
             return callback(new Error(`CORS: Origin não permitido (${origin})`));

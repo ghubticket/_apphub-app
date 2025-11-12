@@ -19,7 +19,7 @@ export function CheckoutCartSummary({
     onRemoveItem,
 }: CheckoutCartSummaryProps) {
     return (
-        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
+        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] relative">
             <header className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">Resumo do pedido</h2>

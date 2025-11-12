@@ -23,6 +23,7 @@ const normalizeEmail = (email: string | undefined): string | null => {
     return email.trim().toLowerCase();
 };
 
+const MAX_CARD_PAYMENT_ATTEMPTS = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
 const ORDER_NUMBER_LENGTH = 10;
 
 const generateOrderNumber = async (): Promise<string> => {
@@ -291,6 +292,40 @@ export const createOrder = async (req: Request, res: Response) => {
         const platformFee = isVIP ? 0 : (subtotalAfterDiscount * (platformFeePercentage / 100)); // VIP não paga taxa
         const totalAmount = subtotalAfterDiscount + platformFee; // Total: (subtotal - desconto) + taxa
 
+        // Tentar reaproveitar pedido pendente/falho existente (cartão)
+        const normalizedRequestEmail = normalizeEmail(customerData?.email) || normalizeEmail(user?.email);
+        const existingOrderFilters: any = {
+            event: eventId,
+            deletedAt: null,
+            isActive: false,
+            status: { $in: ['pending', 'failed'] },
+            paymentMethod: { $in: [null, 'credit_card', 'debit_card'] },
+            cardAttempts: { $lt: MAX_CARD_PAYMENT_ATTEMPTS },
+            totalTickets: quantity,
+            totalAmount,
+        };
+
+        if (userId) {
+            existingOrderFilters.customer = userId;
+        } else if (normalizedRequestEmail) {
+            existingOrderFilters['customerData.email'] = normalizedRequestEmail;
+        }
+
+        const existingOrder = await Order.findOne(existingOrderFilters).lean();
+
+        if (existingOrder) {
+            return res.status(200).json({
+                success: true,
+                message: 'Pedido pendente reutilizado. Continue com o pagamento.',
+                data: {
+                    order: existingOrder,
+                    isVIP: existingOrder.paymentMethod === 'vip_free',
+                    requiresPayment: existingOrder.paymentMethod !== 'vip_free',
+                    reused: true,
+                },
+            });
+        }
+
         // Determinar status e método de pagamento
         let orderStatus: 'pending' | 'paid' = 'pending';
         let paymentMethod: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free' | undefined = undefined;
@@ -306,6 +341,8 @@ export const createOrder = async (req: Request, res: Response) => {
             orderStatus = 'pending';
             ticketStatus = 'pending';
         }
+
+        const finalCustomerEmail = normalizedRequestEmail || customerData?.email || user?.email || 'Não informado';
 
         try {
         // Criar pedido
@@ -326,10 +363,12 @@ export const createOrder = async (req: Request, res: Response) => {
             orderNumber,
             customerData: {
                 name: customerData?.name || user?.name || 'Não informado',
-                email: customerData?.email || user?.email || 'Não informado',
+                email: finalCustomerEmail,
                 phone: customerData?.phone || user?.phone,
                 cpf: customerData?.cpf || user?.cpf,
             },
+            cardAttempts: 0,
+            isActive: Boolean(isVIP),
         });
 
         await order.save();
@@ -540,7 +579,8 @@ export const listMyOrders = async (req: Request, res: Response) => {
         // Construir filtros
         const filters: any = { 
             customer: userId,
-            deletedAt: null 
+            deletedAt: null,
+            isActive: true,
         };
         if (status && ['pending','paid','cancelled','refunded'].includes(String(status))) {
             filters.status = String(status);

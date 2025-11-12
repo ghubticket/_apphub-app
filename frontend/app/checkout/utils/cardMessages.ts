@@ -5,6 +5,7 @@ export const CARD_ERROR_MESSAGES: Record<string, string> = {
     '212': 'Informe o código de segurança (CVV).',
     '214': 'Informe o nome exatamente como aparece no cartão.',
     '221': 'Informe o CPF do titular do cartão.',
+    '324': 'Informe um CPF válido do titular do cartão.',
     '224': 'Informe o código de segurança (CVV).',
     'E301': 'Número do cartão inválido.',
     'E302': 'Código de segurança inválido.',
@@ -32,5 +33,6 @@ export const CARD_ERROR_CODE_MAP: Record<string, { field: CardFieldKey; message:
     '224': { field: 'securityCode', message: CARD_ERROR_MESSAGES['224'] },
     '214': { field: 'cardholderName', message: CARD_ERROR_MESSAGES['214'] },
     '221': { field: 'identificationNumber', message: CARD_ERROR_MESSAGES['221'] },
+    '324': { field: 'identificationNumber', message: CARD_ERROR_MESSAGES['324'] },
     'E302': { field: 'securityCode', message: CARD_ERROR_MESSAGES['E302'] },
 };

@@ -65,15 +65,12 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
             let mpStatus: string | null = null
             let mpExpiration: Date | null = null
 
-            try {
-                paymentInfo = await paymentService.getPaymentById(order.paymentId)
+            paymentInfo = await paymentService.getPaymentById(order.paymentId)
+            if (paymentInfo) {
                 mpStatus = (paymentInfo?.status || '').toLowerCase()
                 mpExpiration = paymentInfo?.date_of_expiration ? new Date(paymentInfo.date_of_expiration) : null
-            } catch (mpError: any) {
-                const errorMessage = String(mpError?.message || mpError || '')
-                if (!errorMessage.toLowerCase().includes('resource not found')) {
-                    throw mpError
-                }
+            } else if (process.env.NODE_ENV !== 'production') {
+                console.debug('[order-expiration] Pagamento não encontrado no MP (provavelmente expirado ou sandbox). Pedido:', String(order._id))
             }
 
             if ((!mpStatus || !mpExpiration) && (order as any).paymentOrderId) {

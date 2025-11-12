@@ -1,4 +1,6 @@
 import { MercadoPagoConfig, Order, Payment } from 'mercadopago';
+import { isValidCpf as isValidCpfBackend, normalizeCpf as normalizeCpfBackend } from '../utils/cpf';
+import { mapMpStatusDetailToMessage } from '../utils/mercadoPago';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
@@ -98,6 +100,14 @@ export interface CreateCardPaymentParams {
             state?: string;
         };
     };
+    cardholder?: {
+        name?: string;
+        email?: string;
+        identification?: {
+            type?: string;
+            number?: string;
+        };
+    };
     items: Array<{
         title: string;
         description?: string;
@@ -130,9 +140,17 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
     }
 
     // Validar CPF (11 dígitos)
-    const cpf = params.customerData.cpf.replace(/\D/g, '');
-    if (cpf.length !== 11) {
-        errors.push('CPF inválido');
+    const identificationType = 'cardholder' in params && params.cardholder?.identification?.type
+        ? String(params.cardholder.identification.type).toUpperCase()
+        : 'CPF';
+    const docNumberRaw = 'cardholder' in params && params.cardholder?.identification?.number
+        ? params.cardholder.identification.number
+        : params.customerData.cpf;
+    if (identificationType === 'CPF') {
+        const docNumber = normalizeCpfBackend(docNumberRaw || '');
+        if (!isValidCpfBackend(docNumber)) {
+            errors.push('CPF inválido');
+        }
     }
 
     // Validar nome
@@ -227,7 +245,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 last_name: lastName,
                 identification: {
                     type: 'CPF',
-                    number: customerData.cpf.replace(/\D/g, '')
+                    number: normalizeCpfBackend(customerData.cpf)
                 },
                 phone: customerData.phone ? {
                     area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
@@ -368,6 +386,29 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
     }
 };
 
+const mapMpRejection = (statusDetail?: string) => {
+    const code = (statusDetail || '').toLowerCase();
+    const table: Record<string, string> = {
+        cc_rejected_insufficient_amount: 'Pagamento recusado por saldo ou limite insuficiente.',
+        cc_rejected_bad_filled_security_code: 'Código de segurança incorreto. Confira os três dígitos no verso do cartão.',
+        cc_rejected_bad_filled_date: 'Data de validade incorreta.',
+        cc_rejected_bad_filled_other: 'Dados do cartão incorretos. Confira número, data e código.',
+        cc_rejected_issuer_unavailable: 'Emissor indisponível no momento. Tente novamente em alguns minutos.',
+        cc_rejected_call_for_authorize: 'Transação necessita autorização do banco emissor. Entre em contato com o banco.',
+        cc_rejected_card_disabled: 'Cartão desabilitado. Ative-o junto ao banco emissor antes de tentar novamente.',
+        cc_rejected_card_error: 'O emissor não pôde processar o pagamento agora.',
+        cc_rejected_blacklist: 'Pagamento recusado por segurança. Utilize outro cartão.',
+        cc_rejected_high_risk: 'Pagamento recusado pela análise de risco. Utilize outro cartão ou método.',
+        cc_rejected_other_reason: 'Pagamento recusado pelo emissor do cartão.',
+        cc_rejected_3ds_mandatory: 'É necessário concluir a verificação 3D Secure para este cartão.',
+        rejected_by_issuer: 'Transação recusada pelo emissor do cartão. Entre em contato com o banco.',
+    };
+    return (
+        table[code] ||
+        'Pagamento recusado pelo emissor. Tente outro cartão ou entre em contato com o banco.'
+    );
+};
+
 /**
  * Cria um pagamento com cartão de crédito/débito usando Orders API (Checkout Transparente)
  * Recebe o token gerado pelo frontend via MercadoPago.js
@@ -403,11 +444,17 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         // Validar dados
         validatePaymentData(params);
 
-        const { orderId, orderNumber, totalAmount, token, description, installments, paymentMethodId, customerData, issuerId, items } = params;
+        const { orderId, orderNumber, totalAmount, token, description, installments, paymentMethodId, customerData, issuerId, items, cardholder } = params;
 
         // Preparar dados do comprador
-        const firstName = customerData.name.split(' ')[0] || customerData.name;
-        const lastName = customerData.name.split(' ').slice(1).join(' ') || firstName;
+        const fallbackName = cardholder?.name && cardholder.name.trim().length > 0 ? cardholder.name : customerData.name;
+        const firstName = fallbackName.split(' ')[0] || fallbackName;
+        const lastName = fallbackName.split(' ').slice(1).join(' ') || firstName;
+
+        const identificationType = (cardholder?.identification?.type || 'CPF').toUpperCase();
+        const identificationNumberRaw = cardholder?.identification?.number || customerData.cpf;
+        const identificationNumber =
+            identificationType === 'CPF' ? normalizeCpfBackend(identificationNumberRaw || '') : (identificationNumberRaw || '').replace(/\D/g, '');
 
         // Determinar payment_type_id baseado no payment_method_id
         const paymentTypeId = paymentMethodId === 'debit_card' ? 'debit_card' : 'credit_card';
@@ -420,7 +467,19 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             total_amount: String(totalAmount), // Valor total da order
             external_reference: orderId,
             payer: {
-                email: customerData.email
+                email: cardholder?.email || customerData.email,
+                first_name: firstName,
+                last_name: lastName,
+                identification: {
+                    type: identificationType,
+                    number: identificationNumber
+                },
+                phone: customerData.phone
+                    ? {
+                          area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
+                          number: customerData.phone.replace(/\D/g, '').substring(2)
+                      }
+                    : undefined
             },
             transactions: {
                 payments: [
@@ -429,63 +488,11 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                         payment_method: {
                             id: paymentMethodId, // Bandeira do cartão (visa, master, etc.)
                             type: paymentTypeId, // credit_card ou debit_card
-                            token: token,
-                            installments: installments
-                        },
-                        payer: {
-                            email: customerData.email,
-                            first_name: firstName,
-                            last_name: lastName,
-                            identification: {
-                                type: 'CPF',
-                                number: customerData.cpf.replace(/\D/g, '')
-                            },
-                            phone: customerData.phone ? {
-                                area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
-                                number: customerData.phone.replace(/\D/g, '').substring(2)
-                            } : undefined
-                        },
-                        additional_info: {
-                            items: items.map(item => ({
-                                id: item.title.substring(0, 50),
-                                title: item.title,
-                                description: item.description || item.title,
-                                quantity: item.quantity,
-                                unit_price: item.unit_price,
-                                category: item.category || 'tickets',
-                                category_id: 'tickets'
-                            })),
-                            payer: {
-                                first_name: firstName,
-                                last_name: lastName,
-                                phone: customerData.phone ? {
-                                    area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
-                                    number: customerData.phone.replace(/\D/g, '').substring(2)
-                                } : undefined,
-                                address: customerData.address ? {
-                                    zip_code: customerData.address.zip_code?.replace(/\D/g, ''),
-                                    street_name: customerData.address.street_name,
-                                    street_number: customerData.address.street_number
-                                } : undefined,
-                                registration_date: new Date().toISOString().split('T')[0]
-                            },
-                            shipments: {
-                                receiver_address: customerData.address ? {
-                                    zip_code: customerData.address.zip_code?.replace(/\D/g, ''),
-                                    street_name: customerData.address.street_name,
-                                    street_number: customerData.address.street_number,
-                                    city_name: customerData.address.city,
-                                    state_name: customerData.address.state
-                                } : undefined
-                            }
+                            token,
+                            installments
                         }
-                        // issuer_id pode ser adicionado no payment_method se necessário
                     }
                 ]
-            },
-            metadata: {
-                order_id: orderId,
-                order_number: orderNumber
             }
         };
 
@@ -521,6 +528,34 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             throw new Error('Nenhum pagamento encontrado na order');
         }
 
+        const paymentStatus = String(paymentInfo.status || '').toLowerCase();
+        const paymentStatusDetail = paymentInfo.status_detail || paymentInfo.status_reason;
+        const allowedStatuses = new Set(['approved', 'authorized', 'in_process', 'pending']);
+
+        if (paymentStatus && !allowedStatuses.has(paymentStatus)) {
+            const userMessage = mapMpStatusDetailToMessage(paymentStatusDetail);
+            const detailPayload = {
+                status: paymentInfo.status,
+                status_detail: paymentStatusDetail,
+                payment_id: paymentInfo.id,
+                order_id: orderResponse.id,
+            };
+            const rejectionError = new Error(userMessage);
+            (rejectionError as any).mpErrors = [userMessage, paymentStatusDetail].filter(Boolean);
+            (rejectionError as any).mpErrorDetails = detailPayload;
+            (rejectionError as any).orderResponse = orderResponse;
+            (rejectionError as any).response = {
+                data: {
+                    message: userMessage,
+                    status: paymentInfo.status,
+                    status_detail: paymentStatusDetail,
+                    payment_id: paymentInfo.id,
+                    order_id: orderResponse.id,
+                },
+            };
+            throw rejectionError;
+        }
+
         return {
             orderId: orderResponse.id, // ID da Order
             paymentId: paymentInfo.id, // ID do Payment
@@ -537,8 +572,157 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             threeDSInfo: paymentInfo.three_ds_info
         };
     } catch (error: any) {
-        console.error('Erro ao criar pagamento com cartão (Orders API):', error);
-        throw new Error(`Erro ao criar pagamento: ${error.message || 'Erro desconhecido'}`);
+        const debugPayload: Record<string, unknown> = {
+            message: error?.message,
+            code: error?.code,
+        };
+        if (error?.response?.data) {
+            debugPayload.responseData = error.response.data;
+        }
+        if (Array.isArray(error?.errors)) {
+            debugPayload.errors = error.errors;
+        }
+        if (error?.orderResponse) {
+            debugPayload.orderResponse = error.orderResponse;
+        }
+        console.error('Erro ao criar pagamento com cartão (Orders API):', JSON.stringify(debugPayload, null, 2));
+
+        if (!error?.response?.data && error?.orderResponse?.transactions?.payments?.[0]) {
+            const rejectedPayment = error.orderResponse.transactions.payments[0];
+            const statusDetail = rejectedPayment.status_detail || rejectedPayment.status_reason;
+            const userMessage = mapMpStatusDetailToMessage(statusDetail);
+            const detailPayload = {
+                status: rejectedPayment.status,
+                status_detail: statusDetail,
+                payment_id: rejectedPayment.id,
+                order_id: error.orderResponse.id,
+            };
+            const mpError = new Error(userMessage);
+            (mpError as any).mpErrors = [userMessage, statusDetail].filter(Boolean);
+            (mpError as any).mpErrorDetails = detailPayload;
+            (mpError as any).orderResponse = error.orderResponse;
+            (mpError as any).response = {
+                data: {
+                    message: userMessage,
+                    status: rejectedPayment.status,
+                    status_detail: statusDetail,
+                    payment_id: rejectedPayment.id,
+                    order_id: error.orderResponse.id,
+                },
+            };
+            throw mpError;
+        }
+
+        const responseData = error?.response?.data;
+        const fallbackErrors = Array.isArray(error?.errors) ? error.errors : null;
+        if (responseData || fallbackErrors) {
+            const payloadToProcess = responseData ?? { errors: fallbackErrors };
+            console.warn('[payments][card] Orders API raw error payload', payloadToProcess);
+            console.warn('[payments][card] entering responseData handling branch');
+
+            const collectedMessages: string[] = [];
+
+            const pushMessage = (value: unknown) => {
+                if (typeof value === 'string' && value.trim().length > 0) {
+                    collectedMessages.push(value.trim());
+                }
+            };
+
+            const payloadString = (() => {
+                try {
+                    return JSON.stringify(responseData);
+                } catch {
+                    return String(responseData);
+                }
+            })();
+
+            const containsIssuerRejection = typeof payloadString === 'string' && payloadString.toLowerCase().includes('rejected_by_issuer');
+
+            let issuerMessage: string | null = null;
+            if (containsIssuerRejection) {
+                issuerMessage = mapMpStatusDetailToMessage('rejected_by_issuer');
+                collectedMessages.push(issuerMessage);
+            }
+
+            if (Array.isArray(payloadToProcess?.errors)) {
+                payloadToProcess.errors.forEach((err: any) => {
+                    if (!err) return;
+                    pushMessage(err.message);
+                    pushMessage(err.description);
+                    pushMessage(err.cause);
+                    pushMessage(err.code);
+                    pushMessage(err.error);
+                    pushMessage(err.status_detail);
+                    if (Array.isArray(err.details)) {
+                        err.details.forEach(pushMessage);
+                    }
+                });
+            }
+
+            if (Array.isArray(payloadToProcess?.cause)) {
+                payloadToProcess.cause.forEach((err: any) => {
+                    if (!err) return;
+                    pushMessage(err.description);
+                    pushMessage(err.message);
+                    pushMessage(err.code);
+                    pushMessage(err.error);
+                    pushMessage(err.status_detail);
+                });
+            }
+
+            pushMessage(payloadToProcess?.message);
+            pushMessage(payloadToProcess?.error_description);
+            pushMessage(payloadToProcess?.error);
+            pushMessage(payloadToProcess?.status_detail);
+
+            let normalizedMessages = Array.from(new Set(collectedMessages.filter(Boolean)));
+
+            if (containsIssuerRejection && issuerMessage) {
+                const issuerRelated = normalizedMessages.filter((msg) =>
+                    msg.toLowerCase().includes('rejected_by_issuer') || msg === issuerMessage,
+                );
+                const remaining = normalizedMessages.filter(
+                    (msg) => !issuerRelated.includes(msg) && msg !== issuerMessage,
+                );
+                normalizedMessages = [issuerMessage, ...issuerRelated, ...remaining];
+            }
+
+            console.warn('[payments][card] normalized error messages', normalizedMessages);
+
+            if (!normalizedMessages.length) {
+                normalizedMessages.push('Algo deu errado ao processar seu cartão. Revise os dados ou tente outro cartão.');
+            }
+
+            const messageForError = normalizedMessages[0];
+            const mpError = new Error(messageForError);
+            (mpError as any).mpErrors = normalizedMessages;
+            (mpError as any).mpErrorDetails = payloadToProcess;
+            (mpError as any).response = {
+                data: {
+                    message: messageForError,
+                    errors: normalizedMessages,
+                    details: payloadToProcess,
+                },
+            };
+            throw mpError;
+        }
+
+        if (error?.message) {
+            const mpError = new Error(`Erro ao criar pagamento: ${error.message}`);
+            (mpError as any).mpErrors = [error.message];
+            throw mpError;
+        }
+
+        const fallbackError = new Error('Erro ao criar pagamento: Erro desconhecido');
+        (fallbackError as any).mpErrors = ['Erro desconhecido'];
+        (fallbackError as any).response = {
+            data: {
+                message: 'Erro desconhecido',
+                errors: ['Erro desconhecido'],
+                details: error,
+            },
+        };
+        throw fallbackError;
     }
 };
 
@@ -609,8 +793,18 @@ export const getPaymentById = async (paymentId: string) => {
         const response = await payment.get({ id: paymentId });
         return response as any;
     } catch (error: any) {
+        const mpError = error?.response?.data;
+        const message = mpError?.message || error?.message || 'Erro desconhecido';
+        if (mpError?.error === 'resource not found' || String(message).toLowerCase().includes('resource not found')) {
+            console.log('[payments] getPaymentById resource not found', {
+                paymentId,
+                mpError,
+                message,
+            });
+            return null;
+        }
         console.error('Erro ao buscar pagamento:', error);
-        throw new Error(`Erro ao buscar pagamento: ${error.message || 'Erro desconhecido'}`);
+        throw new Error(`Erro ao buscar pagamento: ${message}`);
     }
 };
 

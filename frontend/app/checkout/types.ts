@@ -20,6 +20,8 @@ export type CreatedOrder = {
     totalAmount: number;
     totalTickets: number;
     status: string;
+    cardAttempts?: number;
+    maxCardAttempts?: number;
     event?: {
         name?: string;
         date?: string;

@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IconType } from 'react-icons';
 import { HiOutlineChevronDown } from 'react-icons/hi2';
 import { SELECT_BASE_CLASS } from '../constants';
+
+type StaticOption = {
+    value: string;
+    text: string;
+    disabled?: boolean;
+    hidden?: boolean;
+};
 
 type MpSelectProps = {
     label: string;
@@ -17,12 +24,15 @@ type MpSelectProps = {
     classNameOverride?: string;
     onSelectionChange?: (value: string) => void;
     errorText?: string;
+    staticOptions?: StaticOption[];
+    defaultValue?: string;
 };
 
 type MpSelectOption = {
     value: string;
     text: string;
     disabled: boolean;
+    hidden: boolean;
 };
 
 export default function MpSelect({
@@ -37,6 +47,8 @@ export default function MpSelect({
     classNameOverride,
     onSelectionChange,
     errorText,
+    staticOptions,
+    defaultValue = '',
 }: MpSelectProps) {
     const [displayText, setDisplayText] = useState('');
     const [selectedValue, setSelectedValue] = useState('');
@@ -65,6 +77,7 @@ export default function MpSelect({
                 value: opt.value,
                 text: opt.text,
                 disabled: opt.disabled,
+                hidden: opt.hidden,
             }));
             setOptions(mappedOptions);
             if (onSelectionChange) {
@@ -83,6 +96,43 @@ export default function MpSelect({
             observer.disconnect();
         };
     }, [selectId, onSelectionChange]);
+
+    useEffect(() => {
+        if (!selectRef.current || !staticOptions) return;
+        const selectElement = selectRef.current;
+        const shouldUpdateOptions =
+            selectElement.options.length !== staticOptions.length ||
+            Array.from(selectElement.options).some((option, index) => {
+                const staticOption = staticOptions[index];
+                if (!staticOption) return true;
+                return (
+                    option.value !== staticOption.value ||
+                    option.text !== staticOption.text ||
+                    option.disabled !== Boolean(staticOption.disabled) ||
+                    option.hidden !== Boolean(staticOption.hidden)
+                );
+            });
+
+        if (shouldUpdateOptions) {
+            selectElement.innerHTML = '';
+            staticOptions.forEach((option) => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option.value;
+                optionElement.text = option.text;
+                optionElement.disabled = Boolean(option.disabled);
+                optionElement.hidden = Boolean(option.hidden);
+                selectElement.appendChild(optionElement);
+            });
+        }
+
+        const targetValue =
+            defaultValue ??
+            (staticOptions.find((option) => !option.disabled && !option.hidden)?.value ?? '');
+        if (selectElement.value !== targetValue) {
+            selectElement.value = targetValue;
+        }
+        selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+    }, [staticOptions, defaultValue]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -112,10 +162,19 @@ export default function MpSelect({
     const rawDisplay = (displayText || fallbackText || '').trim();
     const hideLoadingText = /carregando|detectando/i.test(rawDisplay);
     const effectivePlaceholder = placeholder || 'Selecione uma opção';
-    const textToShow = !rawDisplay || hideLoadingText ? effectivePlaceholder : rawDisplay;
+    const textToShow =
+        !rawDisplay || hideLoadingText
+            ? effectivePlaceholder
+            : placeholder && rawDisplay === placeholder
+                ? placeholder
+                : rawDisplay;
     const IconColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
     const ArrowColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
-    const hasOptions = options.length > 0;
+    const visibleOptions = useMemo(
+        () => options.filter((option) => !option.hidden),
+        [options],
+    );
+    const hasOptions = visibleOptions.length > 0;
     const errorClass = errorText ? 'border-rose-400 focus:border-rose-500 text-[#1a1a1d]' : '';
 
     const toggleDropdown = () => {
@@ -172,6 +231,7 @@ export default function MpSelect({
                     disabled={disabled}
                     tabIndex={-1}
                     aria-hidden="true"
+                    defaultValue={defaultValue}
                     className="sr-only"
                 />
                 {isOpen ? (

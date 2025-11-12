@@ -13,6 +13,8 @@ import {
 } from '../services/emailTemplates';
 import { generateTicketPDF } from '../services/pdfService';
 
+const MAX_CARD_PAYMENT_ATTEMPTS = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
+
 /**
  * Valida e busca um pedido com verificações de segurança
  */
@@ -163,6 +165,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
             order.status = 'paid';
             order.paidAt = new Date();
         }
+        order.isActive = true;
 
         await order.save();
 
@@ -294,9 +297,12 @@ export const createPixPayment = async (req: Request, res: Response) => {
  * }
  */
 export const createCardPayment = async (req: Request, res: Response) => {
+    let order: any = null;
+    let currentAttempts = 0;
+
     try {
         const { orderId } = req.params;
-        const { token, installments, paymentMethodId, issuerId } = req.body;
+        const { token, installments, paymentMethodId, issuerId, cardholder } = req.body;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
 
         // Validações básicas
@@ -317,7 +323,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
         }
 
         // Validar e buscar pedido
-        const order = await validateAndGetOrder(orderId, userId, req);
+        order = await validateAndGetOrder(orderId, userId, req);
 
         // Buscar tickets para descrição e items
         const tickets = await Ticket.find({ _id: { $in: order.tickets } })
@@ -356,6 +362,53 @@ export const createCardPayment = async (req: Request, res: Response) => {
             console.log(`🔧 MOCK: Email alterado de "${order.customerData.email}" para "${customerEmail}" (sandbox)`);
         }
 
+        // Normalizar cardholder para sandbox
+        let normalizedCardholder = cardholder
+            ? {
+                  name: cardholder.name,
+                  email: cardholder.email,
+                  identification: cardholder.identification
+                      ? {
+                            type: cardholder.identification.type,
+                            number: cardholder.identification.number
+                        }
+                      : undefined
+              }
+            : undefined;
+
+        if (process.env.NODE_ENV !== 'production') {
+            if (normalizedCardholder?.email && !normalizedCardholder.email.endsWith('@testuser.com')) {
+                const emailName = normalizedCardholder.email.split('@')[0] || 'cardholder';
+                normalizedCardholder = {
+                    ...normalizedCardholder,
+                    email: `${emailName}@testuser.com`
+                };
+                console.log(
+                    `🔧 MOCK: Email do titular alterado de "${cardholder?.email}" para "${normalizedCardholder.email}" (sandbox)`
+                );
+            }
+        }
+
+        // Verificar limite de tentativas de cartão
+        currentAttempts = order.cardAttempts || 0;
+        if (currentAttempts >= MAX_CARD_PAYMENT_ATTEMPTS) {
+            order.status = 'failed';
+            order.paymentStatus = 'failed';
+            order.paymentStatusDetail = 'max_attempts';
+            order.paymentMessage = 'Você excedeu o número máximo de tentativas para este pedido.';
+            order.paymentAdminMessage = 'Limite de tentativas excedido (cartão).';
+            order.isActive = false;
+            await order.save();
+
+            return res.status(429).json({
+                success: false,
+                message: 'Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido para tentar novamente.',
+                errors: ['Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido.'],
+                cardAttempts: order.cardAttempts,
+                maxCardAttempts: MAX_CARD_PAYMENT_ATTEMPTS,
+            });
+        }
+
         // Criar pagamento com cartão
         const cardPayment = await paymentService.createCardPayment({
             orderId: String(order._id),
@@ -373,6 +426,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 phone: order.customerData.phone
                 // Endereço pode ser adicionado se disponível no Order
             },
+            cardholder: normalizedCardholder,
             items
         }, deviceId);
 
@@ -396,6 +450,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
         if (paymentStatus === 'paid') {
             order.status = 'paid';
             order.paidAt = cardPayment.dateApproved ? new Date(cardPayment.dateApproved) : new Date();
+            order.isActive = true;
+            order.cardAttempts = 0;
 
             // Confirmar tickets
             await Ticket.updateMany(
@@ -410,58 +466,6 @@ export const createCardPayment = async (req: Request, res: Response) => {
         }
 
         await order.save();
-
-        // Enviar email de pagamento pendente se não foi aprovado imediatamente
-        // (Se foi aprovado, o webhook enviará o email de confirmação)
-        if (paymentStatus !== 'paid') {
-            try {
-                const populatedOrder = await Order.findById(order._id)
-                    .populate('event', 'name date location address')
-                    .populate('customer', 'name email')
-                    .lean();
-
-                if (populatedOrder) {
-                    const event = populatedOrder.event as any;
-                    const customerData = populatedOrder.customerData as any;
-                    const customer = populatedOrder.customer as any;
-
-                    const customerEmail = customerData?.email || customer?.email;
-                    const customerName = customerData?.name || customer?.name;
-
-                    if (customerEmail && customerEmail !== 'Não informado') {
-                        const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
-
-                        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
-                        await sendPaymentPendingEmail(
-                            customerEmail,
-                            {
-                                customerName: customerName || 'Cliente',
-                                orderNumber: order.orderNumber,
-                                eventName: event.name,
-                                eventDate,
-                                eventLocation: event.location,
-                                totalAmount: `R$ ${order.totalAmount.toFixed(2).replace('.', ',')}`,
-                                paymentMethod: paymentMethod === 'credit_card' ? 'Cartão de Crédito' : 'Cartão de Débito',
-                                expirationMinutes: 15, // Cartão geralmente processa rápido, mas mantemos 15min como padrão
-                                paymentLink: `${dashboardUrl}/orders/${order._id}`
-                            }
-                        );
-
-                        console.log(`✅ Email de pagamento pendente (Cartão) enviado para ${customerEmail}`);
-                    }
-                }
-            } catch (emailError) {
-                console.error('Erro ao enviar email de pagamento pendente (Cartão):', emailError);
-                // Não falhar a criação do pagamento se o email falhar
-            }
-        }
 
         // Log detalhado
         console.log(`💳 Pedido ${order.orderNumber} - Cartão processado:`, {
@@ -502,7 +506,22 @@ export const createCardPayment = async (req: Request, res: Response) => {
         // Extrair informações detalhadas do erro do Mercado Pago
         let errorDetails: any = null;
         let errorMessage = error.message || 'Erro ao processar pagamento com cartão';
-        
+        let messages: string[] = [];
+ 
+        if (Array.isArray(error.mpErrors) && error.mpErrors.length > 0) {
+            messages = error.mpErrors.map((msg: any) => String(msg));
+            errorMessage = messages[0];
+        }
+
+        const responseData = error.response?.data;
+
+        if (!messages.length && Array.isArray(responseData?.errors)) {
+            messages = responseData.errors.map((msg: any) => String(msg)).filter(Boolean);
+            if (messages.length) {
+                errorMessage = messages[0];
+            }
+        }
+ 
         // Se o erro tem informações estruturadas do Mercado Pago
         if (error.errors && Array.isArray(error.errors)) {
             errorDetails = {
@@ -510,21 +529,78 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 message: error.errors[0]?.message,
                 details: error.errors[0]?.details || error.errors.map((e: any) => e.message || e.code)
             };
-            errorMessage = error.errors[0]?.message || errorMessage;
-        } else if (error.response?.data?.errors) {
+            if (!messages.length) {
+                errorMessage = error.errors[0]?.message || errorMessage;
+                messages = error.errors.map((e: any) => e.message || e.code).filter(Boolean);
+            }
+        } else if (responseData?.errors) {
             errorDetails = {
-                code: error.response.data.errors[0]?.code,
-                message: error.response.data.errors[0]?.message,
-                details: error.response.data.errors[0]?.details || error.response.data.errors.map((e: any) => e.message || e.code)
+                code: responseData.errors[0]?.code,
+                message: responseData.errors[0]?.message,
+                details: responseData.errors[0]?.details || responseData.errors.map((e: any) => e.message || e.code)
             };
-            errorMessage = error.response.data.errors[0]?.message || errorMessage;
+            if (!messages.length) {
+                errorMessage = responseData.errors[0]?.message || errorMessage;
+                messages = responseData.errors.map((e: any) => e.message || e.code).filter(Boolean);
+            }
+        } else if (responseData) {
+            errorDetails = responseData;
         }
-        
+ 
+        const friendlyMessages: string[] = [];
+        const appendFriendly = (msg: string) => {
+            if (!msg) return;
+            friendlyMessages.push(msg);
+        };
+ 
+        const interpretMessage = (msg: string) => {
+            const normalized = msg.toLowerCase();
+            if (normalized.includes('rejected_by_issuer')) {
+                appendFriendly('Transação recusada pelo emissor do cartão. Entre em contato com o banco ou utilize outro cartão.');
+                return true;
+            }
+            if (normalized.includes('invalid_email_for_sandbox')) {
+                appendFriendly('Em sandbox, utilize um e-mail terminando em @testuser.com para o titular do cartão.');
+                return true;
+            }
+            return false;
+        };
+ 
+        messages.forEach((msg) => {
+            if (!interpretMessage(msg)) {
+                appendFriendly(msg);
+            }
+        });
+ 
+        const uniqueFriendly = Array.from(new Set(friendlyMessages));
+        errorMessage = uniqueFriendly[0];
+         
+        if (!messages.length) {
+            messages = uniqueFriendly;
+        }
+
+        if (order) {
+            try {
+                order.status = 'failed';
+                order.paymentStatus = 'failed';
+                order.paymentStatusDetail = 'rejected';
+                order.paymentMessage = errorMessage;
+                order.paymentAdminMessage = messages.join(', ');
+                order.isActive = false;
+                order.cardAttempts = (order.cardAttempts || 0) + 1;
+                await order.save();
+            } catch (persistError) {
+                console.error('Não foi possível atualizar o pedido após falha no cartão:', persistError);
+            }
+        }
+ 
         return res.status(400).json({
             success: false,
             message: errorMessage,
-            errors: errorDetails ? [errorDetails.message] : [errorMessage],
-            errorDetails: errorDetails // Incluir detalhes completos do erro
+            errors: uniqueFriendly,
+            errorDetails: errorDetails, // Incluir detalhes completos do erro
+            cardAttempts: order?.cardAttempts ?? currentAttempts,
+            maxCardAttempts: MAX_CARD_PAYMENT_ATTEMPTS,
         });
     }
 };
@@ -994,7 +1070,6 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
                 ),
                 transactionAmount: paymentInfo.transaction_amount,
                 dateApproved: paymentInfo.date_approved,
-                dateCreated: paymentInfo.date_created,
                 // Para PIX, verificar expiração
                 isExpired: paymentInfo.payment_method_id === 'pix' && paymentInfo.date_of_expiration
                     ? paymentService.isPixPaymentExpired(paymentInfo.date_of_expiration)

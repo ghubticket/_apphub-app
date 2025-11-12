@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import MpSelect from './MpSelect';
 import {
@@ -16,6 +16,8 @@ import {
 import { INPUT_BASE_CLASS } from '../constants';
 import type { CardFieldKey } from '../types';
 
+type PaymentStatusState = 'idle' | 'processing' | 'success' | 'error';
+
 type CardPaymentFormProps = {
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
     isCheckoutReady: boolean;
@@ -28,6 +30,13 @@ type CardPaymentFormProps = {
     customerEmail: string;
     onDocumentTypeChange: (value: string) => void;
     clearFieldError: (field: CardFieldKey, extraMessages?: string[]) => void;
+    status: PaymentStatusState;
+    statusMessage: string;
+    statusDetails: string[];
+    isBlocked: boolean;
+    redirectCountdown: number | null;
+    onStatusDismiss?: () => void;
+    onNavigateToOrders?: () => void;
 };
 
 export function CardPaymentForm({
@@ -42,6 +51,13 @@ export function CardPaymentForm({
     customerEmail,
     onDocumentTypeChange,
     clearFieldError,
+    status,
+    statusMessage,
+    statusDetails,
+    isBlocked,
+    redirectCountdown,
+    onStatusDismiss,
+    onNavigateToOrders,
 }: CardPaymentFormProps) {
     const handleInstallmentsSelection = useCallback(() => {
         clearFieldError('installments');
@@ -55,9 +71,71 @@ export function CardPaymentForm({
         [onDocumentTypeChange, clearFieldError],
     );
 
+    const monthOptions = useMemo(
+        () => [
+            { value: '', text: '', disabled: true, hidden: true },
+            ...Array.from({ length: 12 }, (_, index) => {
+                const value = String(index + 1).padStart(2, '0');
+                return { value, text: value };
+            }),
+        ],
+        [],
+    );
+
+    const yearOptions = useMemo(() => {
+        const startYear = new Date().getFullYear();
+        const totalYears = 15;
+        const options = Array.from({ length: totalYears + 1 }, (_, index) => {
+            const fullYear = startYear + index;
+            return {
+                value: String(fullYear % 100).padStart(2, '0'),
+                text: String(fullYear),
+            };
+        });
+        return [{ value: '', text: '', disabled: true, hidden: true }, ...options];
+    }, []);
+
+    const showOverlay = status !== 'idle';
+    const processing = status === 'processing';
+    const success = status === 'success';
+    const error = status === 'error';
+    const overlayMessage =
+        statusMessage ||
+        (processing
+            ? 'Estamos processando seu pagamento com segurança...'
+            : success
+                ? 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.'
+                : 'Não foi possível processar o pagamento. Tente novamente.');
+    const errorMessages = statusDetails.length
+        ? statusDetails
+        : statusMessage
+            ? [statusMessage]
+            : [];
+
+    const [overlayMounted, setOverlayMounted] = useState(false);
+    const [overlayEntering, setOverlayEntering] = useState(false);
+
+    useEffect(() => {
+        if (showOverlay) {
+            setOverlayMounted(true);
+            const frame = requestAnimationFrame(() => setOverlayEntering(true));
+            return () => cancelAnimationFrame(frame);
+        }
+        setOverlayEntering(false);
+        const timeout = setTimeout(() => {
+            setOverlayMounted(false);
+        }, 250);
+        return () => clearTimeout(timeout);
+    }, [showOverlay]);
+
+    const overlayActiveClass = overlayEntering
+        ? 'opacity-100 translate-y-0 pointer-events-auto'
+        : 'opacity-0 translate-y-3 pointer-events-none';
+
     return (
-        <form id="checkout-card-form" className="mt-6 space-y-4" onSubmit={onSubmit}>
-            <div className="grid gap-4 md:grid-cols-6">
+        <div className="mt-6">
+            <form id="checkout-card-form" className="space-y-4" onSubmit={onSubmit} aria-busy={processing}>
+                <div className="grid gap-4 md:grid-cols-6">
                 <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-6">
                     Número do cartão
                     <div className="relative">
@@ -82,44 +160,38 @@ export function CardPaymentForm({
                         </span>
                     ) : null}
                 </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
-                    Mês
-                    <div className="relative">
-                        <HiOutlineCalendar className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                        <input
-                            id="form-checkout__cardExpirationMonth"
-                            name="cardExpirationMonth"
-                            type="text"
-                            className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${cardFieldErrors.cardExpirationMonth ? 'border-rose-400 focus:border-rose-500' : ''}`}
-                            placeholder="MM"
-                            onInput={() => clearFieldError('cardExpirationMonth', ['Use dois dígitos para o mês (ex: 09).'])}
-                        />
-                    </div>
-                    {cardFieldErrors.cardExpirationMonth ? (
-                        <span className="text-[0.65rem] font-normal uppercase tracking-normal text-rose-600">
-                            {cardFieldErrors.cardExpirationMonth}
-                        </span>
-                    ) : null}
-                </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
-                    Ano
-                    <div className="relative">
-                        <HiOutlineCalendar className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
-                        <input
-                            id="form-checkout__cardExpirationYear"
-                            name="cardExpirationYear"
-                            type="text"
-                            className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${cardFieldErrors.cardExpirationYear ? 'border-rose-400 focus:border-rose-500' : ''}`}
-                            placeholder="AA"
-                            onInput={() => clearFieldError('cardExpirationYear')}
-                        />
-                    </div>
-                    {cardFieldErrors.cardExpirationYear ? (
-                        <span className="text-[0.65rem] font-normal uppercase tracking-normal text-rose-600">
-                            {cardFieldErrors.cardExpirationYear}
-                        </span>
-                    ) : null}
-                </label>
+                <MpSelect
+                    label="Mês"
+                    selectId="form-checkout__cardExpirationMonth"
+                    selectName="cardExpirationMonth"
+                    icon={HiOutlineCalendar}
+                    placeholder="MM"
+                    classNameOverride="md:col-span-2"
+                    staticOptions={monthOptions}
+                    defaultValue=""
+                    onSelectionChange={(value) => {
+                        if (value) {
+                            clearFieldError('cardExpirationMonth', ['Use dois dígitos para o mês (ex: 09).']);
+                        }
+                    }}
+                    errorText={cardFieldErrors.cardExpirationMonth}
+                />
+                <MpSelect
+                    label="Ano"
+                    selectId="form-checkout__cardExpirationYear"
+                    selectName="cardExpirationYear"
+                    icon={HiOutlineCalendar}
+                    placeholder="AA"
+                    classNameOverride="md:col-span-2"
+                    staticOptions={yearOptions}
+                    defaultValue=""
+                    onSelectionChange={(value) => {
+                        if (value) {
+                            clearFieldError('cardExpirationYear');
+                        }
+                    }}
+                    errorText={cardFieldErrors.cardExpirationYear}
+                />
                 <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2">
                     CVV
                     <div className="relative">
@@ -187,7 +259,7 @@ export function CardPaymentForm({
                     icon={HiOutlineSquaresPlus}
                     loadingText="Carregando…"
                     placeholder="Selecione as parcelas"
-                    disabled={!cardBrand || !mpSelectReady.installments}
+                    disabled={!cardBrand}
                     classNameOverride="md:col-span-6"
                     errorText={cardFieldErrors.installments}
                     onSelectionChange={handleInstallmentsSelection}
@@ -199,7 +271,7 @@ export function CardPaymentForm({
                     icon={HiOutlineDocumentText}
                     loadingText="Carregando…"
                     placeholder="Selecione o documento"
-                    disabled={!cardBrand || !mpSelectReady.docType}
+                    disabled={!cardBrand}
                     classNameOverride="md:col-span-3"
                     onSelectionChange={handleDocTypeSelection}
                 />
@@ -207,14 +279,15 @@ export function CardPaymentForm({
                     CPF
                     <div className="relative">
                         <HiOutlineIdentification
-                            className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${mpSelectReady.docType ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
-                                }`}
+                            className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${
+                                cardBrand ? 'text-[#a38f78]' : 'text-[#d3c7b5]'
+                            }`}
                         />
                         <input
                             id="form-checkout__identificationNumber"
                             name="identificationNumber"
                             type="text"
-                            disabled={!cardBrand || !mpSelectReady.docType}
+                            disabled={!cardBrand}
                             className={`${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${cardFieldErrors.identificationNumber ? 'border-rose-400 focus:border-rose-500' : ''}`}
                             placeholder={selectedDocType === 'CNPJ' ? '00.000.000/0000-00' : '000.000.000-00'}
                             onInput={() => clearFieldError('identificationNumber')}
@@ -229,13 +302,84 @@ export function CardPaymentForm({
             </div>
 
             <button
-                type="submit"
-                disabled={!isCheckoutReady || isProcessing}
-                className="flex w-full items-center justify-center gap-3 rounded-full bg-[#1a1a1d] px-6 py-4 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_25px_55px_-30px_rgba(20,20,32,0.45)] transition hover:bg-[#f97316] hover:text-[#1a1a1d] disabled:cursor-not-allowed disabled:border-[#c9c3b8] disabled:bg-[#c9c3b8]"
+                    type="submit"
+                    disabled={!isCheckoutReady || isProcessing}
+                    className="flex w-full items-center justify-center gap-3 rounded-full bg-[#1a1a1d] px-6 py-4 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_25px_55px_-30px_rgba(20,20,32,0.45)] transition hover:bg-[#f97316] hover:text-[#1a1a1d] disabled:cursor-not-allowed disabled:border-[#c9c3b8] disabled:bg-[#c9c3b8]"
             >
                 {isProcessing ? 'Processando…' : 'Pagar com cartão'}
-            </button>
-        </form>
+                </button>
+            </form>
+
+            <div
+                className={`pointer-events-none absolute inset-0 z-0 rounded-3xl transition-opacity duration-300 ${
+                    error ? 'bg-rose-50/80 opacity-100' : 'opacity-0'
+                }`}
+                aria-hidden="true"
+            />
+
+            {overlayMounted ? (
+                <>
+                    <div
+                        className={`pointer-events-none absolute inset-0 z-0 rounded-3xl transition-opacity duration-300 ${
+                            error && overlayEntering ? 'bg-rose-50/90 opacity-100' : 'opacity-0'
+                        }`}
+                        aria-hidden="true"
+                    />
+                    <div
+                        className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 rounded-3xl border px-6 py-10 text-center shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] backdrop-blur-sm transition-all duration-300 ease-out ${
+                            error ? 'border-rose-200 bg-transparent' : 'border-[#ded7ca] bg-white/95'
+                        } ${overlayActiveClass}`}
+                    >
+                    {processing ? (
+                        <>
+                            <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#1a1a1d]/20 border-t-[#1a1a1d]" aria-hidden="true" />
+                            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
+                                {overlayMessage}
+                            </p>
+                        </>
+                    ) : null}
+                    {success ? (
+                        <>
+                            <p className="text-base font-semibold text-[#1a1a1d]">{overlayMessage}</p>
+                            <button
+                                type="button"
+                                onClick={onNavigateToOrders}
+                                className="rounded-full bg-[#1a1a1d] px-6 py-3 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                            >
+                                Ver meus pedidos
+                            </button>
+                        </>
+                    ) : null}
+                        {error ? (
+                            <div className="flex w-full max-w-md flex-col items-center gap-6">
+                                <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-rose-700">
+                                    <h1 className="text-2xl font-bold uppercase text-rose-600">
+                                        {isBlocked ? 'Você excedeu o limite de tentativas' : 'Sua compra foi negada'}
+                                    </h1>
+                                    <div className="mt-4 space-y-2 text-sm leading-relaxed">
+                                        {errorMessages.map((msg, index) => (
+                                            <p key={`${msg}-${index}`}>{msg}</p>
+                                        ))}
+                                    </div>
+                                    {isBlocked && redirectCountdown !== null ? (
+                                        <p className="mt-4 text-sm font-semibold text-rose-600">
+                                            Redirecionaremos você em {redirectCountdown}s para iniciar um novo pedido.
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={onStatusDismiss}
+                                    className="rounded-full border border-[#1a1a1d] px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                >
+                                    {isBlocked ? 'Iniciar novo pedido agora' : 'Vamos revisar seus dados?'}
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
+                </>
+            ) : null}
+        </div>
     );
 }
 
