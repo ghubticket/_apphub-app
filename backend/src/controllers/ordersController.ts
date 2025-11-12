@@ -101,7 +101,7 @@ const countPurchasedTicketsByCPFOrEmail = async (
             ticketType: ticketTypeId,
             deletedAt: null,
         });
-        
+
         totalPurchased += tickets;
     }
 
@@ -119,6 +119,7 @@ interface CreateOrderRequest {
         phone?: string;
         cpf?: string;
     };
+    allowReuse?: boolean;
 }
 
 /**
@@ -129,7 +130,8 @@ interface CreateOrderRequest {
 export const createOrder = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id; // Do middleware authenticate
-        const { eventId, ticketTypeId, quantity, promoterCode, customerData } = req.body as CreateOrderRequest;
+        const { eventId, ticketTypeId, quantity, promoterCode, customerData, allowReuse } =
+            req.body as CreateOrderRequest;
 
         // Validações básicas
         if (!eventId || !ticketTypeId || !quantity || quantity <= 0) {
@@ -207,6 +209,7 @@ export const createOrder = async (req: Request, res: Response) => {
         // Preparar CPF e Email para validação (prioridade: customerData > user > null)
         const cpfToValidate = customerData?.cpf || user?.cpf;
         const emailToValidate = customerData?.email || user?.email;
+        const normalizedCustomerEmail = normalizeEmail(customerData?.email);
 
         // Verificar limite acumulado por CPF (se configurado)
         if (ticketType.maxPerCPF && cpfToValidate) {
@@ -217,7 +220,7 @@ export const createOrder = async (req: Request, res: Response) => {
                 undefined
             );
             const totalAfterPurchase = purchasedByCPF + quantity;
-            
+
             if (totalAfterPurchase > ticketType.maxPerCPF) {
                 const remaining = Math.max(0, ticketType.maxPerCPF - purchasedByCPF);
                 return res.status(400).json({
@@ -241,7 +244,7 @@ export const createOrder = async (req: Request, res: Response) => {
                 emailToValidate
             );
             const totalAfterPurchase = purchasedByEmail + quantity;
-            
+
             if (totalAfterPurchase > ticketType.maxPerEmail) {
                 const remaining = Math.max(0, ticketType.maxPerEmail - purchasedByEmail);
                 return res.status(400).json({
@@ -260,11 +263,11 @@ export const createOrder = async (req: Request, res: Response) => {
         const isVIP = ticketType.isVIP;
         const ticketPrice = isVIP ? 0 : ticketType.price;
         const subtotal = ticketPrice * quantity; // Valor sem taxa
-        
+
         // Validar e aplicar desconto de código de promotor (se fornecido e não for VIP)
         let discountAmount = 0;
         let usedPromoterCode: string | undefined = undefined;
-        
+
         if (promoterCode && !isVIP) {
             const code = await PromoterCode.findOne({
                 code: promoterCode.toUpperCase().trim(),
@@ -272,10 +275,10 @@ export const createOrder = async (req: Request, res: Response) => {
                 deletedAt: null,
                 events: eventId
             });
-            
+
             if (code) {
                 usedPromoterCode = code.code;
-                
+
                 // Calcular desconto
                 if (code.discountType === 'percentage') {
                     discountAmount = subtotal * (code.discountValue / 100);
@@ -285,45 +288,52 @@ export const createOrder = async (req: Request, res: Response) => {
                 }
             }
         }
-        
+
         // Calcular taxa da plataforma (percentual sobre subtotal - desconto)
         const platformFeePercentage = event.platformFeePercentage || 0;
         const subtotalAfterDiscount = subtotal - discountAmount;
         const platformFee = isVIP ? 0 : (subtotalAfterDiscount * (platformFeePercentage / 100)); // VIP não paga taxa
         const totalAmount = subtotalAfterDiscount + platformFee; // Total: (subtotal - desconto) + taxa
 
-        // Tentar reaproveitar pedido pendente/falho existente (cartão)
-        const normalizedRequestEmail = normalizeEmail(customerData?.email) || normalizeEmail(user?.email);
-        const existingOrderFilters: any = {
-            event: eventId,
-            deletedAt: null,
-            isActive: false,
-            status: { $in: ['pending', 'failed'] },
-            paymentMethod: { $in: [null, 'credit_card', 'debit_card'] },
-            cardAttempts: { $lt: MAX_CARD_PAYMENT_ATTEMPTS },
-            totalTickets: quantity,
-            totalAmount,
-        };
+        // Tentar reaproveitar pedido pendente/falho existente (somente para cartão)
+        if (allowReuse) {
+            const existingOrderFilters: any = {
+                event: eventId,
+                deletedAt: null,
+                isActive: false,
+                status: { $in: ['pending', 'failed'] },
+                paymentMethod: { $in: [null, 'credit_card', 'debit_card'] },
+                cardAttempts: { $lt: MAX_CARD_PAYMENT_ATTEMPTS },
+                totalTickets: quantity,
+                totalAmount,
+            };
 
-        if (userId) {
-            existingOrderFilters.customer = userId;
-        } else if (normalizedRequestEmail) {
-            existingOrderFilters['customerData.email'] = normalizedRequestEmail;
-        }
+            if (userId) {
+                existingOrderFilters.customer = userId;
+            } else if (normalizedCustomerEmail) {
+                existingOrderFilters['customerData.email'] = normalizedCustomerEmail;
+            } else {
+                const normalizedUserEmail = normalizeEmail(user?.email);
+                if (normalizedUserEmail) {
+                    existingOrderFilters['customerData.email'] = normalizedUserEmail;
+                }
+            }
 
-        const existingOrder = await Order.findOne(existingOrderFilters).lean();
+            const existingOrder = await Order.findOne(existingOrderFilters).lean();
 
-        if (existingOrder) {
-            return res.status(200).json({
-                success: true,
-                message: 'Pedido pendente reutilizado. Continue com o pagamento.',
-                data: {
-                    order: existingOrder,
-                    isVIP: existingOrder.paymentMethod === 'vip_free',
-                    requiresPayment: existingOrder.paymentMethod !== 'vip_free',
-                    reused: true,
-                },
-            });
+            if (existingOrder) {
+                console.log(`♻️ [createOrder] Pedido reutilizado: orderNumber=${existingOrder.orderNumber}, cardAttempts=${existingOrder.cardAttempts || 0}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}`);
+                return res.status(200).json({
+                    success: true,
+                    message: 'Pedido pendente reutilizado. Continue com o pagamento.',
+                    data: {
+                        order: existingOrder,
+                        isVIP: existingOrder.paymentMethod === 'vip_free',
+                        requiresPayment: existingOrder.paymentMethod !== 'vip_free',
+                        reused: true,
+                    },
+                });
+            }
         }
 
         // Determinar status e método de pagamento
@@ -342,213 +352,214 @@ export const createOrder = async (req: Request, res: Response) => {
             ticketStatus = 'pending';
         }
 
-        const finalCustomerEmail = normalizedRequestEmail || customerData?.email || user?.email || 'Não informado';
+        const finalCustomerEmail =
+            normalizedCustomerEmail || normalizeEmail(user?.email) || customerData?.email || user?.email || 'Não informado';
 
         try {
-        // Criar pedido
-        const orderNumber = await generateOrderNumber();
-        const order = new Order({
-            customer: userId || null,
-            event: eventId,
-            tickets: [], // Será preenchido após criar os tickets
-            subtotal: subtotal,
-            discountAmount: discountAmount,
-            platformFee: platformFee,
-            totalAmount: totalAmount,
-            promoterCode: usedPromoterCode,
-            totalTickets: quantity,
-            status: orderStatus,
-            paymentMethod: paymentMethod,
-            paidAt: isVIP ? new Date() : undefined,
-            orderNumber,
-            customerData: {
-                name: customerData?.name || user?.name || 'Não informado',
-                email: finalCustomerEmail,
-                phone: customerData?.phone || user?.phone,
-                cpf: customerData?.cpf || user?.cpf,
-            },
-            cardAttempts: 0,
-            isActive: Boolean(isVIP),
-        });
-
-        await order.save();
-        
-        // Incrementar contador de uso do código de promotor (se usado)
-        if (usedPromoterCode) {
-            await PromoterCode.updateOne(
-                { code: usedPromoterCode },
-                { $inc: { currentUses: 1 } },
-            );
-        }
-
-        // Criar tickets
-        const createdTickets: any[] = [];
-        for (let i = 0; i < quantity; i++) {
-            const ticket = new Ticket({
+            // Criar pedido
+            const orderNumber = await generateOrderNumber();
+            const order = new Order({
+                customer: userId || null,
                 event: eventId,
-                ticketType: ticketTypeId,
-                order: order._id,
-                holder: userId || null,
-                price: ticketPrice,
-                status: ticketStatus,
-                qrCode: '', // Será preenchido APENAS se o pedido estiver pago/VIP
+                tickets: [], // Será preenchido após criar os tickets
+                subtotal: subtotal,
+                discountAmount: discountAmount,
+                platformFee: platformFee,
+                totalAmount: totalAmount,
+                promoterCode: usedPromoterCode,
+                totalTickets: quantity,
+                status: orderStatus,
+                paymentMethod: paymentMethod,
+                paidAt: isVIP ? new Date() : undefined,
+                orderNumber,
+                customerData: {
+                    name: customerData?.name || user?.name || 'Não informado',
+                    email: finalCustomerEmail,
+                    phone: customerData?.phone || user?.phone,
+                    cpf: customerData?.cpf || user?.cpf,
+                },
+                cardAttempts: 0,
+                isActive: Boolean(isVIP),
             });
 
-            // Salvar para gerar o código único (pre-save hook)
-            await ticket.save();
+            await order.save();
 
-            // ⚠️ SEGURANÇA: Gerar QR Code APENAS se o pedido estiver PAID ou for VIP
-            // QR codes só devem ser gerados para ingressos confirmados (pedidos pagos)
-            if (orderStatus === 'paid' || isVIP) {
-                const qrCode = await generateQRCode(ticket.code);
-                ticket.qrCode = qrCode;
-                await ticket.save();
-            } else {
-                // Para pedidos pendentes, deixar qrCode vazio
-                ticket.qrCode = '';
-                await ticket.save();
+            // Incrementar contador de uso do código de promotor (se usado)
+            if (usedPromoterCode) {
+                await PromoterCode.updateOne(
+                    { code: usedPromoterCode },
+                    { $inc: { currentUses: 1 } },
+                );
             }
 
-            createdTickets.push(ticket);
-        }
+            // Criar tickets
+            const createdTickets: any[] = [];
+            for (let i = 0; i < quantity; i++) {
+                const ticket = new Ticket({
+                    event: eventId,
+                    ticketType: ticketTypeId,
+                    order: order._id,
+                    holder: userId || null,
+                    price: ticketPrice,
+                    status: ticketStatus,
+                    qrCode: '', // Será preenchido APENAS se o pedido estiver pago/VIP
+                });
 
-        // Atualizar pedido com os tickets
-        order.tickets = createdTickets.map(t => t._id as mongoose.Types.ObjectId);
-        await order.save();
+                // Salvar para gerar o código único (pre-save hook)
+                await ticket.save();
 
-        // Atualizar quantidade vendida do tipo de ingresso
-        ticketType.soldQuantity += quantity;
-        await ticketType.save();
+                // ⚠️ SEGURANÇA: Gerar QR Code APENAS se o pedido estiver PAID ou for VIP
+                // QR codes só devem ser gerados para ingressos confirmados (pedidos pagos)
+                if (orderStatus === 'paid' || isVIP) {
+                    const qrCode = await generateQRCode(ticket.code);
+                    ticket.qrCode = qrCode;
+                    await ticket.save();
+                } else {
+                    // Para pedidos pendentes, deixar qrCode vazio
+                    ticket.qrCode = '';
+                    await ticket.save();
+                }
 
-        // Popular dados para resposta
-        const populatedOrder = await Order.findById(order._id)
-            .populate('event', 'name date location address')
-            .populate('tickets', 'code qrCode status price ticketType holder')
-            .populate('customer', 'name email')
-            .populate('tickets.ticketType', 'name')
-            .lean();
+                createdTickets.push(ticket);
+            }
 
-        // Se for VIP (cortesia), enviar email com PDF dos QR codes
-        if (isVIP && populatedOrder) {
-            try {
-                const event = populatedOrder.event as any;
-                const customer = populatedOrder.customer as any;
-                const customerData = populatedOrder.customerData as any;
-                const tickets = populatedOrder.tickets as any[];
-                const orderNumber = populatedOrder.orderNumber;
-                const orderId = populatedOrder._id;
+            // Atualizar pedido com os tickets
+            order.tickets = createdTickets.map(t => t._id as mongoose.Types.ObjectId);
+            await order.save();
 
-                // Obter email e nome do cliente (prioridade: customerData > customer > null)
-                const customerEmail = customerData?.email || customer?.email;
-                const customerName = customerData?.name || customer?.name;
+            // Atualizar quantidade vendida do tipo de ingresso
+            ticketType.soldQuantity += quantity;
+            await ticketType.save();
 
-                // Debug: Log dos dados disponíveis
-                console.log(`📧 Tentando enviar email de cortesia para pedido ${orderNumber}:`);
-                console.log(`   customerData:`, JSON.stringify(customerData, null, 2));
-                console.log(`   customer:`, customer ? { name: customer.name, email: customer.email } : 'null');
-                console.log(`   customerEmail final: ${customerEmail}`);
-                console.log(`   customerName final: ${customerName}`);
+            // Popular dados para resposta
+            const populatedOrder = await Order.findById(order._id)
+                .populate('event', 'name date location address')
+                .populate('tickets', 'code qrCode status price ticketType holder')
+                .populate('customer', 'name email')
+                .populate('tickets.ticketType', 'name')
+                .lean();
 
-                // Validar se temos email válido (não pode ser "Não informado" ou vazio)
-                if (!customerEmail || customerEmail === 'Não informado' || customerEmail.trim() === '') {
-                    console.warn(`⚠️ Email não informado para cortesia. Pedido: ${orderNumber}`);
-                    console.warn(`   customerData.email: ${customerData?.email}`);
-                    console.warn(`   customer.email: ${customer?.email}`);
-                    console.warn(`   ⚠️ Email não será enviado. Certifique-se de passar customerData.email ao criar a cortesia.`);
-                } else if (event && tickets && tickets.length > 0 && orderNumber) {
-                    // Filtrar apenas tickets com QR code
-                    const ticketsWithQR = tickets.filter(t => t.qrCode);
+            // Se for VIP (cortesia), enviar email com PDF dos QR codes
+            if (isVIP && populatedOrder) {
+                try {
+                    const event = populatedOrder.event as any;
+                    const customer = populatedOrder.customer as any;
+                    const customerData = populatedOrder.customerData as any;
+                    const tickets = populatedOrder.tickets as any[];
+                    const orderNumber = populatedOrder.orderNumber;
+                    const orderId = populatedOrder._id;
 
-                    if (ticketsWithQR.length > 0) {
-                        // Gerar PDF com QR codes
-                        const pdfBuffer = await generateTicketPDF({
-                            event: {
-                                name: event.name,
-                                date: event.date,
-                                location: event.location,
-                                address: event.address
-                            },
-                            orderNumber,
-                            customerName: customerName || 'Cliente',
-                            tickets: ticketsWithQR.map(t => ({
-                                code: t.code,
-                                qrCode: t.qrCode,
-                                ticketType: (t.ticketType as any)?.name || 'Ingresso',
-                                holderName: (t.holder as any)?.name || customerName || 'Cliente'
-                            }))
-                        });
+                    // Obter email e nome do cliente (prioridade: customerData > customer > null)
+                    const customerEmail = customerData?.email || customer?.email;
+                    const customerName = customerData?.name || customer?.name;
 
-                        // Formatar data do evento
-                        const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
+                    // Debug: Log dos dados disponíveis
+                    console.log(`📧 Tentando enviar email de cortesia para pedido ${orderNumber}:`);
+                    console.log(`   customerData:`, JSON.stringify(customerData, null, 2));
+                    console.log(`   customer:`, customer ? { name: customer.name, email: customer.email } : 'null');
+                    console.log(`   customerEmail final: ${customerEmail}`);
+                    console.log(`   customerName final: ${customerName}`);
 
-                        // Preparar QR codes para exibição no email
-                        const qrCodesForEmail = ticketsWithQR.map(t => ({
-                            code: t.code,
-                            qrCode: t.qrCode, // Já está em base64 data URL
-                            holderName: (t.holder as any)?.name || customerName || 'Cliente'
-                        }));
+                    // Validar se temos email válido (não pode ser "Não informado" ou vazio)
+                    if (!customerEmail || customerEmail === 'Não informado' || customerEmail.trim() === '') {
+                        console.warn(`⚠️ Email não informado para cortesia. Pedido: ${orderNumber}`);
+                        console.warn(`   customerData.email: ${customerData?.email}`);
+                        console.warn(`   customer.email: ${customer?.email}`);
+                        console.warn(`   ⚠️ Email não será enviado. Certifique-se de passar customerData.email ao criar a cortesia.`);
+                    } else if (event && tickets && tickets.length > 0 && orderNumber) {
+                        // Filtrar apenas tickets com QR code
+                        const ticketsWithQR = tickets.filter(t => t.qrCode);
 
-                        // Enviar email de cortesia com PDF e QR codes inline
-                        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
-                        const emailResult = await sendCourtesyTicketEmail(
-                            customerEmail,
-                            {
-                                customerName: customerName || 'Cliente',
+                        if (ticketsWithQR.length > 0) {
+                            // Gerar PDF com QR codes
+                            const pdfBuffer = await generateTicketPDF({
+                                event: {
+                                    name: event.name,
+                                    date: event.date,
+                                    location: event.location,
+                                    address: event.address
+                                },
                                 orderNumber,
-                                eventName: event.name,
-                                eventDate,
-                                eventLocation: event.location,
-                                eventAddress: event.address,
-                                totalTickets: ticketsWithQR.length,
-                                ticketType: ticketsWithQR[0]?.ticketType?.name || 'VIP',
-                                downloadLink: `${dashboardUrl}/orders/${orderId}`,
-                                qrCodes: qrCodesForEmail
-                            },
-                            [{
-                                filename: `cortesia-${orderNumber}.pdf`,
-                                content: pdfBuffer,
-                                contentType: 'application/pdf'
-                            }]
-                        );
+                                customerName: customerName || 'Cliente',
+                                tickets: ticketsWithQR.map(t => ({
+                                    code: t.code,
+                                    qrCode: t.qrCode,
+                                    ticketType: (t.ticketType as any)?.name || 'Ingresso',
+                                    holderName: (t.holder as any)?.name || customerName || 'Cliente'
+                                }))
+                            });
 
-                        if (emailResult.success) {
-                            console.log(`✅ Email de cortesia com PDF enviado para ${customerEmail}`);
-                        } else {
-                            console.error(`❌ Erro ao enviar email de cortesia para ${customerEmail}:`, emailResult.error);
+                            // Formatar data do evento
+                            const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+
+                            // Preparar QR codes para exibição no email
+                            const qrCodesForEmail = ticketsWithQR.map(t => ({
+                                code: t.code,
+                                qrCode: t.qrCode, // Já está em base64 data URL
+                                holderName: (t.holder as any)?.name || customerName || 'Cliente'
+                            }));
+
+                            // Enviar email de cortesia com PDF e QR codes inline
+                            const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+                            const emailResult = await sendCourtesyTicketEmail(
+                                customerEmail,
+                                {
+                                    customerName: customerName || 'Cliente',
+                                    orderNumber,
+                                    eventName: event.name,
+                                    eventDate,
+                                    eventLocation: event.location,
+                                    eventAddress: event.address,
+                                    totalTickets: ticketsWithQR.length,
+                                    ticketType: ticketsWithQR[0]?.ticketType?.name || 'VIP',
+                                    downloadLink: `${dashboardUrl}/orders/${orderId}`,
+                                    qrCodes: qrCodesForEmail
+                                },
+                                [{
+                                    filename: `cortesia-${orderNumber}.pdf`,
+                                    content: pdfBuffer,
+                                    contentType: 'application/pdf'
+                                }]
+                            );
+
+                            if (emailResult.success) {
+                                console.log(`✅ Email de cortesia com PDF enviado para ${customerEmail}`);
+                            } else {
+                                console.error(`❌ Erro ao enviar email de cortesia para ${customerEmail}:`, emailResult.error);
+                            }
                         }
                     }
+                } catch (emailError) {
+                    console.error('Erro ao enviar email de cortesia:', emailError);
+                    // Não falhar o pedido se o email falhar
                 }
-            } catch (emailError) {
-                console.error('Erro ao enviar email de cortesia:', emailError);
-                // Não falhar o pedido se o email falhar
             }
+
+            res.status(201).json({
+                success: true,
+                message: isVIP ? 'Pedido VIP criado com sucesso' : 'Pedido criado com sucesso. Aguardando pagamento.',
+                data: {
+                    order: populatedOrder,
+                    isVIP,
+                    requiresPayment: !isVIP,
+                }
+            });
+
+        } catch (error: any) {
+            console.error('Erro ao criar pedido:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Erro ao criar pedido',
+                errors: [error?.message || 'Erro desconhecido']
+            });
         }
-
-        res.status(201).json({
-            success: true,
-            message: isVIP ? 'Pedido VIP criado com sucesso' : 'Pedido criado com sucesso. Aguardando pagamento.',
-            data: {
-                order: populatedOrder,
-                isVIP,
-                requiresPayment: !isVIP,
-            }
-        });
-
-    } catch (error: any) {
-        console.error('Erro ao criar pedido:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Erro ao criar pedido',
-            errors: [error?.message || 'Erro desconhecido']
-        });
-    }
     } catch (outerError: any) {
         console.error('Erro ao criar pedido (pré-transação):', outerError);
         return res.status(500).json({
@@ -577,12 +588,12 @@ export const listMyOrders = async (req: Request, res: Response) => {
         const { page = 1, limit = 10, search = '', status } = req.query as any;
 
         // Construir filtros
-        const filters: any = { 
+        const filters: any = {
             customer: userId,
             deletedAt: null,
             isActive: true,
         };
-        if (status && ['pending','paid','cancelled','refunded'].includes(String(status))) {
+        if (status && ['pending', 'paid', 'cancelled', 'refunded'].includes(String(status))) {
             filters.status = String(status);
         }
 
@@ -614,12 +625,49 @@ export const listMyOrders = async (req: Request, res: Response) => {
         const total = await Order.countDocuments(filters);
 
         // Remover QR codes de pedidos pendentes (segurança)
-        const ordersWithFilteredQR = orders.map(order => ({
-            ...order,
-            tickets: order.tickets.map((ticket: any) => ({
-                ...ticket,
-                qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
-            }))
+        // IMPORTANTE: Para pedidos pagos, garantir que os tickets tenham QR codes
+        const ordersWithFilteredQR = await Promise.all(orders.map(async (order) => {
+            // Se o pedido está pago mas os tickets não têm QR codes, gerar
+            if (order.status === 'paid') {
+                const orderDoc = await Order.findById(order._id);
+                if (orderDoc) {
+                    const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
+                    let needsQRGeneration = false;
+                    for (const ticket of tickets) {
+                        if (ticket.status === 'confirmed' && !ticket.qrCode) {
+                            needsQRGeneration = true;
+                            ticket.qrCode = await generateQRCode(ticket.code);
+                            await ticket.save();
+                        }
+                    }
+                    if (needsQRGeneration) {
+                        // Re-popular para pegar os QR codes atualizados
+                        const updatedOrder = await Order.findById(order._id)
+                            .populate({
+                                path: 'tickets',
+                                select: 'code qrCode status price',
+                                match: { deletedAt: null }
+                            })
+                            .lean();
+                        if (updatedOrder) {
+                            return {
+                                ...updatedOrder,
+                                tickets: updatedOrder.tickets.map((ticket: any) => ({
+                                    ...ticket,
+                                    qrCode: updatedOrder.status === 'paid' ? ticket.qrCode : null
+                                }))
+                            };
+                        }
+                    }
+                }
+            }
+            return {
+                ...order,
+                tickets: order.tickets.map((ticket: any) => ({
+                    ...ticket,
+                    qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
+                }))
+            };
         }));
 
         res.json({
@@ -662,7 +710,7 @@ export const listAllOrders = async (req: Request, res: Response) => {
                 { 'customerData.email': { $regex: search, $options: 'i' } }
             ];
         }
-        if (status && ['pending','paid','cancelled','refunded'].includes(String(status))) {
+        if (status && ['pending', 'paid', 'cancelled', 'refunded'].includes(String(status))) {
             filters.status = String(status);
         }
 
@@ -687,12 +735,49 @@ export const listAllOrders = async (req: Request, res: Response) => {
         const total = await Order.countDocuments(filters);
 
         // Remover QR codes de pedidos pendentes (segurança)
-        const ordersWithFilteredQR = orders.map(order => ({
-            ...order,
-            tickets: order.tickets.map((ticket: any) => ({
-                ...ticket,
-                qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
-            }))
+        // IMPORTANTE: Para pedidos pagos, garantir que os tickets tenham QR codes
+        const ordersWithFilteredQR = await Promise.all(orders.map(async (order) => {
+            // Se o pedido está pago mas os tickets não têm QR codes, gerar
+            if (order.status === 'paid') {
+                const orderDoc = await Order.findById(order._id);
+                if (orderDoc) {
+                    const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
+                    let needsQRGeneration = false;
+                    for (const ticket of tickets) {
+                        if (ticket.status === 'confirmed' && !ticket.qrCode) {
+                            needsQRGeneration = true;
+                            ticket.qrCode = await generateQRCode(ticket.code);
+                            await ticket.save();
+                        }
+                    }
+                    if (needsQRGeneration) {
+                        // Re-popular para pegar os QR codes atualizados
+                        const updatedOrder = await Order.findById(order._id)
+                            .populate({
+                                path: 'tickets',
+                                select: 'code qrCode status price ticketType',
+                                match: { deletedAt: null }
+                            })
+                            .lean();
+                        if (updatedOrder) {
+                            return {
+                                ...updatedOrder,
+                                tickets: updatedOrder.tickets.map((ticket: any) => ({
+                                    ...ticket,
+                                    qrCode: updatedOrder.status === 'paid' ? ticket.qrCode : null
+                                }))
+                            };
+                        }
+                    }
+                }
+            }
+            return {
+                ...order,
+                tickets: order.tickets.map((ticket: any) => ({
+                    ...ticket,
+                    qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
+                }))
+            };
         }));
 
         res.json({
@@ -726,9 +811,9 @@ export const getOrderById = async (req: Request, res: Response) => {
         const { id } = req.params;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
 
-        const order = await Order.findOne({ 
+        const order = await Order.findOne({
             _id: id,
-            deletedAt: null 
+            deletedAt: null
         })
             .populate('event', 'name date location coverImage squareImage')
             .populate({
@@ -761,12 +846,149 @@ export const getOrderById = async (req: Request, res: Response) => {
             });
         }
 
+        // Sincronizar status de pedidos pendentes com Mercado Pago (em background, não bloqueia resposta)
+        // REGRA: MP é a fonte de verdade única - sincronizar PIX e cartão
+        const isPixOrder = order.paymentMethod === 'pix';
+        const isCardOrder = order.paymentMethod === 'credit_card' || order.paymentMethod === 'debit_card';
+        
+        if (order.status === 'pending' && (isPixOrder || isCardOrder) && (order.paymentOrderId || order.paymentId)) {
+            // Executar em background para não bloquear a resposta
+            setImmediate(async () => {
+                try {
+                    const orderDoc = await Order.findById(order._id);
+                    if (!orderDoc || orderDoc.status !== 'pending') return;
+
+                    let paymentInfo: any = null;
+                    let mpStatus: string | null = null;
+                    let mpExpiration: Date | null = null;
+
+                    // Para PIX, usar Orders API primeiro; para cartão, usar Payment API
+                    if (isPixOrder && (orderDoc as any).paymentOrderId) {
+                        try {
+                            const mpOrder = await paymentService.getOrderById((orderDoc as any).paymentOrderId);
+                            const mpPayment = mpOrder?.transactions?.payments?.[0];
+                            if (mpPayment) {
+                                paymentInfo = mpPayment;
+                                mpStatus = (mpPayment.status || mpOrder?.status || '').toLowerCase();
+                                if (mpPayment.date_of_expiration) {
+                                    mpExpiration = new Date(mpPayment.date_of_expiration);
+                                }
+                            } else if (mpOrder?.status) {
+                                mpStatus = String(mpOrder.status).toLowerCase();
+                            }
+                        } catch (orderError) {
+                            if (process.env.NODE_ENV !== 'production') {
+                                console.warn('[getOrderById] Erro ao buscar order no MP:', orderError);
+                            }
+                            return; // Não continuar se não conseguir buscar
+                        }
+                    } else if (orderDoc.paymentId) {
+                        // Para cartão ou fallback PIX: usar Payment API
+                        try {
+                            paymentInfo = await (paymentService as any).getPaymentById(orderDoc.paymentId);
+                            if (paymentInfo) {
+                                mpStatus = (paymentInfo.status || '').toLowerCase();
+                                if (paymentInfo.date_of_expiration) {
+                                    mpExpiration = new Date(paymentInfo.date_of_expiration);
+                                }
+                            }
+                        } catch (paymentError) {
+                            // Payment API pode não funcionar para PIX Orders API, ignorar erro
+                            if (process.env.NODE_ENV !== 'production') {
+                                console.warn('[getOrderById] Erro ao buscar payment no MP:', paymentError);
+                            }
+                            return; // Não continuar se não conseguir buscar
+                        }
+                    }
+
+                    if (!mpStatus) return; // Não temos status, não fazer nada
+
+                    // REGRA: MP é a fonte de verdade única - seguir o status do MP imediatamente
+                    // Se o pagamento foi aprovado no MP, atualizar o pedido
+                    if (mpStatus === 'approved') {
+                        orderDoc.status = 'paid';
+                        orderDoc.paymentStatus = 'approved';
+                        orderDoc.paymentStatusDetail = paymentInfo?.status_detail || 'accredited';
+                        if (paymentInfo?.date_approved) {
+                            (orderDoc as any).paidAt = new Date(paymentInfo.date_approved);
+                        }
+                        await orderDoc.save();
+                        
+                        // Atualizar tickets e gerar QR codes se necessário
+                        const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
+                        for (const ticket of tickets) {
+                            if (ticket.status === 'pending') {
+                                ticket.status = 'confirmed';
+                                ticket.isActive = true;
+                                // Gerar QR code se ainda não tiver
+                                if (!ticket.qrCode) {
+                                    ticket.qrCode = await generateQRCode(ticket.code);
+                                }
+                                await ticket.save();
+                            }
+                        }
+                        
+                        if (process.env.NODE_ENV !== 'production') {
+                            console.log(`[getOrderById] Pedido ${String(orderDoc._id)} (${isPixOrder ? 'PIX' : 'Cartão'}): MP aprovou. Atualizando para paid e gerando QR codes.`);
+                        }
+                    }
+                    // REGRA: Se o MP cancelou, SEMPRE seguir o MP (100% alinhamento)
+                    else if (['cancelled', 'rejected', 'expired'].includes(mpStatus)) {
+                        // Se o MP cancelou, seguir o MP independente da data de expiração
+                        orderDoc.status = 'cancelled';
+                        orderDoc.paymentStatus = mpStatus;
+                        orderDoc.paymentStatusDetail = paymentInfo?.status_detail || mpStatus;
+                        await orderDoc.save();
+                        
+                        if (process.env.NODE_ENV !== 'production') {
+                            const now = new Date();
+                            const paymentMethod = isPixOrder ? 'PIX' : 'Cartão';
+                            if (isPixOrder && mpExpiration && now < mpExpiration) {
+                                console.log(`[getOrderById] ${paymentMethod} pedido ${String(orderDoc._id)}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`);
+                            } else {
+                                console.log(`[getOrderById] ${paymentMethod} pedido ${String(orderDoc._id)}: MP cancelou (status: ${mpStatus}). Seguindo MP e cancelando.`);
+                            }
+                        }
+                    }
+                } catch (syncError) {
+                    // Não bloquear a resposta em caso de erro na sincronização
+                    if (process.env.NODE_ENV !== 'production') {
+                        const paymentMethod = isPixOrder ? 'PIX' : 'Cartão';
+                        console.warn(`[getOrderById] Erro ao sincronizar status ${paymentMethod}:`, syncError);
+                    }
+                }
+            });
+        }
+
+        // Buscar tickets atualizados (pode ter sido atualizado em background)
+        // Re-popular para garantir que temos os QR codes mais recentes
+        const freshOrder = await Order.findById(order._id)
+            .populate('event', 'name date location coverImage squareImage')
+            .populate({
+                path: 'tickets',
+                select: 'code qrCode status price ticketType usedAt usedBy',
+                match: { deletedAt: null },
+                populate: [
+                    { path: 'usedBy', select: 'name email' },
+                    { path: 'ticketType', select: 'name price isVIP' }
+                ]
+            })
+            .populate('customer', 'name email')
+            .lean();
+        
+        if (!freshOrder) {
+            return res.status(404).json({
+                success: false,
+                message: 'Pedido não encontrado'
+            });
+        }
+
         // Remover QR codes de pedidos pendentes (segurança)
         const orderWithFilteredQR = {
-            ...order,
-            tickets: order.tickets.map((ticket: any) => ({
+            ...freshOrder,
+            tickets: freshOrder.tickets.map((ticket: any) => ({
                 ...ticket,
-                qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
+                qrCode: freshOrder.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
             }))
         };
 
@@ -819,16 +1041,79 @@ export const cancelOrder = async (req: Request, res: Response) => {
         }
 
         // Se houver pagamento, primeiro consultar status no MP para evitar falso positivo
-        if (order.paymentId) {
+        // Para PIX: verificar date_of_expiration antes de cancelar (garantir 100% alinhamento com MP)
+        const isPixOrder = order.paymentMethod === 'pix';
+        
+        if (order.paymentId || (order as any).paymentOrderId) {
             try {
-                const payment = await (paymentService as any).getPaymentById(order.paymentId)
-                const mpStatus: string = (payment?.status || '').toLowerCase()
+                let payment: any = null;
+                let mpStatus: string | null = null;
+                let mpExpiration: Date | null = null;
+                
+                // Para PIX, tentar Orders API primeiro
+                if (isPixOrder && (order as any).paymentOrderId) {
+                    try {
+                        const mpOrder = await paymentService.getOrderById((order as any).paymentOrderId);
+                        const mpPayment = mpOrder?.transactions?.payments?.[0];
+                        if (mpPayment) {
+                            payment = mpPayment;
+                            mpStatus = (mpPayment.status || mpOrder?.status || '').toLowerCase();
+                            if (mpPayment.date_of_expiration) {
+                                mpExpiration = new Date(mpPayment.date_of_expiration);
+                            }
+                        } else if (mpOrder?.status) {
+                            mpStatus = String(mpOrder.status).toLowerCase();
+                        }
+                    } catch (orderError) {
+                        console.warn('[cancelOrder] Erro ao buscar order no MP:', orderError);
+                    }
+                }
+                
+                // Fallback: tentar Payment API
+                if (!mpStatus && order.paymentId) {
+                    try {
+                        payment = await (paymentService as any).getPaymentById(order.paymentId);
+                        if (payment) {
+                            mpStatus = (payment?.status || '').toLowerCase();
+                            if (payment?.date_of_expiration) {
+                                mpExpiration = new Date(payment.date_of_expiration);
+                            }
+                        }
+                    } catch (paymentError) {
+                        console.warn('[cancelOrder] Erro ao buscar payment no MP:', paymentError);
+                    }
+                }
+                
                 if (mpStatus === 'approved') {
                     return res.status(400).json({ success: false, message: 'Pedido já aprovado no Mercado Pago; não é possível cancelar.' })
                 }
+                
+                // Para PIX: verificar se realmente expirou antes de cancelar
+                if (isPixOrder && mpExpiration) {
+                    const now = new Date();
+                    if (now < mpExpiration) {
+                        return res.status(400).json({ 
+                            success: false, 
+                            message: `Pedido PIX ainda não expirou no Mercado Pago. Expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} minutos. Aguarde a expiração ou cancele diretamente no Mercado Pago.` 
+                        });
+                    }
+                }
+                
                 // Só tentar cancelar se ainda pendente/acionável
-                if (['pending', 'in_process', 'action_required'].includes(mpStatus)) {
-                    await (paymentService as any).cancelPaymentById(order.paymentId);
+                if (mpStatus && ['pending', 'in_process', 'action_required'].includes(mpStatus)) {
+                    if (isPixOrder && (order as any).paymentOrderId) {
+                        try {
+                            await paymentService.cancelOrderById((order as any).paymentOrderId);
+                        } catch (cancelError) {
+                            console.warn('[cancelOrder] Erro ao cancelar order no MP:', cancelError);
+                        }
+                    } else if (order.paymentId) {
+                        try {
+                            await (paymentService as any).cancelPaymentById(order.paymentId);
+                        } catch (cancelError) {
+                            console.warn('[cancelOrder] Erro ao cancelar payment no MP:', cancelError);
+                        }
+                    }
                     order.paymentStatus = 'cancelled';
                     order.paymentStatusDetail = order.paymentStatusDetail || 'cancelled';
                     order.paymentMessage = 'Pagamento cancelado no Mercado Pago.';
@@ -841,7 +1126,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
 
         // Buscar tickets para obter ticketType e quantidade
         const tickets = await Ticket.find({ order: order._id, deletedAt: null }).populate('ticketType');
-        
+
         // Agrupar por ticketType para liberar estoque corretamente
         const ticketTypeCounts = new Map<string, number>();
         for (const ticket of tickets) {
@@ -929,9 +1214,9 @@ export const confirmPayment = async (req: Request, res: Response) => {
         const { paymentId, paymentStatus } = req.body;
 
         // Buscar pedido
-        const order = await Order.findOne({ 
+        const order = await Order.findOne({
             _id: id,
-            deletedAt: null 
+            deletedAt: null
         });
 
         if (!order) {
@@ -966,9 +1251,9 @@ export const confirmPayment = async (req: Request, res: Response) => {
         await order.save();
 
         // Buscar todos os tickets do pedido
-        const tickets = await Ticket.find({ 
+        const tickets = await Ticket.find({
             order: order._id,
-            deletedAt: null 
+            deletedAt: null
         });
 
         // Gerar QR codes para todos os tickets pendentes
@@ -976,11 +1261,11 @@ export const confirmPayment = async (req: Request, res: Response) => {
             if (ticket.status === 'pending' && !ticket.qrCode) {
                 // Atualizar status do ticket para confirmado
                 ticket.status = 'confirmed';
-                
+
                 // Gerar QR Code
                 const qrCode = await generateQRCode(ticket.code);
                 ticket.qrCode = qrCode;
-                
+
                 await ticket.save();
             }
         }

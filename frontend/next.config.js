@@ -20,6 +20,11 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
+  
+  // Desabilitar trace para evitar problemas com OneDrive
+  experimental: {
+    instrumentationHook: false,
+  },
 };
 
 module.exports = nextConfig;

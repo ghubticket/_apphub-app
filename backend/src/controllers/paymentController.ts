@@ -160,10 +160,15 @@ export const createPixPayment = async (req: Request, res: Response) => {
         order.paymentAdminMessage = statusInfo.adminMessage;
         order.paymentMethod = 'pix';
 
-        // Atualizar status interno se necessário
+        // Para PIX recém-criado: sempre começar como 'pending' a menos que seja realmente 'paid'
+        // Isso evita que pedidos sejam marcados como 'cancelled' prematuramente
         if (statusInfo.internalStatus === 'paid') {
             order.status = 'paid';
             order.paidAt = new Date();
+        } else {
+            // Garantir que pedidos PIX pendentes sempre comecem como 'pending'
+            // Não importa o status retornado pelo MP (pode ser 'action_required', 'processing', etc.)
+            order.status = 'pending';
         }
         order.isActive = true;
 
@@ -390,8 +395,12 @@ export const createCardPayment = async (req: Request, res: Response) => {
         }
 
         // Verificar limite de tentativas de cartão
+        // IMPORTANTE: Verificar ANTES de processar para evitar processar quando já excedeu
         currentAttempts = order.cardAttempts || 0;
+        console.log(`🔍 [createCardPayment] Verificando tentativas: cardAttempts=${currentAttempts}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}, orderNumber=${order.orderNumber}`);
+        
         if (currentAttempts >= MAX_CARD_PAYMENT_ATTEMPTS) {
+            console.warn(`⚠️ [createCardPayment] Limite de tentativas excedido: cardAttempts=${currentAttempts}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}, orderNumber=${order.orderNumber}`);
             order.status = 'failed';
             order.paymentStatus = 'failed';
             order.paymentStatusDetail = 'max_attempts';
@@ -439,6 +448,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
         );
 
         // Atualizar pedido com informações completas
+        // REGRA: MP é a fonte de verdade única - seguir o status do MP imediatamente
         order.paymentId = cardPayment.paymentId;
         order.paymentStatus = cardPayment.status;
         order.paymentStatusDetail = cardPayment.statusDetail;
@@ -446,23 +456,39 @@ export const createCardPayment = async (req: Request, res: Response) => {
         order.paymentAdminMessage = statusInfo.adminMessage;
         order.paymentMethod = paymentMethod;
 
-        // Se pagamento aprovado, atualizar status e tickets
+        // Seguir o status do MP imediatamente (100% alinhamento)
         if (paymentStatus === 'paid') {
             order.status = 'paid';
             order.paidAt = cardPayment.dateApproved ? new Date(cardPayment.dateApproved) : new Date();
             order.isActive = true;
             order.cardAttempts = 0;
 
-            // Confirmar tickets
-            await Ticket.updateMany(
-                { _id: { $in: order.tickets } },
-                {
-                    $set: {
-                        status: 'confirmed',
-                        confirmedAt: new Date()
+            // Confirmar tickets e gerar QR codes se necessário
+            const tickets = await Ticket.find({ _id: { $in: order.tickets }, deletedAt: null });
+            for (const ticket of tickets) {
+                if (ticket.status === 'pending') {
+                    ticket.status = 'confirmed';
+                    // Gerar QR code se ainda não tiver
+                    if (!ticket.qrCode) {
+                        const { generateQRCode } = await import('../services/qrCodeService');
+                        ticket.qrCode = await generateQRCode(ticket.code);
                     }
+                    await ticket.save();
                 }
-            );
+            }
+        } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
+            // Se o MP cancelou/falhou, seguir o MP imediatamente
+            order.status = 'cancelled';
+            order.isActive = false;
+            // Incrementar tentativas apenas se falhou (não se foi cancelado manualmente)
+            if (paymentStatus === 'failed') {
+                const previousAttempts = order.cardAttempts || 0;
+                order.cardAttempts = previousAttempts + 1;
+                console.log(`📊 [createCardPayment] Tentativa falhou: cardAttempts ${previousAttempts} → ${order.cardAttempts}, orderNumber=${order.orderNumber}`);
+            }
+        } else {
+            // processing, pending, etc - manter como pending
+            order.status = 'pending';
         }
 
         await order.save();
@@ -581,13 +607,15 @@ export const createCardPayment = async (req: Request, res: Response) => {
 
         if (order) {
             try {
+                const previousAttempts = order.cardAttempts || 0;
                 order.status = 'failed';
                 order.paymentStatus = 'failed';
                 order.paymentStatusDetail = 'rejected';
                 order.paymentMessage = errorMessage;
                 order.paymentAdminMessage = messages.join(', ');
                 order.isActive = false;
-                order.cardAttempts = (order.cardAttempts || 0) + 1;
+                order.cardAttempts = previousAttempts + 1;
+                console.log(`📊 [createCardPayment] Erro ao processar: cardAttempts ${previousAttempts} → ${order.cardAttempts}, orderNumber=${order.orderNumber}`);
                 await order.save();
             } catch (persistError) {
                 console.error('Não foi possível atualizar o pedido após falha no cartão:', persistError);
@@ -848,10 +876,25 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 order.paymentAdminMessage = statusInfo.adminMessage;
                 
                 // Mapear status interno para status do Order
+                // REGRA: Se o MP cancelou (via webhook), SEMPRE seguir o MP (100% alinhamento)
+                // A data de expiração é apenas para cancelamento automático quando expirar
+                const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
+                
                 if (paymentStatus === 'paid') {
                     order.status = 'paid';
                 } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
+                    // Se o MP cancelou (via webhook), seguir o MP independente da data de expiração
+                    // O MP pode cancelar por vários motivos (expiração, erro interno, cancelamento manual, etc)
                     order.status = 'cancelled';
+                    if (isPixOrder && process.env.NODE_ENV !== 'production') {
+                        const mpExpiration = paymentInfo.date_of_expiration ? new Date(paymentInfo.date_of_expiration) : null;
+                        const now = new Date();
+                        if (mpExpiration && now < mpExpiration) {
+                            console.log(`[webhook-order] PIX pedido ${order.orderNumber}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`);
+                        } else {
+                            console.log(`[webhook-order] PIX pedido ${order.orderNumber}: MP cancelou (status: ${paymentInfo.status}). Seguindo MP e cancelando.`);
+                        }
+                    }
                 } else if (paymentStatus === 'refunded') {
                     order.status = 'refunded';
                 } else {
@@ -957,10 +1000,25 @@ export const handleWebhook = async (req: Request, res: Response) => {
             order.paymentAdminMessage = statusInfo.adminMessage;
             
             // Mapear status interno para status do Order (que só aceita pending, paid, cancelled, refunded)
+            // REGRA: Se o MP cancelou (via webhook), SEMPRE seguir o MP (100% alinhamento)
+            // A data de expiração é apenas para cancelamento automático quando expirar
+            const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
+            
             if (paymentStatus === 'paid') {
                 order.status = 'paid';
             } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
+                // Se o MP cancelou (via webhook), seguir o MP independente da data de expiração
+                // O MP pode cancelar por vários motivos (expiração, erro interno, cancelamento manual, etc)
                 order.status = 'cancelled';
+                if (isPixOrder && process.env.NODE_ENV !== 'production') {
+                    const mpExpiration = paymentInfo.date_of_expiration ? new Date(paymentInfo.date_of_expiration) : null;
+                    const now = new Date();
+                    if (mpExpiration && now < mpExpiration) {
+                        console.log(`[webhook-payment] PIX pedido ${order.orderNumber}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`);
+                    } else {
+                        console.log(`[webhook-payment] PIX pedido ${order.orderNumber}: MP cancelou (status: ${paymentInfo.status}). Seguindo MP e cancelando.`);
+                    }
+                }
             } else if (paymentStatus === 'refunded') {
                 order.status = 'refunded';
             } else {

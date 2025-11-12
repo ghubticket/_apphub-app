@@ -239,7 +239,7 @@ const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
     paid: ['refunded'],
     cancelled: [],
     refunded: [],
-    failed: [],
+    failed: ['pending', 'paid'], // Permitir retentar pagamento: failed -> pending ou failed -> paid
 };
 
 // Virtual para verificar se foi pago

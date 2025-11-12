@@ -1,4 +1,5 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
+import https from 'https';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -11,6 +12,7 @@ import { authenticateWithCookies } from './middleware/cookies';
 import { validateUserAgent } from './middleware/deviceValidation';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/node';
+import { getSSLOptions } from './config/ssl';
 import authRoutes from './routes/auth'
 import usersRoutes from './routes/users'
 import eventsRoutes from './routes/events'
@@ -103,7 +105,14 @@ app.use((req: any, res, next) => {
 
 // CORS - Permitir requisições do frontend, dashboard e QR scanner app (restrito em produção)
 const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '');
-const fallbackOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+const fallbackOrigins = [
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'http://localhost:3001',
+    'https://localhost:3001',
+    'http://localhost:3443',
+    'https://localhost:3443',
+];
 const allowedOrigins = Array.from(
     new Set(
         [
@@ -354,26 +363,62 @@ const startServer = async () => {
         checkMercadoPagoConfig();
         checkEmailConfig();
 
+        // Verificar se SSL está disponível
+        const sslOptions = getSSLOptions();
+        const httpsPort = Number(process.env.HTTPS_PORT) || 3443;
+        const useHttps = sslOptions !== null;
+
         // Iniciar servidor
-        app.listen(PORT, '0.0.0.0', () => {
-            console.log('');
-            console.log('🚀 ========================================');
-            console.log(`🚀  EventHub API está rodando!`);
-            console.log('🚀 ========================================');
-            console.log(`📡  Porta: ${PORT}`);
-            console.log(`🌍  URL Local: http://localhost:${PORT}`);
-            console.log(`🌐  URL Rede: http://0.0.0.0:${PORT} (acessível por outros dispositivos na rede)`);
-            console.log(`📚  Ambiente: ${process.env.NODE_ENV || 'development'}`);
-            console.log('🚀 ========================================');
-            console.log('');
-            console.log('💡 Próximos passos:');
-            console.log('   1. Acesse http://localhost:3001 para testar');
-            console.log('   2. 📚 Swagger: http://localhost:3001/api-docs');
-            console.log('   3. 🔐 Auth: http://localhost:3001/auth/login');
-            console.log('   4. Endpoints de eventos em /api/events');
-            console.log('   5. 💳 Endpoints de pagamento em /api/payments');
-            console.log('');
-        });
+        if (useHttps) {
+            // Servidor HTTPS
+            const httpsServer = https.createServer(sslOptions, app);
+            httpsServer.listen(httpsPort, '0.0.0.0', () => {
+                console.log('');
+                console.log('🚀 ========================================');
+                console.log(`🚀  EventHub API está rodando com HTTPS! 🔒`);
+                console.log('🚀 ========================================');
+                console.log(`📡  Porta HTTPS: ${httpsPort}`);
+                console.log(`🌍  URL Local: https://localhost:${httpsPort}`);
+                console.log(`🌐  URL Rede: https://0.0.0.0:${httpsPort} (acessível por outros dispositivos na rede)`);
+                console.log(`📚  Ambiente: ${process.env.NODE_ENV || 'development'}`);
+                console.log('🚀 ========================================');
+                console.log('');
+                console.log('💡 Próximos passos:');
+                console.log(`   1. Acesse https://localhost:${httpsPort} para testar`);
+                console.log(`   2. 📚 Swagger: https://localhost:${httpsPort}/api-docs`);
+                console.log(`   3. 🔐 Auth: https://localhost:${httpsPort}/auth/login`);
+                console.log('   4. Endpoints de eventos em /api/events');
+                console.log('   5. 💳 Endpoints de pagamento em /api/payments');
+                console.log('');
+            });
+        } else {
+            // Servidor HTTP (fallback)
+            app.listen(PORT, '0.0.0.0', () => {
+                console.log('');
+                console.log('🚀 ========================================');
+                console.log(`🚀  EventHub API está rodando!`);
+                console.log('🚀 ========================================');
+                console.log(`📡  Porta: ${PORT}`);
+                console.log(`🌍  URL Local: http://localhost:${PORT}`);
+                console.log(`🌐  URL Rede: http://0.0.0.0:${PORT} (acessível por outros dispositivos na rede)`);
+                console.log(`📚  Ambiente: ${process.env.NODE_ENV || 'development'}`);
+                console.log('🚀 ========================================');
+                console.log('');
+                console.log('💡 Próximos passos:');
+                console.log('   1. Acesse http://localhost:3001 para testar');
+                console.log('   2. 📚 Swagger: http://localhost:3001/api-docs');
+                console.log('   3. 🔐 Auth: http://localhost:3001/auth/login');
+                console.log('   4. Endpoints de eventos em /api/events');
+                console.log('   5. 💳 Endpoints de pagamento em /api/payments');
+                console.log('');
+                if (process.env.SSL_ENABLED === 'true') {
+                    console.log('⚠️  SSL_ENABLED=true mas certificados não encontrados.');
+                    console.log('   Para usar HTTPS, execute: mkcert localhost 127.0.0.1 ::1');
+                    console.log('   E coloque os certificados em: backend/certificates/');
+                    console.log('');
+                }
+            });
+        }
 
         // Iniciar job de expiração de pedidos pendentes
         if (process.env.ORDER_EXPIRATION_ENABLED !== 'false') {

@@ -88,7 +88,16 @@ export default function MpSelect({
         syncFromSelect();
         selectElement.addEventListener('change', syncFromSelect);
 
-        const observer = new MutationObserver(syncFromSelect);
+        const observer = new MutationObserver(() => {
+            syncFromSelect();
+            // Forçar atualização do estado de opções no DOM após mudanças
+            if (selectRef.current) {
+                const domOptions = Array.from(selectRef.current.options).filter(
+                    (opt) => !opt.hidden && !opt.disabled && opt.value !== ''
+                );
+                setHasOptionsInDOM(domOptions.length > 0);
+            }
+        });
         observer.observe(selectElement, { childList: true, subtree: true, attributes: true });
 
         return () => {
@@ -158,23 +167,53 @@ export default function MpSelect({
         }
     }, [isOpen]);
 
-    const fallbackText = disabled ? loadingText ?? '' : '';
+    const visibleOptions = useMemo(
+        () => options.filter((option) => !option.hidden && !option.disabled),
+        [options],
+    );
+    const hasOptions = visibleOptions.length > 0;
+
+    // Verificar também diretamente no DOM se há opções (mais confiável)
+    // Isso garante que mesmo se o estado não estiver sincronizado, verificamos o DOM real
+    const [hasOptionsInDOM, setHasOptionsInDOM] = useState(false);
+
+    // Verificar opções no DOM sempre que as opções mudarem ou quando o componente montar
+    useEffect(() => {
+        if (!selectRef.current) {
+            setHasOptionsInDOM(false);
+            return;
+        }
+        const checkDOMOptions = () => {
+            const domOptions = Array.from(selectRef.current!.options).filter(
+                (opt) => !opt.hidden && !opt.disabled && opt.value !== ''
+            );
+            setHasOptionsInDOM(domOptions.length > 0);
+        };
+        
+        checkDOMOptions();
+        
+        // Verificar periodicamente também para garantir sincronização
+        const interval = setInterval(checkDOMOptions, 100);
+        
+        return () => clearInterval(interval);
+    }, [options, selectId]);
+
+    // Mostrar loading APENAS quando:
+    // 1. Está desabilitado (campo não habilitado ainda)
+    // 2. OU quando não há opções disponíveis (nem no estado nem no DOM) e não está desabilitado (aguardando Mercado Pago)
+    // NUNCA mostrar loading se já há opções disponíveis (no estado OU no DOM)
+    const isLoading = disabled || (!hasOptions && !hasOptionsInDOM && !disabled && loadingText);
+    const fallbackText = isLoading ? loadingText ?? '' : '';
     const rawDisplay = (displayText || fallbackText || '').trim();
-    const hideLoadingText = /carregando|detectando/i.test(rawDisplay);
     const effectivePlaceholder = placeholder || 'Selecione uma opção';
     const textToShow =
-        !rawDisplay || hideLoadingText
-            ? effectivePlaceholder
+        !rawDisplay
+            ? (isLoading && loadingText ? loadingText : effectivePlaceholder)
             : placeholder && rawDisplay === placeholder
                 ? placeholder
                 : rawDisplay;
     const IconColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
     const ArrowColor = disabled ? 'text-[#d3c7b5]' : 'text-[#a38f78]';
-    const visibleOptions = useMemo(
-        () => options.filter((option) => !option.hidden),
-        [options],
-    );
-    const hasOptions = visibleOptions.length > 0;
     const errorClass = errorText ? 'border-rose-400 focus:border-rose-500 text-[#1a1a1d]' : '';
 
     const toggleDropdown = () => {
@@ -199,9 +238,8 @@ export default function MpSelect({
     return (
         <label
             ref={containerRef}
-            className={`relative flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d] md:col-span-2 ${
-                classNameOverride || ''
-            }`}
+            className={`relative flex flex-col gap-2 text-xs font-500 uppercase tracking-normal text-[#1a1a1d] md:col-span-2 ${classNameOverride || ''
+                }`}
         >
             <span className="flex items-center justify-between">
                 <span>{label}</span>
@@ -218,9 +256,8 @@ export default function MpSelect({
                     disabled={disabled || !hasOptions}
                     onClick={toggleDropdown}
                     ref={triggerRef}
-                    className={`${SELECT_BASE_CLASS} flex w-full items-center justify-between py-3 pl-11 pr-10 text-left ${
-                        disabled ? 'text-[#b5aa92]' : 'text-[#1a1d]'
-                    } ${disabled || !hasOptions ? 'cursor-not-allowed' : 'cursor-pointer'} ${errorClass}`}
+                    className={`${SELECT_BASE_CLASS} flex w-full items-center justify-between py-3 pl-11 pr-10 text-left ${disabled ? 'text-[#b5aa92]' : 'text-[#1a1d]'
+                        } ${disabled || !hasOptions ? 'cursor-not-allowed' : 'cursor-pointer'} ${errorClass}`}
                 >
                     <span className="block w-full truncate">{textToShow || '\u00A0'}</span>
                     <HiOutlineChevronDown className={`ml-3 shrink-0 transition-transform ${ArrowColor} ${isOpen ? 'rotate-180' : ''}`} />
@@ -245,11 +282,10 @@ export default function MpSelect({
                                             type="button"
                                             disabled={option.disabled}
                                             onClick={() => handleOptionSelect(option)}
-                                            className={`flex w-full items-center tracking-normal justify-between px-4 py-2 text-sm text-left transition ${
-                                                option.disabled
-                                                    ? 'cursor-not-allowed text-[#c5bcaa]'
-                                                    : 'cursor-pointer text-[#1a1a1d] hover:bg-[#f5f1e8]'
-                                            } ${isSelected ? 'bg-[#f5f1e8] font-semibold text-[#a38f78]' : ''}`}
+                                            className={`flex w-full items-center tracking-normal justify-between px-4 py-2 text-sm text-left transition ${option.disabled
+                                                ? 'cursor-not-allowed text-[#c5bcaa]'
+                                                : 'cursor-pointer text-[#1a1a1d] hover:bg-[#f5f1e8]'
+                                                } ${isSelected ? 'bg-[#f5f1e8] font-semibold text-[#a38f78]' : ''}`}
                                         >
                                             <span className="truncate">{option.text}</span>
                                             {isSelected ? (

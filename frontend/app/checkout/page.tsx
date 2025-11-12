@@ -35,6 +35,11 @@ import { CheckoutCartSummary } from './components/CheckoutCartSummary';
 import { CustomerDataForm } from './components/CustomerDataForm';
 import { PixPaymentSection } from './components/PixPaymentSection';
 import { registerNumericMask } from './utils/inputMasks';
+import { storageHelpers } from './utils/storageHelpers';
+import { useCardForm } from './hooks/useCardForm';
+import { useCardBrandDetection } from './hooks/useCardBrandDetection';
+import { useMpSelects } from './hooks/useMpSelects';
+import { processMercadoPagoError, extractPaymentMethodId, formatPaymentData, validateCardField } from './utils/paymentHelpers';
 
 declare global {
     interface Window {
@@ -43,9 +48,6 @@ declare global {
 }
 
 const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
-const CHECKOUT_CUSTOMER_STORAGE_KEY = 'checkout:customer-data';
-const CHECKOUT_DEVICE_STORAGE_KEY = 'checkout:mp-device';
-const CHECKOUT_ACTIVE_ORDER_KEY = 'checkout:active-order-id';
 
 export default function CheckoutPage() {
     const router = useRouter();
@@ -58,29 +60,80 @@ export default function CheckoutPage() {
     const [globalSuccess, setGlobalSuccess] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [pixResult, setPixResult] = useState<PixPaymentResult | null>(null);
+    const [checkingPaidOrder, setCheckingPaidOrder] = useState(true);
     const persistOrder = useCallback(
         (next: CreatedOrder | null) => {
             setOrder(next);
-            if (typeof window === 'undefined') return;
             if (next?._id) {
-                window.sessionStorage.setItem(CHECKOUT_ACTIVE_ORDER_KEY, next._id);
+                storageHelpers.saveActiveOrderId(next._id);
             } else {
-                window.sessionStorage.removeItem(CHECKOUT_ACTIVE_ORDER_KEY);
+                storageHelpers.clearActiveOrderId();
             }
         },
         [],
     );
 
+    // BUG CRÍTICO: Verificar se há pedido aprovado no sessionStorage ANTES de qualquer renderização
+    // Este useEffect deve executar primeiro e redirecionar se encontrar pedido pago
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            setCheckingPaidOrder(false);
+            return;
+        }
+        if (!isReady || !isAuthenticated) {
+            return;
+        }
+
+        const activeOrderId = storageHelpers.loadActiveOrderId();
+
+        if (!activeOrderId) {
+            setCheckingPaidOrder(false);
+            return;
+        }
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const response = await api.get(`/orders/${activeOrderId}`);
+                const restoredOrder = response.data?.data;
+
+                if (!cancelled && restoredOrder?._id && restoredOrder.status === 'paid') {
+                    storageHelpers.clearActiveOrderId();
+                    clearCartItems();
+                    setCartItems([]);
+                    persistOrder(null);
+                    setPixResult(null);
+                    window.location.href = '/';
+                    return;
+                }
+                if (!cancelled) {
+                    setCheckingPaidOrder(false);
+                }
+            } catch (restoreError: any) {
+                setCheckingPaidOrder(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isReady, isAuthenticated, router, persistOrder]);
+
+    // Restaurar pedido pendente/failed normalmente (após verificação de pedido pago)
     useEffect(() => {
         if (order) return;
-        if (typeof window === 'undefined') return;
-        const activeOrderId = window.sessionStorage.getItem(CHECKOUT_ACTIVE_ORDER_KEY);
+        const activeOrderId = storageHelpers.loadActiveOrderId();
         if (!activeOrderId) return;
         let cancelled = false;
         (async () => {
             try {
                 const response = await api.get(`/orders/${activeOrderId}`);
                 const restoredOrder = response.data?.data;
+
+                // Se já foi verificado como pago no useEffect anterior, não restaurar
+                if (restoredOrder?.status === 'paid') {
+                    return;
+                }
+
                 if (
                     !cancelled &&
                     restoredOrder?._id &&
@@ -89,14 +142,11 @@ export default function CheckoutPage() {
                 ) {
                     persistOrder(restoredOrder);
                 } else if (!cancelled) {
-                    window.sessionStorage.removeItem(CHECKOUT_ACTIVE_ORDER_KEY);
+                    storageHelpers.clearActiveOrderId();
                 }
-            } catch (restoreError) {
+            } catch (restoreError: any) {
                 if (!cancelled) {
-                    window.sessionStorage.removeItem(CHECKOUT_ACTIVE_ORDER_KEY);
-                }
-                if (process.env.NODE_ENV !== 'production') {
-                    console.warn('[checkout] falha ao restaurar pedido ativo', restoreError);
+                    storageHelpers.clearActiveOrderId();
                 }
             }
         })();
@@ -107,6 +157,73 @@ export default function CheckoutPage() {
     const pixPaymentActive = Boolean(pixResult);
     const pixGenerationDeadlineMinutes = pixResult?.expirationMinutes ?? 30;
     const [pixCopySuccess, setPixCopySuccess] = useState(false);
+    const [pixStatus, setPixStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+    const [pixStatusMessage, setPixStatusMessage] = useState('');
+    const pixRedirectTimeoutRef = useRef<number | null>(null);
+
+    // Verificar status do pedido PIX periodicamente
+    useEffect(() => {
+        // Continuar verificando mesmo se pixStatus === 'success' para garantir que o overlay apareça
+        if (!order?._id || !pixPaymentActive) return;
+
+        const checkPixStatus = async () => {
+            try {
+                const response = await api.get(`/orders/${order._id}`);
+                const orderData = response.data?.data;
+                if (orderData?.status === 'paid') {
+                    // Só setar success uma vez para evitar múltiplos redirecionamentos
+                    if (pixStatus !== 'success') {
+                        setPixStatus('success');
+                        setPixStatusMessage('Seu pagamento foi aprovado e seu ingresso já está disponível, vamos te levar pra lá.');
+
+                        storageHelpers.clearActiveOrderId();
+                        clearCartItems();
+                        // Também limpar o estado do pedido para evitar restauração
+                        persistOrder(null);
+                        setPixResult(null);
+                        
+                        // Configurar countdown de 5 segundos para mostrar overlay de sucesso
+                        setRedirectCountdown(5);
+                        
+                        // Limpar timeouts/intervals anteriores se existirem
+                        if (pixRedirectTimeoutRef.current) {
+                            window.clearTimeout(pixRedirectTimeoutRef.current);
+                            pixRedirectTimeoutRef.current = null;
+                        }
+                        if (blockCountdownIntervalRef.current) {
+                            window.clearInterval(blockCountdownIntervalRef.current);
+                            blockCountdownIntervalRef.current = null;
+                        }
+                        
+                        // Iniciar countdown de 5 segundos
+                        blockCountdownIntervalRef.current = window.setInterval(() => {
+                            setRedirectCountdown((prev) => {
+                                if (prev === null) return prev;
+                                if (prev <= 1) {
+                                    if (blockCountdownIntervalRef.current) {
+                                        window.clearInterval(blockCountdownIntervalRef.current);
+                                        blockCountdownIntervalRef.current = null;
+                                    }
+                                    return 0;
+                                }
+                                return prev - 1;
+                            });
+                        }, 1000);
+                        
+                        // Redirecionar automaticamente após 5 segundos
+                        pixRedirectTimeoutRef.current = window.setTimeout(() => {
+                            navigateToOrders();
+                        }, 5000);
+                    }
+                }
+            } catch (error) {
+                // Ignorar erros silenciosamente
+            }
+        };
+
+        const interval = setInterval(checkPixStatus, 3000); // Verificar a cada 3 segundos
+        return () => clearInterval(interval);
+    }, [order?._id, pixPaymentActive, pixStatus, persistOrder]);
     const pixExpirationDescription = useMemo(() => {
         if (!pixResult) return '';
         const minutesFromResponse =
@@ -136,13 +253,59 @@ export default function CheckoutPage() {
         }
         return '';
     }, [pixResult]);
-    const initialDeviceId =
-        typeof window !== 'undefined' ? window.localStorage.getItem(CHECKOUT_DEVICE_STORAGE_KEY) : null;
+    const initialDeviceId = storageHelpers.loadDeviceId();
     const [deviceId, setDeviceId] = useState<string | null>(initialDeviceId);
     const [deviceChecks, setDeviceChecks] = useState(0);
     const [cardErrors, setCardErrors] = useState<string[]>([]);
     const [cardFieldErrors, setCardFieldErrors] = useState<Partial<Record<CardFieldKey, string>>>({});
-    const [cardBrand, setCardBrand] = useState<string>('');
+    const [selectedDocType, setSelectedDocType] = useState<string>('CPF');
+
+    const mercadoPago = useMercadoPago(MP_PUBLIC_KEY);
+
+    const calculateItem = useCallback(
+        (item: CartItem): CheckoutCartItem => {
+            const subtotal = item.price * item.quantity;
+            const platformFeeValue = item.platformFeePercentage
+                ? (subtotal * item.platformFeePercentage) / 100
+                : 0;
+            const fixedFeeValue = item.ticketFee ? item.ticketFee * item.quantity : 0;
+            return {
+                ...item,
+                subtotal,
+                platformFeeValue,
+                fixedFeeValue,
+                total: subtotal + platformFeeValue + fixedFeeValue,
+            };
+        },
+        [],
+    );
+
+    const summarizedCart = useMemo(() => cartItems.map(calculateItem), [cartItems, calculateItem]);
+
+    const totalAmount = useMemo(
+        () => summarizedCart.reduce((acc, item) => acc + item.total, 0),
+        [summarizedCart],
+    );
+
+    const totalTickets = useMemo(
+        () => summarizedCart.reduce((acc, item) => acc + item.quantity, 0),
+        [summarizedCart],
+    );
+
+    const primaryCartItem = summarizedCart[0];
+
+    // Hook para detecção de bandeira do cartão
+    const { cardBrand } = useCardBrandDetection({
+        mercadoPago,
+        selectedTab,
+        onBrandDetected: () => {
+            // Bandeira detectada - os selects serão atualizados automaticamente pelo useMpSelects
+        },
+        onBrandCleared: () => {
+            // Bandeira limpa
+        },
+    });
+
     const cardBrandDisplay = useMemo(() => {
         if (!cardBrand) return '';
         const normalized = cardBrand.trim();
@@ -152,8 +315,45 @@ export default function CheckoutPage() {
         }
         return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase();
     }, [cardBrand]);
-    const [mpSelectReady, setMpSelectReady] = useState({ installments: false, docType: false });
-    const [selectedDocType, setSelectedDocType] = useState<string>('CPF');
+
+    // Hook para gerenciar selects do Mercado Pago
+    const { mpSelectReady } = useMpSelects({
+        cardBrand,
+        selectedTab,
+    });
+
+    // Hook para gerenciar cardForm do Mercado Pago
+    const { cardFormRef } = useCardForm({
+        mercadoPago,
+        publicKey: MP_PUBLIC_KEY,
+        totalAmount,
+        selectedTab,
+        callbacks: {
+            onFormMounted: (error: any) => {
+                if (error) {
+                    setCardErrors([error.message ?? 'Não foi possível montar o formulário do cartão.']);
+                }
+            },
+            onError: (error: any) => {
+                const errorMessage = processMercadoPagoError(error);
+                setCardErrors([errorMessage]);
+            },
+            onFetchInstallments: (error: any) => {
+                if (error) {
+                    setCardErrors((prev) => [
+                        ...prev,
+                        'Não foi possível carregar as opções de parcelamento. Verifique os dados do cartão.',
+                    ]);
+                }
+            },
+        },
+        onCardBrandDetected: () => {
+            // Bandeira detectada via callback do cardForm
+        },
+        onInstallmentsReady: () => {
+            // Parcelas carregadas
+        },
+    });
     useEffect(() => {
         if (!mpSelectReady.docType) return;
         const input = document.getElementById('form-checkout__identificationNumber') as HTMLInputElement | null;
@@ -219,49 +419,20 @@ export default function CheckoutPage() {
     const cardBlockRedirectTimeoutRef = useRef<number | null>(null);
     const blockCountdownIntervalRef = useRef<number | null>(null);
     const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
-    const lastDetectedBinRef = useRef<string>('');
 
     const greetingName = useMemo(() => {
         if (!user) return 'Bem-vindo';
         return `Bem-vindo, ${user.name}`;
     }, [user]);
 
-    const [customerData, setCustomerData] = useState<CheckoutCustomerData>(() => {
-        if (typeof window !== 'undefined') {
-            const raw = window.localStorage.getItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
-            if (raw) {
-                try {
-                    const parsed = JSON.parse(raw) as Partial<CheckoutCustomerData>;
-                    return {
-                        name: parsed.name ?? '',
-                        email: parsed.email ?? '',
-                        cpf: parsed.cpf ?? '',
-                        phone: parsed.phone ?? '',
-                    };
-                } catch {
-                    // ignore parse errors
-                }
-            }
-        }
-        return {
-            name: '',
-            email: '',
-            cpf: '',
-            phone: '',
-        };
-    });
+    const [customerData, setCustomerData] = useState<CheckoutCustomerData>(() => storageHelpers.loadCustomerData());
     const [persistCustomerData, setPersistCustomerData] = useState(true);
-
-    const mercadoPago = useMercadoPago(MP_PUBLIC_KEY);
-    const cardFormRef = useRef<any>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const existing = document.querySelector<HTMLScriptElement>('script[data-mp-security="true"]');
         if (existing) {
-            if (window.MP_DEVICE_SESSION_ID) {
-                console.log('[checkout][security] existing device session', window.MP_DEVICE_SESSION_ID);
-            }
+            // Device session já carregado
             return;
         }
 
@@ -272,14 +443,15 @@ export default function CheckoutPage() {
         script.setAttribute('data-mp-security', 'true');
         script.onload = () => {
             if (window.MP_DEVICE_SESSION_ID) {
-                console.log('[checkout][security] script loaded deviceId', window.MP_DEVICE_SESSION_ID);
                 setDeviceId((prev) => {
                     if (prev === window.MP_DEVICE_SESSION_ID) {
                         return prev;
                     }
                     if (window.MP_DEVICE_SESSION_ID) {
-                        window.localStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, window.MP_DEVICE_SESSION_ID);
-                        window.sessionStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, window.MP_DEVICE_SESSION_ID);
+                        storageHelpers.saveDeviceId(window.MP_DEVICE_SESSION_ID);
+                        if (typeof window !== 'undefined') {
+                            window.sessionStorage.setItem('checkout:mp-device', window.MP_DEVICE_SESSION_ID);
+                        }
                     }
                     return window.MP_DEVICE_SESSION_ID || prev;
                 });
@@ -295,38 +467,6 @@ export default function CheckoutPage() {
             script.onerror = null;
         };
     }, []);
-
-    const calculateItem = useCallback(
-        (item: CartItem): CheckoutCartItem => {
-            const subtotal = item.price * item.quantity;
-            const platformFeeValue = item.platformFeePercentage
-                ? (subtotal * item.platformFeePercentage) / 100
-                : 0;
-            const fixedFeeValue = item.ticketFee ? item.ticketFee * item.quantity : 0;
-            return {
-                ...item,
-                subtotal,
-                platformFeeValue,
-                fixedFeeValue,
-                total: subtotal + platformFeeValue + fixedFeeValue,
-            };
-        },
-        [],
-    );
-
-    const summarizedCart = useMemo(() => cartItems.map(calculateItem), [cartItems, calculateItem]);
-
-    const totalAmount = useMemo(
-        () => summarizedCart.reduce((acc, item) => acc + item.total, 0),
-        [summarizedCart],
-    );
-
-    const totalTickets = useMemo(
-        () => summarizedCart.reduce((acc, item) => acc + item.quantity, 0),
-        [summarizedCart],
-    );
-
-    const primaryCartItem = summarizedCart[0];
 
     const refreshCart = useCallback(async () => {
         const rawItems = loadCartItems().filter((item) => item.quantity > 0);
@@ -383,7 +523,7 @@ export default function CheckoutPage() {
                 );
             }
         } catch (error) {
-            console.warn('Não foi possível atualizar os dados dos ingressos:', error);
+            // Ignorar erros ao atualizar dados dos ingressos
         }
     }, []);
 
@@ -417,8 +557,8 @@ export default function CheckoutPage() {
     }, [user]);
 
     useEffect(() => {
-        if (typeof window === 'undefined' || !persistCustomerData) return;
-        window.localStorage.setItem(CHECKOUT_CUSTOMER_STORAGE_KEY, JSON.stringify(customerData));
+        if (!persistCustomerData) return;
+        storageHelpers.saveCustomerData(customerData);
     }, [customerData, persistCustomerData]);
 
     useEffect(() => {
@@ -430,10 +570,6 @@ export default function CheckoutPage() {
 
     const ensureDeviceIdAvailable = useCallback(
         async (forceReload = false, source: string = 'unknown') => {
-            console.log('[checkout][deviceId]', source, 'starting lookup', {
-                forceReload,
-                hasCached: Boolean(deviceId),
-            });
             const resolveMaybePromise = async <T,>(value: T | Promise<T> | undefined | null): Promise<T | null> => {
                 if (!value) return null;
                 if (typeof (value as any).then === 'function') {
@@ -447,26 +583,21 @@ export default function CheckoutPage() {
             };
 
             if (!forceReload && deviceId) {
-                console.log('[checkout][deviceId]', source, 'using cached value', deviceId);
                 return deviceId;
             }
 
-            if (typeof window !== 'undefined') {
-                const stored =
-                    window.sessionStorage.getItem(CHECKOUT_DEVICE_STORAGE_KEY) ??
-                    window.localStorage.getItem(CHECKOUT_DEVICE_STORAGE_KEY);
-                if (stored && !forceReload) {
-                    console.log('[checkout][deviceId]', source, 'using stored value', stored);
-                    setDeviceId(stored);
-                    return stored;
-                }
+            const stored = storageHelpers.loadDeviceId();
+            if (stored && !forceReload) {
+                setDeviceId(stored);
+                return stored;
             }
 
             if (!forceReload && typeof window !== 'undefined' && window.MP_DEVICE_SESSION_ID) {
-                console.log('[checkout][deviceId]', source, 'using MP_DEVICE_SESSION_ID', window.MP_DEVICE_SESSION_ID);
                 setDeviceId(window.MP_DEVICE_SESSION_ID);
-                window.sessionStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, window.MP_DEVICE_SESSION_ID);
-                window.localStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, window.MP_DEVICE_SESSION_ID);
+                storageHelpers.saveDeviceId(window.MP_DEVICE_SESSION_ID);
+                if (typeof window !== 'undefined') {
+                    window.sessionStorage.setItem('checkout:mp-device', window.MP_DEVICE_SESSION_ID);
+                }
                 return window.MP_DEVICE_SESSION_ID;
             }
 
@@ -474,15 +605,9 @@ export default function CheckoutPage() {
 
             if (mercadoPago) {
                 candidate = (await resolveMaybePromise<string>(mercadoPago.getDeviceId?.())) ?? null;
-                if (candidate) {
-                    console.log('[checkout][deviceId]', source, 'via mercadoPago.getDeviceId', candidate);
-                }
 
                 if (!candidate) {
                     candidate = (await resolveMaybePromise<string>(mercadoPago.device?.getId?.())) ?? null;
-                    if (candidate) {
-                        console.log('[checkout][deviceId]', source, 'via mercadoPago.device.getId', candidate);
-                    }
                 }
 
                 if (!candidate && typeof mercadoPago.security === 'function') {
@@ -490,18 +615,12 @@ export default function CheckoutPage() {
                         const security = mercadoPago.security();
                         if (security?.getDeviceId) {
                             candidate = (await resolveMaybePromise<string>(security.getDeviceId())) ?? null;
-                            if (candidate) {
-                                console.log('[checkout][deviceId]', source, 'via security.getDeviceId', candidate);
-                            }
                         }
                         if (!candidate && security?.createDevice) {
                             candidate = (await resolveMaybePromise<string>(security.createDevice())) ?? null;
-                            if (candidate) {
-                                console.log('[checkout][deviceId]', source, 'via security.createDevice', candidate);
-                            }
                         }
                     } catch (error) {
-                        console.warn('[checkout][deviceId]', source, 'security helper failed', error);
+                        // Ignorar erros silenciosamente
                     }
                 }
             }
@@ -510,17 +629,12 @@ export default function CheckoutPage() {
                 try {
                     const formData = cardFormRef.current.getCardFormData();
                     candidate = formData?.deviceId || formData?.additional_info?.device_id || null;
-                    if (candidate) {
-                        console.log('[checkout][deviceId]', source, 'via cardFormData', candidate);
-                    }
                 } catch (error) {
-                    console.warn('[checkout][deviceId]', source, 'cardFormData lookup failed', error);
                     candidate = null;
                 }
             }
 
             if (!candidate && typeof window !== 'undefined' && window.MP_DEVICE_SESSION_ID) {
-                console.log('[checkout][deviceId]', source, 'late MP_DEVICE_SESSION_ID', window.MP_DEVICE_SESSION_ID);
                 candidate = window.MP_DEVICE_SESSION_ID;
             }
 
@@ -530,23 +644,17 @@ export default function CheckoutPage() {
                 (window as any).MercadoPago?.device?.getId
             ) {
                 candidate = await resolveMaybePromise<string>((window as any).MercadoPago.device.getId());
-                if (candidate) {
-                    console.log('[checkout][deviceId]', source, 'via window.MercadoPago.device.getId', candidate);
-                }
             }
 
             if (candidate) {
                 setDeviceId(candidate);
+                storageHelpers.saveDeviceId(candidate);
                 if (typeof window !== 'undefined') {
-                    window.sessionStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, candidate);
-                    window.localStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, candidate);
+                    window.sessionStorage.setItem('checkout:mp-device', candidate);
                     window.MP_DEVICE_SESSION_ID = candidate;
                 }
-                console.log('[checkout][deviceId]', source, 'stored candidate', candidate);
                 return candidate;
             }
-
-            console.warn('[checkout][deviceId]', source, 'failed to resolve candidate');
 
             if (process.env.NODE_ENV !== 'production') {
                 let fallback: string;
@@ -555,10 +663,9 @@ export default function CheckoutPage() {
                 } else {
                     fallback = `dev-device-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 8)}`;
                 }
-                console.warn('[checkout][deviceId]', source, 'using fallback deviceId (dev only)', fallback);
                 if (typeof window !== 'undefined') {
-                    window.sessionStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, fallback);
-                    window.localStorage.setItem(CHECKOUT_DEVICE_STORAGE_KEY, fallback);
+                    window.sessionStorage.setItem('checkout:mp-device', fallback);
+                    storageHelpers.saveDeviceId(fallback);
                     window.MP_DEVICE_SESSION_ID = fallback;
                 }
                 setDeviceId(fallback);
@@ -575,7 +682,6 @@ export default function CheckoutPage() {
             const id = await ensureDeviceIdAvailable(false, 'mount');
             if (!cancelled && id) {
                 setDeviceId(id);
-                console.log('[checkout][deviceId] mount captured', id);
             }
         };
         capture();
@@ -591,140 +697,11 @@ export default function CheckoutPage() {
             const id = await ensureDeviceIdAvailable(false, `retry-${deviceChecks + 1}`);
             if (!id) {
                 setDeviceChecks((prev) => prev + 1);
-            } else {
-                console.log('[checkout][deviceId] retry success', id);
             }
         }, 400);
         return () => clearTimeout(timer);
     }, [deviceId, deviceChecks, ensureDeviceIdAvailable]);
 
-    useEffect(() => {
-        if (!mercadoPago || !MP_PUBLIC_KEY) return;
-        const formElement = document.getElementById('checkout-card-form');
-        if (!formElement) return;
-
-        if (cardFormRef.current?.destroy) {
-            cardFormRef.current.destroy();
-        }
-
-        try {
-            cardFormRef.current = mercadoPago.cardForm({
-                amount: totalAmount.toFixed(2),
-                autoMount: true,
-                form: {
-                    id: 'checkout-card-form',
-                    cardholderName: {
-                        id: 'form-checkout__cardholderName',
-                        placeholder: 'Nome completo (igual ao cartão)',
-                    },
-                    cardholderEmail: {
-                        id: 'form-checkout__cardholderEmail',
-                        placeholder: 'email@testuser.com',
-                    },
-                    cardNumber: {
-                        id: 'form-checkout__cardNumber',
-                        placeholder: 'Número do cartão',
-                    },
-                    cardExpirationMonth: {
-                        id: 'form-checkout__cardExpirationMonth',
-                        placeholder: 'MM',
-                    },
-                    cardExpirationYear: {
-                        id: 'form-checkout__cardExpirationYear',
-                        placeholder: 'AA',
-                    },
-                    securityCode: {
-                        id: 'form-checkout__securityCode',
-                        placeholder: 'CVV',
-                    },
-                    installments: {
-                        id: 'form-checkout__installments',
-                        placeholder: 'Parcelas',
-                    },
-                    identificationType: {
-                        id: 'form-checkout__identificationType',
-                    },
-                    identificationNumber: {
-                        id: 'form-checkout__identificationNumber',
-                        placeholder: 'CPF',
-                    },
-                    issuer: {
-                        id: 'form-checkout__issuer',
-                    },
-                },
-                callbacks: {
-                    onFormMounted: (error: any) => {
-                        if (error) {
-                            setCardErrors([error.message ?? 'Não foi possível montar o formulário do cartão.']);
-                        }
-                    },
-                    onPaymentMethodsReceived: (error: any, paymentMethods: any[]) => {
-                        if (!error && Array.isArray(paymentMethods) && paymentMethods.length > 0) {
-                            setCardBrand(paymentMethods[0]?.name || '');
-                        }
-                    },
-                    onFetchInstallments: (error: any) => {
-                        if (error) {
-                            setCardErrors((prev) => [
-                                ...prev,
-                                'Não foi possível carregar as opções de parcelamento. Verifique os dados do cartão.',
-                            ]);
-                        }
-                    },
-                    onError: (error: any) => {
-                        if (error?.type === 'invalid_card_number') {
-                            setCardErrors(['Número do cartão inválido.']);
-                            return;
-                        }
-                        if (error?.type === 'invalid_security_code') {
-                            setCardErrors(['Código de segurança inválido.']);
-                            return;
-                        }
-                        if (error?.type === 'invalid_email') {
-                            setCardErrors(['Informe um e-mail válido para o recibo.']);
-                            return;
-                        }
-                        if (error?.type === 'invalid_cardholder_name') {
-                            setCardErrors(['Informe o nome exatamente como está no cartão.']);
-                            return;
-                        }
-                        if (error?.type === 'invalid_cardholder_identification_number') {
-                            setCardErrors(['Informe um CPF válido.']);
-                            return;
-                        }
-
-                        if (error?.message?.includes('secure connection') || error?.message?.includes('SSL')) {
-                            setCardErrors([
-                                'O Mercado Pago exige conexão segura (HTTPS) para processar cartões. Abra o checkout em https:// e tente novamente.',
-                            ]);
-                        } else {
-                            setCardErrors([
-                                error?.message || 'Não foi possível processar os dados do cartão. Verifique e tente novamente.',
-                            ]);
-                        }
-                    },
-                },
-            });
-            if (process.env.NODE_ENV !== 'production') {
-                const methods = cardFormRef.current && typeof cardFormRef.current === 'object' ? Object.keys(cardFormRef.current) : [];
-                console.log('[checkout][card] cardForm initialized', {
-                    methods,
-                    hasCreateToken: Boolean(cardFormRef.current?.createToken),
-                    hasCreateCardToken: Boolean(cardFormRef.current?.createCardToken),
-                    hasSubmit: Boolean(cardFormRef.current?.submit),
-                });
-            }
-        } catch (error) {
-            console.error('Erro ao inicializar o cardForm do Mercado Pago:', error);
-        }
-
-        return () => {
-            if (cardFormRef.current?.destroy) {
-                cardFormRef.current.destroy();
-            }
-            setCardBrand('');
-        };
-    }, [mercadoPago, totalAmount]);
 
     useEffect(() => {
         if (selectedTab !== 'card') {
@@ -734,101 +711,39 @@ export default function CheckoutPage() {
     }, [selectedTab]);
 
     useEffect(() => {
-        if (!mercadoPago || selectedTab !== 'card') return;
-        const cardNumberInput = document.getElementById('form-checkout__cardNumber') as HTMLInputElement | null;
-        if (!cardNumberInput) return;
-
-        let cancelled = false;
-
-        const detectBrand = async (digits: string) => {
-            const bin = digits.slice(0, 6);
-            if (bin.length < 6 || bin === lastDetectedBinRef.current || cancelled) return;
-            try {
-                const response: any = await (mercadoPago as any).getPaymentMethods({ bin });
-                const detectedBrand =
-                    response?.results?.[0]?.name ||
-                    response?.results?.[0]?.payment_method_id ||
-                    '';
-                if (!cancelled) {
-                    setCardBrand(detectedBrand || '');
-                    lastDetectedBinRef.current = detectedBrand ? bin : '';
-                }
-            } catch (brandError) {
-                if (process.env.NODE_ENV !== 'production') {
-                    console.warn('[checkout][card] erro ao detectar bandeira manualmente', brandError);
-                }
-            }
-        };
-
-        const handleInput = () => {
-            if (cancelled) return;
-            const digits = cardNumberInput.value.replace(/\D/g, '');
-            if (digits.length >= 6) {
-                void detectBrand(digits);
-            } else {
-                lastDetectedBinRef.current = '';
-                setCardBrand('');
-            }
-        };
-
-        handleInput();
-
-        cardNumberInput.addEventListener('input', handleInput);
-        cardNumberInput.addEventListener('change', handleInput);
-        cardNumberInput.addEventListener('blur', handleInput);
-
-        return () => {
-            cancelled = true;
-            lastDetectedBinRef.current = '';
-            cardNumberInput.removeEventListener('input', handleInput);
-            cardNumberInput.removeEventListener('change', handleInput);
-            cardNumberInput.removeEventListener('blur', handleInput);
-        };
-    }, [mercadoPago, selectedTab]);
-
-    useEffect(() => {
-        if (selectedTab !== 'card') return;
-
-        setMpSelectReady({ installments: false, docType: false });
-
-        let attempts = 0;
-        const maxAttempts = 50;
-
-        const interval = setInterval(() => {
-            attempts += 1;
-
-            const installmentsSelect = document.getElementById('form-checkout__installments') as HTMLSelectElement | null;
-            const docTypeSelect = document.getElementById('form-checkout__identificationType') as HTMLSelectElement | null;
-
-            const installmentsReady = Boolean(installmentsSelect && installmentsSelect.options.length > 0);
-            const docTypeReady = Boolean(docTypeSelect && docTypeSelect.options.length > 0);
-
-            const nextState = {
-                installments: installmentsReady,
-                docType: docTypeReady,
-            };
-
-            setMpSelectReady((prev) => {
-                if (prev.installments === nextState.installments && prev.docType === nextState.docType) {
-                    return prev;
-                }
-                return nextState;
-            });
-
-            if (nextState.installments && nextState.docType) {
-                clearInterval(interval);
-            }
-        }, 200);
-
-        return () => clearInterval(interval);
-    }, [selectedTab]);
-
-    useEffect(() => {
-        const detachCard = registerNumericMask('form-checkout__cardNumber', 16, true);
+        // Máscara para CVV (máximo 4 dígitos)
         const detachCvv = registerNumericMask('form-checkout__securityCode', 4);
 
+        // Para o número do cartão, adicionar validação adicional para garantir limite
+        // O onInput do CardPaymentForm já limita, mas vamos garantir também aqui para mudanças programáticas
+        const cardNumberInput = document.getElementById('form-checkout__cardNumber') as HTMLInputElement | null;
+        if (cardNumberInput) {
+            // Garantir que o maxLength está definido (23 = 19 dígitos + 4 espaços)
+            // Mas priorizar 16 dígitos como padrão (19 apenas para cartões específicos)
+            cardNumberInput.maxLength = 23;
+
+            // Validação adicional para detectar mudanças programáticas (do Mercado Pago)
+            // Usar setInterval para verificar periodicamente se o valor ultrapassou o limite
+            const checkInterval = setInterval(() => {
+                if (cardNumberInput) {
+                    const digitsOnly = cardNumberInput.value.replace(/\D/g, '');
+                    // Limitar a 19 dígitos (máximo absoluto)
+                    if (digitsOnly.length > 19) {
+                        // Limitar a 19 dígitos e reformatar
+                        const limited = digitsOnly.slice(0, 19);
+                        const formatted = limited.replace(/(\d{4})(?=\d)/g, '$1 ');
+                        cardNumberInput.value = formatted;
+                    }
+                }
+            }, 100); // Verificar a cada 100ms
+
+            return () => {
+                detachCvv();
+                clearInterval(checkInterval);
+            };
+        }
+
         return () => {
-            detachCard();
             detachCvv();
         };
     }, [selectedTab]);
@@ -1056,26 +971,30 @@ export default function CheckoutPage() {
         const errors: string[] = [];
         const fieldErrors: Partial<Record<CardFieldKey, string>> = {};
 
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('[checkout][card] validateCardFormFields raw inputs', {
-                cardNumber: cardNumberInput?.value,
-                cardholderName: cardholderNameInput?.value,
-                cardholderEmail: cardholderEmailInput?.value,
-                expirationMonth: expirationMonthInput?.value,
-                expirationYear: expirationYearInput?.value,
-                securityCode: securityCodeInput?.value,
-                installments: installmentsSelect?.value,
-                identification: documentInput?.value,
-                selectedDocType: selectedDocType,
-            });
-        }
+        // Validação de campos do cartão
 
+        // REGRA DE NEGÓCIO:
+        // Campos obrigatórios iniciais: número do cartão, mês, ano, CVV, nome igual ao cartão
+        // Campos que se tornam obrigatórios APÓS preencher o cartão: parcelas, tipo de documento, CPF
+
+        // 1. Validar campos obrigatórios iniciais
         const cardNumberDigits = cardNumberInput?.value.replace(/\D/g, '') || '';
-        if (cardNumberDigits.length < 13 || cardNumberDigits.length > 19) {
+        // Padrão ISO 7812: permite cartões com 13 a 19 dígitos (flexível)
+        // Não limitar a tamanhos específicos, apenas ao range 13-19
+        if (cardNumberDigits.length === 0) {
             const message = CARD_FIELD_REQUIRED_MESSAGES.cardNumber;
             errors.push(message);
             fieldErrors.cardNumber = message;
+        } else if (cardNumberDigits.length < 13) {
+            const message = 'Número do cartão muito curto. Cartões devem ter entre 13 e 19 dígitos (padrão ISO 7812).';
+            errors.push(message);
+            fieldErrors.cardNumber = message;
+        } else if (cardNumberDigits.length > 19) {
+            const message = 'Número do cartão muito longo. Cartões devem ter entre 13 e 19 dígitos (padrão ISO 7812).';
+            errors.push(message);
+            fieldErrors.cardNumber = message;
         }
+        // Se estiver entre 13-19 dígitos, está válido segundo ISO 7812
 
         if (!cardholderNameInput?.value.trim()) {
             const message = CARD_FIELD_REQUIRED_MESSAGES.cardholderName;
@@ -1090,9 +1009,14 @@ export default function CheckoutPage() {
             fieldErrors.cardholderEmail = message;
         }
 
-        const monthDigits = expirationMonthInput?.value.replace(/\D/g, '') || '';
+        // Validação de Mês (MM) - Mercado Pago: formato MM (01-12)
+        // OBRIGATÓRIO: mês deve ser preenchido
+        const monthValueRaw = expirationMonthInput?.value || '';
+        const monthDigits = monthValueRaw.replace(/\D/g, '');
         const monthValue = Number(monthDigits);
-        if (monthValue < 1 || monthValue > 12) {
+
+        // Verificar se está vazio ou não foi selecionado
+        if (!monthValueRaw || monthValueRaw.trim() === '' || monthDigits.length === 0) {
             const message = CARD_FIELD_REQUIRED_MESSAGES.cardExpirationMonth;
             errors.push(message);
             fieldErrors.cardExpirationMonth = message;
@@ -1100,100 +1024,170 @@ export default function CheckoutPage() {
             const message = 'Use dois dígitos para o mês (ex: 09).';
             errors.push(message);
             fieldErrors.cardExpirationMonth = message;
+        } else if (monthValue < 1 || monthValue > 12) {
+            const message = 'Mês inválido. Use um valor entre 01 e 12.';
+            errors.push(message);
+            fieldErrors.cardExpirationMonth = message;
         }
 
-        const yearDigits = expirationYearInput?.value.replace(/\D/g, '') || '';
+        // Validação de Ano (AA) - Mercado Pago: formato AA (2 dígitos), deve ser ano atual ou futuro
+        // OBRIGATÓRIO: ano deve ser preenchido
+        const yearValueRaw = expirationYearInput?.value || '';
+        const yearDigits = yearValueRaw.replace(/\D/g, '');
         const yearValue = Number(yearDigits);
-        if (yearDigits.length !== 2 || yearValue < 0) {
+        const currentYear = new Date().getFullYear();
+        const currentYear2Digits = currentYear % 100; // Últimos 2 dígitos do ano atual
+        const currentMonth = new Date().getMonth() + 1; // Mês atual (1-12)
+
+        // Verificar se está vazio ou não foi selecionado
+        if (!yearValueRaw || yearValueRaw.trim() === '' || yearDigits.length === 0) {
             const message = CARD_FIELD_REQUIRED_MESSAGES.cardExpirationYear;
             errors.push(message);
             fieldErrors.cardExpirationYear = message;
+        } else if (yearDigits.length !== 2) {
+            const message = 'Use dois dígitos para o ano (ex: 25).';
+            errors.push(message);
+            fieldErrors.cardExpirationYear = message;
+        } else {
+            // Converter ano de 2 dígitos para 4 dígitos (assumir século 2000)
+            // Ex: 25 = 2025, 24 = 2024, 99 = 2099, 00 = 2000
+            // Para cartões de crédito, anos de 2 dígitos são sempre do século 2000 (2000-2099)
+            const fullYear = 2000 + yearValue;
+
+            // Validar se o cartão não está expirado
+            // Mercado Pago: cartão é válido até o último dia do mês/ano indicado
+            if (fullYear < currentYear) {
+                const message = 'Cartão expirado. Verifique a data de validade.';
+                errors.push(message);
+                fieldErrors.cardExpirationYear = message;
+            } else if (fullYear === currentYear && monthValue < currentMonth) {
+                // Se o ano é o atual, o mês deve ser >= mês atual
+                // Ex: se estamos em nov/2024, mês 10/2024 está expirado
+                const message = 'Cartão expirado. Verifique a data de validade.';
+                errors.push(message);
+                fieldErrors.cardExpirationYear = message;
+                // Também marcar o mês como erro se ainda não tiver erro
+                if (!fieldErrors.cardExpirationMonth) {
+                    fieldErrors.cardExpirationMonth = message;
+                }
+            }
         }
 
+        // Validação de CVV - Mercado Pago: 3 dígitos (Visa, Mastercard) ou 4 dígitos (American Express)
         const securityDigits = securityCodeInput?.value.replace(/\D/g, '') || '';
-        if (securityDigits.length < 3) {
+        if (!securityDigits || securityDigits.length === 0) {
             const message = CARD_FIELD_REQUIRED_MESSAGES.securityCode;
+            errors.push(message);
+            fieldErrors.securityCode = message;
+        } else if (securityDigits.length < 3) {
+            const message = 'Código de segurança deve ter 3 ou 4 dígitos.';
+            errors.push(message);
+            fieldErrors.securityCode = message;
+        } else if (securityDigits.length > 4) {
+            const message = 'Código de segurança deve ter no máximo 4 dígitos.';
+            errors.push(message);
+            fieldErrors.securityCode = message;
+        } else if (securityDigits.length !== 3 && securityDigits.length !== 4) {
+            // Garantir que seja exatamente 3 ou 4 dígitos (não 1, 2, 5, etc)
+            const message = 'Código de segurança deve ter 3 dígitos (Visa/Mastercard) ou 4 dígitos (American Express).';
             errors.push(message);
             fieldErrors.securityCode = message;
         }
 
-        const normalizedDocType = selectedDocType?.toUpperCase() || 'CPF';
-        const documentDigits = documentInput?.value.replace(/\D/g, '') || '';
-        if (normalizedDocType === 'CPF') {
-            if (!isValidCpf(documentDigits)) {
-                const message = 'Informe um CPF válido do titular do cartão.';
+        // 2. Verificar se o cartão foi preenchido (tem cardBrand ou número válido)
+        const isCardFilled = Boolean(cardBrand) || (cardNumberDigits.length >= 13 && cardNumberDigits.length <= 19);
+
+        // 3. Se o cartão foi preenchido, validar campos que se tornam obrigatórios
+        if (isCardFilled) {
+            // Parcelas se torna obrigatório
+            if (!installmentsSelect?.value) {
+                const message = CARD_FIELD_REQUIRED_MESSAGES.installments;
                 errors.push(message);
-                fieldErrors.identificationNumber = message;
+                fieldErrors.installments = message;
             }
-        } else {
-            const expectedDocLength = normalizedDocType === 'CNPJ' ? 14 : 11;
-            if (documentDigits.length !== expectedDocLength) {
-                const message =
-                    normalizedDocType === 'CNPJ'
-                        ? 'Informe o CNPJ do titular do cartão (14 dígitos).'
-                        : 'Informe o documento do titular do cartão.';
-                errors.push(message);
-                fieldErrors.identificationNumber = message;
+
+            // Tipo de documento e CPF se tornam obrigatórios
+            const normalizedDocType = selectedDocType?.toUpperCase() || 'CPF';
+            const documentDigits = documentInput?.value.replace(/\D/g, '') || '';
+            if (normalizedDocType === 'CPF') {
+                if (!isValidCpf(documentDigits)) {
+                    const message = 'Informe um CPF válido do titular do cartão.';
+                    errors.push(message);
+                    fieldErrors.identificationNumber = message;
+                }
+            } else {
+                const expectedDocLength = normalizedDocType === 'CNPJ' ? 14 : 11;
+                if (documentDigits.length !== expectedDocLength) {
+                    const message =
+                        normalizedDocType === 'CNPJ'
+                            ? 'Informe o CNPJ do titular do cartão (14 dígitos).'
+                            : 'Informe o documento do titular do cartão.';
+                    errors.push(message);
+                    fieldErrors.identificationNumber = message;
+                }
             }
         }
 
-        if (!installmentsSelect?.value) {
-            const message = CARD_FIELD_REQUIRED_MESSAGES.installments;
-            errors.push(message);
-            fieldErrors.installments = message;
-        }
-
-        setCardErrors(Array.from(new Set(errors)));
+        // Não usar setCardErrors - erros apenas nos campos individuais
         setCardFieldErrors(fieldErrors);
+
+        // Log de debug para verificar validação
+
         return errors.length === 0;
-    }, [selectedDocType]);
+    }, [selectedDocType, cardBrand]);
 
-    const ensureOrder = useCallback(async () => {
-        if (order) return order;
-        if (!primaryCartItem) {
-            throw new Error('Carrinho vazio.');
-        }
-        if (!primaryCartItem.eventId) {
-            throw new Error('Evento não identificado para este ingresso.');
-        }
-        if (!validateCustomerData()) {
-            throw new Error('Dados do comprador inválidos.');
-        }
-
-        const normalizedCpf = normalizeCpf(customerData.cpf);
-        const normalizedPhone = normalizePhone(customerData.phone);
-        const formattedCpf = formatCpfDisplay(normalizedCpf);
-        const formattedPhone = formatPhoneDisplay(normalizedPhone);
-
-        try {
-            const response = await api.post('/orders', {
-                eventId: primaryCartItem.eventId,
-                ticketTypeId: primaryCartItem.ticketTypeId ?? primaryCartItem.id,
-                quantity: primaryCartItem.quantity,
-                customerData: {
-                    name: sanitizeInput(customerData.name),
-                    email: sanitizeInput(customerData.email).toLowerCase(),
-                    phone: formattedPhone,
-                    cpf: formattedCpf,
-                },
-            });
-
-            const createdOrder = response.data?.data?.order;
-            if (!createdOrder?._id) {
-                throw new Error('Não foi possível criar o pedido.');
+    const ensureOrder = useCallback(
+        async (options: { allowReuse?: boolean } = {}) => {
+            const { allowReuse = false } = options;
+            if (order) return order;
+            if (!primaryCartItem) {
+                throw new Error('Carrinho vazio.');
             }
-            persistOrder(createdOrder);
-            return createdOrder;
-        } catch (error: any) {
-            const message =
-                error?.response?.data?.message ||
-                (Array.isArray(error?.response?.data?.errors) ? error.response.data.errors.join(', ') : undefined) ||
-                error?.message ||
-                'Não foi possível criar o pedido. Tente novamente.';
-            setGlobalError(message);
-            throw error;
-        }
-    }, [customerData, order, persistOrder, primaryCartItem, validateCustomerData]);
+            if (!primaryCartItem.eventId) {
+                throw new Error('Evento não identificado para este ingresso.');
+            }
+            if (!validateCustomerData()) {
+                throw new Error('Dados do comprador inválidos.');
+            }
+
+            const normalizedCpf = normalizeCpf(customerData.cpf);
+            const normalizedPhone = normalizePhone(customerData.phone);
+            const formattedCpf = formatCpfDisplay(normalizedCpf);
+            const formattedPhone = formatPhoneDisplay(normalizedPhone);
+
+            try {
+                const response = await api.post('/orders', {
+                    eventId: primaryCartItem.eventId,
+                    ticketTypeId: primaryCartItem.ticketTypeId ?? primaryCartItem.id,
+                    quantity: primaryCartItem.quantity,
+                    customerData: {
+                        name: sanitizeInput(customerData.name),
+                        email: sanitizeInput(customerData.email).toLowerCase(),
+                        phone: formattedPhone,
+                        cpf: formattedCpf,
+                    },
+                    allowReuse,
+                });
+
+                const createdOrder = response.data?.data?.order;
+                const isReused = response.data?.data?.reused === true;
+                if (!createdOrder?._id) {
+                    throw new Error('Não foi possível criar o pedido.');
+                }
+                persistOrder(createdOrder);
+                return createdOrder;
+            } catch (error: any) {
+                const message =
+                    error?.response?.data?.message ||
+                    (Array.isArray(error?.response?.data?.errors) ? error.response.data.errors.join(', ') : undefined) ||
+                    error?.message ||
+                    'Não foi possível criar o pedido. Tente novamente.';
+                setGlobalError(message);
+                throw error;
+            }
+        },
+        [customerData, order, persistOrder, primaryCartItem, validateCustomerData],
+    );
 
     const handleRemoveItem = useCallback(
         (id: string) => {
@@ -1207,7 +1201,55 @@ export default function CheckoutPage() {
         [pixPaymentActive, refreshCart, persistOrder],
     );
 
+    const resetCheckoutState = useCallback(() => {
+        clearCartItems();
+        setCartItems([]);
+        persistOrder(null);
+        setPixResult(null);
+        setGlobalError('');
+        setCardErrors([]);
+        setCardFieldErrors({});
+        storageHelpers.clearCustomerData();
+        storageHelpers.clearActiveOrderId();
+    }, [persistOrder]);
+
+    const handleStartNewOrder = useCallback(() => {
+        if (typeof window !== 'undefined') {
+            if (cardRedirectTimeoutRef.current) {
+                window.clearTimeout(cardRedirectTimeoutRef.current);
+                cardRedirectTimeoutRef.current = null;
+            }
+            if (cardBlockRedirectTimeoutRef.current) {
+                window.clearTimeout(cardBlockRedirectTimeoutRef.current);
+                cardBlockRedirectTimeoutRef.current = null;
+            }
+        }
+        if (blockCountdownIntervalRef.current) {
+            window.clearInterval(blockCountdownIntervalRef.current);
+            blockCountdownIntervalRef.current = null;
+        }
+        clearCartItems();
+        storageHelpers.clearCustomerData();
+        storageHelpers.clearActiveOrderId();
+        // Não limpar o estado visual do React (setCartItems, etc.) para evitar "flash" de checkout vazio
+        // O redirecionamento acontecerá imediatamente, então não importa
+        setRedirectCountdown(null);
+        setIsCardBlocked(false);
+        setCardStatus('idle');
+        setCardStatusMessage('');
+        setCardStatusDetails([]);
+        if (typeof window !== 'undefined') {
+            window.location.href = '/';
+        } else {
+            router.push('/');
+        }
+    }, [router]);
+
     const handleDismissCardStatus = useCallback(() => {
+        if (isCardBlocked) {
+            handleStartNewOrder();
+            return;
+        }
         if (typeof window !== 'undefined') {
             if (cardRedirectTimeoutRef.current) {
                 window.clearTimeout(cardRedirectTimeoutRef.current);
@@ -1227,15 +1269,31 @@ export default function CheckoutPage() {
         setCardStatus('idle');
         setCardStatusMessage('');
         setCardStatusDetails([]);
-    }, []);
+    }, [handleStartNewOrder, isCardBlocked]);
 
     const navigateToOrders = useCallback(() => {
-        if (typeof window !== 'undefined' && cardRedirectTimeoutRef.current) {
-            window.clearTimeout(cardRedirectTimeoutRef.current);
-            cardRedirectTimeoutRef.current = null;
+        if (typeof window !== 'undefined') {
+            if (cardRedirectTimeoutRef.current) {
+                window.clearTimeout(cardRedirectTimeoutRef.current);
+                cardRedirectTimeoutRef.current = null;
+            }
+            if (pixRedirectTimeoutRef.current) {
+                window.clearTimeout(pixRedirectTimeoutRef.current);
+                pixRedirectTimeoutRef.current = null;
+            }
+            if (blockCountdownIntervalRef.current) {
+                window.clearInterval(blockCountdownIntervalRef.current);
+                blockCountdownIntervalRef.current = null;
+            }
         }
+        // Limpar estados antes de redirecionar
+        setRedirectCountdown(null);
+        persistOrder(null);
+        setPixResult(null);
+        clearCartItems();
+        setCartItems([]);
         router.push('/dashboard');
-    }, [router]);
+    }, [router, persistOrder]);
 
     useEffect(
         () => () => {
@@ -1260,9 +1318,7 @@ export default function CheckoutPage() {
             const { preserveCartState = false, showGlobalMessage = true } = options;
             setPersistCustomerData(false);
             clearCartItems();
-            if (typeof window !== 'undefined') {
-                window.localStorage.removeItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
-            }
+            storageHelpers.clearCustomerData();
             if (!preserveCartState) {
                 setCartItems([]);
             }
@@ -1317,9 +1373,7 @@ export default function CheckoutPage() {
             try {
                 await api.post(`/orders/${orderId}/cancel`, { reason });
             } catch (error) {
-                if (process.env.NODE_ENV !== 'production') {
-                    console.warn('[checkout][card] cancelPendingOrder failed', error);
-                }
+                // Ignorar erros ao cancelar pedido pendente
             }
         },
         [getStoredToken],
@@ -1330,24 +1384,24 @@ export default function CheckoutPage() {
         cardPaymentSettledRef.current = cardStatus === 'success';
     }, [cardStatus]);
 
-    useEffect(() => {
-        if (!order) return;
-
-        const handleBeforeUnload = () => {
-            if (order && pixPaymentActive) {
-                cancelPendingOrder(order._id, { keepalive: true });
-            }
-        };
-
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            if (order && pixPaymentActive) {
-                void cancelPendingOrder(order._id, { reason: 'checkout_pix_abandoned_cleanup' });
-            }
-        };
-    }, [order, pixPaymentActive, cancelPendingOrder]);
+    // Removido: não cancelar pedidos PIX automaticamente ao sair da página
+    // Pedidos PIX devem respeitar o tempo de expiração do Mercado Pago (30 minutos)
+    // O backend irá cancelar automaticamente quando realmente expirar
+    // useEffect(() => {
+    //     if (!order) return;
+    //     const handleBeforeUnload = () => {
+    //         if (order && pixPaymentActive) {
+    //             cancelPendingOrder(order._id, { keepalive: true });
+    //         }
+    //     };
+    //     window.addEventListener('beforeunload', handleBeforeUnload);
+    //     return () => {
+    //         window.removeEventListener('beforeunload', handleBeforeUnload);
+    //         if (order && pixPaymentActive) {
+    //             void cancelPendingOrder(order._id, { reason: 'checkout_pix_abandoned_cleanup' });
+    //         }
+    //     };
+    // }, [order, pixPaymentActive, cancelPendingOrder]);
 
     const handleCardPayment = useCallback(
         async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1357,6 +1411,20 @@ export default function CheckoutPage() {
             setPixResult(null);
             setCardErrors([]);
             setCardStatusDetails([]);
+
+            // VALIDAÇÃO DEVE ACONTECER ANTES DE SETAR STATUS COMO 'processing'
+            // Regra de negócio: validar campos obrigatórios iniciais primeiro
+            setCardFieldErrors({});
+            const isValid = validateCardFormFields();
+            if (!isValid) {
+                // Validação falhou - erros já foram setados em setCardFieldErrors
+                // Não setar status como 'processing' se a validação falhou
+                setCardStatus('idle');
+                setIsProcessing(false);
+                return;
+            }
+
+            // Se passou na validação, agora pode setar como 'processing'
             setCardStatus('processing');
             setCardStatusMessage('Estamos processando seu pagamento com segurança...');
 
@@ -1387,31 +1455,20 @@ export default function CheckoutPage() {
                 return;
             }
 
-            console.log('[checkout][card] requesting deviceId', { hasExisting: Boolean(deviceId) });
             const currentDeviceId = await ensureDeviceIdAvailable(deviceId !== null, 'card-submit');
             if (!currentDeviceId) {
-                console.warn('[checkout][card] deviceId unavailable');
                 setCardErrors([
                     'Não foi possível obter o deviceId do Mercado Pago. Recarregue a página (em HTTPS) e tente novamente.',
                 ]);
                 setCardStatus('idle');
                 return;
             }
-            console.log('[checkout][card] using deviceId', currentDeviceId);
 
             let createdOrder: CreatedOrder | null = null;
 
             try {
                 setIsProcessing(true);
                 setCardErrors([]);
-                setCardFieldErrors({});
-
-                const isValid = validateCardFormFields();
-                if (!isValid) {
-                    setCardStatus('idle');
-                    setIsProcessing(false);
-                    return;
-                }
 
                 const docInput = document.getElementById('form-checkout__identificationNumber') as HTMLInputElement | null;
                 const cardholderNameInput = document.getElementById('form-checkout__cardholderName') as HTMLInputElement | null;
@@ -1445,39 +1502,17 @@ export default function CheckoutPage() {
                 };
                 try {
                     if (typeof cardFormRef.current?.createToken === 'function') {
-                        console.log('[checkout][card] invoking cardForm.createToken()');
-                        const result = await resolveMaybePromise<any>(cardFormRef.current.createToken());
-                        if (process.env.NODE_ENV !== 'production') {
-                            console.log('[checkout][card] createToken result', result);
-                        }
+                        await resolveMaybePromise<any>(cardFormRef.current.createToken());
                     } else if (typeof cardFormRef.current?.createCardToken === 'function') {
-                        console.log('[checkout][card] invoking cardForm.createCardToken()');
-                        const result = await resolveMaybePromise<any>(cardFormRef.current.createCardToken());
-                        if (process.env.NODE_ENV !== 'production') {
-                            console.log('[checkout][card] createCardToken result', result);
-                        }
+                        await resolveMaybePromise<any>(cardFormRef.current.createCardToken());
                     } else if (typeof cardFormRef.current?.submit === 'function') {
-                        console.log('[checkout][card] invoking cardForm.submit() to trigger tokenization');
-                        const result = await resolveMaybePromise<any>(cardFormRef.current.submit());
-                        if (process.env.NODE_ENV !== 'production') {
-                            console.log('[checkout][card] submit result', result);
-                        }
-                    } else {
-                        console.warn('[checkout][card] nenhum helper de tokenização disponível em cardFormRef');
+                        await resolveMaybePromise<any>(cardFormRef.current.submit());
                     }
                 } catch (tokenError) {
-                    console.warn('[checkout][card] tokenization helper threw error', tokenError);
+                    // Ignorar erros de tokenização
                 }
 
                 const cardFormData = cardFormRef.current.getCardFormData();
-                console.log('[checkout][card] cardFormData', cardFormData);
-                if (process.env.NODE_ENV !== 'production') {
-                    try {
-                        console.log('[checkout][card] cardFormData raw', JSON.stringify(cardFormData, null, 2));
-                    } catch (stringifyError) {
-                        console.warn('[checkout][card] falha ao serializar cardFormData', stringifyError);
-                    }
-                }
 
                 if (docInput) {
                     if (originalDocValue !== null) {
@@ -1501,13 +1536,89 @@ export default function CheckoutPage() {
                     throw new Error('Não foi possível gerar o token do cartão. Verifique os dados e tente novamente.');
                 }
 
-                createdOrder = await ensureOrder();
+                createdOrder = await ensureOrder({ allowReuse: true });
                 if (!createdOrder?._id) {
                     throw new Error('Não foi possível criar o pedido para processar o pagamento.');
                 }
 
                 const installments = Number(cardFormData.installments || 1);
-                const paymentMethodId = cardFormData.paymentMethodId;
+
+                // Obter paymentMethodId: primeiro do cardFormData, depois do dataset do input, depois buscar pelo BIN
+                let paymentMethodId = cardFormData.paymentMethodId;
+
+                // Se não veio no cardFormData, tentar obter do dataset do input (armazenado durante detecção de bandeira)
+                if (!paymentMethodId) {
+                    const cardNumberInput = document.getElementById('form-checkout__cardNumber') as HTMLInputElement | null;
+                    paymentMethodId = cardNumberInput?.dataset.paymentMethodId || '';
+                }
+
+                // Se ainda não tiver, tentar buscar pelo BIN usando getPaymentMethods
+                if (!paymentMethodId && mercadoPago) {
+                    try {
+                        // Tentar obter número do cartão do cardFormData ou do input diretamente
+                        let cardNumberDigits = cardFormData.cardNumber?.replace(/\D/g, '') || '';
+                        if (!cardNumberDigits) {
+                            const cardNumberInput = document.getElementById('form-checkout__cardNumber') as HTMLInputElement | null;
+                            cardNumberDigits = cardNumberInput?.value?.replace(/\D/g, '') || '';
+                        }
+
+                        if (cardNumberDigits.length >= 6) {
+                            const bin = cardNumberDigits.slice(0, 6);
+                            const response: any = await (mercadoPago as any).getPaymentMethods({ bin });
+
+                            // A resposta pode vir em diferentes formatos
+                            let firstResult: any = null;
+                            if (Array.isArray(response)) {
+                                firstResult = response[0];
+                            } else if (response?.results && Array.isArray(response.results)) {
+                                firstResult = response.results[0];
+                            } else if (response?.data && Array.isArray(response.data)) {
+                                firstResult = response.data[0];
+                            } else {
+                                firstResult = response;
+                            }
+
+                            paymentMethodId =
+                                firstResult?.payment_method_id ||
+                                firstResult?.id ||
+                                firstResult?.payment_method?.id ||
+                                '';
+
+                            if (process.env.NODE_ENV !== 'production') {
+                                console.log('[checkout][card] Buscando paymentMethodId no handleCardPayment:', {
+                                    response,
+                                    firstResult,
+                                    paymentMethodId
+                                });
+                            }
+
+                            // Armazenar para próxima vez
+                            const cardNumberInput = document.getElementById('form-checkout__cardNumber') as HTMLInputElement | null;
+                            if (cardNumberInput && paymentMethodId) {
+                                cardNumberInput.dataset.paymentMethodId = paymentMethodId;
+                            }
+                        }
+                    } catch (pmError) {
+                        // Ignorar erros ao buscar paymentMethodId
+                    }
+                }
+
+                // Mapear cardBrand para paymentMethodId se ainda não tiver (fallback)
+                if (!paymentMethodId && cardBrand) {
+                    const brandLower = cardBrand.toLowerCase();
+                    if (brandLower.includes('visa')) {
+                        paymentMethodId = 'visa';
+                    } else if (brandLower.includes('mastercard') || brandLower.includes('master')) {
+                        paymentMethodId = 'master';
+                    } else if (brandLower.includes('amex') || brandLower.includes('american express')) {
+                        paymentMethodId = 'amex';
+                    } else if (brandLower.includes('elo')) {
+                        paymentMethodId = 'elo';
+                    } else if (brandLower.includes('hipercard')) {
+                        paymentMethodId = 'hipercard';
+                    }
+                }
+
                 const cardholderNameValue = (cardFormData.cardholderName || cardholderNameInput?.value || customerData.name || '').trim();
                 const cardholderEmailValue = (cardFormData.cardholderEmail || cardholderEmailInput?.value || customerData.email || '').trim();
                 const identificationTypeValue = (cardFormData.identificationType || selectedDocType || 'CPF').toUpperCase();
@@ -1515,6 +1626,15 @@ export default function CheckoutPage() {
                 if (identificationTypeValue === 'CPF' && !isValidCpf(identificationNumberValue)) {
                     setCardErrors(['Informe um CPF válido do titular do cartão.']);
                     setCardFieldErrors((prev) => ({ ...prev, identificationNumber: 'Informe um CPF válido do titular do cartão.' }));
+                    setCardStatus('idle');
+                    setIsProcessing(false);
+                    return;
+                }
+
+                // Validar paymentMethodId antes de enviar
+                if (!paymentMethodId) {
+                    setCardErrors(['Método de pagamento é obrigatório. Verifique os dados do cartão e tente novamente.']);
+                    setCardFieldErrors((prev) => ({ ...prev, cardNumber: 'Método de pagamento não identificado. Verifique o número do cartão.' }));
                     setCardStatus('idle');
                     setIsProcessing(false);
                     return;
@@ -1535,35 +1655,96 @@ export default function CheckoutPage() {
                     },
                 };
 
-                await api.post(`/payments/${createdOrder._id}/card`, payload, {
+                // Capturar resposta da API para verificar status do pagamento
+                const response = await api.post(`/payments/${createdOrder._id}/card`, payload, {
                     headers: {
                         'X-meli-session-id': currentDeviceId,
                     },
                 });
 
-                finalizeSuccess('Pagamento aprovado! Seus ingressos serão liberados em instantes.', { showGlobalMessage: false });
-                setIsCardBlocked(false);
-                setRedirectCountdown(null);
-                if (blockCountdownIntervalRef.current) {
-                    window.clearInterval(blockCountdownIntervalRef.current);
-                    blockCountdownIntervalRef.current = null;
-                }
-                if (cardBlockRedirectTimeoutRef.current) {
-                    window.clearTimeout(cardBlockRedirectTimeoutRef.current);
-                    cardBlockRedirectTimeoutRef.current = null;
-                }
-                setCardStatus('success');
-                setCardStatusMessage('Pagamento aprovado com sucesso! Seus ingressos estão disponíveis aqui.');
-                setCardStatusDetails([]);
-                persistOrder(null);
-                if (typeof window !== 'undefined') {
+                const paymentData = response.data?.data;
+                const paymentStatus = paymentData?.status?.toLowerCase();
+                const statusInfo = paymentData?.statusInfo;
+                const internalStatus = statusInfo?.internalStatus || paymentStatus;
+
+                // Verificar se o pagamento foi realmente aprovado
+                if (internalStatus === 'paid' || paymentStatus === 'approved' || paymentStatus === 'accredited') {
+                    // PAGAMENTO APROVADO - mostrar mensagem de sucesso
+                    // NÃO chamar finalizeSuccess aqui - ele limpa o carrinho imediatamente
+                    // O carrinho deve permanecer visível até o usuário clicar no botão (igual ao comportamento do erro)
+                    setIsCardBlocked(false);
+                    setRedirectCountdown(null);
+                    if (blockCountdownIntervalRef.current) {
+                        window.clearInterval(blockCountdownIntervalRef.current);
+                        blockCountdownIntervalRef.current = null;
+                    }
+                    if (cardBlockRedirectTimeoutRef.current) {
+                        window.clearTimeout(cardBlockRedirectTimeoutRef.current);
+                        cardBlockRedirectTimeoutRef.current = null;
+                    }
+                    setCardStatus('success');
+                    setCardStatusMessage('Seu pagamento foi aprovado e seu ingresso já está disponível, vamos te levar pra lá.');
+                    setCardStatusDetails(['Seu pagamento foi aprovado e seu ingresso já está disponível, vamos te levar pra lá.']);
+
+                    // BUG CRÍTICO: Limpar sessionStorage e carrinho imediatamente quando pagamento é aprovado
+                    // Isso evita que ao apertar F5 ou navegar de volta, o pedido/carrinho seja restaurado
+                    storageHelpers.clearActiveOrderId();
+                    clearCartItems();
+                    // Também limpar o estado do pedido para evitar restauração
+                    persistOrder(null);
+                    setPixResult(null);
+                    
+                    // Configurar countdown de 5 segundos para mostrar overlay de sucesso
+                    setRedirectCountdown(5);
+                    
+                    // Limpar timeouts/intervals anteriores se existirem
                     if (cardRedirectTimeoutRef.current) {
                         window.clearTimeout(cardRedirectTimeoutRef.current);
                         cardRedirectTimeoutRef.current = null;
                     }
+                    if (cardBlockRedirectTimeoutRef.current) {
+                        window.clearTimeout(cardBlockRedirectTimeoutRef.current);
+                        cardBlockRedirectTimeoutRef.current = null;
+                    }
+                    if (blockCountdownIntervalRef.current) {
+                        window.clearInterval(blockCountdownIntervalRef.current);
+                        blockCountdownIntervalRef.current = null;
+                    }
+                    
+                    // Iniciar countdown de 5 segundos
+                    blockCountdownIntervalRef.current = window.setInterval(() => {
+                        setRedirectCountdown((prev) => {
+                            if (prev === null) return prev;
+                            if (prev <= 1) {
+                                if (blockCountdownIntervalRef.current) {
+                                    window.clearInterval(blockCountdownIntervalRef.current);
+                                    blockCountdownIntervalRef.current = null;
+                                }
+                                return 0;
+                            }
+                            return prev - 1;
+                        });
+                    }, 1000);
+                    
+                    // Redirecionar automaticamente após 5 segundos
                     cardRedirectTimeoutRef.current = window.setTimeout(() => {
                         navigateToOrders();
-                    }, 1600);
+                    }, 5000);
+                } else {
+                    // Pagamento não foi aprovado - tratar como erro ou pendente
+                    const userMessage = statusInfo?.userMessage || 'Pagamento processado. Aguardando confirmação...';
+                    const requiresAction = statusInfo?.requiresAction || false;
+
+                    if (requiresAction || internalStatus === 'pending' || internalStatus === 'in_process') {
+                        // Pagamento pendente - aguardar confirmação
+                        setCardStatus('processing');
+                        setCardStatusMessage(userMessage);
+                        setCardStatusDetails([]);
+                        // Não redirecionar - aguardar webhook ou próxima verificação
+                    } else {
+                        // Pagamento falhou ou foi cancelado
+                        throw new Error(userMessage || 'Pagamento não foi aprovado. Verifique os dados e tente novamente.');
+                    }
                 }
             } catch (error: any) {
                 console.log('Erro no pagamento com cartão:', error);
@@ -1580,11 +1761,14 @@ export default function CheckoutPage() {
                     : undefined;
 
                 if (error?.response?.status === 429) {
-                    const limitMessage =
+                    const backendLimitMessage =
                         error?.response?.data?.message ||
                         'Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido.';
+                    const limitFriendlyMessage = 'Você excedeu o limite de tentativas para este pedido.';
+
                     setIsCardBlocked(true);
                     setRedirectCountdown(10);
+
                     if (blockCountdownIntervalRef.current) {
                         window.clearInterval(blockCountdownIntervalRef.current);
                         blockCountdownIntervalRef.current = null;
@@ -1603,39 +1787,38 @@ export default function CheckoutPage() {
                         });
                     }, 1000);
 
+                    // Limpar apenas localStorage/sessionStorage, mantendo o estado visual do checkout
+                    storageHelpers.clearCustomerData();
+                    storageHelpers.clearActiveOrderId();
                     clearCartItems();
-                    setCartItems([]);
-                    persistOrder(null);
+                    // Não limpar o estado visual do pedido (persistOrder) para manter o checkout visível
+                    // Apenas limpar estados relacionados ao formulário de pagamento
                     setPixResult(null);
-                    lastDetectedBinRef.current = '';
-                    setCardBrand('');
                     setGlobalError('');
                     setCardErrors([]);
                     setCardFieldErrors({});
-                    if (typeof window !== 'undefined') {
-                        window.localStorage.removeItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
-                        window.sessionStorage.removeItem(CHECKOUT_ACTIVE_ORDER_KEY);
-                    }
-                    setCardStatus('error');
-                    setCardStatusMessage(limitMessage);
-                    const details: string[] = [limitMessage];
+
+                    const detailMessages: string[] = [backendLimitMessage || limitFriendlyMessage];
                     if (attemptDescription) {
-                        details.push(attemptDescription);
+                        detailMessages.push(attemptDescription);
                     }
-                    setCardStatusDetails(details);
-                    if (typeof window !== 'undefined') {
-                        if (cardRedirectTimeoutRef.current) {
-                            window.clearTimeout(cardRedirectTimeoutRef.current);
-                            cardRedirectTimeoutRef.current = null;
-                        }
-                        if (cardBlockRedirectTimeoutRef.current) {
-                            window.clearTimeout(cardBlockRedirectTimeoutRef.current);
-                            cardBlockRedirectTimeoutRef.current = null;
-                        }
-                        cardBlockRedirectTimeoutRef.current = window.setTimeout(() => {
-                            window.location.href = '/';
-                        }, 10000);
+                    // Removida mensagem estática de redirecionamento - o contador já mostra isso dinamicamente
+
+                    setCardStatus('error');
+                    setCardStatusMessage(limitFriendlyMessage);
+                    setCardStatusDetails(detailMessages);
+
+                    if (cardRedirectTimeoutRef.current) {
+                        window.clearTimeout(cardRedirectTimeoutRef.current);
+                        cardRedirectTimeoutRef.current = null;
                     }
+                    if (cardBlockRedirectTimeoutRef.current) {
+                        window.clearTimeout(cardBlockRedirectTimeoutRef.current);
+                        cardBlockRedirectTimeoutRef.current = null;
+                    }
+                    cardBlockRedirectTimeoutRef.current = window.setTimeout(() => {
+                        handleStartNewOrder();
+                    }, 10000);
                     return;
                 }
                 const collectedMessages: string[] = [];
@@ -1753,6 +1936,8 @@ export default function CheckoutPage() {
             finalizeSuccess,
             handleCardFormValidationErrors,
             navigateToOrders,
+            handleStartNewOrder,
+            resetCheckoutState,
             primaryCartItem,
             selectedDocType,
             validateCardFormFields,
@@ -1776,21 +1961,18 @@ export default function CheckoutPage() {
                 return;
             }
 
-            console.log('[checkout][pix] requesting deviceId', { hasExisting: Boolean(deviceId) });
             const currentDeviceId = await ensureDeviceIdAvailable(deviceId !== null, 'pix payment');
             if (!currentDeviceId) {
-                console.warn('[checkout][pix] deviceId unavailable');
                 setGlobalError(
                     'Não foi possível obter o deviceId do Mercado Pago. Recarregue a página (em HTTPS) e tente novamente.',
                 );
                 return;
             }
-            console.log('[checkout][pix] using deviceId', currentDeviceId);
 
             try {
                 setIsProcessing(true);
 
-                const createdOrder = await ensureOrder();
+                const createdOrder = await ensureOrder({ allowReuse: false });
 
                 const response = await api.post(
                     `/payments/${createdOrder._id}/pix`,
@@ -1913,9 +2095,9 @@ export default function CheckoutPage() {
                     </h1>
                 </div>
 
-                {loading ? (
+                {checkingPaidOrder || loading ? (
                     <div className="rounded-3xl border border-[#ded7ca] bg-white/70 p-10 text-center text-sm text-[#7d796c]">
-                        Carregando resumo do carrinho...
+                        {checkingPaidOrder ? 'Verificando pedido...' : 'Carregando resumo do carrinho...'}
                     </div>
                 ) : summarizedCart.length === 0 ? (
                     <div className="rounded-3xl border border-dashed border-[#ded7ca] bg-white/70 p-10 text-center text-sm text-[#7d796c]">
@@ -2009,15 +2191,7 @@ export default function CheckoutPage() {
                                         {globalSuccess}
                                     </div>
                                 ) : null}
-                                {cardErrors.length ? (
-                                    <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                                        <ul className="space-y-2">
-                                            {cardErrors.map((errorMessage, index) => (
-                                                <li key={`${errorMessage}-${index}`}>{errorMessage}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                ) : null}
+                                {/* Removido: box vermelho de erros - erros agora aparecem apenas nos campos individuais */}
 
                                 {selectedTab === 'card' ? (
                                     <CardPaymentForm
@@ -2027,7 +2201,6 @@ export default function CheckoutPage() {
                                         cardBrandDisplay={cardBrandDisplay}
                                         cardFieldErrors={cardFieldErrors}
                                         cardBrand={cardBrand}
-                                        mpSelectReady={mpSelectReady}
                                         selectedDocType={selectedDocType}
                                         customerEmail={customerData.email}
                                         onDocumentTypeChange={handleDocumentTypeSelection}
@@ -2035,8 +2208,9 @@ export default function CheckoutPage() {
                                         status={cardStatus}
                                         statusMessage={cardStatusMessage}
                                         statusDetails={cardStatusDetails}
-                                    isBlocked={isCardBlocked}
-                                    redirectCountdown={redirectCountdown}
+                                        isBlocked={isCardBlocked}
+                                        redirectCountdown={redirectCountdown}
+                                        onStartNewOrder={handleStartNewOrder}
                                         onStatusDismiss={handleDismissCardStatus}
                                         onNavigateToOrders={navigateToOrders}
                                     />
@@ -2051,6 +2225,10 @@ export default function CheckoutPage() {
                                         pixCopySuccess={pixCopySuccess}
                                         onCopyCode={handleCopyPixCode}
                                         onSubmit={handlePixPayment}
+                                        pixStatus={pixStatus}
+                                        pixStatusMessage={pixStatusMessage}
+                                        redirectCountdown={redirectCountdown}
+                                        onNavigateToOrders={navigateToOrders}
                                     />
                                 )}
 

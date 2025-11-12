@@ -530,9 +530,11 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
 
         const paymentStatus = String(paymentInfo.status || '').toLowerCase();
         const paymentStatusDetail = paymentInfo.status_detail || paymentInfo.status_reason;
+        const normalizedDetail = typeof paymentStatusDetail === 'string' ? paymentStatusDetail.toLowerCase() : '';
+        const isProcessedAccredited = paymentStatus === 'processed' && normalizedDetail === 'accredited';
         const allowedStatuses = new Set(['approved', 'authorized', 'in_process', 'pending']);
 
-        if (paymentStatus && !allowedStatuses.has(paymentStatus)) {
+        if (paymentStatus && !allowedStatuses.has(paymentStatus) && !isProcessedAccredited) {
             const userMessage = mapMpStatusDetailToMessage(paymentStatusDetail);
             const detailPayload = {
                 status: paymentInfo.status,

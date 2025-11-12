@@ -160,9 +160,17 @@ src/assets/iconify-icons/generated-icons.css
 .vercel/
 
 # ===========================================
+# SSL CERTIFICATES (Local Development)
+# ===========================================
+certificates/
+*.pem
+*.key
+*.crt
+*.cert
+
+# ===========================================
 # MISC
 # ===========================================
-*.pem
 .fusebox/
 .tern-port
 .vscode-test/

@@ -1,0 +1,1273 @@
+page.tsx:85 [checkout] Aguardando autenticação estar pronta... {isReady: false, isAuthenticated: false}
+page.tsx:1277 [checkout][card] cardBrand mudou: {previous: '', current: '', changed: false}
+page.tsx:85 [checkout] Aguardando autenticação estar pronta... {isReady: false, isAuthenticated: false}
+page.tsx:1277 [checkout][card] cardBrand mudou: {previous: '', current: '', changed: false}
+page.tsx:92 [checkout] Verificando pedido no sessionStorage: null
+page.tsx:609 [checkout][deviceId] mount starting lookup {forceReload: false, hasCached: false}
+page.tsx:635 [checkout][deviceId] mount using stored value armor.a717d8941bd44da0322e2f8c7d0f572bbcb1f754e7251b26d160bc8cd6c42e8c8e5fae74c5d72a8c23edae261d07f3a6f3c92fd6dba3460fe625f7c4546b86029808769b547cc9b39b8e7499634bbc4fccfd5cecb4dcd366108caa72c2476771.61d4c1030eb86b9d38e0a337cd8b3f1d
+page.tsx:754 [checkout][deviceId] mount captured armor.a717d8941bd44da0322e2f8c7d0f572bbcb1f754e7251b26d160bc8cd6c42e8c8e5fae74c5d72a8c23edae261d07f3a6f3c92fd6dba3460fe625f7c4546b86029808769b547cc9b39b8e7499634bbc4fccfd5cecb4dcd366108caa72c2476771.61d4c1030eb86b9d38e0a337cd8b3f1d
+page.tsx:609 [checkout][deviceId] mount starting lookup {forceReload: false, hasCached: true}
+page.tsx:626 [checkout][deviceId] mount using cached value armor.a717d8941bd44da0322e2f8c7d0f572bbcb1f754e7251b26d160bc8cd6c42e8c8e5fae74c5d72a8c23edae261d07f3a6f3c92fd6dba3460fe625f7c4546b86029808769b547cc9b39b8e7499634bbc4fccfd5cecb4dcd366108caa72c2476771.61d4c1030eb86b9d38e0a337cd8b3f1d
+page.tsx:754 [checkout][deviceId] mount captured armor.a717d8941bd44da0322e2f8c7d0f572bbcb1f754e7251b26d160bc8cd6c42e8c8e5fae74c5d72a8c23edae261d07f3a6f3c92fd6dba3460fe625f7c4546b86029808769b547cc9b39b8e7499634bbc4fccfd5cecb4dcd366108caa72c2476771.61d4c1030eb86b9d38e0a337cd8b3f1d
+page.tsx:968 [checkout][card] cardForm initialized {methods: Array(0), hasCreateToken: false, hasCreateCardToken: true, hasSubmit: true}
+page.tsx:1033 [checkout][card] Resposta completa do getPaymentMethods: {
+  "paging": {
+    "total": 1,
+    "limit": 30,
+    "offset": 0
+  },
+  "results": [
+    {
+      "financial_institutions": [],
+      "secure_thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/0daa1670-5c81-11ec-ae75-df2bef173be2-xl.png",
+      "payer_costs": [
+        {
+          "installment_rate": 0,
+          "discount_rate": 0,
+          "min_allowed_amount": 0.5,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 1
+        },
+        {
+          "installment_rate": 9.64,
+          "discount_rate": 0,
+          "min_allowed_amount": 10,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 2
+        },
+        {
+          "installment_rate": 11.23,
+          "discount_rate": 0,
+          "min_allowed_amount": 15,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 3
+        },
+        {
+          "installment_rate": 11.36,
+          "discount_rate": 0,
+          "min_allowed_amount": 20,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 4
+        },
+        {
+          "installment_rate": 14.31,
+          "discount_rate": 0,
+          "min_allowed_amount": 25,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 5
+        },
+        {
+          "installment_rate": 14.32,
+          "discount_rate": 0,
+          "min_allowed_amount": 30,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 6
+        },
+        {
+          "installment_rate": 16.72,
+          "discount_rate": 0,
+          "min_allowed_amount": 35,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 7
+        },
+        {
+          "installment_rate": 16.73,
+          "discount_rate": 0,
+          "min_allowed_amount": 40,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 8
+        },
+        {
+          "installment_rate": 19.69,
+          "discount_rate": 0,
+          "min_allowed_amount": 45,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 9
+        },
+        {
+          "installment_rate": 20.65,
+          "discount_rate": 0,
+          "min_allowed_amount": 50,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 10
+        },
+        {
+          "installment_rate": 20.66,
+          "discount_rate": 0,
+          "min_allowed_amount": 55,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 11
+        },
+        {
+          "installment_rate": 22.11,
+          "discount_rate": 0,
+          "min_allowed_amount": 60,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 12
+        }
+      ],
+      "issuer": {
+        "name": "Mastercard",
+        "id": 24,
+        "default": true
+      },
+      "card": {
+        "bin": 503143,
+        "length": {
+          "min": 16,
+          "max": 16
+        },
+        "security_code": {
+          "mode": "mandatory",
+          "location": "back",
+          "length": 3
+        },
+        "validation": "standard"
+      },
+      "total_financial_cost": 0,
+      "min_accreditation_days": 0,
+      "max_accreditation_days": 2,
+      "merchant_account_id": "",
+      "id": "master",
+      "payment_type_id": "credit_card",
+      "accreditation_time": 2880,
+      "settings": [
+        {
+          "security_code": {
+            "mode": "mandatory",
+            "card_location": "back",
+            "length": 3
+          },
+          "card_number": {
+            "validation": "standard",
+            "length": 16
+          },
+          "bin": {
+            "pattern": "^(503143)",
+            "installments_pattern": "",
+            "exclusion_pattern": ""
+          }
+        }
+      ],
+      "thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/0daa1670-5c81-11ec-ae75-df2bef173be2-xl.png",
+      "bins": [
+        503143
+      ],
+      "marketplace": "NONE",
+      "deferred_capture": "supported",
+      "agreements": [],
+      "labels": [
+        "zero_dollar_auth"
+      ],
+      "financing_deals": {
+        "legals": "",
+        "expiration_date": "",
+        "start_date": "",
+        "installments": null,
+        "status": "deactive"
+      },
+      "name": "Mastercard",
+      "site_id": "MLB",
+      "processing_mode": "aggregator",
+      "additional_info_needed": [
+        "cardholder_identification_number",
+        "cardholder_identification_type",
+        "cardholder_name"
+      ],
+      "status": "active"
+    }
+  ]
+}
+page.tsx:1065 [checkout][card] firstResult: {financial_institutions: Array(0), secure_thumbnail: 'https://http2.mlstatic.com/storage/logos-api-admin/0daa1670-5c81-11ec-ae75-df2bef173be2-xl.png', payer_costs: Array(12), issuer: {…}, card: {…}, …}
+page.tsx:1066 [checkout][card] detectedBrand: Mastercard
+page.tsx:1067 [checkout][card] paymentMethodId extraído: master
+page.tsx:1093 [checkout][card] Bandeira detectada via getPaymentMethods: Mastercard paymentMethodId: master
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+page.tsx:1112 [checkout][card] Tipo de documento detectado após getPaymentMethods: 2 opções
+page.tsx:1277 [checkout][card] cardBrand mudou: {previous: '', current: 'Mastercard', changed: true}
+page.tsx:1358 [checkout][card] Todas as opções foram carregadas com sucesso
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+page.tsx:1112 [checkout][card] Tipo de documento detectado após getPaymentMethods: 2 opções
+page.tsx:882 [checkout][card] Bandeira detectada via onPaymentMethodsReceived: Mastercard paymentMethodId: master paymentMethods: [{…}]
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+page.tsx:1112 [checkout][card] Tipo de documento detectado após getPaymentMethods: 2 opções
+page.tsx:894 [checkout][card] Parcelas detectadas: 12 opções
+page.tsx:905 [checkout][card] Tipo de documento detectado: 2 opções
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+page.tsx:1112 [checkout][card] Tipo de documento detectado após getPaymentMethods: 2 opções
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+page.tsx:1112 [checkout][card] Tipo de documento detectado após getPaymentMethods: 2 opções
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+page.tsx:1112 [checkout][card] Tipo de documento detectado após getPaymentMethods: 2 opções
+page.tsx:1033 [checkout][card] Resposta completa do getPaymentMethods: {
+  "paging": {
+    "total": 1,
+    "limit": 30,
+    "offset": 0
+  },
+  "results": [
+    {
+      "financial_institutions": [],
+      "secure_thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/d589be70-eb86-11e9-b9a8-097ac027487d-xl.png",
+      "payer_costs": [
+        {
+          "installment_rate": 0,
+          "discount_rate": 0,
+          "min_allowed_amount": 0.5,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 1
+        }
+      ],
+      "issuer": {
+        "name": "Visa",
+        "id": 25,
+        "default": true
+      },
+      "card": {
+        "bin": 423564,
+        "length": {
+          "min": 16,
+          "max": 16
+        },
+        "security_code": {
+          "mode": "mandatory",
+          "location": "back",
+          "length": 3
+        },
+        "validation": "standard"
+      },
+      "total_financial_cost": 0,
+      "min_accreditation_days": 0,
+      "max_accreditation_days": 2,
+      "merchant_account_id": "",
+      "id": "visa",
+      "payment_type_id": "credit_card",
+      "accreditation_time": 2880,
+      "settings": [
+        {
+          "security_code": {
+            "mode": "mandatory",
+            "card_location": "back",
+            "length": 3
+          },
+          "card_number": {
+            "validation": "standard",
+            "length": 16
+          },
+          "bin": {
+            "pattern": "^(423564)",
+            "installments_pattern": "",
+            "exclusion_pattern": ""
+          }
+        }
+      ],
+      "thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/d589be70-eb86-11e9-b9a8-097ac027487d-xl.png",
+      "bins": [
+        423564
+      ],
+      "marketplace": "NONE",
+      "deferred_capture": "supported",
+      "agreements": [],
+      "labels": [
+        "recommended_method",
+        "zero_dollar_auth"
+      ],
+      "financing_deals": {
+        "legals": "",
+        "expiration_date": "",
+        "start_date": "",
+        "installments": null,
+        "status": "deactive"
+      },
+      "name": "Visa",
+      "site_id": "MLB",
+      "processing_mode": "aggregator",
+      "additional_info_needed": [
+        "cardholder_identification_number",
+        "cardholder_identification_type",
+        "cardholder_name"
+      ],
+      "status": "active"
+    }
+  ]
+}
+page.tsx:1065 [checkout][card] firstResult: {financial_institutions: Array(0), secure_thumbnail: 'https://http2.mlstatic.com/storage/logos-api-admin/d589be70-eb86-11e9-b9a8-097ac027487d-xl.png', payer_costs: Array(1), issuer: {…}, card: {…}, …}
+page.tsx:1066 [checkout][card] detectedBrand: Visa
+page.tsx:1067 [checkout][card] paymentMethodId extraído: visa
+page.tsx:1082 [checkout][card] Bandeira mudou de Mastercard para Visa - limpando opções antigas (getPaymentMethods)
+page.tsx:1265 [checkout][card] Opções dos selects limpas, aguardando Mercado Pago popular novamente
+page.tsx:1093 [checkout][card] Bandeira detectada via getPaymentMethods: Visa paymentMethodId: visa
+installHook.js:1 [checkout][card] Parcelas ainda não foram populadas pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1107
+detectBrand @ page.tsx:1121
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+detectBrand @ page.tsx:1121
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1277 [checkout][card] cardBrand mudou: {previous: 'Mastercard', current: 'Visa', changed: true}
+page.tsx:1287 [checkout][card] Bandeira mudou, limpando opções antigas dos selects
+page.tsx:1265 [checkout][card] Opções dos selects limpas, aguardando Mercado Pago popular novamente
+installHook.js:1 [checkout][card] Parcelas ainda não foram populadas pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1107
+setTimeout
+detectBrand @ page.tsx:1122
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1122
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:882 [checkout][card] Bandeira detectada via onPaymentMethodsReceived: Visa paymentMethodId: visa paymentMethods: [{…}]
+page.tsx:1342 [checkout][card] mpSelectReady mudou: {previous: {…}, next: {…}, updated: {…}, cardBrand: 'Visa', installmentsCount: 1, …}
+page.tsx:1342 [checkout][card] mpSelectReady mudou: {previous: {…}, next: {…}, updated: {…}, cardBrand: 'Visa', installmentsCount: 1, …}
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1123
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:894 [checkout][card] Parcelas detectadas: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago
+overrideMethod @ installHook.js:1
+eval @ page.tsx:908
+setTimeout
+onPaymentMethodsReceived @ page.tsx:886
+onPaymentMethodsReceived @ v2:1
+(anonymous) @ v2:1
+await in (anonymous)
+ot @ v2:1
+(anonymous) @ v2:1
+(anonymous) @ v2:1
+setTimeout
+st @ v2:1
+fn @ v2:1Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1124
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1125
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1126
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1033 [checkout][card] Resposta completa do getPaymentMethods: {
+  "paging": {
+    "total": 1,
+    "limit": 30,
+    "offset": 0
+  },
+  "results": [
+    {
+      "financial_institutions": [],
+      "secure_thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/0daa1670-5c81-11ec-ae75-df2bef173be2-xl.png",
+      "payer_costs": [
+        {
+          "installment_rate": 0,
+          "discount_rate": 0,
+          "min_allowed_amount": 0.5,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 1
+        },
+        {
+          "installment_rate": 9.64,
+          "discount_rate": 0,
+          "min_allowed_amount": 10,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 2
+        },
+        {
+          "installment_rate": 11.23,
+          "discount_rate": 0,
+          "min_allowed_amount": 15,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 3
+        },
+        {
+          "installment_rate": 11.36,
+          "discount_rate": 0,
+          "min_allowed_amount": 20,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 4
+        },
+        {
+          "installment_rate": 14.31,
+          "discount_rate": 0,
+          "min_allowed_amount": 25,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 5
+        },
+        {
+          "installment_rate": 14.32,
+          "discount_rate": 0,
+          "min_allowed_amount": 30,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 6
+        },
+        {
+          "installment_rate": 16.72,
+          "discount_rate": 0,
+          "min_allowed_amount": 35,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 7
+        },
+        {
+          "installment_rate": 16.73,
+          "discount_rate": 0,
+          "min_allowed_amount": 40,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 8
+        },
+        {
+          "installment_rate": 19.69,
+          "discount_rate": 0,
+          "min_allowed_amount": 45,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 9
+        },
+        {
+          "installment_rate": 20.65,
+          "discount_rate": 0,
+          "min_allowed_amount": 50,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 10
+        },
+        {
+          "installment_rate": 20.66,
+          "discount_rate": 0,
+          "min_allowed_amount": 55,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 11
+        },
+        {
+          "installment_rate": 22.11,
+          "discount_rate": 0,
+          "min_allowed_amount": 60,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 12
+        }
+      ],
+      "issuer": {
+        "name": "Mastercard",
+        "id": 24,
+        "default": true
+      },
+      "card": {
+        "bin": 503143,
+        "length": {
+          "min": 16,
+          "max": 16
+        },
+        "security_code": {
+          "mode": "mandatory",
+          "location": "back",
+          "length": 3
+        },
+        "validation": "standard"
+      },
+      "total_financial_cost": 0,
+      "min_accreditation_days": 0,
+      "max_accreditation_days": 2,
+      "merchant_account_id": "",
+      "id": "master",
+      "payment_type_id": "credit_card",
+      "accreditation_time": 2880,
+      "settings": [
+        {
+          "security_code": {
+            "mode": "mandatory",
+            "card_location": "back",
+            "length": 3
+          },
+          "card_number": {
+            "validation": "standard",
+            "length": 16
+          },
+          "bin": {
+            "pattern": "^(503143)",
+            "installments_pattern": "",
+            "exclusion_pattern": ""
+          }
+        }
+      ],
+      "thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/0daa1670-5c81-11ec-ae75-df2bef173be2-xl.png",
+      "bins": [
+        503143
+      ],
+      "marketplace": "NONE",
+      "deferred_capture": "supported",
+      "agreements": [],
+      "labels": [
+        "zero_dollar_auth"
+      ],
+      "financing_deals": {
+        "legals": "",
+        "expiration_date": "",
+        "start_date": "",
+        "installments": null,
+        "status": "deactive"
+      },
+      "name": "Mastercard",
+      "site_id": "MLB",
+      "processing_mode": "aggregator",
+      "additional_info_needed": [
+        "cardholder_identification_number",
+        "cardholder_identification_type",
+        "cardholder_name"
+      ],
+      "status": "active"
+    }
+  ]
+}
+page.tsx:1065 [checkout][card] firstResult: {financial_institutions: Array(0), secure_thumbnail: 'https://http2.mlstatic.com/storage/logos-api-admin/0daa1670-5c81-11ec-ae75-df2bef173be2-xl.png', payer_costs: Array(12), issuer: {…}, card: {…}, …}
+page.tsx:1066 [checkout][card] detectedBrand: Mastercard
+page.tsx:1067 [checkout][card] paymentMethodId extraído: master
+page.tsx:1082 [checkout][card] Bandeira mudou de Visa para Mastercard - limpando opções antigas (getPaymentMethods)
+page.tsx:1265 [checkout][card] Opções dos selects limpas, aguardando Mercado Pago popular novamente
+page.tsx:1093 [checkout][card] Bandeira detectada via getPaymentMethods: Mastercard paymentMethodId: master
+installHook.js:1 [checkout][card] Parcelas ainda não foram populadas pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1107
+detectBrand @ page.tsx:1121
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+detectBrand @ page.tsx:1121
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1277 [checkout][card] cardBrand mudou: {previous: 'Visa', current: 'Mastercard', changed: true}
+page.tsx:1287 [checkout][card] Bandeira mudou, limpando opções antigas dos selects
+page.tsx:1265 [checkout][card] Opções dos selects limpas, aguardando Mercado Pago popular novamente
+installHook.js:1 [checkout][card] Parcelas ainda não foram populadas pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1107
+setTimeout
+detectBrand @ page.tsx:1122
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1122
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:882 [checkout][card] Bandeira detectada via onPaymentMethodsReceived: Mastercard paymentMethodId: master paymentMethods: [{…}]
+page.tsx:1342 [checkout][card] mpSelectReady mudou: {previous: {…}, next: {…}, updated: {…}, cardBrand: 'Mastercard', installmentsCount: 12, …}
+page.tsx:1342 [checkout][card] mpSelectReady mudou: {previous: {…}, next: {…}, updated: {…}, cardBrand: 'Mastercard', installmentsCount: 12, …}
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1123
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:894 [checkout][card] Parcelas detectadas: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago
+overrideMethod @ installHook.js:1
+eval @ page.tsx:908
+setTimeout
+onPaymentMethodsReceived @ page.tsx:886
+onPaymentMethodsReceived @ v2:1
+(anonymous) @ v2:1
+await in (anonymous)
+ot @ v2:1
+(anonymous) @ v2:1
+(anonymous) @ v2:1
+setTimeout
+st @ v2:1
+fn @ v2:1Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1124
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1125
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1033 [checkout][card] Resposta completa do getPaymentMethods: {
+  "paging": {
+    "total": 1,
+    "limit": 30,
+    "offset": 0
+  },
+  "results": [
+    {
+      "financial_institutions": [],
+      "secure_thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/d589be70-eb86-11e9-b9a8-097ac027487d-xl.png",
+      "payer_costs": [
+        {
+          "installment_rate": 0,
+          "discount_rate": 0,
+          "min_allowed_amount": 0.5,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 1
+        }
+      ],
+      "issuer": {
+        "name": "Visa",
+        "id": 25,
+        "default": true
+      },
+      "card": {
+        "bin": 423564,
+        "length": {
+          "min": 16,
+          "max": 16
+        },
+        "security_code": {
+          "mode": "mandatory",
+          "location": "back",
+          "length": 3
+        },
+        "validation": "standard"
+      },
+      "total_financial_cost": 0,
+      "min_accreditation_days": 0,
+      "max_accreditation_days": 2,
+      "merchant_account_id": "",
+      "id": "visa",
+      "payment_type_id": "credit_card",
+      "accreditation_time": 2880,
+      "settings": [
+        {
+          "security_code": {
+            "mode": "mandatory",
+            "card_location": "back",
+            "length": 3
+          },
+          "card_number": {
+            "validation": "standard",
+            "length": 16
+          },
+          "bin": {
+            "pattern": "^(423564)",
+            "installments_pattern": "",
+            "exclusion_pattern": ""
+          }
+        }
+      ],
+      "thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/d589be70-eb86-11e9-b9a8-097ac027487d-xl.png",
+      "bins": [
+        423564
+      ],
+      "marketplace": "NONE",
+      "deferred_capture": "supported",
+      "agreements": [],
+      "labels": [
+        "recommended_method",
+        "zero_dollar_auth"
+      ],
+      "financing_deals": {
+        "legals": "",
+        "expiration_date": "",
+        "start_date": "",
+        "installments": null,
+        "status": "deactive"
+      },
+      "name": "Visa",
+      "site_id": "MLB",
+      "processing_mode": "aggregator",
+      "additional_info_needed": [
+        "cardholder_identification_number",
+        "cardholder_identification_type",
+        "cardholder_name"
+      ],
+      "status": "active"
+    }
+  ]
+}
+page.tsx:1065 [checkout][card] firstResult: {financial_institutions: Array(0), secure_thumbnail: 'https://http2.mlstatic.com/storage/logos-api-admin/d589be70-eb86-11e9-b9a8-097ac027487d-xl.png', payer_costs: Array(1), issuer: {…}, card: {…}, …}
+page.tsx:1066 [checkout][card] detectedBrand: Visa
+page.tsx:1067 [checkout][card] paymentMethodId extraído: visa
+page.tsx:1082 [checkout][card] Bandeira mudou de Mastercard para Visa - limpando opções antigas (getPaymentMethods)
+page.tsx:1265 [checkout][card] Opções dos selects limpas, aguardando Mercado Pago popular novamente
+page.tsx:1093 [checkout][card] Bandeira detectada via getPaymentMethods: Visa paymentMethodId: visa
+installHook.js:1 [checkout][card] Parcelas ainda não foram populadas pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1107
+detectBrand @ page.tsx:1121
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+detectBrand @ page.tsx:1121
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1277 [checkout][card] cardBrand mudou: {previous: 'Mastercard', current: 'Visa', changed: true}
+page.tsx:1287 [checkout][card] Bandeira mudou, limpando opções antigas dos selects
+page.tsx:1265 [checkout][card] Opções dos selects limpas, aguardando Mercado Pago popular novamente
+installHook.js:1 [checkout][card] Parcelas ainda não foram populadas pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1107
+setTimeout
+detectBrand @ page.tsx:1126
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1126
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:882 [checkout][card] Bandeira detectada via onPaymentMethodsReceived: Visa paymentMethodId: visa paymentMethods: [{…}]
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1122
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:894 [checkout][card] Parcelas detectadas: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago
+overrideMethod @ installHook.js:1
+eval @ page.tsx:908
+setTimeout
+onPaymentMethodsReceived @ page.tsx:886
+onPaymentMethodsReceived @ v2:1
+(anonymous) @ v2:1
+await in (anonymous)
+ot @ v2:1
+(anonymous) @ v2:1
+(anonymous) @ v2:1
+setTimeout
+st @ v2:1
+fn @ v2:1Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1123
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1124
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1125
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 1 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1126
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1033 [checkout][card] Resposta completa do getPaymentMethods: {
+  "paging": {
+    "total": 1,
+    "limit": 30,
+    "offset": 0
+  },
+  "results": [
+    {
+      "financial_institutions": [],
+      "secure_thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/0daa1670-5c81-11ec-ae75-df2bef173be2-xl.png",
+      "payer_costs": [
+        {
+          "installment_rate": 0,
+          "discount_rate": 0,
+          "min_allowed_amount": 0.5,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 1
+        },
+        {
+          "installment_rate": 9.64,
+          "discount_rate": 0,
+          "min_allowed_amount": 10,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 2
+        },
+        {
+          "installment_rate": 11.23,
+          "discount_rate": 0,
+          "min_allowed_amount": 15,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 3
+        },
+        {
+          "installment_rate": 11.36,
+          "discount_rate": 0,
+          "min_allowed_amount": 20,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 4
+        },
+        {
+          "installment_rate": 14.31,
+          "discount_rate": 0,
+          "min_allowed_amount": 25,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 5
+        },
+        {
+          "installment_rate": 14.32,
+          "discount_rate": 0,
+          "min_allowed_amount": 30,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 6
+        },
+        {
+          "installment_rate": 16.72,
+          "discount_rate": 0,
+          "min_allowed_amount": 35,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 7
+        },
+        {
+          "installment_rate": 16.73,
+          "discount_rate": 0,
+          "min_allowed_amount": 40,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 8
+        },
+        {
+          "installment_rate": 19.69,
+          "discount_rate": 0,
+          "min_allowed_amount": 45,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 9
+        },
+        {
+          "installment_rate": 20.65,
+          "discount_rate": 0,
+          "min_allowed_amount": 50,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 10
+        },
+        {
+          "installment_rate": 20.66,
+          "discount_rate": 0,
+          "min_allowed_amount": 55,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 11
+        },
+        {
+          "installment_rate": 22.11,
+          "discount_rate": 0,
+          "min_allowed_amount": 60,
+          "reimbursement_rate": 0,
+          "max_allowed_amount": 60000,
+          "consumer_credits": {
+            "conditions": {}
+          },
+          "labels": [],
+          "payment_method_option_id": "1.AQokODllZjQyNjktYjAzMy00OWU1LWJhMWQtNDE0NjQyNTM3MzY4EJaFuevHLg",
+          "installments": 12
+        }
+      ],
+      "issuer": {
+        "name": "Mastercard",
+        "id": 24,
+        "default": true
+      },
+      "card": {
+        "bin": 503143,
+        "length": {
+          "min": 16,
+          "max": 16
+        },
+        "security_code": {
+          "mode": "mandatory",
+          "location": "back",
+          "length": 3
+        },
+        "validation": "standard"
+      },
+      "total_financial_cost": 0,
+      "min_accreditation_days": 0,
+      "max_accreditation_days": 2,
+      "merchant_account_id": "",
+      "id": "master",
+      "payment_type_id": "credit_card",
+      "accreditation_time": 2880,
+      "settings": [
+        {
+          "security_code": {
+            "mode": "mandatory",
+            "card_location": "back",
+            "length": 3
+          },
+          "card_number": {
+            "validation": "standard",
+            "length": 16
+          },
+          "bin": {
+            "pattern": "^(503143)",
+            "installments_pattern": "",
+            "exclusion_pattern": ""
+          }
+        }
+      ],
+      "thumbnail": "https://http2.mlstatic.com/storage/logos-api-admin/0daa1670-5c81-11ec-ae75-df2bef173be2-xl.png",
+      "bins": [
+        503143
+      ],
+      "marketplace": "NONE",
+      "deferred_capture": "supported",
+      "agreements": [],
+      "labels": [
+        "zero_dollar_auth"
+      ],
+      "financing_deals": {
+        "legals": "",
+        "expiration_date": "",
+        "start_date": "",
+        "installments": null,
+        "status": "deactive"
+      },
+      "name": "Mastercard",
+      "site_id": "MLB",
+      "processing_mode": "aggregator",
+      "additional_info_needed": [
+        "cardholder_identification_number",
+        "cardholder_identification_type",
+        "cardholder_name"
+      ],
+      "status": "active"
+    }
+  ]
+}
+page.tsx:1065 [checkout][card] firstResult: {financial_institutions: Array(0), secure_thumbnail: 'https://http2.mlstatic.com/storage/logos-api-admin/0daa1670-5c81-11ec-ae75-df2bef173be2-xl.png', payer_costs: Array(12), issuer: {…}, card: {…}, …}
+page.tsx:1066 [checkout][card] detectedBrand: Mastercard
+page.tsx:1067 [checkout][card] paymentMethodId extraído: master
+page.tsx:1082 [checkout][card] Bandeira mudou de Visa para Mastercard - limpando opções antigas (getPaymentMethods)
+page.tsx:1265 [checkout][card] Opções dos selects limpas, aguardando Mercado Pago popular novamente
+page.tsx:1093 [checkout][card] Bandeira detectada via getPaymentMethods: Mastercard paymentMethodId: master
+installHook.js:1 [checkout][card] Parcelas ainda não foram populadas pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1107
+detectBrand @ page.tsx:1121
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+detectBrand @ page.tsx:1121
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1277 [checkout][card] cardBrand mudou: {previous: 'Visa', current: 'Mastercard', changed: true}
+page.tsx:1287 [checkout][card] Bandeira mudou, limpando opções antigas dos selects
+page.tsx:1265 [checkout][card] Opções dos selects limpas, aguardando Mercado Pago popular novamente
+page.tsx:882 [checkout][card] Bandeira detectada via onPaymentMethodsReceived: Mastercard paymentMethodId: master paymentMethods: [{…}]
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1122
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:894 [checkout][card] Parcelas detectadas: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago
+overrideMethod @ installHook.js:1
+eval @ page.tsx:908
+setTimeout
+onPaymentMethodsReceived @ page.tsx:886
+onPaymentMethodsReceived @ v2:1
+(anonymous) @ v2:1
+await in (anonymous)
+ot @ v2:1
+(anonymous) @ v2:1
+(anonymous) @ v2:1
+setTimeout
+st @ v2:1
+fn @ v2:1Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1123
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1124
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
+overrideMethod @ installHook.js:1
+checkOptions @ page.tsx:1115
+setTimeout
+detectBrand @ page.tsx:1125
+await in detectBrand
+handleInput @ page.tsx:1152Understand this warning
+page.tsx:1104 [checkout][card] Parcelas detectadas após getPaymentMethods: 12 opções
+installHook.js:1 [checkout][card] Tipo de documento ainda não foi populado pelo Mercado Pago após getPaymentMethods
