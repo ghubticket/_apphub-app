@@ -27,6 +27,7 @@ import paymentRoutes from './routes/payment';
 import newsletterRoutes from './routes/newsletter';
 import { startWebhookWorker } from './services/webhookProcessorService';
 import { startOrderExpirationScheduler } from './services/orderExpirationService'
+import { startReservationExpirationScheduler } from './services/reservationExpirationService'
 import { checkMercadoPagoConfig, checkEmailConfig } from './utils/checkEnv'
 
 // Carregar variáveis de ambiente
@@ -149,7 +150,8 @@ app.use(
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'X-meli-session-id'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'X-meli-session-id', 'x-session-id'],
+        exposedHeaders: ['x-session-id'],
     })
 );
 
@@ -424,6 +426,9 @@ const startServer = async () => {
         if (process.env.ORDER_EXPIRATION_ENABLED !== 'false') {
             startOrderExpirationScheduler();
         }
+
+        // Iniciar scheduler de cancelamento automático de reservas expiradas (15 minutos)
+        startReservationExpirationScheduler();
 
         // Worker: reprocessamento de webhooks pendentes/fracassados
         startWebhookWorker(async (payload: any) => {

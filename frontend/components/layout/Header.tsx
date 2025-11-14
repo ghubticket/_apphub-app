@@ -40,7 +40,7 @@ const formatDate = (isoDate: string) =>
 
 export default function Header() {
     const headerRef = useRef<HTMLElement>(null);
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, isReady } = useAuth();
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [isCartDrawerVisible, setIsCartDrawerVisible] = useState(false);
     const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
@@ -369,7 +369,7 @@ export default function Header() {
                                 <Link
                                     href="/checkout"
                                     className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] transition ${
-                                        cartItems.length
+                                        cartItems.length && isReady && isAuthenticated
                                             ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-[#1a1a1d]'
                                             : 'cursor-not-allowed border border-[#c9c3b8] bg-[#c9c3b8] text-white/70'
                                     }`}
@@ -378,6 +378,16 @@ export default function Header() {
                                             event.preventDefault();
                                             return;
                                         }
+                                        
+                                        // Verificar se está logado antes de ir para checkout
+                                        if (isReady && !isAuthenticated) {
+                                            event.preventDefault();
+                                            // Redirecionar para login com returnUrl
+                                            const returnUrl = '/checkout';
+                                            window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+                                            return;
+                                        }
+                                        
                                         closeCartDrawer();
                                     }}
                                 >

@@ -352,6 +352,116 @@ export const refreshToken = async (req: Request, res: Response) => {
 };
 
 /**
+ * Controller para verificar tempo restante da sessão
+ */
+export const checkSession = async (req: Request, res: Response) => {
+    try {
+        // Verificar access token primeiro
+        const authHeader = req.headers.authorization;
+        let accessToken: string | null = null;
+        
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            accessToken = authHeader.substring(7);
+        } else if (req.cookies?.apphub_access_token) {
+            accessToken = req.cookies.apphub_access_token;
+        }
+
+        let expiresAt: Date | null = null;
+        let timeRemaining: number = 0;
+
+        if (accessToken) {
+            try {
+                const decoded = jwt.verify(accessToken, process.env.JWT_SECRET!) as any;
+                if (decoded.exp) {
+                    expiresAt = new Date(decoded.exp * 1000);
+                    timeRemaining = Math.max(0, expiresAt.getTime() - Date.now());
+                    
+                    if (process.env.NODE_ENV !== 'production') {
+                        console.log('[checkSession] Access token válido:', {
+                            expiresAt: expiresAt.toISOString(),
+                            timeRemainingMs: timeRemaining,
+                            timeRemainingMinutes: Math.floor(timeRemaining / 60000),
+                        });
+                    }
+                }
+            } catch (error: any) {
+                // Token expirado ou inválido, tentar refresh token
+                if (process.env.NODE_ENV !== 'production') {
+                    console.log('[checkSession] Access token inválido/expirado, tentando refresh token');
+                }
+            }
+        }
+
+        // Se access token não válido, verificar refresh token
+        if (!expiresAt || timeRemaining === 0) {
+            const refreshToken = req.body.refreshToken || req.cookies?.apphub_refresh_token;
+            const sessionId = req.body.sessionId || req.cookies?.apphub_session_id;
+
+            if (refreshToken && sessionId) {
+                try {
+                    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any;
+                    
+                    if (decoded.type === 'refresh') {
+                        const session = await Session.findOne({
+                            _id: sessionId,
+                            refreshToken,
+                            isActive: true,
+                            expiresAt: { $gt: new Date() }
+                        });
+
+                        if (session) {
+                            // Retornar tempo restante do refresh token (sessão)
+                            expiresAt = session.expiresAt;
+                            timeRemaining = Math.max(0, expiresAt.getTime() - Date.now());
+                            
+                            if (process.env.NODE_ENV !== 'production') {
+                                console.log('[checkSession] Refresh token válido:', {
+                                    expiresAt: expiresAt.toISOString(),
+                                    timeRemainingMs: timeRemaining,
+                                    timeRemainingMinutes: Math.floor(timeRemaining / 60000),
+                                });
+                            }
+                        } else {
+                            if (process.env.NODE_ENV !== 'production') {
+                                console.log('[checkSession] Sessão não encontrada ou inativa');
+                            }
+                        }
+                    }
+                } catch (error: any) {
+                    // Refresh token inválido
+                    if (process.env.NODE_ENV !== 'production') {
+                        console.log('[checkSession] Refresh token inválido/expirado:', error.message);
+                    }
+                }
+            } else {
+                if (process.env.NODE_ENV !== 'production') {
+                    console.log('[checkSession] Sem refresh token ou sessionId');
+                }
+            }
+        }
+
+        // Sempre retornar resposta, mesmo se não houver sessão válida
+        res.json({
+            success: true,
+            data: {
+                expiresAt: expiresAt?.toISOString() || null,
+                timeRemaining, // em milissegundos
+                timeRemainingSeconds: Math.floor(timeRemaining / 1000),
+                isExpired: timeRemaining === 0 || !expiresAt,
+            },
+        });
+    } catch (error: any) {
+        console.error('[checkSession] Erro ao verificar sessão:', error);
+        // Retornar resposta de erro estruturada
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao verificar sessão',
+            errors: [error.message || 'Erro interno do servidor'],
+        });
+    }
+};
+
+/**
  * Controller para logout
  */
 export const logout = async (req: Request, res: Response) => {

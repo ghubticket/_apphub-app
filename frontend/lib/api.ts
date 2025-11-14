@@ -1,7 +1,13 @@
 import axios, { AxiosHeaders } from 'axios';
 
+// Log da URL da API para debug
+const apiBaseURL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3443/api';
+if (typeof window !== 'undefined') {
+  console.log('[API] 🔧 Configuração da API:', { baseURL: apiBaseURL, env: process.env.NEXT_PUBLIC_API_URL });
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api',
+  baseURL: apiBaseURL,
   headers: {
     'Content-Type': 'application/json',
   },

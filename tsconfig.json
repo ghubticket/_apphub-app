@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./backend" },
+    { "path": "./frontend" },
+    { "path": "./dashboard" },
+    { "path": "./qr-scanner-app" }
+  ]
+}
+

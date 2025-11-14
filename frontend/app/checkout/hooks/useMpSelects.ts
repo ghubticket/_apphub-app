@@ -24,6 +24,7 @@ export const useMpSelects = ({ cardBrand, selectedTab, onSelectsReady }: UseMpSe
         docType: false,
     });
     const lastCardBrandRef = useRef<string>('');
+    const checkingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     const clearSelects = useCallback(() => {
         const installmentsSelect = getSelectElement(SELECT_IDS.INSTALLMENTS);
@@ -35,48 +36,60 @@ export const useMpSelects = ({ cardBrand, selectedTab, onSelectsReady }: UseMpSe
         setMpSelectReady({ installments: false, docType: false });
     }, []);
 
-    // Popular tipo de documento quando cardBrand é detectado
+    // Popular tipo de documento sempre que estiver na tab card (não depende de bandeira)
     useEffect(() => {
-        if (selectedTab !== 'card' || !cardBrand) {
-            if (selectedTab !== 'card') {
-                setMpSelectReady({ installments: false, docType: false });
-            }
+        if (selectedTab !== 'card') {
+            setMpSelectReady((prev) => ({ ...prev, docType: false }));
+            return;
+        }
+
+        // Popular tipo de documento imediatamente
+        populateDocTypeSelect();
+        setMpSelectReady((prev) => ({ ...prev, docType: true }));
+    }, [selectedTab]);
+
+    // Quando cardBrand é detectado (usuário preencheu o cartão), verificar e popular selects
+    useEffect(() => {
+        if (selectedTab !== 'card') {
             return;
         }
 
         // Se a bandeira mudou, limpar opções antigas
-        if (lastCardBrandRef.current && lastCardBrandRef.current !== cardBrand) {
+        if (cardBrand && lastCardBrandRef.current && lastCardBrandRef.current !== cardBrand) {
             clearSelects();
+            // Repopular docType após limpar (não depende de bandeira)
+            populateDocTypeSelect();
         }
 
-        lastCardBrandRef.current = cardBrand;
-
-        // Popular tipo de documento imediatamente
-        populateDocTypeSelect();
-    }, [cardBrand, selectedTab, clearSelects]);
-
-    // Verificar periodicamente se os selects foram populados
-    useEffect(() => {
-        if (selectedTab !== 'card' || !cardBrand) {
+        // Se não tem bandeira ainda, limpar selects e parar verificação
+        if (!cardBrand) {
+            lastCardBrandRef.current = '';
+            setMpSelectReady((prev) => ({ ...prev, installments: false }));
+            
+            // Limpar intervalo se existir
+            if (checkingIntervalRef.current) {
+                clearInterval(checkingIntervalRef.current);
+                checkingIntervalRef.current = null;
+            }
             return;
+        }
+
+        // Bandeira detectada - atualizar ref
+        lastCardBrandRef.current = cardBrand;
+        
+        // Garantir que docType está populado (não depende de bandeira)
+        populateDocTypeSelect();
+
+        // Verificar periodicamente se os selects foram populados pelo Mercado Pago
+        if (checkingIntervalRef.current) {
+            clearInterval(checkingIntervalRef.current);
         }
 
         let attempts = 0;
         const maxAttempts = 100; // 10 segundos (100 * 100ms)
 
-        const interval = setInterval(() => {
+        checkingIntervalRef.current = setInterval(() => {
             attempts += 1;
-
-            // Garantir que tipo de documento está populado
-            const docTypeSelect = getSelectElement(SELECT_IDS.IDENTIFICATION_TYPE);
-            if (docTypeSelect) {
-                const validOptions = Array.from(docTypeSelect.options).filter(
-                    (opt) => opt.value && opt.value !== '' && !opt.disabled && !opt.hidden
-                );
-                if (validOptions.length === 0) {
-                    populateDocTypeSelect();
-                }
-            }
 
             // Verificar estado dos selects
             const { installmentsReady, docTypeReady } = checkSelectsReady();
@@ -92,7 +105,9 @@ export const useMpSelects = ({ cardBrand, selectedTab, onSelectsReady }: UseMpSe
                     prev.installments !== nextState.installments ||
                     prev.docType !== nextState.docType
                 ) {
-                    onSelectsReady?.(nextState);
+                    if (onSelectsReady && typeof onSelectsReady === 'function') {
+                        onSelectsReady(nextState);
+                    }
                 }
 
                 return nextState;
@@ -100,18 +115,30 @@ export const useMpSelects = ({ cardBrand, selectedTab, onSelectsReady }: UseMpSe
 
             // Parar se ambos estão prontos ou atingiu max tentativas
             if ((installmentsReady && docTypeReady) || attempts >= maxAttempts) {
-                clearInterval(interval);
+                if (checkingIntervalRef.current) {
+                    clearInterval(checkingIntervalRef.current);
+                    checkingIntervalRef.current = null;
+                }
             }
         }, 100);
 
-        return () => clearInterval(interval);
-    }, [cardBrand, selectedTab, onSelectsReady]);
+        return () => {
+            if (checkingIntervalRef.current) {
+                clearInterval(checkingIntervalRef.current);
+                checkingIntervalRef.current = null;
+            }
+        };
+        }, [cardBrand, selectedTab, clearSelects, onSelectsReady]);
 
     // Resetar quando tab muda
     useEffect(() => {
         if (selectedTab !== 'card') {
             lastCardBrandRef.current = '';
             setMpSelectReady({ installments: false, docType: false });
+            if (checkingIntervalRef.current) {
+                clearInterval(checkingIntervalRef.current);
+                checkingIntervalRef.current = null;
+            }
         }
     }, [selectedTab]);
 

@@ -8,10 +8,18 @@ const PIX_TIMEOUT_MS = PIX_TIMEOUT_MINUTES * 60 * 1000
 const BATCH_LIMIT = 100
 const CANCELABLE_STATUSES = ['pending', 'in_process', 'action_required', 'authorized', 'call_for_authorize']
 
-async function restoreTicketInventory(orderId: string) {
-    const tickets = await Ticket.find({ order: orderId, deletedAt: null }).populate('ticketType')
+async function cancelOrderLocally(order: any, timestamp: Date, paymentStatus: string = 'cancelled') {
+    // CRÍTICO: Restaurar estoque APENAS dos tickets pending (não dos confirmados)
+    // Buscar apenas tickets pending para liberar estoque
+    const pendingTickets = await Ticket.find({ 
+        order: order._id, 
+        deletedAt: null,
+        status: 'pending' // APENAS tickets pending
+    }).populate('ticketType')
+    
+    // Liberar estoque apenas dos tickets pending
     const ticketTypeCounts = new Map<string, number>()
-    for (const ticket of tickets) {
+    for (const ticket of pendingTickets) {
         const ticketTypeId = String((ticket as any).ticketType?._id || (ticket as any).ticketType)
         if (ticketTypeId) {
             ticketTypeCounts.set(ticketTypeId, (ticketTypeCounts.get(ticketTypeId) || 0) + 1)
@@ -24,17 +32,20 @@ async function restoreTicketInventory(orderId: string) {
             await ticketType.save()
         }
     }
-}
-
-async function cancelOrderLocally(order: any, timestamp: Date, paymentStatus: string = 'cancelled') {
-    await restoreTicketInventory(String(order._id))
+    
     order.status = 'cancelled'
     order.paymentStatus = paymentStatus
     order.paymentStatusDetail = paymentStatus
     ;(order as any).cancelledAt = timestamp
     await order.save()
+    
+    // CRÍTICO: Cancelar APENAS tickets pending (não cancelar tickets já confirmados/pagos)
     await Ticket.updateMany(
-        { order: order._id, deletedAt: null },
+        { 
+            order: order._id, 
+            deletedAt: null,
+            status: 'pending' // APENAS tickets pending - não mexer nos confirmados
+        },
         { $set: { status: 'cancelled', isActive: false, qrCode: '' } },
     )
 }

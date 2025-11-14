@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Quicksand, Jost } from 'next/font/google';
 import { AuthProvider } from '@/context/AuthContext';
 import LayoutShell from '@/components/layout/LayoutShell';
+import SessionExpirationModal from '@/components/SessionExpirationModal';
 import './globals.scss';
 
 const quicksand = Quicksand({
@@ -31,6 +32,7 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <LayoutShell>{children}</LayoutShell>
+          <SessionExpirationModal />
         </AuthProvider>
       </body>
     </html>

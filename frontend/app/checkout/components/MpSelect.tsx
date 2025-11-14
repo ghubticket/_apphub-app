@@ -106,9 +106,17 @@ export default function MpSelect({
         };
     }, [selectId, onSelectionChange]);
 
+    // Para selects controlados pelo Mercado Pago (como installments), não manipular options
+    // Apenas para selects estáticos (como docType) podemos popular
     useEffect(() => {
         if (!selectRef.current || !staticOptions) return;
+        
+        // Se o select tem atributo data-mp-element, é controlado pelo Mercado Pago - não manipular
         const selectElement = selectRef.current;
+        if (selectElement.hasAttribute('data-mp-element')) {
+            return;
+        }
+
         const shouldUpdateOptions =
             selectElement.options.length !== staticOptions.length ||
             Array.from(selectElement.options).some((option, index) => {
@@ -262,13 +270,18 @@ export default function MpSelect({
                     <span className="block w-full truncate">{textToShow || '\u00A0'}</span>
                     <HiOutlineChevronDown className={`ml-3 shrink-0 transition-transform ${ArrowColor} ${isOpen ? 'rotate-180' : ''}`} />
                 </button>
+                {/* 
+                    IMPORTANTE: Este select é controlado pelo Mercado Pago SDK.
+                    Não adicionar value controlado pelo React, options manuais, ou onChange.
+                    O Mercado Pago popula as opções dinamicamente.
+                    O MpSelect apenas observa mudanças no DOM via MutationObserver.
+                */}
                 <select
                     id={selectId}
                     name={selectName}
                     disabled={disabled}
                     tabIndex={-1}
                     aria-hidden="true"
-                    defaultValue={defaultValue}
                     className="sr-only"
                 />
                 {isOpen ? (

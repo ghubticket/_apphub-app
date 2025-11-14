@@ -38,6 +38,7 @@ type AuthContextValue = {
   login: (payload: LoginPayload, remember: boolean) => void;
   logout: () => void;
   updateUser: (user: AuthUser) => void;
+  updateAccessToken: (accessToken: string) => void;
 };
 
 const STORAGE_KEYS = {
@@ -169,6 +170,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }));
   }, [state.remember]);
 
+  const updateAccessToken = useCallback((accessToken: string) => {
+    if (typeof window !== 'undefined') {
+      const targetStorage = state.remember ? window.localStorage : window.sessionStorage;
+      targetStorage.setItem(STORAGE_KEYS.accessToken, accessToken);
+    }
+    setState((prev) => ({
+      ...prev,
+      accessToken,
+    }));
+  }, [state.remember]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user: state.user,
@@ -181,8 +193,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       login,
       logout,
       updateUser,
+      updateAccessToken,
     }),
-    [state, isReady, login, logout, updateUser]
+    [state, isReady, login, logout, updateUser, updateAccessToken]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

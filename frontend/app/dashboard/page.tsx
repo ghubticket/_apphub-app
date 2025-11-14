@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -32,6 +32,14 @@ type OrderEventSummary = {
     address?: string;
 };
 
+type PixInfo = {
+    qrCode?: string | null;
+    qrCodeBase64?: string | null;
+    ticketUrl?: string | null;
+    expiresAt?: string | null;
+    expirationMinutes?: number | null;
+};
+
 type OrderSummary = {
     _id: string;
     orderNumber?: string;
@@ -50,6 +58,7 @@ type OrderSummary = {
     };
     event?: OrderEventSummary | null;
     tickets: OrderTicketSummary[];
+    pixInfo?: PixInfo; // Informações do PIX para pedidos pendentes
 };
 
 type OrderPagination = {
@@ -204,6 +213,7 @@ export default function DashboardPage() {
                     customerData: order.customerData ?? {},
                     event: order.event ?? null,
                     tickets: Array.isArray(order.tickets) ? order.tickets : [],
+                    pixInfo: order.pixInfo || undefined, // Informações do PIX para pedidos pendentes
                 }))
                 : [];
 
@@ -392,8 +402,93 @@ export default function DashboardPage() {
                             </header>
 
                             <div
-                                className={`overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[420px] pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}
+                                className={`overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[1200px] pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}
                             >
+                                {/* Seção de PIX pendente */}
+                                {order.status === 'pending' && order.paymentMethod === 'pix' && (
+                                    order.pixInfo ? (
+                                        <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                                            <div className="mb-3 flex items-center gap-2">
+                                                <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">
+                                                    Pagamento PIX Pendente
+                                                </span>
+                                            </div>
+                                            <p className="mb-4 text-sm text-emerald-700">
+                                                Seu pedido ainda está pendente. Copie e cole o código PIX abaixo para finalizar o pagamento.
+                                            </p>
+                                            
+                                            {/* QR Code */}
+                                            {order.pixInfo.qrCodeBase64 && (
+                                                <div className="mb-4 flex justify-center">
+                                                    <img
+                                                        src={`data:image/png;base64,${order.pixInfo.qrCodeBase64}`}
+                                                        alt="QR Code PIX"
+                                                        className="h-48 w-48 rounded-lg border-2 border-emerald-200 bg-white p-2"
+                                                    />
+                                                </div>
+                                            )}
+                                            
+                                            {/* Código PIX para copiar */}
+                                            {(order.pixInfo.ticketUrl || order.pixInfo.qrCode) && (
+                                                <div className="mb-4">
+                                                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">
+                                                        Código PIX (Copiar e Colar)
+                                                    </label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            readOnly
+                                                            value={order.pixInfo.ticketUrl || order.pixInfo.qrCode || ''}
+                                                            className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    const codeToCopy = order.pixInfo!.ticketUrl || order.pixInfo!.qrCode || '';
+                                                                    await navigator.clipboard.writeText(codeToCopy);
+                                                                    alert('Código PIX copiado!');
+                                                                } catch (error) {
+                                                                    alert('Erro ao copiar código PIX');
+                                                                }
+                                                            }}
+                                                            className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
+                                                        >
+                                                            Copiar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Timer de expiração dinâmico */}
+                                            {order.pixInfo.expiresAt && (
+                                                <PixExpirationTimer expiresAt={order.pixInfo.expiresAt} />
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                            <div className="mb-3 flex items-center gap-2">
+                                                <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">
+                                                    Pagamento PIX Pendente
+                                                </span>
+                                            </div>
+                                            <p className="mb-2 text-sm text-amber-700">
+                                                Seu pedido está aguardando pagamento via PIX.
+                                            </p>
+                                            <p className="text-xs text-amber-600">
+                                                ⚠️ As informações do PIX estão sendo carregadas...
+                                            </p>
+                                        </div>
+                                    )
+                                )}
+                                
                                 <div className="rounded-2xl border border-[#ded7ca] bg-white/70 p-4">
                                     <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
                                         Ingressos
@@ -715,4 +810,72 @@ const TicketModal = ({
         </div>
     );
 };
+
+// Componente de timer de expiração do PIX
+function PixExpirationTimer({ expiresAt }: { expiresAt: string }) {
+    const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+    const [isExpired, setIsExpired] = useState(false);
+
+    useEffect(() => {
+        const updateTimer = () => {
+            const expirationDate = new Date(expiresAt);
+            const now = new Date();
+            const diff = expirationDate.getTime() - now.getTime();
+            
+            if (diff <= 0) {
+                setTimeRemaining(0);
+                setIsExpired(true);
+                return;
+            }
+            
+            setIsExpired(false);
+            setTimeRemaining(Math.floor(diff / 1000)); // segundos restantes
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+
+        return () => clearInterval(interval);
+    }, [expiresAt]);
+
+    if (timeRemaining === null) {
+        return (
+            <p className="text-xs text-emerald-600">
+                ⏰ Carregando tempo restante...
+            </p>
+        );
+    }
+
+    if (isExpired || timeRemaining <= 0) {
+        return (
+            <p className="text-xs font-semibold text-red-600">
+                ⚠️ Código PIX expirado
+            </p>
+        );
+    }
+
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    const hours = Math.floor(minutes / 60);
+    const displayMinutes = minutes % 60;
+
+    return (
+        <div className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2">
+            <p className="text-xs font-semibold text-emerald-800">
+                ⏰ Você tem até{' '}
+                {hours > 0 && (
+                    <span className="text-emerald-900">
+                        {hours}h {displayMinutes.toString().padStart(2, '0')}min {seconds.toString().padStart(2, '0')}s
+                    </span>
+                )}
+                {hours === 0 && (
+                    <span className="text-emerald-900">
+                        {displayMinutes}min {seconds.toString().padStart(2, '0')}s
+                    </span>
+                )}
+                {' '}para pagar
+            </p>
+        </div>
+    );
+}
 

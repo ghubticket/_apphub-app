@@ -7,6 +7,7 @@ import {
   updateProfile,
   changePassword,
   refreshToken,
+  checkSession,
   getActiveSessions,
   invalidateSession,
   invalidateAllSessions,
@@ -215,6 +216,50 @@ router.post('/login', authRateLimit, validate(loginSchema), login);
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/refresh', refreshRateLimit, refreshToken);
+
+/**
+ * @swagger
+ * /auth/check-session:
+ *   post:
+ *     summary: Verificar tempo restante da sessão
+ *     description: Retorna o tempo restante até a expiração do access token ou refresh token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *               sessionId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Informações da sessão
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     expiresAt:
+ *                       type: string
+ *                       format: date-time
+ *                     timeRemaining:
+ *                       type: number
+ *                       description: Tempo restante em milissegundos
+ *                     timeRemainingSeconds:
+ *                       type: number
+ *                     isExpired:
+ *                       type: boolean
+ */
+router.post('/check-session', checkSession);
 
 /**
  * @swagger

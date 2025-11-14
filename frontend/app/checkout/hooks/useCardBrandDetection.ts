@@ -76,7 +76,9 @@ export const useCardBrandDetection = ({
                     if (lastCardBrandRef.current !== detectedBrand) {
                         lastCardBrandRef.current = detectedBrand;
                         setCardBrand(detectedBrand);
-                        onBrandDetected(detectedBrand, paymentMethodId);
+                        if (onBrandDetected && typeof onBrandDetected === 'function') {
+                            onBrandDetected(detectedBrand, paymentMethodId);
+                        }
                     }
                 } else {
                     // Limpar se não detectou e o campo está vazio ou com menos de 6 dígitos
@@ -89,7 +91,6 @@ export const useCardBrandDetection = ({
                     }
                 }
             } catch (error) {
-                console.error('[checkout][cardBrand] Erro ao detectar bandeira:', error);
                 lastDetectedBinRef.current = '';
             }
         },

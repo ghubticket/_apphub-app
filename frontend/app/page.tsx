@@ -7,6 +7,25 @@ import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
 import type { TicketProduct } from '@/types/ticket';
 
 export default function Home() {
+    // Limpar qualquer estado de processamento de pagamento ao entrar na HOME
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            // Limpar dados do Brick se existirem
+            const form = document.getElementById('checkout-card-form') as HTMLFormElement | null;
+            if (form) {
+                delete (form as any).__brickData;
+            }
+            
+            // Limpar qualquer flag de processamento no sessionStorage/localStorage
+            // (se houver algum estado persistido)
+            try {
+                // Não limpar activeOrderId aqui pois pode ser necessário para restaurar pedido
+                // Mas garantir que o estado de processamento seja limpo
+            } catch (error) {
+                // Ignorar erros de limpeza
+            }
+        }
+    }, []);
     const [tickets, setTickets] = useState<TicketProduct[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string>('');

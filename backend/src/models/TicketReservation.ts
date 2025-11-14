@@ -7,6 +7,7 @@ export interface ITicketReservation extends Document {
     quantity: number; // Quantidade de ingressos reservados
     reservedBy?: mongoose.Types.ObjectId; // Usuário que fez a reserva (opcional - pode ser anônimo)
     sessionId: string; // ID da sessão do usuário (para identificar reservas anônimas)
+    orderId?: mongoose.Types.ObjectId; // Referência ao Order (opcional - para reservas vinculadas a pedidos PIX)
     expiresAt: Date; // Data de expiração da reserva
     isActive: boolean; // Se a reserva está ativa
     createdAt: Date;
@@ -57,6 +58,11 @@ const ticketReservationSchema = new Schema<ITicketReservation>(
             trim: true,
             index: true,
         },
+        orderId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Order',
+            index: true,
+        },
         expiresAt: {
             type: Date,
             required: [true, 'Data de expiração é obrigatória'],
@@ -78,6 +84,7 @@ const ticketReservationSchema = new Schema<ITicketReservation>(
 // Índices compostos para performance
 ticketReservationSchema.index({ event: 1, ticketType: 1, isActive: 1 });
 ticketReservationSchema.index({ sessionId: 1, isActive: 1 });
+ticketReservationSchema.index({ orderId: 1, isActive: 1 }); // Índice para buscar reservas por pedido
 ticketReservationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index
 
 // Virtual para verificar se expirou

@@ -16,7 +16,7 @@ export function CustomerDataForm({ data, disabled, onChange, docTypeReady }: Cus
 
     return (
         <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] relative">
-            <h2 className="text-lg font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">Dados do comprador</h2>
+            <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">Dados do comprador</h2>
             <p className="text-xs text-[#7d796c]">Usaremos essas informações para gerar o pedido e os ingressos.</p>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">

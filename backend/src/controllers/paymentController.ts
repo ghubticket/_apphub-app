@@ -3,6 +3,7 @@ import { WebhookEvent, Order, Ticket, Event, User } from '../models';
 import { enqueueOrGet } from '../services/webhookProcessorService';
 import crypto from 'crypto';
 import * as paymentService from '../services/paymentService';
+import * as reservationService from '../services/reservationService';
 import { mapPaymentMethod } from '../services/paymentService';
 import { getPaymentStatusInfo, mapPaymentStatus } from '../utils/paymentStatusMapper';
 import { 
@@ -174,6 +175,84 @@ export const createPixPayment = async (req: Request, res: Response) => {
 
         await order.save();
 
+        // CRÍTICO: Criar reserva vinculada ao pedido PIX para manter estoque reservado até expiração do PIX
+        // A reserva expira no mesmo momento que o PIX expira
+        let createdReservation = null;
+        if (order.status === 'pending' && pixPayment.expiresAt) {
+            try {
+                // CRÍTICO: Verificar se já existem reservas vinculadas a este pedido
+                // Se existirem, apenas atualizar o expiresAt delas
+                // Se não existirem, criar nova reserva
+                const TicketReservation = (await import('../models/TicketReservation')).default;
+                const existingReservations = await TicketReservation.find({
+                    orderId: order._id,
+                    isActive: true,
+                });
+
+                if (existingReservations.length > 0) {
+                    // Já existem reservas vinculadas ao pedido - apenas atualizar expiresAt
+                    const pixExpiresAt = new Date(pixPayment.expiresAt);
+                    let updatedCount = 0;
+                    
+                    for (const reservation of existingReservations) {
+                        reservation.expiresAt = pixExpiresAt;
+                        await reservation.save();
+                        updatedCount++;
+                    }
+                    
+                    console.log(`✅ ${updatedCount} reserva(s) existente(s) atualizada(s) com novo expiresAt para pedido PIX ${order.orderNumber}:`, {
+                        reservationIds: existingReservations.map(r => r._id),
+                        expiresAt: pixPayment.expiresAt,
+                        expirationMinutes: pixPayment.expirationMinutes,
+                    });
+                    
+                    // Usar a primeira reserva existente como createdReservation para retornar ao frontend
+                    createdReservation = existingReservations[0];
+                } else {
+                    // Não existem reservas vinculadas - criar nova reserva
+                    const populatedOrder = await Order.findById(order._id)
+                        .populate('event', '_id')
+                        .populate('tickets', 'ticketType')
+                        .lean();
+
+                    if (populatedOrder && populatedOrder.tickets && populatedOrder.tickets.length > 0) {
+                        // Pegar eventId e ticketTypeId do primeiro ticket (assumindo que todos são do mesmo tipo)
+                        const firstTicket = populatedOrder.tickets[0] as any;
+                        const eventId = String(populatedOrder.event?._id || populatedOrder.event);
+                        const ticketTypeId = String(firstTicket.ticketType?._id || firstTicket.ticketType);
+                        const quantity = populatedOrder.tickets.length;
+                        const sessionId = deviceId || `order_${order._id}`;
+
+                        // Criar reserva com expiração igual à do PIX
+                        const reservationResult = await reservationService.createReservation({
+                            eventId,
+                            ticketTypeId,
+                            quantity,
+                            sessionId,
+                            userId: userId || undefined,
+                            orderId: String(order._id),
+                            expiresAt: new Date(pixPayment.expiresAt), // Usar a mesma data de expiração do PIX
+                        });
+
+                        if (reservationResult.success && reservationResult.reservation) {
+                            createdReservation = reservationResult.reservation;
+                            console.log(`✅ Nova reserva criada para pedido PIX ${order.orderNumber}:`, {
+                                reservationId: reservationResult.reservation?._id,
+                                quantity,
+                                expiresAt: pixPayment.expiresAt,
+                                expirationMinutes: pixPayment.expirationMinutes,
+                            });
+                        } else {
+                            console.warn(`⚠️ Não foi possível criar reserva para pedido PIX ${order.orderNumber}:`, reservationResult.message);
+                        }
+                    }
+                }
+            } catch (reservationError: any) {
+                console.error(`❌ Erro ao criar/atualizar reserva para pedido PIX ${order.orderNumber}:`, reservationError.message);
+                // Não falhar a criação do pagamento se a reserva falhar
+            }
+        }
+
         // Enviar email de pagamento pendente (não bloquear resposta se falhar)
         try {
             const populatedOrder = await Order.findById(order._id)
@@ -234,6 +313,16 @@ export const createPixPayment = async (req: Request, res: Response) => {
             expiresAt: pixPayment.expiresAt
         });
 
+        // Buscar pedido atualizado para retornar na resposta
+        const updatedOrder = await Order.findById(order._id)
+            .populate('event', 'name date location coverImage')
+            .populate({
+                path: 'tickets',
+                select: 'code qrCode status price',
+                match: { deletedAt: null }
+            })
+            .lean();
+
         return res.json({
             success: true,
             data: {
@@ -253,7 +342,27 @@ export const createPixPayment = async (req: Request, res: Response) => {
                     requiresAction: statusInfo.requiresAction,
                     canRetry: statusInfo.canRetry,
                     internalStatus: statusInfo.internalStatus
-                }
+                },
+                // CRÍTICO: Retornar pedido atualizado para que apareça na lista de pedidos
+                order: updatedOrder ? {
+                    ...updatedOrder,
+                    tickets: (updatedOrder.tickets || []).map((ticket: any) => ({
+                        ...ticket,
+                        qrCode: updatedOrder.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
+                    }))
+                } : null,
+                // CRÍTICO: Retornar reserva vinculada ao pedido PIX para que o frontend atualize o estado
+                reservation: createdReservation ? {
+                    _id: String(createdReservation._id),
+                    event: String(createdReservation.event),
+                    ticketType: String(createdReservation.ticketType),
+                    quantity: createdReservation.quantity,
+                    sessionId: createdReservation.sessionId,
+                    orderId: createdReservation.orderId ? String(createdReservation.orderId) : undefined,
+                    expiresAt: createdReservation.expiresAt,
+                    isActive: createdReservation.isActive,
+                    createdAt: createdReservation.createdAt,
+                } : null
             }
         });
     } catch (error: any) {
@@ -408,6 +517,17 @@ export const createCardPayment = async (req: Request, res: Response) => {
             order.paymentAdminMessage = 'Limite de tentativas excedido (cartão).';
             order.isActive = false;
             await order.save();
+            
+            // Devolver ingressos ao estoque quando limite de tentativas é excedido
+            if (order.ticketType && order.totalTickets > 0) {
+                const TicketType = require('../models/TicketType').default;
+                const ticketType = await TicketType.findById(order.ticketType);
+                if (ticketType) {
+                    ticketType.soldQuantity = Math.max(0, (ticketType.soldQuantity || 0) - order.totalTickets);
+                    await ticketType.save();
+                    console.log(`🔄 [createCardPayment] Ingressos devolvidos ao estoque (limite excedido): ${order.totalTickets} tickets`);
+                }
+            }
 
             return res.status(429).json({
                 success: false,
@@ -617,6 +737,17 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 order.cardAttempts = previousAttempts + 1;
                 console.log(`📊 [createCardPayment] Erro ao processar: cardAttempts ${previousAttempts} → ${order.cardAttempts}, orderNumber=${order.orderNumber}`);
                 await order.save();
+                
+                // Devolver ingressos ao estoque quando pagamento falha
+                if (order.ticketType && order.totalTickets > 0) {
+                    const TicketType = require('../models/TicketType').default;
+                    const ticketType = await TicketType.findById(order.ticketType);
+                    if (ticketType) {
+                        ticketType.soldQuantity = Math.max(0, (ticketType.soldQuantity || 0) - order.totalTickets);
+                        await ticketType.save();
+                        console.log(`🔄 [createCardPayment] Ingressos devolvidos ao estoque: ${order.totalTickets} tickets, soldQuantity: ${ticketType.soldQuantity}`);
+                    }
+                }
             } catch (persistError) {
                 console.error('Não foi possível atualizar o pedido após falha no cartão:', persistError);
             }
@@ -882,6 +1013,28 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 
                 if (paymentStatus === 'paid') {
                     order.status = 'paid';
+                    
+                    // CRÍTICO: Liberar reservas vinculadas ao pedido PIX quando pagamento é confirmado
+                    try {
+                        const TicketReservation = (await import('../models/TicketReservation')).default;
+                        const reservations = await TicketReservation.find({
+                            orderId: order._id,
+                            isActive: true,
+                        });
+
+                        if (reservations.length > 0) {
+                            await Promise.all(
+                                reservations.map(async (reservation) => {
+                                    reservation.isActive = false;
+                                    await reservation.save();
+                                })
+                            );
+                            console.log(`✅ ${reservations.length} reserva(s) liberada(s) para pedido PIX pago ${order.orderNumber}`);
+                        }
+                    } catch (reservationError: any) {
+                        console.error(`⚠️ Erro ao liberar reservas do pedido PIX pago ${order.orderNumber}:`, reservationError.message);
+                        // Não falhar a confirmação de pagamento se a liberação de reservas falhar
+                    }
                 } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
                     // Se o MP cancelou (via webhook), seguir o MP independente da data de expiração
                     // O MP pode cancelar por vários motivos (expiração, erro interno, cancelamento manual, etc)
@@ -1006,6 +1159,30 @@ export const handleWebhook = async (req: Request, res: Response) => {
             
             if (paymentStatus === 'paid') {
                 order.status = 'paid';
+                
+                // CRÍTICO: Liberar reservas vinculadas ao pedido PIX quando pagamento é confirmado
+                if (isPixOrder) {
+                    try {
+                        const TicketReservation = (await import('../models/TicketReservation')).default;
+                        const reservations = await TicketReservation.find({
+                            orderId: order._id,
+                            isActive: true,
+                        });
+
+                        if (reservations.length > 0) {
+                            await Promise.all(
+                                reservations.map(async (reservation) => {
+                                    reservation.isActive = false;
+                                    await reservation.save();
+                                })
+                            );
+                            console.log(`✅ ${reservations.length} reserva(s) liberada(s) para pedido PIX pago ${order.orderNumber}`);
+                        }
+                    } catch (reservationError: any) {
+                        console.error(`⚠️ Erro ao liberar reservas do pedido PIX pago ${order.orderNumber}:`, reservationError.message);
+                        // Não falhar a confirmação de pagamento se a liberação de reservas falhar
+                    }
+                }
             } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
                 // Se o MP cancelou (via webhook), seguir o MP independente da data de expiração
                 // O MP pode cancelar por vários motivos (expiração, erro interno, cancelamento manual, etc)

@@ -9,6 +9,16 @@ export const createReservation = async (req: Request, res: Response) => {
         // Obter sessionId do header ou gerar um novo
         const sessionId = (req.headers['x-session-id'] as string) || `session_${Date.now()}_${Math.random()}`;
 
+        console.log('[createReservation] 📥 Requisição recebida:', {
+            eventId,
+            ticketTypeId,
+            quantity,
+            sessionId,
+            userId: req.user?._id?.toString(),
+            path: req.path,
+            method: req.method,
+        });
+
         if (!eventId || !ticketTypeId || !quantity) {
             return res.status(400).json({
                 success: false,
@@ -22,7 +32,19 @@ export const createReservation = async (req: Request, res: Response) => {
             quantity: Number(quantity),
             sessionId,
             userId: req.user?._id?.toString(),
-            reservationDurationMinutes: 15, // Padrão: 15 minutos
+            reservationDurationMinutes: 30, // 30 minutos para testes de cartão
+        });
+
+        // Verificar se é nova reserva ou atualização
+        const isNewReservation = result.reservation && 
+            new Date(result.reservation.createdAt).getTime() > Date.now() - 5000; // Criada nos últimos 5 segundos
+        
+        console.log('[createReservation] 📤 Resultado:', {
+            success: result.success,
+            reservationId: result.reservation?._id,
+            isNewReservation,
+            isUpdate: !isNewReservation && !!result.reservation,
+            message: result.message,
         });
 
         if (!result.success) {
@@ -192,12 +214,19 @@ export const listMyReservations = async (req: Request, res: Response) => {
             expiresAt: { $gt: new Date() },
         };
 
-        if (userId) {
+        // Se há userId, buscar reservas do usuário OU da sessão (permite restaurar após F5)
+        // Se não há userId mas há sessionId, buscar apenas por sessionId
+        if (userId && sessionId) {
+            // Buscar reservas do usuário OU da sessão (permite restaurar após F5 mesmo com sessionId diferente)
             filter.$or = [
                 { reservedBy: userId },
                 { sessionId },
             ];
+        } else if (userId) {
+            // Apenas userId (sem sessionId)
+            filter.reservedBy = userId;
         } else if (sessionId) {
+            // Apenas sessionId (sem userId)
             filter.sessionId = sessionId;
         } else {
             return res.status(400).json({
