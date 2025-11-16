@@ -33,6 +33,7 @@ export function useCheckoutCart() {
         setLoading(false);
     }, []);
 
+    // Inicializar carrinho no mount
     useEffect(() => {
         refreshCart();
     }, [refreshCart]);

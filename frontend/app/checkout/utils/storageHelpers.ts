@@ -56,7 +56,7 @@ export const storageHelpers = {
     loadActiveOrderId: (): string | null => {
         if (typeof window === 'undefined') return null;
         const orderId = window.sessionStorage.getItem(CHECKOUT_ACTIVE_ORDER_KEY);
-        console.log('[storageHelpers] 📖 OrderId carregado do storage:', orderId || 'null');
+        // OTIMIZADO: Removido log excessivo - será logado apenas quando necessário
         return orderId;
     },
 

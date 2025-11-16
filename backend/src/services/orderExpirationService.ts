@@ -62,7 +62,8 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
 
     let expired = 0
 
-    for (const order of pending) {
+    // OTIMIZADO: Paralelizar queries ao Mercado Pago ao invés de sequencial
+    const orderPromises = pending.map(async (order): Promise<boolean> => {
         try {
             const isPixOrder = (order as any).paymentMethod === 'pix'
             const orderExpiresAt = (order as any).expiresAt as Date | undefined
@@ -72,20 +73,19 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
                 const timeoutMs = isPixOrder ? PIX_TIMEOUT_MS : DEFAULT_TIMEOUT_MS
                 const localDeadline = new Date(order.createdAt.getTime() + timeoutMs)
                 if (now < localDeadline) {
-                    continue // Ainda não expirou
+                    return false // Ainda não expirou
                 }
             } else {
                 // Usar expiresAt do pedido (nova lógica)
                 if (now < orderExpiresAt) {
-                    continue // Ainda não expirou
+                    return false // Ainda não expirou
                 }
             }
 
             // Pedido expirado (sem paymentId = nunca tentou pagar)
             if (!order.paymentId) {
                 await cancelOrderLocally(order, now)
-                expired++
-                continue
+                return true // Expirou
             }
 
             let paymentInfo: any = null
@@ -141,7 +141,7 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
                 order.paymentStatus = 'approved'
                 ;(order as any).paidAt = paymentInfo?.date_approved ? new Date(paymentInfo.date_approved) : now
                 await order.save()
-                continue
+                return false // Não expirou, foi pago
             }
 
             // Para PIX, SEMPRE usar apenas o date_of_expiration do Mercado Pago
@@ -158,7 +158,7 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
                     if (process.env.NODE_ENV !== 'production') {
                         console.log(`[order-expiration] PIX muito novo (${Math.round(orderAgeMs / 1000)}s), ignorando verificação de expiração para pedido ${String(order._id)}`)
                     }
-                    continue
+                    return false // Pedido muito novo, não expirou ainda
                 }
                 
                 // Para PIX: só cancelar se o MP expirou OU se não conseguimos obter a data de expiração e já passou muito tempo (fallback de segurança)
@@ -175,14 +175,14 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
                     
                     // Se ainda não expirou, não cancelar
                     if (!shouldExpire) {
-                        continue
+                        return false
                     }
                 } else {
                     // Não conseguimos obter a data de expiração do MP
                     // NÃO cancelar pedidos PIX sem date_of_expiration - aguardar webhook ou próxima verificação
                     // O Mercado Pago deve sempre retornar date_of_expiration para PIX
                     console.warn(`[order-expiration] ⚠️ PIX sem date_of_expiration do MP para pedido ${String(order._id)}. NÃO cancelando - aguardando próxima verificação ou webhook. Status: ${mpStatus || 'unknown'}, PaymentId: ${order.paymentId || 'none'}, OrderId: ${(order as any).paymentOrderId || 'none'}`)
-                    continue // Não cancelar se não temos a data de expiração
+                    return false // Não cancelar se não temos a data de expiração
                 }
             } else {
                 // Para outros métodos de pagamento (cartão): usar expiresAt do pedido ou MP expiration
@@ -192,7 +192,7 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
             }
 
             if (!shouldExpire) {
-                continue
+                return false
             }
 
             const effectiveStatus = mpStatus || 'pending'
@@ -203,7 +203,6 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
                 // Se o MP já cancelou, seguir o MP independente da data de expiração
                 if (['cancelled', 'rejected', 'expired'].includes(effectiveStatus)) {
                     await cancelOrderLocally(order, now, effectiveStatus)
-                    expired++
                     if (process.env.NODE_ENV !== 'production') {
                         const mpExpiration = paymentInfo?.date_of_expiration ? new Date(paymentInfo.date_of_expiration) : null;
                         if (mpExpiration && now < mpExpiration) {
@@ -212,7 +211,7 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
                             console.log(`[order-expiration] PIX pedido ${String(order._id)}: MP cancelou (status: ${effectiveStatus}). Seguindo MP e cancelando.`);
                         }
                     }
-                    continue
+                    return true // Expirou
                 }
                 
                 // Se ainda não cancelou no MP, verificar se expirou para cancelar automaticamente
@@ -233,35 +232,33 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
                             }
                         }
                         await cancelOrderLocally(order, now)
-                        expired++
                         if (process.env.NODE_ENV !== 'production') {
                             console.log(`[order-expiration] PIX pedido ${String(order._id)}: expirou (${mpExpiration.toISOString()}). Cancelando automaticamente.`);
                         }
-                        continue
+                        return true // Expirou
                     }
                 } else if (mpExpiration && now < mpExpiration) {
                     // Ainda não expirou, não cancelar
                     if (process.env.NODE_ENV !== 'production') {
                         console.log(`[order-expiration] PIX pedido ${String(order._id)}: ainda não expirou (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Mantendo como pending.`);
                     }
-                    continue
+                    return false
                 } else {
                     // Sem data de expiração, não cancelar (aguardar webhook ou próxima verificação)
                     if (process.env.NODE_ENV !== 'production') {
                         console.warn(`[order-expiration] PIX pedido ${String(order._id)}: sem date_of_expiration. Mantendo como pending.`);
                     }
-                    continue
+                    return false
                 }
             } else {
                 // Para outros métodos de pagamento (cartão, etc): REGRA - MP é a fonte de verdade única
                 // Se o MP já cancelou, seguir o MP imediatamente
                 if (['cancelled', 'rejected', 'expired'].includes(effectiveStatus)) {
                     await cancelOrderLocally(order, now, effectiveStatus)
-                    expired++
                     if (process.env.NODE_ENV !== 'production') {
                         console.log(`[order-expiration] Cartão pedido ${String(order._id)}: MP cancelou (status: ${effectiveStatus}). Seguindo MP e cancelando.`);
                     }
-                    continue
+                    return true // Expirou
                 }
 
                 // Se ainda não cancelou no MP, verificar se expirou para cancelar automaticamente
@@ -275,18 +272,24 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
                             console.warn('[order-expiration] Falha ao cancelar pagamento no Mercado Pago', String(order._id), cancelError)
                         }
                         await cancelOrderLocally(order, now)
-                        expired++
                         if (process.env.NODE_ENV !== 'production') {
                             console.log(`[order-expiration] Cartão pedido ${String(order._id)}: expirou. Cancelando automaticamente.`);
                         }
-                        continue
+                        return true // Expirou
                     }
                 }
             }
+            
+            return false // Não expirou
         } catch (error) {
             console.error('Erro ao expirar/cancelar pedido', String(order._id), error)
+            return false // Em caso de erro, não contar como expirado
         }
-    }
+    })
+
+    // Executar todas as promises em paralelo
+    const results = await Promise.all(orderPromises)
+    expired = results.filter(r => r === true).length
 
     return { checked: pending.length, expired }
 }

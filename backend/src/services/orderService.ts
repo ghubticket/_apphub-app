@@ -1,0 +1,543 @@
+import mongoose from 'mongoose';
+import { Order, Ticket, TicketType, Event, User, PromoterCode } from '../models';
+import { generateQRCode } from './qrCodeService';
+import { generateTicketPDF } from './pdfService';
+import { sendCourtesyTicketEmail } from './emailTemplates';
+import * as reservationService from './reservationService';
+import { normalizeEmail } from '../utils/validationHelpers';
+
+const CHECKOUT_TIMEOUT_MINUTES = Number(process.env.CHECKOUT_TIMEOUT_MINUTES || 30);
+const CHECKOUT_TIMEOUT_MS = CHECKOUT_TIMEOUT_MINUTES * 60 * 1000;
+const MAX_CARD_PAYMENT_ATTEMPTS = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
+
+/**
+ * Valida dados básicos de criação de pedido
+ */
+export interface OrderValidationResult {
+    isValid: boolean;
+    error?: { status: number; message: string; errors: string[] };
+}
+
+export function validateOrderInput(
+    eventId: string | undefined,
+    ticketTypeId: string | undefined,
+    quantity: number | undefined
+): OrderValidationResult {
+    if (!eventId || !ticketTypeId || !quantity || quantity <= 0) {
+        return {
+            isValid: false,
+            error: {
+                status: 400,
+                message: 'Dados inválidos',
+                errors: ['eventId, ticketTypeId e quantity são obrigatórios']
+            }
+        };
+    }
+
+    if (quantity > 10) {
+        return {
+            isValid: false,
+            error: {
+                status: 400,
+                message: 'Quantidade inválida',
+                errors: ['Máximo de 10 ingressos por pedido']
+            }
+        };
+    }
+
+    return { isValid: true };
+}
+
+/**
+ * Busca dados relacionados necessários para criar pedido
+ */
+export interface OrderRelatedData {
+    event: any;
+    ticketType: any;
+    user: any | null;
+}
+
+export async function fetchOrderRelatedData(
+    eventId: string,
+    ticketTypeId: string,
+    userId?: string | null
+): Promise<{ data?: OrderRelatedData; error?: OrderValidationResult['error'] }> {
+    const event = await Event.findOne({ _id: eventId, deletedAt: null, isActive: true });
+    if (!event) {
+        return {
+            error: {
+                status: 404,
+                message: 'Evento não encontrado ou inativo',
+                errors: []
+            }
+        };
+    }
+
+    const ticketType = await TicketType.findOne({ _id: ticketTypeId, deletedAt: null, isActive: true });
+    if (!ticketType) {
+        return {
+            error: {
+                status: 404,
+                message: 'Tipo de ingresso não encontrado ou inativo',
+                errors: []
+            }
+        };
+    }
+
+    if (String(ticketType.event) !== String(eventId)) {
+        return {
+            error: {
+                status: 400,
+                message: 'Tipo de ingresso não pertence a este evento',
+                errors: []
+            }
+        };
+    }
+
+    let user = null;
+    if (userId) {
+        user = await User.findOne({ _id: userId, deletedAt: null });
+        if (!user) {
+            return {
+                error: {
+                    status: 404,
+                    message: 'Usuário não encontrado',
+                    errors: []
+                }
+            };
+        }
+    }
+
+    return { data: { event, ticketType, user } };
+}
+
+/**
+ * Valida disponibilidade e limites de compra
+ */
+export interface AvailabilityValidationResult {
+    isValid: boolean;
+    error?: OrderValidationResult['error'];
+}
+
+export async function validateAvailabilityAndLimits(
+    eventId: string,
+    ticketTypeId: string,
+    quantity: number,
+    ticketType: any,
+    cpfToValidate?: string | null,
+    emailToValidate?: string | null
+): Promise<AvailabilityValidationResult> {
+    // Verificar disponibilidade usando o serviço de reservas
+    const availableQuantity = await reservationService.getAvailableQuantity(eventId, ticketTypeId);
+    if (availableQuantity < quantity) {
+        return {
+            isValid: false,
+            error: {
+                status: 400,
+                message: 'Quantidade insuficiente',
+                errors: [`Apenas ${availableQuantity} ingressos disponíveis`]
+            }
+        };
+    }
+
+    // Verificar limite por compra
+    if (quantity > ticketType.maxPerPurchase) {
+        return {
+            isValid: false,
+            error: {
+                status: 400,
+                message: 'Limite excedido',
+                errors: [`Máximo de ${ticketType.maxPerPurchase} ingressos por compra`]
+            }
+        };
+    }
+
+    // Verificar limite acumulado por CPF (se configurado)
+    if (ticketType.maxPerCPF && cpfToValidate) {
+        // Importar função dinamicamente para evitar dependência circular
+        const ordersController = await import('../controllers/ordersController');
+        const purchasedByCPF = await ordersController.countPurchasedTicketsByCPFOrEmail(
+            eventId,
+            ticketTypeId,
+            cpfToValidate,
+            undefined
+        );
+        const totalAfterPurchase = purchasedByCPF + quantity;
+
+        if (totalAfterPurchase > ticketType.maxPerCPF) {
+            const remaining = Math.max(0, ticketType.maxPerCPF - purchasedByCPF);
+            return {
+                isValid: false,
+                error: {
+                    status: 400,
+                    message: 'Limite acumulado por CPF excedido',
+                    errors: [
+                        `Este CPF já comprou ${purchasedByCPF} ingresso(s) deste tipo. ` +
+                        `Limite máximo: ${ticketType.maxPerCPF}. ` +
+                        `Você pode comprar no máximo mais ${remaining} ingresso(s).`
+                    ]
+                }
+            };
+        }
+    }
+
+    // Verificar limite acumulado por Email (se configurado)
+    if (ticketType.maxPerEmail && emailToValidate) {
+        // Importar função dinamicamente para evitar dependência circular
+        const ordersController = await import('../controllers/ordersController');
+        const purchasedByEmail = await ordersController.countPurchasedTicketsByCPFOrEmail(
+            eventId,
+            ticketTypeId,
+            undefined,
+            emailToValidate
+        );
+        const totalAfterPurchase = purchasedByEmail + quantity;
+
+        if (totalAfterPurchase > ticketType.maxPerEmail) {
+            const remaining = Math.max(0, ticketType.maxPerEmail - purchasedByEmail);
+            return {
+                isValid: false,
+                error: {
+                    status: 400,
+                    message: 'Limite acumulado por Email excedido',
+                    errors: [
+                        `Este Email já comprou ${purchasedByEmail} ingresso(s) deste tipo. ` +
+                        `Limite máximo: ${ticketType.maxPerEmail}. ` +
+                        `Você pode comprar no máximo mais ${remaining} ingresso(s).`
+                    ]
+                }
+            };
+        }
+    }
+
+    return { isValid: true };
+}
+
+/**
+ * Calcula valores do pedido (subtotal, desconto, taxa, total)
+ */
+export interface OrderCalculationResult {
+    isVIP: boolean;
+    ticketPrice: number;
+    subtotal: number;
+    discountAmount: number;
+    platformFee: number;
+    totalAmount: number;
+    usedPromoterCode?: string;
+}
+
+export async function calculateOrderValues(
+    ticketType: any,
+    event: any,
+    quantity: number,
+    promoterCode?: string
+): Promise<OrderCalculationResult> {
+    const isVIP = ticketType.isVIP;
+    const ticketPrice = isVIP ? 0 : ticketType.price;
+    const subtotal = ticketPrice * quantity;
+
+    // Validar e aplicar desconto de código de promotor
+    let discountAmount = 0;
+    let usedPromoterCode: string | undefined = undefined;
+
+    if (promoterCode && !isVIP) {
+        const code = await PromoterCode.findOne({
+            code: promoterCode.toUpperCase().trim(),
+            isActive: true,
+            deletedAt: null,
+            events: event._id
+        });
+
+        if (code) {
+            usedPromoterCode = code.code;
+            if (code.discountType === 'percentage') {
+                discountAmount = subtotal * (code.discountValue / 100);
+            } else {
+                discountAmount = Math.min(code.discountValue, subtotal);
+            }
+        }
+    }
+
+    // Calcular taxa da plataforma
+    const platformFeePercentage = event.platformFeePercentage || 0;
+    const subtotalAfterDiscount = subtotal - discountAmount;
+    const platformFee = isVIP ? 0 : (subtotalAfterDiscount * (platformFeePercentage / 100));
+    const totalAmount = subtotalAfterDiscount + platformFee;
+
+    return {
+        isVIP,
+        ticketPrice,
+        subtotal,
+        discountAmount,
+        platformFee,
+        totalAmount,
+        usedPromoterCode
+    };
+}
+
+/**
+ * Busca pedido existente para reutilizar
+ */
+export async function findExistingOrder(
+    eventId: string,
+    userId?: string | null,
+    normalizedCustomerEmail?: string | null,
+    normalizedUserEmail?: string | null
+) {
+    const existingOrderFilters: any = {
+        event: eventId,
+        deletedAt: null,
+        status: { $in: ['pending', 'failed'] },
+    };
+
+    if (userId) {
+        existingOrderFilters.customer = userId;
+    } else if (normalizedCustomerEmail) {
+        existingOrderFilters['customerData.email'] = normalizedCustomerEmail;
+    } else if (normalizedUserEmail) {
+        existingOrderFilters['customerData.email'] = normalizedUserEmail;
+    }
+
+    return await Order.findOne(existingOrderFilters)
+        .populate('tickets', 'ticketType')
+        .lean();
+}
+
+/**
+ * Devolve estoque de um pedido
+ */
+export async function returnStockFromOrder(oldOrder: any) {
+    const oldTickets = await Ticket.find({ order: oldOrder._id, deletedAt: null }).populate('ticketType');
+    const ticketTypeCounts = new Map<string, number>();
+
+    for (const ticket of oldTickets) {
+        const ticketTypeId = String((ticket as any).ticketType?._id || (ticket as any).ticketType);
+        if (ticketTypeId) {
+            ticketTypeCounts.set(ticketTypeId, (ticketTypeCounts.get(ticketTypeId) || 0) + 1);
+        }
+    }
+
+    for (const [ticketTypeId, qty] of ticketTypeCounts.entries()) {
+        const oldTicketType = await TicketType.findById(ticketTypeId);
+        if (oldTicketType && qty > 0) {
+            oldTicketType.soldQuantity = Math.max(0, oldTicketType.soldQuantity - qty);
+            await oldTicketType.save();
+            console.log(`🔄 [orderService] Devolvendo ${qty} ingressos ao estoque (ticketType: ${ticketTypeId})`);
+        }
+    }
+}
+
+/**
+ * Cancela pedido e devolve estoque
+ */
+export async function cancelOrderAndReturnStock(oldOrder: any) {
+    await returnStockFromOrder(oldOrder);
+
+    if (oldOrder.status === 'pending') {
+        oldOrder.status = 'cancelled';
+        oldOrder.cancelledAt = new Date();
+        oldOrder.isActive = false;
+        await oldOrder.save();
+
+        await Ticket.updateMany(
+            { order: oldOrder._id, deletedAt: null },
+            { status: 'cancelled', deletedAt: new Date() }
+        );
+
+        console.log(`✅ [orderService] Pedido ${oldOrder.orderNumber} cancelado e ingressos devolvidos ao estoque`);
+    }
+}
+
+/**
+ * Cancela pedidos pendentes anteriores do mesmo usuário/evento
+ */
+export async function cancelPreviousPendingOrders(
+    eventId: string,
+    userId?: string | null,
+    normalizedCustomerEmail?: string | null,
+    normalizedUserEmail?: string | null,
+    excludeOrderId?: string
+) {
+    const cancelFilters: any = {
+        event: eventId,
+        deletedAt: null,
+        status: 'pending',
+        paymentMethod: { $in: [null, 'credit_card', 'debit_card'] },
+    };
+
+    const failedFilters: any = {
+        event: eventId,
+        deletedAt: null,
+        status: 'failed',
+        paymentMethod: { $in: [null, 'credit_card', 'debit_card'] },
+    };
+
+    if (excludeOrderId) {
+        cancelFilters._id = { $ne: excludeOrderId };
+        failedFilters._id = { $ne: excludeOrderId };
+    }
+
+    if (userId) {
+        cancelFilters.customer = userId;
+        failedFilters.customer = userId;
+    } else if (normalizedCustomerEmail) {
+        cancelFilters['customerData.email'] = normalizedCustomerEmail;
+        failedFilters['customerData.email'] = normalizedCustomerEmail;
+    } else if (normalizedUserEmail) {
+        cancelFilters['customerData.email'] = normalizedUserEmail;
+        failedFilters['customerData.email'] = normalizedUserEmail;
+    }
+
+    const pendingOrdersToCancel = await Order.find(cancelFilters).populate('tickets');
+    const failedOrdersToClean = await Order.find(failedFilters).populate('tickets');
+
+    if (pendingOrdersToCancel.length > 0) {
+        console.log(`🔄 [orderService] Cancelando ${pendingOrdersToCancel.length} pedido(s) pendente(s) anterior(es)`);
+        for (const oldOrder of pendingOrdersToCancel) {
+            await cancelOrderAndReturnStock(oldOrder);
+        }
+    }
+
+    if (failedOrdersToClean.length > 0) {
+        console.log(`🔄 [orderService] Limpando ${failedOrdersToClean.length} pedido(s) failed anterior(es) - devolvendo estoque`);
+        for (const oldOrder of failedOrdersToClean) {
+            await returnStockFromOrder(oldOrder);
+            console.log(`✅ [orderService] Estoque devolvido do pedido failed ${oldOrder.orderNumber}`);
+        }
+    }
+}
+
+/**
+ * Cria tickets para um pedido
+ */
+export async function createTicketsForOrder(
+    orderId: mongoose.Types.ObjectId,
+    eventId: string,
+    ticketTypeId: string,
+    quantity: number,
+    ticketPrice: number,
+    ticketStatus: 'pending' | 'confirmed',
+    userId?: string | null,
+    isVIP: boolean = false
+): Promise<any[]> {
+    const createdTickets: any[] = [];
+
+    for (let i = 0; i < quantity; i++) {
+        const ticket = new Ticket({
+            event: eventId,
+            ticketType: ticketTypeId,
+            order: orderId,
+            holder: userId || null,
+            price: ticketPrice,
+            status: ticketStatus,
+            qrCode: '',
+        });
+
+        await ticket.save();
+
+        // Gerar QR Code APENAS se o pedido estiver PAID ou for VIP
+        if (ticketStatus === 'confirmed' || isVIP) {
+            const qrCode = await generateQRCode(ticket.code);
+            ticket.qrCode = qrCode;
+            await ticket.save();
+        }
+
+        createdTickets.push(ticket);
+    }
+
+    return createdTickets;
+}
+
+/**
+ * Envia email de cortesia para pedidos VIP
+ */
+export async function sendVIPOrderEmail(populatedOrder: any) {
+    try {
+        const event = populatedOrder.event as any;
+        const customer = populatedOrder.customer as any;
+        const customerData = populatedOrder.customerData as any;
+        const tickets = populatedOrder.tickets as any[];
+        const orderNumber = populatedOrder.orderNumber;
+        const orderId = populatedOrder._id;
+
+        const customerEmail = customerData?.email || customer?.email;
+        const customerName = customerData?.name || customer?.name;
+
+        if (!customerEmail || customerEmail === 'Não informado' || customerEmail.trim() === '') {
+            console.warn(`⚠️ Email não informado para cortesia. Pedido: ${orderNumber}`);
+            return;
+        }
+
+        if (!event || !tickets || tickets.length === 0 || !orderNumber) {
+            return;
+        }
+
+        const ticketsWithQR = tickets.filter(t => t.qrCode);
+        if (ticketsWithQR.length === 0) {
+            return;
+        }
+
+        const pdfBuffer = await generateTicketPDF({
+            event: {
+                name: event.name,
+                date: event.date,
+                location: event.location,
+                address: event.address
+            },
+            orderNumber,
+            customerName: customerName || 'Cliente',
+            tickets: ticketsWithQR.map(t => ({
+                code: t.code,
+                qrCode: t.qrCode,
+                ticketType: (t.ticketType as any)?.name || 'Ingresso',
+                holderName: (t.holder as any)?.name || customerName || 'Cliente'
+            }))
+        });
+
+        const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const qrCodesForEmail = ticketsWithQR.map(t => ({
+            code: t.code,
+            qrCode: t.qrCode,
+            holderName: (t.holder as any)?.name || customerName || 'Cliente'
+        }));
+
+        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+        const emailResult = await sendCourtesyTicketEmail(
+            customerEmail,
+            {
+                customerName: customerName || 'Cliente',
+                orderNumber,
+                eventName: event.name,
+                eventDate,
+                eventLocation: event.location,
+                eventAddress: event.address,
+                totalTickets: ticketsWithQR.length,
+                ticketType: ticketsWithQR[0]?.ticketType?.name || 'VIP',
+                downloadLink: `${dashboardUrl}/orders/${orderId}`,
+                qrCodes: qrCodesForEmail
+            },
+            [{
+                filename: `cortesia-${orderNumber}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+            }]
+        );
+
+        if (emailResult.success) {
+            console.log(`✅ Email de cortesia com PDF enviado para ${customerEmail}`);
+        } else {
+            console.error(`❌ Erro ao enviar email de cortesia para ${customerEmail}:`, emailResult.error);
+        }
+    } catch (emailError) {
+        console.error('Erro ao enviar email de cortesia:', emailError);
+    }
+}
+

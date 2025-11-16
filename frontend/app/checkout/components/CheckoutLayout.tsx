@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { storageHelpers } from '../utils/storageHelpers';
+import { getRemainingSeconds, parseExpiresAt } from '../utils/orderHelpers';
 
 export function CheckoutLayout() {
     const router = useRouter();
@@ -36,10 +37,26 @@ export function CheckoutLayout() {
         customerData
     );
 
-    // Verificar se há orderId no storage (mesmo durante loading)
-    const hasPendingOrderInStorage = useMemo(() => {
-        if (typeof window === 'undefined') return false;
-        return !!storageHelpers.loadActiveOrderId();
+    // OTIMIZADO: Usar order do hook diretamente ao invés de buscar do storage
+    // hasPendingOrderInStorage agora é derivado do order, não precisa buscar do storage
+    const hasPendingOrderInStorage = !!(order?._id && order.status === 'pending');
+
+    // Escutar mudanças no storage apenas para sincronizar entre abas
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const handleStorageChange = (e: StorageEvent) => {
+            // Sincronizar quando storage mudar em outra aba
+            if (e.key === '5521-active-order-id') {
+                // Se orderId foi removido em outra aba, não precisamos fazer nada aqui
+                // O hook useCheckoutOrder já gerencia isso
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, []);
 
     // Verificar se há timer válido no localStorage (mesmo quando pedido retorna 403)
@@ -91,10 +108,7 @@ export function CheckoutLayout() {
     // Se não temos pedido carregado mas temos timer válido no localStorage, usar ele
     const remainingSeconds = useMemo(() => {
         if (order?.expiresAt) {
-            const expiresAtDate = typeof order.expiresAt === 'string' ? new Date(order.expiresAt) : order.expiresAt;
-            const now = Date.now();
-            const remaining = Math.max(0, Math.floor((expiresAtDate.getTime() - now) / 1000));
-            return remaining > 0 ? remaining : null;
+            return getRemainingSeconds(order.expiresAt);
         }
         
         // Fallback: usar timer do localStorage se não temos pedido carregado
@@ -131,8 +145,8 @@ export function CheckoutLayout() {
     const handleTimerExpire = async () => {
         console.log('[CheckoutLayout] ⏰ Timer do pedido expirado!');
         
-        // Obter orderId do pedido atual ou do storage
-        const orderId = order?._id || storageHelpers.loadActiveOrderId();
+        // OTIMIZADO: Usar order do hook diretamente
+        const orderId = order?._id;
         
         if (orderId) {
             try {
@@ -248,12 +262,11 @@ export function CheckoutLayout() {
         console.log('[CheckoutLayout] 🚪 Usuário escolheu sair do checkout');
         setShowExitWarning(false);
         
-        // Obter orderId do pedido ou do storage
-        const orderId = order?._id || storageHelpers.loadActiveOrderId();
+        // OTIMIZADO: Usar order do hook diretamente
+        const orderId = order?._id;
         console.log('[CheckoutLayout] 📋 OrderId para cancelar:', {
             orderId,
             fromOrder: !!order?._id,
-            fromStorage: !order?._id && !!storageHelpers.loadActiveOrderId(),
         });
         
         if (!orderId) {

@@ -232,6 +232,10 @@ orderSchema.index({ customer: 1 });
 orderSchema.index({ event: 1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ status: 1, expiresAt: 1 }); // Índice composto para queries de expiração
+// Índice composto otimizado para orderExpirationService (status + deletedAt + expiresAt)
+orderSchema.index({ status: 1, deletedAt: 1, expiresAt: 1 });
+// Índice composto para busca de pedidos existentes (event + customer + status)
+orderSchema.index({ event: 1, customer: 1, status: 1 });
 orderSchema.index({ paymentId: 1 });
 orderSchema.index({ isActive: 1 });
 orderSchema.index({ cardAttempts: 1 });
