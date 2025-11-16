@@ -1,132 +1,111 @@
-[handleTimerExpire] ⏰ Timer expirado, cancelando reserva e pedido...
-page.tsx:2087 [handleTimerExpire] 🗑️ Cancelando reserva: 6917599731352c1eaa5fdd8b
-page.tsx:510 [cancelReservation] 🗑️ Cancelando reserva: 6917599731352c1eaa5fdd8b
-page.tsx:512 [cancelReservation] ✅ Reserva cancelada
-page.tsx:2095 [handleTimerExpire] 🗑️ Limpando carrinho completamente...
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2151 [RestoreReservation] ⏳ Aguardando checkout pronto: {isCheckoutReady: false, cartLength: 0}
-page.tsx:2832 [Modal] ✅ Fechando modal de reserva expirada, cancelando pedido e limpando tudo...
-page.tsx:2883 [Modal] 🗑️ Limpando carrinho completamente...
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2151 [RestoreReservation] ⏳ Aguardando checkout pronto: {isCheckoutReady: false, cartLength: 0}
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2143 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2143 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2169 [RestoreReservation] ✅ Condições atendidas, iniciando restauração...
-page.tsx:2175 [RestoreReservation] 🔄 Buscando reservas ativas da sessão... {sessionId: 'armor.e754c383319c786ca801804d004e8da725defcd23dfb…c00676f0ac1a39ae.beb56068e6080ae5abf81df06dc1e347'}
-page.tsx:2474 [AutoCreateReservation] 🆕 Criando/atualizando reserva...
-page.tsx:446 [ensureReservation] 🌐 Criando/atualizando reserva no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, sessionId: 'armor.e754c383319c786ca801804d004e8da725defcd23dfb…c00676f0ac1a39ae.beb56068e6080ae5abf81df06dc1e347'}
-page.tsx:2183 [RestoreReservation] 📦 Reservas encontradas: {count: 0, reservations: Array(0)}
-page.tsx:2483 [AutoCreateReservation] ✅ Reserva criada/atualizada: {reservationId: '691759a931352c1eaa5fdda7', orderId: undefined}
-page.tsx:2619 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '691759a931352c1eaa5fdda7', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T16:32:51.106Z', …}
-installHook.js:1 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '691759a931352c1eaa5fdda7', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T16:32:51.106Z', …}
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '691759a931352c1eaa5fdda7', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2139 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-useCheckoutTimer.ts:57 [useCheckoutTimer] 🔄 Timer atualizado com tempo restante: {initialRemainingSeconds: 9, remainingMs: 9000, remainingMinutes: 0, startTimeRef: 1763137960128, startTimeRefDate: '2025-11-14T16:32:40.128Z', …}
-page.tsx:887 [ensureOrder] 🔄 Iniciando ensureOrder... {allowReuse: false, hasOrder: false}
-page.tsx:906 [ensureOrder] ✅ Validações passadas, criando pedido...
-page.tsx:914 [ensureOrder] 🌐 Criando pedido no backend... {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, allowReuse: false}
-page.tsx:959 [ensureOrder] 🆕 NOVO PEDIDO CRIADO: {orderId: '691759ab31352c1eaa5fddb3', orderNumber: 'VF7YEL5JI1', status: 'pending'}
-page.tsx:971 [ensureOrder] 🗑️ Novo pedido criado, limpando activeOrderId antigo: null
-page.tsx:978 [ensureOrder] 💾 Pedido salvo no cache: 691759ab31352c1eaa5fddb3
-page.tsx:981 [ensureOrder] ✅ Pedido persistido: 691759ab31352c1eaa5fddb3
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '691759a931352c1eaa5fdda7', hasOrder: true, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2139 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-page.tsx:1981 [handlePixPayment] ✅ Pedido PIX criado como PENDING: 691759ab31352c1eaa5fddb3
-page.tsx:1985 [handlePixPayment] 🔄 Atualizando estado com reserva vinculada ao pedido PIX: {reservationId: '691759a931352c1eaa5fdda7', orderId: '691759ab31352c1eaa5fddb3', expiresAt: '2025-11-14T17:02:47.518Z'}
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '691759a931352c1eaa5fdda7', hasOrder: true, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2139 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2143 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2143 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2143 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2169 [RestoreReservation] ✅ Condições atendidas, iniciando restauração...
-page.tsx:2175 [RestoreReservation] 🔄 Buscando reservas ativas da sessão... {sessionId: 'armor.e754c383319c786ca801804d004e8da725defcd23dfb…c00676f0ac1a39ae.beb56068e6080ae5abf81df06dc1e347'}
-page.tsx:2474 [AutoCreateReservation] 🆕 Criando/atualizando reserva...
-page.tsx:446 [ensureReservation] 🌐 Criando/atualizando reserva no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, sessionId: 'armor.e754c383319c786ca801804d004e8da725defcd23dfb…c00676f0ac1a39ae.beb56068e6080ae5abf81df06dc1e347'}
-page.tsx:2183 [RestoreReservation] 📦 Reservas encontradas: {count: 1, reservations: Array(1)}
-page.tsx:2483 [AutoCreateReservation] ✅ Reserva criada/atualizada: {reservationId: '691759b731352c1eaa5fde07', orderId: undefined}
-page.tsx:2619 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '691759b731352c1eaa5fde07', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T16:33:05.704Z', …}
-installHook.js:1 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '691759b731352c1eaa5fde07', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T16:33:05.704Z', …}
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '691759b731352c1eaa5fde07', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2139 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-useCheckoutTimer.ts:57 [useCheckoutTimer] 🔄 Timer atualizado com tempo restante: {initialRemainingSeconds: 9, remainingMs: 9000, remainingMinutes: 0, startTimeRef: 1763137974722, startTimeRefDate: '2025-11-14T16:32:54.722Z', …}
-page.tsx:2270 [RestoreReservation] ⚠️ Reserva vinculada a pedido PIX pendente (encontrado na lista) para o MESMO evento/ticketType, não restaurando: {reservationId: '691759a931352c1eaa5fdda7', orderId: '691759ab31352c1eaa5fddb3', orderNumber: 'VF7YEL5JI1', eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6'}
-installHook.js:1 [useCheckoutTimer] ⏰ Timer expirado!
+[API] 🔧 Configuração da API: {baseURL: 'https://localhost:3443/api', env: 'https://localhost:3443/api'}
+installHook.js:1 Image with src "/images/5521.avif" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
 overrideMethod @ installHook.js:1
-eval @ useCheckoutTimer.ts:137
-setInterval
-eval @ useCheckoutTimer.ts:124
+warnOnce @ warn-once.js:16
+eval @ image-component.js:112
+Promise.then
+handleLoading @ image-component.js:37
+eval @ image-component.js:186
+commitAttachRef @ react-dom.development.js:21677
+safelyAttachRef @ react-dom.development.js:20803
+commitLayoutEffectOnFiber @ react-dom.development.js:21498
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21488
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21488
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21488
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21488
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21488
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21488
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21418
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21418
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21418
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21418
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21407
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21577
+recursivelyTraverseLayoutEffects @ react-dom.development.js:22926
+commitLayoutEffectOnFiber @ react-dom.development.js:21437
+commitLayoutEffects @ react-dom.development.js:22912
+commitRootImpl @ react-dom.development.js:26226
+commitRoot @ react-dom.development.js:26077
+commitRootWhenReady @ react-dom.development.js:24749
+finishConcurrentRender @ react-dom.development.js:24714
+performConcurrentWorkOnRoot @ react-dom.development.js:24559
+workLoop @ scheduler.development.js:256
+flushWork @ scheduler.development.js:225
+performWorkUntilDeadline @ scheduler.development.js:534Understand this warning
+installHook.js:1 [useSessionExpiration] Erro HTTP 404: Rota não encontrada
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ useSessionExpiration.ts:55
+await in eval
+eval @ useSessionExpiration.ts:155
 commitHookEffectListMount @ react-dom.development.js:21102
 commitHookPassiveMountEffects @ react-dom.development.js:23154
 commitPassiveMountOnFiber @ react-dom.development.js:23259
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
 recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
 commitPassiveMountOnFiber @ react-dom.development.js:23370
 recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
@@ -191,50 +170,431 @@ flushPassiveEffects @ react-dom.development.js:26438
 eval @ react-dom.development.js:26172
 workLoop @ scheduler.development.js:256
 flushWork @ scheduler.development.js:225
-performWorkUntilDeadline @ scheduler.development.js:534Understand this warning
-page.tsx:2065 [handleTimerExpire] ⏰ Timer expirado, cancelando reserva e pedido...
-page.tsx:2087 [handleTimerExpire] 🗑️ Cancelando reserva: 691759b731352c1eaa5fde07
-page.tsx:510 [cancelReservation] 🗑️ Cancelando reserva: 691759b731352c1eaa5fde07
-page.tsx:512 [cancelReservation] ✅ Reserva cancelada
-page.tsx:2095 [handleTimerExpire] 🗑️ Limpando carrinho completamente...
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2151 [RestoreReservation] ⏳ Aguardando checkout pronto: {isCheckoutReady: false, cartLength: 0}
-page.tsx:2832 [Modal] ✅ Fechando modal de reserva expirada, cancelando pedido e limpando tudo...
-page.tsx:2883 [Modal] 🗑️ Limpando carrinho completamente...
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2151 [RestoreReservation] ⏳ Aguardando checkout pronto: {isCheckoutReady: false, cartLength: 0}
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2143 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2143 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2169 [RestoreReservation] ✅ Condições atendidas, iniciando restauração...
-page.tsx:2175 [RestoreReservation] 🔄 Buscando reservas ativas da sessão... {sessionId: 'armor.e754c383319c786ca801804d004e8da725defcd23dfb…c00676f0ac1a39ae.beb56068e6080ae5abf81df06dc1e347'}
-page.tsx:2474 [AutoCreateReservation] 🆕 Criando/atualizando reserva...
-page.tsx:446 [ensureReservation] 🌐 Criando/atualizando reserva no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, sessionId: 'armor.e754c383319c786ca801804d004e8da725defcd23dfb…c00676f0ac1a39ae.beb56068e6080ae5abf81df06dc1e347'}
-page.tsx:2183 [RestoreReservation] 📦 Reservas encontradas: {count: 1, reservations: Array(1)}
-page.tsx:2483 [AutoCreateReservation] ✅ Reserva criada/atualizada: {reservationId: '691759c831352c1eaa5fde30', orderId: undefined}
-page.tsx:2619 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '691759c831352c1eaa5fde30', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T16:33:22.454Z', …}
-installHook.js:1 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '691759c831352c1eaa5fde30', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T16:33:22.454Z', …}
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '691759c831352c1eaa5fde30', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2139 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-useCheckoutTimer.ts:57 [useCheckoutTimer] 🔄 Timer atualizado com tempo restante: {initialRemainingSeconds: 9, remainingMs: 9000, remainingMinutes: 0, startTimeRef: 1763137991471, startTimeRefDate: '2025-11-14T16:33:11.471Z', …}
+performWorkUntilDeadline @ scheduler.development.js:534Understand this error
+installHook.js:1 [useSessionExpiration] Erro ao verificar sessão: Error: Rota não encontrada
+    at eval (useSessionExpiration.ts:64:15)
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ useSessionExpiration.ts:89
+await in eval
+eval @ useSessionExpiration.ts:155
+commitHookEffectListMount @ react-dom.development.js:21102
+commitHookPassiveMountEffects @ react-dom.development.js:23154
+commitPassiveMountOnFiber @ react-dom.development.js:23259
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23267
+commitPassiveMountEffects @ react-dom.development.js:23225
+flushPassiveEffectsImpl @ react-dom.development.js:26497
+flushPassiveEffects @ react-dom.development.js:26438
+eval @ react-dom.development.js:26172
+workLoop @ scheduler.development.js:256
+flushWork @ scheduler.development.js:225
+performWorkUntilDeadline @ scheduler.development.js:534Understand this error
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
+page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
+page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
+page.tsx:2346 [RestoreReservation] ✅ Condições atendidas, iniciando restauração...
+page.tsx:2352 [RestoreReservation] 🔄 Buscando reservas ativas da sessão... {sessionId: 'dev-device-f4daccd9-45b1-4f75-a27f-21f5b8a3f4f9'}
+page.tsx:2651 [AutoCreateReservation] 🆕 Criando/atualizando reserva...
+page.tsx:446 [ensureReservation] 🌐 Criando/atualizando reserva no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, sessionId: 'dev-device-f4daccd9-45b1-4f75-a27f-21f5b8a3f4f9'}
+page.tsx:2360 [RestoreReservation] 📦 Reservas encontradas: {count: 0, reservations: Array(0)}
+page.tsx:2660 [AutoCreateReservation] ✅ Reserva criada/atualizada: {reservationId: '69178c1ac711ef67f9295bab', orderId: undefined}
+page.tsx:2796 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '69178c1ac711ef67f9295bab', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T20:37:54.010Z', …}
+installHook.js:1 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '69178c1ac711ef67f9295bab', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T20:37:54.010Z', …}
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c1ac711ef67f9295bab', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
+page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
+useCheckoutTimer.ts:57 [useCheckoutTimer] 🔄 Timer atualizado com tempo restante: {initialRemainingSeconds: 1799, remainingMs: 1799000, remainingMinutes: 29, startTimeRef: 1763150873024, startTimeRefDate: '2025-11-14T20:07:53.024Z', …}
+page.tsx:3329 [Tab Switch] 🔄 Mudando para PIX, resetando formulário do cartão
+VM5244 cardPayment.js:2 Error: <svg> attribute width: Unexpected end of attribute. Expected length, "".
+C @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+y @ VM5244 cardPayment.js:2
+v @ VM5244 cardPayment.js:2
+Promise.then
+u @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+eval @ page.tsx:1141
+eval @ page.tsx:1124
+onClick @ page.tsx:3330
+callCallback @ react-dom.development.js:20565
+invokeGuardedCallbackImpl @ react-dom.development.js:20614
+invokeGuardedCallback @ react-dom.development.js:20689
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
+executeDispatch @ react-dom.development.js:32128
+processDispatchQueueItemsInOrder @ react-dom.development.js:32160
+processDispatchQueue @ react-dom.development.js:32173
+dispatchEventsForPlugins @ react-dom.development.js:32184
+eval @ react-dom.development.js:32374
+batchedUpdates$1 @ react-dom.development.js:24953
+batchedUpdates @ react-dom.development.js:28844
+dispatchEventForPluginEventSystem @ react-dom.development.js:32373
+dispatchEvent @ react-dom.development.js:30141
+dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
+VM5244 cardPayment.js:2 Error: <svg> attribute height: Unexpected end of attribute. Expected length, "".
+C @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+y @ VM5244 cardPayment.js:2
+v @ VM5244 cardPayment.js:2
+Promise.then
+u @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+eval @ page.tsx:1141
+eval @ page.tsx:1124
+onClick @ page.tsx:3330
+callCallback @ react-dom.development.js:20565
+invokeGuardedCallbackImpl @ react-dom.development.js:20614
+invokeGuardedCallback @ react-dom.development.js:20689
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
+executeDispatch @ react-dom.development.js:32128
+processDispatchQueueItemsInOrder @ react-dom.development.js:32160
+processDispatchQueue @ react-dom.development.js:32173
+dispatchEventsForPlugins @ react-dom.development.js:32184
+eval @ react-dom.development.js:32374
+batchedUpdates$1 @ react-dom.development.js:24953
+batchedUpdates @ react-dom.development.js:28844
+dispatchEventForPluginEventSystem @ react-dom.development.js:32373
+dispatchEvent @ react-dom.development.js:30141
+dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
+VM5244 cardPayment.js:2 Error: <svg> attribute width: Unexpected end of attribute. Expected length, "".
+C @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+y @ VM5244 cardPayment.js:2
+v @ VM5244 cardPayment.js:2
+Promise.then
+u @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+eval @ page.tsx:1141
+eval @ page.tsx:1124
+onClick @ page.tsx:3330
+callCallback @ react-dom.development.js:20565
+invokeGuardedCallbackImpl @ react-dom.development.js:20614
+invokeGuardedCallback @ react-dom.development.js:20689
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
+executeDispatch @ react-dom.development.js:32128
+processDispatchQueueItemsInOrder @ react-dom.development.js:32160
+processDispatchQueue @ react-dom.development.js:32173
+dispatchEventsForPlugins @ react-dom.development.js:32184
+eval @ react-dom.development.js:32374
+batchedUpdates$1 @ react-dom.development.js:24953
+batchedUpdates @ react-dom.development.js:28844
+dispatchEventForPluginEventSystem @ react-dom.development.js:32373
+dispatchEvent @ react-dom.development.js:30141
+dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
+VM5244 cardPayment.js:2 Error: <svg> attribute height: Unexpected end of attribute. Expected length, "".
+C @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+y @ VM5244 cardPayment.js:2
+v @ VM5244 cardPayment.js:2
+Promise.then
+u @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+eval @ page.tsx:1141
+eval @ page.tsx:1124
+onClick @ page.tsx:3330
+callCallback @ react-dom.development.js:20565
+invokeGuardedCallbackImpl @ react-dom.development.js:20614
+invokeGuardedCallback @ react-dom.development.js:20689
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
+executeDispatch @ react-dom.development.js:32128
+processDispatchQueueItemsInOrder @ react-dom.development.js:32160
+processDispatchQueue @ react-dom.development.js:32173
+dispatchEventsForPlugins @ react-dom.development.js:32184
+eval @ react-dom.development.js:32374
+batchedUpdates$1 @ react-dom.development.js:24953
+batchedUpdates @ react-dom.development.js:28844
+dispatchEventForPluginEventSystem @ react-dom.development.js:32373
+dispatchEvent @ react-dom.development.js:30141
+dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
+VM5244 cardPayment.js:2 Error: <svg> attribute width: Unexpected end of attribute. Expected length, "".
+C @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+y @ VM5244 cardPayment.js:2
+v @ VM5244 cardPayment.js:2
+Promise.then
+u @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+eval @ page.tsx:1141
+eval @ page.tsx:1124
+onClick @ page.tsx:3330
+callCallback @ react-dom.development.js:20565
+invokeGuardedCallbackImpl @ react-dom.development.js:20614
+invokeGuardedCallback @ react-dom.development.js:20689
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
+executeDispatch @ react-dom.development.js:32128
+processDispatchQueueItemsInOrder @ react-dom.development.js:32160
+processDispatchQueue @ react-dom.development.js:32173
+dispatchEventsForPlugins @ react-dom.development.js:32184
+eval @ react-dom.development.js:32374
+batchedUpdates$1 @ react-dom.development.js:24953
+batchedUpdates @ react-dom.development.js:28844
+dispatchEventForPluginEventSystem @ react-dom.development.js:32373
+dispatchEvent @ react-dom.development.js:30141
+dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
+VM5244 cardPayment.js:2 Error: <svg> attribute height: Unexpected end of attribute. Expected length, "".
+C @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+p @ VM5244 cardPayment.js:2
+y @ VM5244 cardPayment.js:2
+v @ VM5244 cardPayment.js:2
+Promise.then
+u @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+(anonymous) @ VM5244 cardPayment.js:2
+eval @ page.tsx:1141
+eval @ page.tsx:1124
+onClick @ page.tsx:3330
+callCallback @ react-dom.development.js:20565
+invokeGuardedCallbackImpl @ react-dom.development.js:20614
+invokeGuardedCallback @ react-dom.development.js:20689
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
+executeDispatch @ react-dom.development.js:32128
+processDispatchQueueItemsInOrder @ react-dom.development.js:32160
+processDispatchQueue @ react-dom.development.js:32173
+dispatchEventsForPlugins @ react-dom.development.js:32184
+eval @ react-dom.development.js:32374
+batchedUpdates$1 @ react-dom.development.js:24953
+batchedUpdates @ react-dom.development.js:28844
+dispatchEventForPluginEventSystem @ react-dom.development.js:32373
+dispatchEvent @ react-dom.development.js:30141
+dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
+cardPayment.js:2 Uncaught (in promise) Error: [Checkout Bricks error] Could not find the Brick container ID 'cardPaymentBrick_container'
+te @ cardPayment.js:2
+(anonymous) @ cardPayment.js:2
+(anonymous) @ cardPayment.js:2
+me @ cardPayment.js:2
+getTarget @ cardPayment.js:2
+(anonymous) @ cardPayment.js:2
+a @ cardPayment.js:2
+Promise.then
+l @ cardPayment.js:2
+a @ cardPayment.js:2
+Promise.then
+l @ cardPayment.js:2
+a @ cardPayment.js:2
+Promise.then
+l @ cardPayment.js:2
+(anonymous) @ cardPayment.js:2
+me @ cardPayment.js:2
+setup @ cardPayment.js:2
+(anonymous) @ cardPayment.js:2
+a @ cardPayment.js:2
+Promise.then
+l @ cardPayment.js:2
+(anonymous) @ cardPayment.js:2
+fe @ cardPayment.js:2
+initialize @ cardPayment.js:2
+render @ v2:1
+await in render
+(anonymous) @ v2:1
+create @ v2:1
+await in create
+eval @ index.js:19
+fulfilled @ index.js:9
+Promise.then
+step @ index.js:11
+eval @ index.js:12
+__awaiter @ index.js:8
+initBrick @ index.js:16
+eval @ index.js:57
+setTimeout
+eval @ index.js:56
+commitHookEffectListMount @ react-dom.development.js:21102
+commitHookPassiveMountEffects @ react-dom.development.js:23154
+commitPassiveMountOnFiber @ react-dom.development.js:23259
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23267
+commitPassiveMountEffects @ react-dom.development.js:23225
+flushPassiveEffectsImpl @ react-dom.development.js:26497
+flushPassiveEffects @ react-dom.development.js:26438
+eval @ react-dom.development.js:26172
+workLoop @ scheduler.development.js:256
+flushWork @ scheduler.development.js:225
+performWorkUntilDeadline @ scheduler.development.js:534Understand this error
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c1ac711ef67f9295bab', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
+page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
 page.tsx:887 [ensureOrder] 🔄 Iniciando ensureOrder... {allowReuse: false, hasOrder: false}
 page.tsx:906 [ensureOrder] ✅ Validações passadas, criando pedido...
 page.tsx:914 [ensureOrder] 🌐 Criando pedido no backend... {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, allowReuse: false}
-page.tsx:945 [ensureOrder] ➕ INGRESSOS ADICIONADOS AO PEDIDO PIX EXISTENTE: {orderId: '691759ab31352c1eaa5fddb3', orderNumber: 'VF7YEL5JI1', status: 'pending', totalTickets: 2}
-page.tsx:978 [ensureOrder] 💾 Pedido salvo no cache: 691759ab31352c1eaa5fddb3
-page.tsx:981 [ensureOrder] ✅ Pedido persistido: 691759ab31352c1eaa5fddb3
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '691759c831352c1eaa5fde30', hasOrder: true, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2139 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-page.tsx:2665 [useEffect] 🗑️ Limpando estado do pedido PIX anterior - reserva não está vinculada: {reservationId: '691759c831352c1eaa5fde30', reservationOrderId: undefined, currentOrderId: '691759ab31352c1eaa5fddb3', currentOrderStatus: 'pending', currentOrderPaymentMethod: 'pix', …}
-page.tsx:2619 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '691759c831352c1eaa5fde30', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T16:33:22.454Z', …}
-installHook.js:1 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '691759c831352c1eaa5fde30', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T16:33:22.454Z', …}
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '691759c831352c1eaa5fde30', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2139 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-useCheckoutTimer.ts:57 [useCheckoutTimer] 🔄 Timer atualizado com tempo restante: {initialRemainingSeconds: 8, remainingMs: 8000, remainingMinutes: 0, startTimeRef: 1763137991851, startTimeRefDate: '2025-11-14T16:33:11.851Z', …}
-page.tsx:2270 [RestoreReservation] ⚠️ Reserva vinculada a pedido PIX pendente (encontrado na lista) para o MESMO evento/ticketType, não restaurando: {reservationId: '691759a931352c1eaa5fdda7', orderId: '691759ab31352c1eaa5fddb3', orderNumber: 'VF7YEL5JI1', eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6'}
-page.tsx:1981 [handlePixPayment] ✅ Pedido PIX criado como PENDING: 691759ab31352c1eaa5fddb3
-page.tsx:1985 [handlePixPayment] 🔄 Atualizando estado com reserva vinculada ao pedido PIX: {reservationId: '691759cd31352c1eaa5fde66', orderId: '691759ab31352c1eaa5fddb3', expiresAt: '2025-11-14T17:03:20.084Z'}
-page.tsx:2123 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '691759cd31352c1eaa5fde66', hasOrder: true, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2139 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
+page.tsx:959 [ensureOrder] 🆕 NOVO PEDIDO CRIADO: {orderId: '69178c1fc711ef67f9295bb7', orderNumber: 'GWCZCRPWH4', status: 'pending'}
+page.tsx:971 [ensureOrder] 🗑️ Novo pedido criado, limpando activeOrderId antigo: null
+page.tsx:999 [ensureOrder] 💾 Pedido salvo no cache: 69178c1fc711ef67f9295bb7
+page.tsx:1002 [ensureOrder] ✅ Pedido persistido: 69178c1fc711ef67f9295bb7
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c1ac711ef67f9295bab', hasOrder: true, checkingPaidOrder: false, isReady: true, …}
+page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
+page.tsx:2148 [handlePixPayment] ✅ Pedido PIX criado como PENDING: 69178c1fc711ef67f9295bb7
+page.tsx:2152 [handlePixPayment] 🔄 Atualizando estado com reserva vinculada ao pedido PIX: {reservationId: '69178c1ac711ef67f9295bab', orderId: '69178c1fc711ef67f9295bb7', expiresAt: '2025-11-14T20:38:03.585Z'}
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c1ac711ef67f9295bab', hasOrder: true, checkingPaidOrder: false, isReady: true, …}
+page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
+page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
+page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
+page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
+page.tsx:2346 [RestoreReservation] ✅ Condições atendidas, iniciando restauração...
+page.tsx:2352 [RestoreReservation] 🔄 Buscando reservas ativas da sessão... {sessionId: 'armor.33ec83e63f870c373156d1b10f261d390c145178d108…240828894c0c78e9.f5770dc45de4432d92800b043faf27c3'}
+page.tsx:2651 [AutoCreateReservation] 🆕 Criando/atualizando reserva...
+page.tsx:446 [ensureReservation] 🌐 Criando/atualizando reserva no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, sessionId: 'armor.33ec83e63f870c373156d1b10f261d390c145178d108…240828894c0c78e9.f5770dc45de4432d92800b043faf27c3'}
+page.tsx:2360 [RestoreReservation] 📦 Reservas encontradas: {count: 1, reservations: Array(1)}
+page.tsx:2660 [AutoCreateReservation] ✅ Reserva criada/atualizada: {reservationId: '69178c2fc711ef67f9295c26', orderId: undefined}
+page.tsx:2796 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '69178c2fc711ef67f9295c26', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T20:38:15.357Z', …}
+installHook.js:1 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '69178c2fc711ef67f9295c26', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T20:38:15.357Z', …}
+page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c2fc711ef67f9295c26', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
+page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
+useCheckoutTimer.ts:57 [useCheckoutTimer] 🔄 Timer atualizado com tempo restante: {initialRemainingSeconds: 1799, remainingMs: 1799000, remainingMinutes: 29, startTimeRef: 1763150894371, startTimeRefDate: '2025-11-14T20:08:14.371Z', …}
+page.tsx:2447 [RestoreReservation] ⚠️ Reserva vinculada a pedido PIX pendente (encontrado na lista) para o MESMO evento/ticketType, não restaurando: {reservationId: '69178c1ac711ef67f9295bab', orderId: '69178c1fc711ef67f9295bb7', orderNumber: 'GWCZCRPWH4', eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6'}
+installHook.js:1 [useSessionExpiration] Erro HTTP 404: Rota não encontrada
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ useSessionExpiration.ts:55
+await in eval
+eval @ useSessionExpiration.ts:159
+setInterval
+eval @ useSessionExpiration.ts:158
+commitHookEffectListMount @ react-dom.development.js:21102
+commitHookPassiveMountEffects @ react-dom.development.js:23154
+commitPassiveMountOnFiber @ react-dom.development.js:23259
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23256
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23370
+recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
+commitPassiveMountOnFiber @ react-dom.development.js:23267
+commitPassiveMountEffects @ react-dom.development.js:23225
+flushPassiveEffectsImpl @ react-dom.development.js:26497
+flushPassiveEffects @ react-dom.development.js:26438
+eval @ react-dom.development.js:26172
+workLoop @ scheduler.development.js:256
+flushWork @ scheduler.development.js:225
+performWorkUntilDeadline @ scheduler.development.js:534Understand this error
+installHook.js:1 [useSessionExpiration] Erro ao verificar sessão: Error: Rota não encontrada
+    at eval (useSessionExpiration.ts:64:15)

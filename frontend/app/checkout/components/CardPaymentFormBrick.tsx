@@ -40,10 +40,11 @@ export function CardPaymentFormBrick({
     // O Brick isolado gerencia sua própria montagem persistente
     // Este componente apenas gerencia overlay e comunicação
 
-    // Overlay APENAS para sucesso - erros são mostrados inline
-    const showOverlay = status === 'success';
+    // Overlay para sucesso E erro
+    const showOverlay = status === 'success' || status === 'error';
     const processing = status === 'processing';
     const success = status === 'success';
+    const error = status === 'error';
     const overlayMessage =
         statusMessage ||
         (success
@@ -167,81 +168,139 @@ export function CardPaymentFormBrick({
         );
     }
 
-    // Mostrar loading apenas se checkout não está pronto
-    if (!isCheckoutReady) {
-        return (
-            <div className="mt-6 flex h-[700px] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
-                <div className="text-center">
-                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-[#635BF5] mx-auto" />
-                    <p className="text-sm text-gray-600">Carregando formulário de pagamento...</p>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="mt-6">
-            <form id="checkout-card-form" className="relative space-y-4" onSubmit={onSubmit} aria-busy={processing}>
+            {/* Mostrar loading apenas se checkout não está pronto, mas SEMPRE renderizar o form para manter o wrapper */}
+            {!isCheckoutReady ? (
+                <div className="flex h-[700px] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
+                    <div className="text-center">
+                        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-[#635BF5] mx-auto" />
+                        <p className="text-sm text-gray-600">Carregando formulário de pagamento...</p>
+                    </div>
+                </div>
+            ) : null}
+            
+            <form id="checkout-card-form" className={`relative space-y-4 ${!isCheckoutReady ? 'hidden' : ''}`} onSubmit={onSubmit} aria-busy={processing} autoComplete="off">
                 {/* Brick isolado - montado uma única vez, apenas ocultado/mostrado */}
+                {/* CRÍTICO: Sempre renderizar o Brick mesmo quando não está pronto para permitir montagem inicial */}
+                {/* O Brick gerencia sua própria visibilidade internamente */}
                 <IsolatedCardPaymentBrick
                     publicKey={publicKey}
                     amount={amount}
-                    isVisible={true}
+                    isVisible={isCheckoutReady}
                     onSubmit={handleBrickSubmit}
                     onReady={handleReady}
                     onError={handleError}
                 />
             </form>
 
-            {/* Overlay de status - APENAS para sucesso (erros são mostrados inline) */}
-            {overlayMounted && success ? (
+            {/* Overlay de status - para sucesso E erro */}
+            {overlayMounted && (success || error) ? (
                 <>
+                    {/* Backdrop fixo que cobre toda a tela */}
                     <div
-                        className={`pointer-events-none absolute inset-0 z-0 rounded-3xl transition-opacity duration-300 ${success && overlayEntering ? 'bg-green-50/90 opacity-100' : 'opacity-0'
-                            }`}
+                        className={`fixed inset-0 z-[9998] bg-black/50 transition-opacity duration-300 ${overlayEntering ? 'opacity-100' : 'opacity-0'}`}
                         aria-hidden="true"
-                        style={{ minHeight: '600px' }}
+                        onClick={(e) => {
+                            // Permitir fechar overlay de erro ao clicar no backdrop
+                            if (error && onStatusDismiss) {
+                                onStatusDismiss();
+                            }
+                        }}
                     />
+                    {/* Overlay de conteúdo */}
                     <div
-                        className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 rounded-3xl border px-6 py-10 text-center shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] backdrop-blur-sm transition-all duration-300 ease-out ${success ? 'border-green-200 bg-white/95' : 'border-[#ded7ca] bg-white/95'
-                            } ${overlayActiveClass}`}
-                        style={{ minHeight: '600px' }}
+                        className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-300 ease-out ${overlayActiveClass}`}
+                        onClick={(e) => {
+                            // Prevenir fechar ao clicar no conteúdo
+                            e.stopPropagation();
+                        }}
                     >
-                        {success ? (
-                            <div className="flex w-full max-w-md flex-col items-center gap-6">
-                                <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-green-700">
-                                    <h1 className="text-2xl font-bold uppercase text-green-600">
-                                        Pagamento aprovado
-                                    </h1>
-                                    <div className="mt-4 space-y-2 text-sm leading-relaxed">
-                                        {errorMessages.length > 0 ? (
-                                            errorMessages.map((msg, index) => {
-                                                const hasHTML = /<[^>]+>/.test(msg);
-                                                if (hasHTML) {
-                                                    return <p key={`${msg}-${index}`} className="leading-relaxed" dangerouslySetInnerHTML={{ __html: msg }} />;
-                                                }
-                                                return <p key={`${msg}-${index}`} className="leading-relaxed">{msg}</p>;
-                                            })
-                                        ) : (
-                                            <p className="leading-relaxed">{overlayMessage}</p>
+                        <div
+                            className={`relative w-full max-w-md rounded-3xl border-2 px-6 py-10 text-center shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] backdrop-blur-sm ${
+                                success
+                                    ? 'border-green-200 bg-white/95'
+                                    : error
+                                        ? 'border-rose-200 bg-white/95'
+                                        : 'border-[#ded7ca] bg-white/95'
+                            }`}
+                        >
+                            {success ? (
+                                <div className="flex w-full flex-col items-center gap-6">
+                                    <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-green-700">
+                                        <h1 className="text-2xl font-bold uppercase text-green-600">
+                                            Pagamento aprovado
+                                        </h1>
+                                        <div className="mt-4 space-y-2 text-sm leading-relaxed">
+                                            {errorMessages.length > 0 ? (
+                                                errorMessages.map((msg, index) => {
+                                                    const hasHTML = /<[^>]+>/.test(msg);
+                                                    if (hasHTML) {
+                                                        return <p key={`${msg}-${index}`} className="leading-relaxed" dangerouslySetInnerHTML={{ __html: msg }} />;
+                                                    }
+                                                    return <p key={`${msg}-${index}`} className="leading-relaxed">{msg}</p>;
+                                                })
+                                            ) : (
+                                                <p className="leading-relaxed">{overlayMessage}</p>
+                                            )}
+                                        </div>
+                                        {redirectCountdown !== null ? (
+                                            <p className="mt-4 text-sm font-semibold text-green-600">
+                                                Redirecionaremos você em {redirectCountdown}s para ver seus pedidos.
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={onNavigateToOrders}
+                                        className="rounded-full border border-[#1a1a1d] px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                    >
+                                        Ver meus pedidos
+                                    </button>
+                                </div>
+                            ) : error ? (
+                                <div className="flex w-full flex-col items-center gap-6">
+                                    <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-rose-700">
+                                        <h1 className="text-2xl font-bold uppercase text-rose-600">
+                                            Pagamento negado
+                                        </h1>
+                                        <div className="mt-4 space-y-2 text-sm leading-relaxed">
+                                            {errorMessages.length > 0 ? (
+                                                errorMessages.map((msg, index) => {
+                                                    const hasHTML = /<[^>]+>/.test(msg);
+                                                    if (hasHTML) {
+                                                        return <p key={`${msg}-${index}`} className="leading-relaxed" dangerouslySetInnerHTML={{ __html: msg }} />;
+                                                    }
+                                                    return <p key={`${msg}-${index}`} className="leading-relaxed">{msg}</p>;
+                                                })
+                                            ) : (
+                                                <p className="leading-relaxed">{overlayMessage}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        {onStatusDismiss && (
+                                            <button
+                                                type="button"
+                                                onClick={onStatusDismiss}
+                                                className="rounded-full border border-rose-300 bg-white px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-rose-700 transition hover:border-rose-400 hover:bg-rose-50"
+                                            >
+                                                Tentar novamente
+                                            </button>
+                                        )}
+                                        {onNavigateToOrders && (
+                                            <button
+                                                type="button"
+                                                onClick={onNavigateToOrders}
+                                                className="rounded-full border border-[#1a1a1d] px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                            >
+                                                Ver meus pedidos
+                                            </button>
                                         )}
                                     </div>
-                                    {redirectCountdown !== null ? (
-                                        <p className="mt-4 text-sm font-semibold text-green-600">
-                                            Redirecionaremos você em {redirectCountdown}s para ver seus pedidos.
-                                        </p>
-                                    ) : null}
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={onNavigateToOrders}
-                                    className="rounded-full border border-[#1a1a1d] px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
-                                >
-                                    Ver meus pedidos
-                                </button>
-                            </div>
-                        ) : null}
-                        {/* Erros são mostrados inline (sem overlay) - ver componente de mensagem de erro abaixo */}
+                            ) : null}
+                        </div>
                     </div>
                 </>
             ) : null}

@@ -56,13 +56,22 @@ export function IsolatedCardPaymentBrick({
 
         // Se já existe uma instância montada globalmente, apenas atualizar visibilidade e mover container
         if (window.__MP_BRICK_MOUNTED__ && window.__MP_BRICK_CONTAINER__ && wrapperRef.current) {
-            // Mover container para o wrapper atual se necessário (evita remontagem)
+            // CRÍTICO: Mover container para o wrapper atual se necessário (evita remontagem)
+            // Isso garante que o container esteja sempre no lugar correto quando o componente é renderizado
             if (window.__MP_BRICK_CONTAINER__.parentElement !== wrapperRef.current) {
                 wrapperRef.current.appendChild(window.__MP_BRICK_CONTAINER__);
             }
-            // Atualizar visibilidade
-            window.__MP_BRICK_CONTAINER__.style.display = isVisible ? 'block' : 'none';
-            window.__MP_BRICK_CONTAINER__.style.visibility = isVisible ? 'visible' : 'hidden';
+            // CRÍTICO: Sempre tornar visível quando componente é montado e isVisible é true
+            // Isso resolve o problema de o formulário não aparecer às vezes
+            if (isVisible) {
+                window.__MP_BRICK_CONTAINER__.style.display = 'block';
+                window.__MP_BRICK_CONTAINER__.style.visibility = 'visible';
+                // Forçar reflow para garantir que o estilo seja aplicado
+                window.__MP_BRICK_CONTAINER__.offsetHeight;
+            } else {
+                window.__MP_BRICK_CONTAINER__.style.display = 'none';
+                window.__MP_BRICK_CONTAINER__.style.visibility = 'hidden';
+            }
             return;
         }
 
@@ -134,7 +143,128 @@ export function IsolatedCardPaymentBrick({
             
             // Função global para resetar o Brick (forçar re-render para limpar estado de erro)
             window.__MP_BRICK_RESET__ = () => {
+                // CRÍTICO: Verificar se o container existe e está no DOM antes de resetar
+                if (!window.__MP_BRICK_ROOT__ || !window.__MP_BRICK_CONTAINER__) {
+                    console.warn('[Brick Reset] ⚠️ Container ou root não encontrado, não é possível resetar');
+                    return;
+                }
+                
+                // Verificar se o container está no DOM
+                const containerInBody = document.body.contains(window.__MP_BRICK_CONTAINER__);
+                const containerInWrapper = wrapperRef.current?.contains(window.__MP_BRICK_CONTAINER__);
+                
+                if (!containerInBody && !containerInWrapper) {
+                    // Tentar encontrar o wrapper de outra forma (pode estar em outro lugar do DOM)
+                    const form = document.getElementById('checkout-card-form');
+                    const wrapperFromForm = form?.closest('form')?.parentElement?.querySelector('[ref]') || 
+                                          form?.parentElement?.querySelector('div[class*="w-full"]');
+                    
+                    if (wrapperFromForm && wrapperFromForm instanceof HTMLElement) {
+                        console.log('[Brick Reset] 🔍 Wrapper encontrado via busca no DOM, movendo container');
+                        wrapperFromForm.appendChild(window.__MP_BRICK_CONTAINER__);
+                    } else if (wrapperRef.current) {
+                        console.log('[Brick Reset] 🔍 Movendo container para wrapper atual');
+                        wrapperRef.current.appendChild(window.__MP_BRICK_CONTAINER__);
+                    } else {
+                        // Se não encontrar o wrapper, apenas limpar os campos sem re-renderizar o Brick
+                        // Isso evita erros quando o componente não está montado
+                        console.warn('[Brick Reset] ⚠️ Wrapper não encontrado, apenas limpando campos sem re-renderizar');
+                        const formForReset = document.getElementById('checkout-card-form') as HTMLFormElement | null;
+                        if (formForReset) {
+                            formForReset.reset();
+                            const allInputs = formForReset.querySelectorAll('input, textarea, select');
+                            allInputs.forEach((input) => {
+                                const htmlInput = input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+                                htmlInput.value = '';
+                                if (htmlInput instanceof HTMLInputElement || htmlInput instanceof HTMLTextAreaElement) {
+                                    htmlInput.defaultValue = '';
+                                    htmlInput.removeAttribute('value');
+                                }
+                                htmlInput.setAttribute('autocomplete', 'new-password');
+                            });
+                        }
+                        return; // Não tentar re-renderizar o Brick se o wrapper não existe
+                    }
+                }
+                
+                // CRÍTICO: Tornar o container visível antes de resetar para evitar erros do Brick
+                if (window.__MP_BRICK_CONTAINER__) {
+                    window.__MP_BRICK_CONTAINER__.style.display = 'block';
+                    window.__MP_BRICK_CONTAINER__.style.visibility = 'visible';
+                    // Forçar reflow para garantir que o estilo seja aplicado
+                    window.__MP_BRICK_CONTAINER__.offsetHeight;
+                }
+                
                 if (window.__MP_BRICK_ROOT__ && window.__MP_BRICK_CONTAINER__) {
+                    // Função auxiliar para limpar todos os campos do formulário de forma agressiva
+                    const clearAllFormFields = () => {
+                        const form = document.getElementById('checkout-card-form') as HTMLFormElement | null;
+                        if (form) {
+                            // Limpar todos os inputs, textareas e selects dentro do form
+                            const allInputs = form.querySelectorAll('input, textarea, select');
+                            allInputs.forEach((input) => {
+                                const htmlInput = input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+                                
+                                // Limpar valor atual
+                                htmlInput.value = '';
+                                
+                                // Limpar valor padrão
+                                if (htmlInput instanceof HTMLInputElement || htmlInput instanceof HTMLTextAreaElement) {
+                                    htmlInput.defaultValue = '';
+                                    // Limpar também atributos que podem conter valores
+                                    htmlInput.removeAttribute('value');
+                                }
+                                
+                                // Desabilitar autocomplete
+                                htmlInput.setAttribute('autocomplete', 'off');
+                                htmlInput.setAttribute('autocomplete', 'new-password'); // Truque para evitar autofill do Chrome
+                                
+                                // Disparar eventos para notificar o Brick
+                                htmlInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                                htmlInput.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                                htmlInput.dispatchEvent(new Event('blur', { bubbles: true, cancelable: true }));
+                                
+                                // Tentar limpar via setter se disponível
+                                try {
+                                    Object.defineProperty(htmlInput, 'value', {
+                                        value: '',
+                                        writable: true,
+                                        configurable: true,
+                                    });
+                                } catch (e) {
+                                    // Ignorar erros
+                                }
+                            });
+                            
+                            // Limpar também dentro do container do Brick (pode ter shadow DOM)
+                            const brickContainer = form.querySelector('[data-testid="card-form"]') || 
+                                                  form.querySelector('.mp-card-form') ||
+                                                  form.querySelector('[class*="mp-"]') ||
+                                                  form;
+                            if (brickContainer) {
+                                const containerInputs = brickContainer.querySelectorAll('input, textarea, select');
+                                containerInputs.forEach((input) => {
+                                    const htmlInput = input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+                                    htmlInput.value = '';
+                                    if (htmlInput instanceof HTMLInputElement || htmlInput instanceof HTMLTextAreaElement) {
+                                        htmlInput.defaultValue = '';
+                                        htmlInput.removeAttribute('value');
+                                    }
+                                    htmlInput.setAttribute('autocomplete', 'off');
+                                    htmlInput.setAttribute('autocomplete', 'new-password');
+                                    htmlInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                                    htmlInput.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                                });
+                            }
+                            
+                            // Resetar o formulário novamente após limpar campos individuais
+                            form.reset();
+                        }
+                    };
+
+                    // Limpar campos antes do reset
+                    clearAllFormFields();
+
                     // Re-renderizar o Brick com amount atualizado para forçar reset do estado interno
                     // Adicionar 0.01 e depois subtrair para forçar atualização sem mudar o valor real
                     const currentAmount = Number(amountRef.current.toFixed(2));
@@ -169,6 +299,11 @@ export function IsolatedCardPaymentBrick({
                         />
                     );
                     
+                    // Limpar campos após primeiro render
+                    setTimeout(() => {
+                        clearAllFormFields();
+                    }, 25);
+                    
                     // Depois voltar ao amount original (força reset completo)
                     setTimeout(() => {
                         if (window.__MP_BRICK_ROOT__) {
@@ -199,6 +334,16 @@ export function IsolatedCardPaymentBrick({
                                     onError={handleError}
                                 />
                             );
+                            
+                            // Limpar campos após segundo render (garantir limpeza completa)
+                            setTimeout(() => {
+                                clearAllFormFields();
+                                
+                                // Limpar novamente após um delay maior para garantir que o Brick terminou de renderizar
+                                setTimeout(() => {
+                                    clearAllFormFields();
+                                }, 150);
+                            }, 50);
                         }
                     }, 50);
                 }
@@ -218,12 +363,51 @@ export function IsolatedCardPaymentBrick({
         }
     }, [publicKey, isVisible]);
 
-    // Atualizar visibilidade quando mudar
+    // CRÍTICO: Garantir que o container seja sempre movido para o wrapper e visível quando necessário
+    // Isso resolve o problema de o formulário não aparecer quando o componente é remontado
     useEffect(() => {
-        if (window.__MP_BRICK_CONTAINER__) {
-            window.__MP_BRICK_CONTAINER__.style.display = isVisible ? 'block' : 'none';
-            window.__MP_BRICK_CONTAINER__.style.visibility = isVisible ? 'visible' : 'hidden';
+        if (!window.__MP_BRICK_MOUNTED__ || !window.__MP_BRICK_CONTAINER__) {
+            return;
         }
+
+        // Função para mover container e atualizar visibilidade
+        const updateContainer = () => {
+            if (!wrapperRef.current || !window.__MP_BRICK_CONTAINER__) {
+                return;
+            }
+
+            // CRÍTICO: Mover container para o wrapper atual se necessário
+            // Isso garante que o container esteja sempre no lugar correto quando o componente é renderizado
+            if (window.__MP_BRICK_CONTAINER__.parentElement !== wrapperRef.current) {
+                wrapperRef.current.appendChild(window.__MP_BRICK_CONTAINER__);
+            }
+
+            // Atualizar visibilidade
+            if (isVisible) {
+                window.__MP_BRICK_CONTAINER__.style.display = 'block';
+                window.__MP_BRICK_CONTAINER__.style.visibility = 'visible';
+                // Forçar reflow para garantir que o estilo seja aplicado
+                window.__MP_BRICK_CONTAINER__.offsetHeight;
+            } else {
+                window.__MP_BRICK_CONTAINER__.style.display = 'none';
+                window.__MP_BRICK_CONTAINER__.style.visibility = 'hidden';
+            }
+        };
+
+        // Verificar imediatamente
+        updateContainer();
+
+        // Verificar novamente após um pequeno delay para garantir que o DOM esteja pronto
+        // Isso resolve problemas de timing quando o componente é remontado rapidamente
+        const timeout = setTimeout(updateContainer, 50);
+        
+        // Verificar também após um delay maior para garantir que tudo esteja pronto
+        const timeout2 = setTimeout(updateContainer, 200);
+
+        return () => {
+            clearTimeout(timeout);
+            clearTimeout(timeout2);
+        };
     }, [isVisible]);
 
     if (!publicKey) {

@@ -3,7 +3,7 @@ import { WebhookEvent, Order, Ticket, Event, User } from '../models';
 import { enqueueOrGet } from '../services/webhookProcessorService';
 import crypto from 'crypto';
 import * as paymentService from '../services/paymentService';
-import * as reservationService from '../services/reservationService';
+// REFATORADO: Removido import de reservationService - pedidos não usam mais reservas separadas
 import { mapPaymentMethod } from '../services/paymentService';
 import { getPaymentStatusInfo, mapPaymentStatus } from '../utils/paymentStatusMapper';
 import { 
@@ -173,85 +173,38 @@ export const createPixPayment = async (req: Request, res: Response) => {
         }
         order.isActive = true;
 
-        await order.save();
-
-        // CRÍTICO: Criar reserva vinculada ao pedido PIX para manter estoque reservado até expiração do PIX
-        // A reserva expira no mesmo momento que o PIX expira
-        let createdReservation = null;
+        // REFATORADO: Ajustar expiresAt do pedido quando criar PIX
+        // Se faltar pouco tempo no expiresAt do pedido, estender para +30min a partir de agora
+        const PIX_TIMEOUT_MINUTES = 30;
+        const PIX_TIMEOUT_MS = PIX_TIMEOUT_MINUTES * 60 * 1000;
+        const now = new Date();
+        
         if (order.status === 'pending' && pixPayment.expiresAt) {
-            try {
-                // CRÍTICO: Verificar se já existem reservas vinculadas a este pedido
-                // Se existirem, apenas atualizar o expiresAt delas
-                // Se não existirem, criar nova reserva
-                const TicketReservation = (await import('../models/TicketReservation')).default;
-                const existingReservations = await TicketReservation.find({
-                    orderId: order._id,
-                    isActive: true,
-                });
-
-                if (existingReservations.length > 0) {
-                    // Já existem reservas vinculadas ao pedido - apenas atualizar expiresAt
-                    const pixExpiresAt = new Date(pixPayment.expiresAt);
-                    let updatedCount = 0;
-                    
-                    for (const reservation of existingReservations) {
-                        reservation.expiresAt = pixExpiresAt;
-                        await reservation.save();
-                        updatedCount++;
-                    }
-                    
-                    console.log(`✅ ${updatedCount} reserva(s) existente(s) atualizada(s) com novo expiresAt para pedido PIX ${order.orderNumber}:`, {
-                        reservationIds: existingReservations.map(r => r._id),
-                        expiresAt: pixPayment.expiresAt,
-                        expirationMinutes: pixPayment.expirationMinutes,
-                    });
-                    
-                    // Usar a primeira reserva existente como createdReservation para retornar ao frontend
-                    createdReservation = existingReservations[0];
+            const pixExpiresAt = new Date(pixPayment.expiresAt);
+            const orderExpiresAt = (order as any).expiresAt as Date | undefined;
+            
+            // Se o pedido tem expiresAt e falta menos de 30min, estender para +30min a partir de agora
+            if (orderExpiresAt) {
+                const timeRemaining = orderExpiresAt.getTime() - now.getTime();
+                if (timeRemaining < PIX_TIMEOUT_MS) {
+                    // Estender expiresAt do pedido para +30min a partir de agora
+                    order.expiresAt = new Date(now.getTime() + PIX_TIMEOUT_MS);
+                    console.log(`[createPixPayment] ⏰ Estendendo expiresAt do pedido ${order.orderNumber}: ${orderExpiresAt.toISOString()} → ${order.expiresAt.toISOString()} (faltavam ${Math.round(timeRemaining / 60000)}min)`);
                 } else {
-                    // Não existem reservas vinculadas - criar nova reserva
-                    const populatedOrder = await Order.findById(order._id)
-                        .populate('event', '_id')
-                        .populate('tickets', 'ticketType')
-                        .lean();
-
-                    if (populatedOrder && populatedOrder.tickets && populatedOrder.tickets.length > 0) {
-                        // Pegar eventId e ticketTypeId do primeiro ticket (assumindo que todos são do mesmo tipo)
-                        const firstTicket = populatedOrder.tickets[0] as any;
-                        const eventId = String(populatedOrder.event?._id || populatedOrder.event);
-                        const ticketTypeId = String(firstTicket.ticketType?._id || firstTicket.ticketType);
-                        const quantity = populatedOrder.tickets.length;
-                        const sessionId = deviceId || `order_${order._id}`;
-
-                        // Criar reserva com expiração igual à do PIX
-                        const reservationResult = await reservationService.createReservation({
-                            eventId,
-                            ticketTypeId,
-                            quantity,
-                            sessionId,
-                            userId: userId || undefined,
-                            orderId: String(order._id),
-                            expiresAt: new Date(pixPayment.expiresAt), // Usar a mesma data de expiração do PIX
-                        });
-
-                        if (reservationResult.success && reservationResult.reservation) {
-                            createdReservation = reservationResult.reservation;
-                            console.log(`✅ Nova reserva criada para pedido PIX ${order.orderNumber}:`, {
-                                reservationId: reservationResult.reservation?._id,
-                                quantity,
-                                expiresAt: pixPayment.expiresAt,
-                                expirationMinutes: pixPayment.expirationMinutes,
-                            });
-                        } else {
-                            console.warn(`⚠️ Não foi possível criar reserva para pedido PIX ${order.orderNumber}:`, reservationResult.message);
-                        }
-                    }
+                    // Usar o expiresAt do PIX (que pode ser maior que o do pedido)
+                    order.expiresAt = pixExpiresAt > orderExpiresAt ? pixExpiresAt : orderExpiresAt;
                 }
-            } catch (reservationError: any) {
-                console.error(`❌ Erro ao criar/atualizar reserva para pedido PIX ${order.orderNumber}:`, reservationError.message);
-                // Não falhar a criação do pagamento se a reserva falhar
+            } else {
+                // Pedido não tem expiresAt, usar o do PIX
+                order.expiresAt = pixExpiresAt;
             }
         }
+
+        await order.save();
+
+        // REFATORADO: Não criar reservas separadas - o pedido PENDING já funciona como reserva
+        // O pedido já tem expiresAt ajustado acima e bloqueia estoque (soldQuantity++)
+        // Removida toda lógica de criação/atualização de reservas vinculadas a pedidos
 
         // Enviar email de pagamento pendente (não bloquear resposta se falhar)
         try {
@@ -350,19 +303,8 @@ export const createPixPayment = async (req: Request, res: Response) => {
                         ...ticket,
                         qrCode: updatedOrder.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
                     }))
-                } : null,
-                // CRÍTICO: Retornar reserva vinculada ao pedido PIX para que o frontend atualize o estado
-                reservation: createdReservation ? {
-                    _id: String(createdReservation._id),
-                    event: String(createdReservation.event),
-                    ticketType: String(createdReservation.ticketType),
-                    quantity: createdReservation.quantity,
-                    sessionId: createdReservation.sessionId,
-                    orderId: createdReservation.orderId ? String(createdReservation.orderId) : undefined,
-                    expiresAt: createdReservation.expiresAt,
-                    isActive: createdReservation.isActive,
-                    createdAt: createdReservation.createdAt,
                 } : null
+                // REFATORADO: Não retornar reserva - o pedido já contém todas as informações necessárias (expiresAt)
             }
         });
     } catch (error: any) {
@@ -583,9 +525,23 @@ export const createCardPayment = async (req: Request, res: Response) => {
             order.isActive = true;
             order.cardAttempts = 0;
 
-            // Confirmar tickets e gerar QR codes se necessário
-            const tickets = await Ticket.find({ _id: { $in: order.tickets }, deletedAt: null });
+            // CRÍTICO: Confirmar APENAS tickets deste pedido específico
+            // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
+            const tickets = await Ticket.find({ 
+                _id: { $in: order.tickets }, 
+                order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
+                deletedAt: null 
+            });
+            
+            console.log(`💳 [createCardPayment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`);
+            
             for (const ticket of tickets) {
+                // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
+                if (String(ticket.order) !== String(order._id)) {
+                    console.error(`⚠️ [createCardPayment] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`);
+                    continue;
+                }
+                
                 if (ticket.status === 'pending') {
                     ticket.status = 'confirmed';
                     // Gerar QR code se ainda não tiver
@@ -594,6 +550,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
                         ticket.qrCode = await generateQRCode(ticket.code);
                     }
                     await ticket.save();
+                    console.log(`✅ [createCardPayment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
                 }
             }
         } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
@@ -1014,27 +971,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 if (paymentStatus === 'paid') {
                     order.status = 'paid';
                     
-                    // CRÍTICO: Liberar reservas vinculadas ao pedido PIX quando pagamento é confirmado
-                    try {
-                        const TicketReservation = (await import('../models/TicketReservation')).default;
-                        const reservations = await TicketReservation.find({
-                            orderId: order._id,
-                            isActive: true,
-                        });
-
-                        if (reservations.length > 0) {
-                            await Promise.all(
-                                reservations.map(async (reservation) => {
-                                    reservation.isActive = false;
-                                    await reservation.save();
-                                })
-                            );
-                            console.log(`✅ ${reservations.length} reserva(s) liberada(s) para pedido PIX pago ${order.orderNumber}`);
-                        }
-                    } catch (reservationError: any) {
-                        console.error(`⚠️ Erro ao liberar reservas do pedido PIX pago ${order.orderNumber}:`, reservationError.message);
-                        // Não falhar a confirmação de pagamento se a liberação de reservas falhar
-                    }
+                    // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
+                    // O pedido PENDING já funciona como reserva e quando pago, o estoque já está bloqueado corretamente
                 } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
                     // Se o MP cancelou (via webhook), seguir o MP independente da data de expiração
                     // O MP pode cancelar por vários motivos (expiração, erro interno, cancelamento manual, etc)
@@ -1067,17 +1005,33 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 if (paymentStatus === 'paid') {
                     order.paidAt = paymentInfo.date_approved ? new Date(paymentInfo.date_approved) : new Date();
 
-                    // Atualizar status dos tickets para 'confirmed' e gerar QR codes se necessário
-                    const tickets = await Ticket.find({ _id: { $in: order.tickets }, deletedAt: null });
+                    // CRÍTICO: Confirmar APENAS tickets deste pedido específico
+                    // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
+                    const tickets = await Ticket.find({ 
+                        _id: { $in: order.tickets }, 
+                        order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
+                        deletedAt: null 
+                    });
+                    
+                    console.log(`🔔 [handleWebhook] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`);
+                    
                     for (const ticket of tickets) {
+                        // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
+                        if (String(ticket.order) !== String(order._id)) {
+                            console.error(`⚠️ [handleWebhook] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`);
+                            continue;
+                        }
+                        
                         if (ticket.status === 'pending' && !ticket.qrCode) {
                             const { generateQRCode } = await import('../services/qrCodeService');
                             ticket.status = 'confirmed';
                             ticket.qrCode = await generateQRCode(ticket.code);
                             await ticket.save();
+                            console.log(`✅ [handleWebhook] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
                         } else if (ticket.status === 'pending') {
                             ticket.status = 'confirmed';
                             await ticket.save();
+                            console.log(`✅ [handleWebhook] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
                         }
                     }
 
@@ -1160,29 +1114,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
             if (paymentStatus === 'paid') {
                 order.status = 'paid';
                 
-                // CRÍTICO: Liberar reservas vinculadas ao pedido PIX quando pagamento é confirmado
-                if (isPixOrder) {
-                    try {
-                        const TicketReservation = (await import('../models/TicketReservation')).default;
-                        const reservations = await TicketReservation.find({
-                            orderId: order._id,
-                            isActive: true,
-                        });
-
-                        if (reservations.length > 0) {
-                            await Promise.all(
-                                reservations.map(async (reservation) => {
-                                    reservation.isActive = false;
-                                    await reservation.save();
-                                })
-                            );
-                            console.log(`✅ ${reservations.length} reserva(s) liberada(s) para pedido PIX pago ${order.orderNumber}`);
-                        }
-                    } catch (reservationError: any) {
-                        console.error(`⚠️ Erro ao liberar reservas do pedido PIX pago ${order.orderNumber}:`, reservationError.message);
-                        // Não falhar a confirmação de pagamento se a liberação de reservas falhar
-                    }
-                }
+                // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
+                // O pedido PENDING já funciona como reserva e quando pago, o estoque já está bloqueado corretamente
             } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
                 // Se o MP cancelou (via webhook), seguir o MP independente da data de expiração
                 // O MP pode cancelar por vários motivos (expiração, erro interno, cancelamento manual, etc)
@@ -1216,17 +1149,33 @@ export const handleWebhook = async (req: Request, res: Response) => {
             if (paymentStatus === 'paid') {
                 order.paidAt = paymentInfo.date_approved ? new Date(paymentInfo.date_approved) : new Date();
 
-                // Atualizar status dos tickets para 'confirmed' e gerar QR codes se necessário
-                const tickets = await Ticket.find({ _id: { $in: order.tickets }, deletedAt: null });
+                // CRÍTICO: Confirmar APENAS tickets deste pedido específico
+                // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
+                const tickets = await Ticket.find({ 
+                    _id: { $in: order.tickets }, 
+                    order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
+                    deletedAt: null 
+                });
+                
+                console.log(`🔔 [handleWebhook-payment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`);
+                
                 for (const ticket of tickets) {
+                    // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
+                    if (String(ticket.order) !== String(order._id)) {
+                        console.error(`⚠️ [handleWebhook-payment] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`);
+                        continue;
+                    }
+                    
                     if (ticket.status === 'pending' && !ticket.qrCode) {
                         const { generateQRCode } = await import('../services/qrCodeService');
                         ticket.status = 'confirmed';
                         ticket.qrCode = await generateQRCode(ticket.code);
                         await ticket.save();
+                        console.log(`✅ [handleWebhook-payment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
                     } else if (ticket.status === 'pending') {
                         ticket.status = 'confirmed';
                         await ticket.save();
+                        console.log(`✅ [handleWebhook-payment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
                     }
                 }
 

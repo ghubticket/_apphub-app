@@ -24,6 +24,7 @@ export type CreatedOrder = {
     cardAttempts?: number;
     maxCardAttempts?: number;
     createdAt?: string | Date; // Data de criação do pedido (para calcular tempo restante)
+    expiresAt?: string | Date; // Data de expiração do pedido (quando status='pending')
     event?: {
         name?: string;
         date?: string;

@@ -122,10 +122,18 @@ interface CreateOrderRequest {
     allowReuse?: boolean;
 }
 
+// Constantes para timeout de pedidos
+const CHECKOUT_TIMEOUT_MINUTES = Number(process.env.CHECKOUT_TIMEOUT_MINUTES || 30); // 30 minutos padrão para checkout
+const CHECKOUT_TIMEOUT_MS = CHECKOUT_TIMEOUT_MINUTES * 60 * 1000;
+
 /**
  * Cria um novo pedido com ingressos
- * Para ingressos VIP: status = 'paid', paymentMethod = 'vip_free', tickets = 'confirmed'
- * Para outros: status = 'pending', aguarda pagamento
+ * REFATORADO: Pedido PENDING = Reserva de ingressos
+ * - Cria pedido PENDING imediatamente ao entrar no checkout
+ * - Bloqueia estoque (soldQuantity++)
+ * - Define expiresAt = agora + 30min
+ * - Para ingressos VIP: status = 'paid', paymentMethod = 'vip_free', tickets = 'confirmed'
+ * - Para outros: status = 'pending', aguarda pagamento
  */
 export const createOrder = async (req: Request, res: Response) => {
     try {
@@ -296,13 +304,15 @@ export const createOrder = async (req: Request, res: Response) => {
         const totalAmount = subtotalAfterDiscount + platformFee; // Total: (subtotal - desconto) + taxa
 
         // CRÍTICO: Verificar se já existe pedido para o mesmo evento/ticketType (mesma conta)
-        // Se existir, SEMPRE adicionar ingressos ao pedido existente em vez de criar um novo
-        // Não importa o método de pagamento (PIX ou cartão) ou status (pendente ou pago)
+        // Se existir, adicionar ingressos ao pedido existente APENAS se estiver pendente ou falho
+        // NÃO reutilizar pedidos pagos - pedidos pagos são transações concluídas e devem permanecer assim
+        // Se o pedido estiver pago, criar um novo pedido
         const existingOrderFilters: any = {
             event: eventId,
             deletedAt: null,
-            // CRÍTICO: Incluir pedidos pendentes E pagos (mas não cancelados)
-            status: { $in: ['pending', 'paid'] },
+            // CRÍTICO: Apenas pedidos pendentes ou falhos podem ser reutilizados
+            // Pedidos pagos não devem ser modificados (viola regras de transição de status)
+            status: { $in: ['pending', 'failed'] },
         };
 
         if (userId) {
@@ -316,75 +326,60 @@ export const createOrder = async (req: Request, res: Response) => {
             }
         }
 
-        // Buscar pedido existente (qualquer método de pagamento, pendente ou pago)
+        // Buscar pedido existente (apenas pendente ou falho - não incluir pagos)
         const existingOrder = await Order.findOne(existingOrderFilters)
             .populate('tickets', 'ticketType')
             .lean();
 
         if (existingOrder) {
-            // Verificar se os tickets do pedido existente são do mesmo ticketType
-            const existingTickets = existingOrder.tickets || [];
-            const existingTicketTypeIds = existingTickets.map((t: any) => 
-                String(t.ticketType?._id || t.ticketType)
-            );
-            const isSameTicketType = existingTicketTypeIds.length > 0 && 
-                existingTicketTypeIds.every((id: string) => id === ticketTypeId);
+            // CRÍTICO: Reutilizar pedido do mesmo evento/cliente, independente do ticketType
+            // Um pedido pode conter múltiplos tipos de ingressos do mesmo evento
+            // Isso evita criar múltiplos pedidos para o mesmo evento/cliente
+            const orderStatus = existingOrder.status;
+            const paymentMethod = existingOrder.paymentMethod;
+            console.log(`♻️ [createOrder] Pedido existente encontrado para mesmo evento/cliente, adicionando ingressos: orderNumber=${existingOrder.orderNumber}, status=${orderStatus}, paymentMethod=${paymentMethod}`);
+            
+            // Buscar pedido completo (não lean) para atualizar
+            const orderToUpdate = await Order.findById(existingOrder._id);
+            if (orderToUpdate) {
+                // Pedido já está pending ou failed, pode ser atualizado normalmente
+                // Não precisa mudar status - já está em estado válido para adicionar ingressos
+                // Verificar disponibilidade antes de adicionar
+                const availableQuantity = ticketType.maxQuantity - ticketType.soldQuantity;
+                if (availableQuantity < quantity) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Estoque insuficiente',
+                        errors: [`Disponível: ${availableQuantity}, Solicitado: ${quantity}`]
+                    });
+                }
 
-            if (isSameTicketType) {
-                const orderStatus = existingOrder.status;
-                const paymentMethod = existingOrder.paymentMethod;
-                console.log(`♻️ [createOrder] Pedido existente encontrado, adicionando ingressos: orderNumber=${existingOrder.orderNumber}, status=${orderStatus}, paymentMethod=${paymentMethod}`);
-                
-                // CRÍTICO: Se pedido já está pago, mudar status para pending para permitir novo pagamento
-                // Isso permite adicionar ingressos a pedidos já pagos e processar novo pagamento
-                const needsRepayment = orderStatus === 'paid';
-                
-                // Buscar pedido completo (não lean) para atualizar
-                const orderToUpdate = await Order.findById(existingOrder._id);
-                if (!orderToUpdate) {
-                    // Se não encontrou, continuar com criação normal
-                } else {
-                    // CRÍTICO: Se pedido está pago, mudar para pending e limpar paymentId para permitir novo pagamento
-                    if (needsRepayment) {
-                        console.log(`🔄 [createOrder] Pedido pago encontrado, mudando para pending para permitir novo pagamento: orderNumber=${orderToUpdate.orderNumber}`);
-                        orderToUpdate.status = 'pending';
-                        orderToUpdate.paymentId = undefined;
-                        orderToUpdate.paymentStatus = undefined;
-                        orderToUpdate.paymentStatusDetail = undefined;
-                        orderToUpdate.paidAt = undefined;
-                        // Manter paymentMethod para histórico, mas permitir mudar no próximo pagamento
-                    }
-                    // Verificar disponibilidade antes de adicionar
-                    const availableQuantity = ticketType.maxQuantity - ticketType.soldQuantity;
-                    if (availableQuantity < quantity) {
-                        return res.status(400).json({
-                            success: false,
-                            message: 'Estoque insuficiente',
-                            errors: [`Disponível: ${availableQuantity}, Solicitado: ${quantity}`]
-                        });
-                    }
-
-                    // Criar novos tickets para o pedido existente
-                    // CRÍTICO: Novos tickets SEMPRE são 'pending' (precisam pagar)
-                    // Tickets antigos continuam com seu status original (confirmed se já pagos)
-                    const newTickets: any[] = [];
-                    for (let i = 0; i < quantity; i++) {
-                        const ticket = new Ticket({
-                            event: eventId,
-                            ticketType: ticketTypeId,
-                            order: orderToUpdate._id,
-                            holder: userId || null,
-                            price: ticketPrice,
-                            status: 'pending', // SEMPRE pending - novos ingressos precisam pagar
-                            qrCode: '', // QR code só será gerado quando pagar
-                        });
-                        await ticket.save();
-                        newTickets.push(ticket._id);
-                    }
+                // Criar novos tickets para o pedido existente
+                // CRÍTICO: Novos tickets SEMPRE são 'pending' (precisam pagar)
+                // Tickets antigos continuam com seu status original (confirmed se já pagos)
+                const newTickets: any[] = [];
+                for (let i = 0; i < quantity; i++) {
+                    const ticket = new Ticket({
+                        event: eventId,
+                        ticketType: ticketTypeId,
+                        order: orderToUpdate._id,
+                        holder: userId || null,
+                        price: ticketPrice,
+                        status: 'pending', // SEMPRE pending - novos ingressos precisam pagar
+                        qrCode: '', // QR code só será gerado quando pagar
+                    });
+                    await ticket.save();
+                    newTickets.push(ticket._id);
+                }
 
                     // Atualizar pedido com novos tickets
                     orderToUpdate.tickets = [...(orderToUpdate.tickets || []), ...newTickets];
                     orderToUpdate.totalTickets = (orderToUpdate.totalTickets || 0) + quantity;
+                    
+                    // Atualizar expiresAt se pedido está PENDING (renovar reserva)
+                    if (orderToUpdate.status === 'pending') {
+                        orderToUpdate.expiresAt = new Date(Date.now() + CHECKOUT_TIMEOUT_MS);
+                    }
                     
                     // Recalcular valores (considerando desconto e taxa)
                     const newSubtotal = ticketPrice * quantity;
@@ -434,55 +429,8 @@ export const createOrder = async (req: Request, res: Response) => {
                         );
                     }
 
-                    // CRÍTICO: Criar NOVA reserva vinculada ao pedido existente
-                    // NÃO atualizar reserva existente - criar nova para os novos ingressos
-                    // Isso permite múltiplas reservas para o mesmo pedido (cenário: usuário compra mais ingressos depois)
-                    // CRÍTICO: Só criar reserva se pedido está pendente (não criar para pedidos pagos que foram mudados para pending)
-                    if (orderToUpdate.status === 'pending') {
-                        try {
-                            const reservationService = await import('../services/reservationService');
-                            
-                            // Buscar informações do evento e ticketType
-                            const populatedOrderForReservation = await Order.findById(orderToUpdate._id)
-                                .populate('event', '_id')
-                                .populate('tickets', 'ticketType')
-                                .lean();
-                            
-                            if (populatedOrderForReservation && populatedOrderForReservation.tickets && populatedOrderForReservation.tickets.length > 0) {
-                                const firstTicket = populatedOrderForReservation.tickets[0] as any;
-                                const eventIdForReservation = String(populatedOrderForReservation.event?._id || populatedOrderForReservation.event);
-                                const ticketTypeIdForReservation = String(firstTicket.ticketType?._id || firstTicket.ticketType);
-                                const sessionId = req.headers['x-session-id'] as string || `order_${orderToUpdate._id}`;
-                                
-                                // Criar NOVA reserva para os novos ingressos adicionados
-                                // A reserva será vinculada ao pedido existente
-                                const reservationResult = await reservationService.createReservation({
-                                    eventId: eventIdForReservation,
-                                    ticketTypeId: ticketTypeIdForReservation,
-                                    quantity: quantity, // Quantidade dos NOVOS ingressos adicionados
-                                    sessionId,
-                                    userId: userId || undefined,
-                                    orderId: String(orderToUpdate._id), // Vincular ao pedido existente
-                                    expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutos (tempo padrão)
-                                });
-                                
-                                if (reservationResult.success && reservationResult.reservation) {
-                                    console.log(`✅ Nova reserva criada para ingressos adicionados ao pedido ${orderToUpdate.orderNumber}:`, {
-                                        reservationId: reservationResult.reservation._id,
-                                        quantity: quantity,
-                                        orderId: orderToUpdate._id,
-                                        orderStatus: orderToUpdate.status,
-                                        paymentMethod: orderToUpdate.paymentMethod,
-                                    });
-                                } else {
-                                    console.warn(`⚠️ Não foi possível criar reserva para ingressos adicionados:`, reservationResult.message);
-                                }
-                            }
-                        } catch (reservationError: any) {
-                            console.warn(`⚠️ Erro ao criar reserva para ingressos adicionados:`, reservationError.message);
-                            // Não falhar se não conseguir criar reserva
-                        }
-                    }
+                    // REFATORADO: Não criar reservas separadas - o pedido PENDING já funciona como reserva
+                    // O pedido já tem expiresAt definido e bloqueia estoque (soldQuantity++)
 
                     // Popular dados para resposta
                     const populatedOrder = await Order.findById(orderToUpdate._id)
@@ -494,21 +442,17 @@ export const createOrder = async (req: Request, res: Response) => {
 
                     return res.status(200).json({
                         success: true,
-                        message: needsRepayment 
-                            ? 'Ingressos adicionados ao pedido existente. Novo pagamento necessário para todos os ingressos.'
-                            : 'Ingressos adicionados ao pedido existente.',
+                        message: 'Ingressos adicionados ao pedido existente.',
                         data: {
                             order: populatedOrder,
                             isVIP: false,
                             requiresPayment: true,
                             reused: true,
                             addedTickets: true,
-                            needsRepayment, // Flag para indicar que precisa pagar novamente
                         },
                     });
                 }
             }
-        }
 
         // Tentar reaproveitar pedido pendente/falho existente (somente para cartão)
         // CRÍTICO: Esta lógica só é executada se não encontrou pedido existente acima
@@ -684,6 +628,13 @@ export const createOrder = async (req: Request, res: Response) => {
 
             // Criar pedido
             const orderNumber = await generateOrderNumber();
+            const now = new Date();
+            // Para pedidos PENDING: definir expiresAt = agora + 30min (reserva de ingressos)
+            // Para pedidos VIP (paid): não precisa expiresAt
+            const expiresAt = orderStatus === 'pending' 
+                ? new Date(now.getTime() + CHECKOUT_TIMEOUT_MS)
+                : undefined;
+            
             const order = new Order({
                 customer: userId || null,
                 event: eventId,
@@ -696,7 +647,8 @@ export const createOrder = async (req: Request, res: Response) => {
                 totalTickets: quantity,
                 status: orderStatus,
                 paymentMethod: paymentMethod,
-                paidAt: isVIP ? new Date() : undefined,
+                paidAt: isVIP ? now : undefined,
+                expiresAt, // Data de expiração para pedidos PENDING (reserva de ingressos)
                 orderNumber,
                 customerData: {
                     name: customerData?.name || user?.name || 'Não informado',
@@ -1270,9 +1222,43 @@ export const getOrderById = async (req: Request, res: Response) => {
 
         // Verificar se o usuário tem permissão (admin ou dono do pedido)
         const isAdmin = (req as any).user?.role === 'ADMIN';
-        const isOwner = String(order.customer) === String(userId);
+        
+        // IMPORTANTE: order.customer pode estar populado (objeto) ou não populado (ObjectId)
+        // Se estiver populado, extrair o _id. Se não, usar diretamente
+        let orderCustomerId: string | null = null;
+        if (order.customer) {
+            if (typeof order.customer === 'object' && (order.customer as any)._id) {
+                // Está populado, extrair o _id
+                orderCustomerId = String((order.customer as any)._id);
+            } else {
+                // Não está populado, é um ObjectId direto
+                orderCustomerId = String(order.customer);
+            }
+        }
+        
+        const requestUserId = userId ? String(userId) : null;
+        const isOwner = orderCustomerId && requestUserId && orderCustomerId === requestUserId;
+
+        // Log detalhado para debug
+        console.log('[getOrderById] 🔍 Verificando permissão:', {
+            orderId: id,
+            orderCustomerId,
+            requestUserId,
+            isAdmin,
+            isOwner,
+            orderCustomerType: typeof order.customer,
+            requestUserType: typeof userId,
+            orderCustomerValue: order.customer,
+            requestUserValue: userId,
+        });
 
         if (!isAdmin && !isOwner) {
+            console.log('[getOrderById] ❌ Acesso negado:', {
+                orderId: id,
+                reason: !isAdmin && !isOwner ? 'Usuário não é admin nem dono do pedido' : 'Desconhecido',
+                orderCustomerId,
+                requestUserId,
+            });
             return res.status(403).json({
                 success: false, 
                 message: 'Acesso negado'
@@ -1347,33 +1333,26 @@ export const getOrderById = async (req: Request, res: Response) => {
                         }
                         await orderDoc.save();
 
-                        // CRÍTICO: Liberar reservas vinculadas ao pedido PIX quando pagamento é confirmado
-                        if (isPixOrder) {
-                            try {
-                                const TicketReservation = (await import('../models/TicketReservation')).default;
-                                const reservations = await TicketReservation.find({
-                                    orderId: orderDoc._id,
-                                    isActive: true,
-                                });
+                        // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
+                        // O pedido PENDING já funciona como reserva e quando pago, o estoque já está bloqueado corretamente
 
-                                if (reservations.length > 0) {
-                                    await Promise.all(
-                                        reservations.map(async (reservation) => {
-                                            reservation.isActive = false;
-                                            await reservation.save();
-                                        })
-                                    );
-                                    console.log(`✅ ${reservations.length} reserva(s) liberada(s) para pedido PIX pago ${orderDoc.orderNumber}`);
-                                }
-                            } catch (reservationError: any) {
-                                console.error(`⚠️ Erro ao liberar reservas do pedido PIX pago ${orderDoc.orderNumber}:`, reservationError.message);
-                                // Não falhar a confirmação de pagamento se a liberação de reservas falhar
-                            }
-                        }
-
-                        // Atualizar tickets e gerar QR codes se necessário
-                        const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
+                        // CRÍTICO: Confirmar APENAS tickets deste pedido específico
+                        // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
+                        const tickets = await Ticket.find({ 
+                            _id: { $in: orderDoc.tickets }, // Usar apenas tickets do pedido
+                            order: orderDoc._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
+                            deletedAt: null 
+                        });
+                        
+                        console.log(`📋 [getOrderById] Confirmando ${tickets.length} ticket(s) do pedido ${orderDoc.orderNumber} (${orderDoc._id})`);
+                        
                         for (const ticket of tickets) {
+                            // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
+                            if (String(ticket.order) !== String(orderDoc._id)) {
+                                console.error(`⚠️ [getOrderById] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${orderDoc._id}! Pulando...`);
+                                continue;
+                            }
+                            
                             if (ticket.status === 'pending') {
                                 ticket.status = 'confirmed';
                                 ticket.isActive = true;
@@ -1382,6 +1361,7 @@ export const getOrderById = async (req: Request, res: Response) => {
                                     ticket.qrCode = await generateQRCode(ticket.code);
                                 }
                                 await ticket.save();
+                                console.log(`✅ [getOrderById] Ticket ${ticket._id} confirmado para pedido ${orderDoc.orderNumber}`);
                             }
                         }
 
@@ -1680,27 +1660,8 @@ export const cancelOrder = async (req: Request, res: Response) => {
         // Buscar todos os tickets para resposta (incluindo confirmed)
         const allTickets = await Ticket.find({ order: order._id, deletedAt: null }).populate('ticketType');
 
-        // CRÍTICO: Liberar reservas vinculadas ao pedido (reservas de PIX pendentes)
-        try {
-            const TicketReservation = (await import('../models/TicketReservation')).default;
-            const reservations = await TicketReservation.find({
-                orderId: order._id,
-                isActive: true,
-            });
-
-            if (reservations.length > 0) {
-                await Promise.all(
-                    reservations.map(async (reservation) => {
-                        reservation.isActive = false;
-                        await reservation.save();
-                    })
-                );
-                console.log(`✅ ${reservations.length} reserva(s) liberada(s) para pedido cancelado ${order.orderNumber}`);
-            }
-        } catch (reservationError: any) {
-            console.error(`⚠️ Erro ao liberar reservas do pedido ${order.orderNumber}:`, reservationError.message);
-            // Não falhar o cancelamento se a liberação de reservas falhar
-        }
+        // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
+        // O pedido PENDING já funciona como reserva e quando cancelado, o estoque é liberado automaticamente
 
         // Cancelar pedido
         order.status = 'cancelled';

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Usar a mesma configuração de API que o resto da aplicação
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3443/api';
 const WARNING_TIME_MS = 2 * 60 * 1000; // 2 minutos antes de expirar
 const CHECK_INTERVAL_MS = 30 * 1000; // Verificar a cada 30 segundos
 
@@ -30,7 +31,8 @@ export const useSessionExpiration = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/check-session`, {
+      // A API_URL já inclui /api, então usar apenas /auth/check-session
+      const response = await fetch(`${API_URL}/auth/check-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,6 +54,14 @@ export const useSessionExpiration = () => {
         } catch {
           // Se não conseguir ler JSON, usar mensagem padrão
         }
+        // Se for 404, a rota não existe - não é um erro crítico, apenas logar e ignorar
+        if (response.status === 404) {
+          console.warn(`[useSessionExpiration] Rota não encontrada (404): ${API_URL}/auth/check-session - Esta funcionalidade pode não estar disponível`);
+          setSessionInfo(null);
+          setShowWarning(false);
+          return; // Não fazer logout, apenas ignorar silenciosamente
+        }
+        
         console.error(`[useSessionExpiration] Erro HTTP ${response.status}:`, errorMessage);
         
         // Se for 401 (não autorizado), assumir que expirou
@@ -99,7 +109,8 @@ export const useSessionExpiration = () => {
 
     setIsRefreshing(true);
     try {
-      const response = await fetch(`${API_URL}/api/auth/refresh`, {
+      // A API_URL já inclui /api, então usar apenas /auth/refresh
+      const response = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,0 +1,88 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+import { SiPix } from 'react-icons/si';
+import { PaymentTabs } from './PaymentTabs';
+
+const CardPaymentFormBrick = dynamic(
+    () => import('./CardPaymentFormBrick').then((mod) => ({ default: mod.CardPaymentFormBrick })),
+    {
+        loading: () => <div className="mt-6 text-sm text-[#7d796c]">Carregando formulário de pagamento...</div>,
+    }
+);
+
+const PixPaymentSection = dynamic(
+    () => import('./PixPaymentSection').then((mod) => ({ default: mod.PixPaymentSection })),
+    {
+        loading: () => <div className="mt-6 text-sm text-[#7d796c]">Carregando seção PIX...</div>,
+    }
+);
+
+interface PaymentSectionProps {
+    selectedTab: 'card' | 'pix';
+    onTabChange: (tab: 'card' | 'pix') => void;
+    pixPaymentActive?: boolean;
+    // Props serão adicionadas conforme necessário
+}
+
+export function PaymentSection({ selectedTab, onTabChange, pixPaymentActive = false }: PaymentSectionProps) {
+    const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
+
+    return (
+        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] relative">
+            <header className="flex items-center justify-between">
+                <div className="space-y-1">
+                    <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                        Formas de pagamento
+                    </h2>
+                    <p className="text-xs text-[#7d796c]">
+                        Utilize cartão de crédito ou gere um PIX instantâneo via Mercado Pago.
+                    </p>
+                </div>
+            </header>
+
+            {!MP_PUBLIC_KEY ? (
+                <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                    Configure a variável{' '}
+                    <span className="rounded bg-[#f5f1e8] px-1 font-mono text-xs">NEXT_PUBLIC_MP_PUBLIC_KEY</span> para
+                    habilitar o checkout do Mercado Pago.
+                </div>
+            ) : null}
+
+            <PaymentTabs selectedTab={selectedTab} onTabChange={onTabChange} pixPaymentActive={pixPaymentActive} />
+
+            {/* Placeholder para mensagens de erro/sucesso */}
+            {/* Será implementado conforme as regras forem passadas */}
+
+            {/* Formulários de pagamento */}
+            {selectedTab === 'card' ? (
+                <div className="mt-6">
+                    {/* CardPaymentFormBrick será integrado quando as regras forem passadas */}
+                    <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
+                        Formulário de cartão será implementado aqui
+                    </div>
+                </div>
+            ) : (
+                <div className="mt-6">
+                    {/* PixPaymentSection será integrado quando as regras forem passadas */}
+                    <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
+                        Formulário PIX será implementado aqui
+                    </div>
+                </div>
+            )}
+
+            <div className="mt-6 rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
+                <div className="flex items-center gap-3">
+                    <span className="mt-0.5 text-[#a38f78]">
+                        <SiPix className="text-base" />
+                    </span>
+                    <p>
+                        Pagamentos processados pelo Mercado Pago (Checkout Transparente). Ambiente seguro, com antifraude
+                        e 3D Secure quando necessário.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
+

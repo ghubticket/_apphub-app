@@ -1,13 +1,9 @@
+import type { CheckoutCustomerData } from '../types';
+
 const CHECKOUT_CUSTOMER_STORAGE_KEY = 'checkout:customer-data';
 const CHECKOUT_DEVICE_STORAGE_KEY = 'checkout:mp-device';
 const CHECKOUT_ACTIVE_ORDER_KEY = 'checkout:active-order-id';
-
-export type CheckoutCustomerData = {
-    name: string;
-    email: string;
-    cpf: string;
-    phone: string;
-};
+const CHECKOUT_TIMER_START_KEY = 'checkout:timer-start-time';
 
 export type CreatedOrder = {
     _id: string;
@@ -54,16 +50,21 @@ export const storageHelpers = {
     saveActiveOrderId: (orderId: string): void => {
         if (typeof window === 'undefined') return;
         window.sessionStorage.setItem(CHECKOUT_ACTIVE_ORDER_KEY, orderId);
+        console.log('[storageHelpers] 💾 OrderId salvo no storage:', orderId);
     },
 
     loadActiveOrderId: (): string | null => {
         if (typeof window === 'undefined') return null;
-        return window.sessionStorage.getItem(CHECKOUT_ACTIVE_ORDER_KEY);
+        const orderId = window.sessionStorage.getItem(CHECKOUT_ACTIVE_ORDER_KEY);
+        console.log('[storageHelpers] 📖 OrderId carregado do storage:', orderId || 'null');
+        return orderId;
     },
 
     clearActiveOrderId: (): void => {
         if (typeof window === 'undefined') return;
+        const orderId = window.sessionStorage.getItem(CHECKOUT_ACTIVE_ORDER_KEY);
         window.sessionStorage.removeItem(CHECKOUT_ACTIVE_ORDER_KEY);
+        console.log('[storageHelpers] 🗑️ OrderId removido do storage:', orderId || 'null');
     },
 
     // Device ID
@@ -75,6 +76,35 @@ export const storageHelpers = {
     loadDeviceId: (): string | null => {
         if (typeof window === 'undefined') return null;
         return window.localStorage.getItem(CHECKOUT_DEVICE_STORAGE_KEY);
+    },
+
+    // Timer persistence
+    saveTimerStartTime: (startTime: number): void => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.setItem(CHECKOUT_TIMER_START_KEY, String(startTime));
+    },
+
+    loadTimerStartTime: (): number | null => {
+        if (typeof window === 'undefined') return null;
+        const raw = window.localStorage.getItem(CHECKOUT_TIMER_START_KEY);
+        if (raw) {
+            const parsed = Number(raw);
+            if (Number.isFinite(parsed) && parsed > 0) {
+                return parsed;
+            }
+        }
+        return null;
+    },
+
+    clearTimerStartTime: (): void => {
+        if (typeof window === 'undefined') return;
+        const oldTime = window.localStorage.getItem(CHECKOUT_TIMER_START_KEY);
+        window.localStorage.removeItem(CHECKOUT_TIMER_START_KEY);
+        if (oldTime) {
+            console.log('[storageHelpers] 🗑️ Timer antigo removido do localStorage:', {
+                oldStartTime: oldTime ? new Date(Number(oldTime)).toISOString() : null,
+            });
+        }
     },
 };
 

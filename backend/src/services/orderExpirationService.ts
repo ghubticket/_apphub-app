@@ -51,8 +51,13 @@ async function cancelOrderLocally(order: any, timestamp: Date, paymentStatus: st
 }
 
 export async function expirePendingOrders(now = new Date()): Promise<{ checked: number; expired: number }> {
-    const pending = await Order.find({ status: 'pending', deletedAt: null })
-        .select('_id status createdAt paymentId paymentOrderId paymentMethod paymentStatus paymentStatusDetail')
+    // REFATORADO: Usar expiresAt do pedido ao invés de calcular baseado em createdAt
+    const pending = await Order.find({ 
+        status: 'pending', 
+        deletedAt: null,
+        expiresAt: { $lte: now } // Apenas pedidos que já expiraram
+    })
+        .select('_id status createdAt expiresAt paymentId paymentOrderId paymentMethod paymentStatus paymentStatusDetail')
         .limit(BATCH_LIMIT)
 
     let expired = 0
@@ -60,15 +65,26 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
     for (const order of pending) {
         try {
             const isPixOrder = (order as any).paymentMethod === 'pix'
-            const timeoutMs = isPixOrder ? PIX_TIMEOUT_MS : DEFAULT_TIMEOUT_MS
-            const localDeadline = new Date(order.createdAt.getTime() + timeoutMs)
-            const reachedLocalDeadline = now >= localDeadline
-
-            if (!order.paymentId) {
-                if (reachedLocalDeadline) {
-                    await cancelOrderLocally(order, now)
-                    expired++
+            const orderExpiresAt = (order as any).expiresAt as Date | undefined
+            
+            // Se não tem expiresAt, usar lógica antiga como fallback (compatibilidade)
+            if (!orderExpiresAt) {
+                const timeoutMs = isPixOrder ? PIX_TIMEOUT_MS : DEFAULT_TIMEOUT_MS
+                const localDeadline = new Date(order.createdAt.getTime() + timeoutMs)
+                if (now < localDeadline) {
+                    continue // Ainda não expirou
                 }
+            } else {
+                // Usar expiresAt do pedido (nova lógica)
+                if (now < orderExpiresAt) {
+                    continue // Ainda não expirou
+                }
+            }
+
+            // Pedido expirado (sem paymentId = nunca tentou pagar)
+            if (!order.paymentId) {
+                await cancelOrderLocally(order, now)
+                expired++
                 continue
             }
 
@@ -169,8 +185,10 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
                     continue // Não cancelar se não temos a data de expiração
                 }
             } else {
-                // Para outros métodos de pagamento: usar deadline local ou MP expiration
-                shouldExpire = reachedLocalDeadline || mpExpired
+                // Para outros métodos de pagamento (cartão): usar expiresAt do pedido ou MP expiration
+                // Se tem expiresAt do pedido, verificar se expirou
+                const orderExpired = orderExpiresAt ? now >= orderExpiresAt : false;
+                shouldExpire = orderExpired || mpExpired;
             }
 
             if (!shouldExpire) {
@@ -248,8 +266,9 @@ export async function expirePendingOrders(now = new Date()): Promise<{ checked: 
 
                 // Se ainda não cancelou no MP, verificar se expirou para cancelar automaticamente
                 if (CANCELABLE_STATUSES.includes(effectiveStatus)) {
-                    // Para cartão, usar deadline local ou MP expiration
-                    if (reachedLocalDeadline || mpExpired) {
+                    // Para cartão, usar expiresAt do pedido ou MP expiration
+                    const orderExpired = orderExpiresAt ? now >= orderExpiresAt : false;
+                    if (orderExpired || mpExpired) {
                         try {
                             await paymentService.cancelPaymentById(order.paymentId)
                         } catch (cancelError) {

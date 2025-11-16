@@ -25,6 +25,7 @@ export interface IOrder extends Document {
     paidAt?: Date; // Data do pagamento
     cancelledAt?: Date; // Data do cancelamento
     refundedAt?: Date; // Data do reembolso
+    expiresAt?: Date; // Data de expiração do pedido (quando status='pending', reserva de ingressos)
     customerData: {
         name: string;
         email: string;
@@ -165,6 +166,10 @@ const orderSchema = new Schema<IOrder>(
         refundedAt: {
             type: Date,
         },
+        expiresAt: {
+            type: Date,
+            index: true, // Índice para facilitar queries de expiração
+        },
         customerData: {
             name: {
                 type: String,
@@ -226,6 +231,7 @@ orderSchema.index({ orderNumber: 1 }, { unique: true });
 orderSchema.index({ customer: 1 });
 orderSchema.index({ event: 1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ status: 1, expiresAt: 1 }); // Índice composto para queries de expiração
 orderSchema.index({ paymentId: 1 });
 orderSchema.index({ isActive: 1 });
 orderSchema.index({ cardAttempts: 1 });
