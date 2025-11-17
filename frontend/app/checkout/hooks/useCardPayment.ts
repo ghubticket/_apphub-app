@@ -61,6 +61,7 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
     const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const previousOrderIdRef = useRef<string | null>(null);
     const orderIdRef = useRef<string | null>(orderId); // CRÍTICO: Ref para sempre pegar o orderId mais recente
+    const nestedTimersRef = useRef<NodeJS.Timeout[]>([]); // CRÍTICO: Ref para armazenar timers aninhados do setInterval
 
     // CRÍTICO: Atualizar orderIdRef ANTES de qualquer outra lógica
     // Isso garante que o handleFormSubmit sempre use o orderId mais recente
@@ -183,11 +184,20 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                         // CRÍTICO: Forçar reset do previousIsVisibleRef no IsolatedCardPaymentBrick
                         // Isso garante que a mudança de false para true seja detectada corretamente
                         // IMPORTANTE: Fazer isso DEPOIS de setar isCheckoutReady para false para garantir sincronização
+                        // CRÍTICO: Armazenar IDs dos timers para cleanup adequado
+                        const timerIds: NodeJS.Timeout[] = [];
+                        
                         if (window.__MP_BRICK_RESET_VISIBILITY_REF__) {
                             try {
                                 const resetVisibilityRef = window.__MP_BRICK_RESET_VISIBILITY_REF__;
                                 // Pequeno delay para garantir que o React processou o setIsCheckoutReady(false)
-                                setTimeout(() => {
+                                const timer1 = setTimeout(() => {
+                                    // CRÍTICO: Verificar se o orderId ainda é o mesmo antes de executar
+                                    if (previousOrderIdRef.current !== currentOrderId) {
+                                        console.log('[useCardPayment] ⚠️ OrderId mudou durante o delay, cancelando reset');
+                                        return;
+                                    }
+                                    
                                     if (resetVisibilityRef) {
                                         resetVisibilityRef();
                                         console.log('[useCardPayment] ✅ previousIsVisibleRef resetado no IsolatedCardPaymentBrick');
@@ -195,7 +205,7 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                                     
                                     // CRÍTICO: Após resetar o ref, aguardar um pouco e então setar isCheckoutReady para true
                                     // Isso garante que o IsolatedCardPaymentBrick detecte a mudança de false para true
-                                    setTimeout(() => {
+                                    const timer2 = setTimeout(() => {
                                         // Verificar se o orderId ainda é o mesmo antes de setar isCheckoutReady
                                         if (previousOrderIdRef.current === currentOrderId) {
                                             console.log('[useCardPayment] ✅ Setando isCheckoutReady para true para permitir detecção de mudança');
@@ -204,29 +214,35 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                                             console.log('[useCardPayment] ⚠️ OrderId mudou durante o delay, não setando isCheckoutReady');
                                         }
                                     }, 100); // Delay para garantir que o ref foi resetado e o componente foi renderizado
+                                    timerIds.push(timer2);
                                 }, 50); // Delay inicial para garantir que o React processou o setIsCheckoutReady(false)
+                                timerIds.push(timer1);
                             } catch (error) {
                                 console.warn('[useCardPayment] Erro ao resetar previousIsVisibleRef:', error);
                                 // Em caso de erro, tentar setar isCheckoutReady mesmo assim após um delay
-                                setTimeout(() => {
+                                const fallbackTimer = setTimeout(() => {
                                     if (previousOrderIdRef.current === currentOrderId) {
                                         console.log('[useCardPayment] ✅ Setando isCheckoutReady para true (fallback após erro)');
                                         setIsCheckoutReady(true);
                                     }
                                 }, 150);
+                                timerIds.push(fallbackTimer);
                             }
                         } else {
                             // Se não há função de reset, apenas aguardar e setar isCheckoutReady
-                            setTimeout(() => {
+                            const noResetTimer = setTimeout(() => {
                                 if (previousOrderIdRef.current === currentOrderId) {
                                     console.log('[useCardPayment] ✅ Setando isCheckoutReady para true (sem reset de ref)');
                                     setIsCheckoutReady(true);
                                 }
                             }, 200);
+                            timerIds.push(noResetTimer);
                         }
                         
-                        // CRÍTICO: NÃO retornar cleanup function para garantir que os timers executem
-                        // Os timers verificam o orderId antes de executar, então são seguros mesmo se o useEffect rodar novamente
+                        // CRÍTICO: Retornar cleanup function para evitar memory leaks
+                        return () => {
+                            timerIds.forEach(timerId => clearTimeout(timerId));
+                        };
                     } else {
                         // Brick ainda não está montado, mas pode estar sendo renderizado
                         // CRÍTICO: Aguardar um pouco para verificar se o Brick foi montado
@@ -244,6 +260,11 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                         // Isso resolve o problema quando o componente ainda não foi renderizado
                         let attempts = 0;
                         const maxAttempts = 10; // 10 tentativas = 500ms máximo
+                        
+                        // CRÍTICO: Limpar timers anteriores antes de criar novos
+                        nestedTimersRef.current.forEach(timerId => clearTimeout(timerId));
+                        nestedTimersRef.current = [];
+                        
                         const checkInterval = setInterval(() => {
                             attempts++;
                             
@@ -259,37 +280,47 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                                 if (window.__MP_BRICK_RESET_VISIBILITY_REF__) {
                                     try {
                                         const resetVisibilityRef = window.__MP_BRICK_RESET_VISIBILITY_REF__;
-                                        setTimeout(() => {
+                                        const nestedTimer1 = setTimeout(() => {
+                                            // CRÍTICO: Verificar se o orderId ainda é o mesmo antes de executar
+                                            if (previousOrderIdRef.current !== currentOrderId) {
+                                                console.log('[useCardPayment] ⚠️ OrderId mudou durante o delay, cancelando reset');
+                                                return;
+                                            }
+                                            
                                             if (resetVisibilityRef) {
                                                 resetVisibilityRef();
                                                 console.log('[useCardPayment] ✅ previousIsVisibleRef resetado no IsolatedCardPaymentBrick');
                                             }
                                             
                                             // Após resetar o ref, setar isCheckoutReady para true
-                                            setTimeout(() => {
+                                            const nestedTimer2 = setTimeout(() => {
                                                 if (previousOrderIdRef.current === currentOrderId) {
                                                     console.log('[useCardPayment] ✅ Setando isCheckoutReady para true após detectar Brick montado');
                                                     setIsCheckoutReady(true);
                                                 }
                                             }, 100);
+                                            nestedTimersRef.current.push(nestedTimer2);
                                         }, 50);
+                                        nestedTimersRef.current.push(nestedTimer1);
                                     } catch (error) {
                                         console.warn('[useCardPayment] Erro ao resetar previousIsVisibleRef:', error);
                                         // Em caso de erro, tentar setar isCheckoutReady mesmo assim
-                                        setTimeout(() => {
+                                        const errorTimer = setTimeout(() => {
                                             if (previousOrderIdRef.current === currentOrderId) {
                                                 setIsCheckoutReady(true);
                                             }
                                         }, 150);
+                                        nestedTimersRef.current.push(errorTimer);
                                     }
                                 } else {
                                     // Se não há função de reset, apenas aguardar e setar isCheckoutReady
-                                    setTimeout(() => {
+                                    const noResetTimer = setTimeout(() => {
                                         if (previousOrderIdRef.current === currentOrderId) {
                                             console.log('[useCardPayment] ✅ Setando isCheckoutReady para true (sem reset de ref)');
                                             setIsCheckoutReady(true);
                                         }
                                     }, 150);
+                                    nestedTimersRef.current.push(noResetTimer);
                                 }
                             } else if (attempts >= maxAttempts) {
                                 // Se excedeu o número máximo de tentativas, assumir que o Brick será montado depois
@@ -299,9 +330,12 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                             }
                         }, 50); // Verificar a cada 50ms
                         
-                        // Cleanup: limpar o intervalo se o componente for desmontado ou orderId mudar
+                        // Cleanup: limpar o intervalo e todos os timers aninhados
                         return () => {
                             clearInterval(checkInterval);
+                            // Limpar timers aninhados se ainda existirem
+                            nestedTimersRef.current.forEach(timerId => clearTimeout(timerId));
+                            nestedTimersRef.current = [];
                         };
                     }
                 }

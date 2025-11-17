@@ -264,15 +264,19 @@ export function IsolatedCardPaymentBrick({
                 
                 // CRÍTICO: Aguardar um pouco para garantir que o SDK limpou completamente
                 // Isso evita o erro "fields_setup_failed_after_3_tries"
-                setTimeout(() => {
+                const recreateTimeout = setTimeout(() => {
                     // Continuar para recriar o container após um pequeno delay
+                    // CRÍTICO: Verificar se o componente ainda está montado antes de recriar
                     if (!window.__MP_BRICK_MOUNTED__ && wrapperRef.current) {
                         console.log('[IsolatedCardPaymentBrick] 🏗️ Recriando container após limpeza');
                         createPersistentContainer();
                     }
                 }, 200); // Aumentar delay para 200ms para garantir limpeza completa
                 
-                return; // Retornar aqui para não continuar com a lógica antiga
+                // CRÍTICO: Retornar cleanup para evitar memory leaks
+                return () => {
+                    clearTimeout(recreateTimeout);
+                };
             } else if (wrapperRef.current) {
                 // Container existe e está no DOM, apenas atualizar visibilidade e mover container
                 // CRÍTICO: Mover container para o wrapper atual se necessário (evita remontagem)
