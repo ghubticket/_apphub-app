@@ -48,14 +48,15 @@ export const apiCache = new SimpleCache();
 
 /**
  * Função debounce genérica
+ * Retorna uma tupla com a função debounced e uma função de cancelamento
  */
 export function debounce<T extends (...args: any[]) => any>(
     func: T,
     wait: number,
-): (...args: Parameters<T>) => void {
+): [(...args: Parameters<T>) => void, () => void] {
     let timeout: NodeJS.Timeout | null = null;
 
-    return function executedFunction(...args: Parameters<T>) {
+    const debounced = function executedFunction(...args: Parameters<T>) {
         const later = () => {
             timeout = null;
             func(...args);
@@ -66,5 +67,14 @@ export function debounce<T extends (...args: any[]) => any>(
         }
         timeout = setTimeout(later, wait);
     };
+
+    const cancel = () => {
+        if (timeout) {
+            clearTimeout(timeout);
+            timeout = null;
+        }
+    };
+
+    return [debounced, cancel];
 }
 

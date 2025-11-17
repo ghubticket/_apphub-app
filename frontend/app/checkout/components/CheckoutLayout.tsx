@@ -142,7 +142,8 @@ export function CheckoutLayout() {
         }
     }, [showExpiredModal, refreshCart]);
 
-    const handleTimerExpire = async () => {
+    // OTIMIZADO: Memoizar callbacks para evitar re-renders desnecessários
+    const handleTimerExpire = useCallback(async () => {
         console.log('[CheckoutLayout] ⏰ Timer do pedido expirado!');
         
         // OTIMIZADO: Usar order do hook diretamente
@@ -169,19 +170,19 @@ export function CheckoutLayout() {
         
         // Atualizar pedido para verificar status final
         await refreshOrder();
-    };
+    }, [order?._id, clearOrder, refreshCart, refreshOrder]);
 
-    const handleContinueOrder = () => {
+    const handleContinueOrder = useCallback(() => {
         // Fechar modal e continuar com o pedido
         closeRestoreModal();
-    };
+    }, [closeRestoreModal]);
 
-    const handleCloseModal = () => {
+    const handleCloseModal = useCallback(() => {
         // Fechar modal sem ação
         closeRestoreModal();
-    };
+    }, [closeRestoreModal]);
 
-    const handleCreateNewOrder = async () => {
+    const handleCreateNewOrder = useCallback(async () => {
         console.log('[CheckoutLayout] 🔄 Usuário confirmou criação de novo pedido após expiração');
         
         // Fechar modal de expiração
@@ -194,14 +195,14 @@ export function CheckoutLayout() {
         
         // Criar novo pedido
         await createOrder();
-    };
+    }, [closeExpiredModal, refreshCart, createOrder]);
 
-    const handleCloseExpiredModal = () => {
+    const handleCloseExpiredModal = useCallback(() => {
         // Fechar modal sem criar novo pedido
         closeExpiredModal();
-    };
+    }, [closeExpiredModal]);
 
-    const handleCancelOrder = async () => {
+    const handleCancelOrder = useCallback(async () => {
         if (!order) {
             console.log('[CheckoutLayout] ⚠️ handleCancelOrder chamado mas não há pedido');
             return;
@@ -250,15 +251,15 @@ export function CheckoutLayout() {
             console.error('[CheckoutLayout] ❌ Erro ao cancelar pedido:', err);
             clearOrder();
         }
-    };
+    }, [order, clearOrder, refreshCart, router]);
 
 
-    const handleStayOnPage = () => {
+    const handleStayOnPage = useCallback(() => {
         console.log('[CheckoutLayout] ✅ Usuário escolheu continuar no checkout');
         setShowExitWarning(false);
-    };
+    }, []);
 
-    const handleLeavePage = async () => {
+    const handleLeavePage = useCallback(async () => {
         console.log('[CheckoutLayout] 🚪 Usuário escolheu sair do checkout');
         setShowExitWarning(false);
         
@@ -327,7 +328,7 @@ export function CheckoutLayout() {
             
             router.push('/');
         }
-    };
+    }, [order?._id, clearOrder, refreshCart, router]);
 
     // Mostrar loading enquanto carrega carrinho ou cria pedido
     if (cartLoading || orderLoading) {

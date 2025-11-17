@@ -54,6 +54,8 @@ export function useCheckoutOrder(
     const fetchingOrderRef = useRef(false); // Evitar múltiplas buscas simultâneas do mesmo pedido
     const cachedOrderIdFromStorageRef = useRef<string | null>(null); // OTIMIZADO: Cache do orderId do storage
     const hasInitializedFromStorageRef = useRef(false); // OTIMIZADO: Flag para evitar múltiplas inicializações
+    const refreshOrderAbortControllerRef = useRef<AbortController | null>(null); // OTIMIZADO: AbortController para refreshOrder
+    const createOrderAbortControllerRef = useRef<AbortController | null>(null); // OTIMIZADO: AbortController para createOrder
     
     // Função para fechar modal (exposta via callback)
     const closeRestoreModal = useCallback(() => {
@@ -118,11 +120,23 @@ export function useCheckoutOrder(
             return;
         }
         
+        // OTIMIZADO: Cancelar requisição anterior se existir
+        if (refreshOrderAbortControllerRef.current) {
+            console.log('[useCheckoutOrder] 🛑 Cancelando requisição anterior de refreshOrder');
+            refreshOrderAbortControllerRef.current.abort();
+        }
+        
+        // Criar novo AbortController para esta requisição
+        const abortController = new AbortController();
+        refreshOrderAbortControllerRef.current = abortController;
+        
         console.log('[useCheckoutOrder] 🔍 Buscando pedido:', orderId);
         fetchingOrderRef.current = true;
         setLoading(true);
         try {
-            const response = await api.get(`/orders/${orderId}`);
+            const response = await api.get(`/orders/${orderId}`, {
+                signal: abortController.signal,
+            });
             console.log('[useCheckoutOrder] 📡 Resposta recebida do backend:', {
                 status: response.status,
                 hasData: !!response.data,
@@ -240,9 +254,17 @@ export function useCheckoutOrder(
             }
             setLoading(false);
             fetchingOrderRef.current = false;
+            refreshOrderAbortControllerRef.current = null; // Limpar AbortController após sucesso
         } catch (err: any) {
             setLoading(false);
             fetchingOrderRef.current = false;
+            
+            // OTIMIZADO: Ignorar erros de cancelamento intencional
+            if (err.name === 'AbortError' || err.name === 'CanceledError' || (err.code === 'ERR_CANCELED')) {
+                console.log('[useCheckoutOrder] ⏸️ Requisição cancelada intencionalmente');
+                return;
+            }
+            
             const status = err?.response?.status;
             const errorMessage = err?.response?.data?.message || err?.message;
             
@@ -351,6 +373,17 @@ export function useCheckoutOrder(
             console.log('[useCheckoutOrder] ⏸️ Já está criando pedido, ignorando chamada duplicada');
             return;
         }
+        
+        // OTIMIZADO: Cancelar requisição anterior se existir
+        if (createOrderAbortControllerRef.current) {
+            console.log('[useCheckoutOrder] 🛑 Cancelando requisição anterior de createOrder');
+            createOrderAbortControllerRef.current.abort();
+        }
+        
+        // Criar novo AbortController para esta requisição
+        const abortController = new AbortController();
+        createOrderAbortControllerRef.current = abortController;
+        
         creatingRef.current = true;
 
         try {
@@ -363,7 +396,9 @@ export function useCheckoutOrder(
             if (existingOrderId && !order) {
                 console.log('[useCheckoutOrder] 🔍 Encontrado orderId no storage antes de criar, verificando se pedido ainda é válido:', existingOrderId);
                 try {
-                    const checkResponse = await api.get(`/orders/${existingOrderId}`);
+                    const checkResponse = await api.get(`/orders/${existingOrderId}`, {
+                        signal: abortController.signal,
+                    });
                     const existingOrder = checkResponse.data?.data?.order;
                     
                     if (existingOrder && existingOrder.status === 'pending' && existingOrder.expiresAt) {
@@ -387,7 +422,9 @@ export function useCheckoutOrder(
                             // Pedido expirado, cancelar, limpar e mostrar modal
                             console.log('[useCheckoutOrder] ⏰ Pedido existente expirado, cancelando e limpando:', existingOrderId);
                             try {
-                                await api.post(`/orders/${existingOrderId}/cancel`);
+                                await api.post(`/orders/${existingOrderId}/cancel`, {}, {
+                                    signal: abortController.signal,
+                                });
                                 console.log('[useCheckoutOrder] ✅ Pedido expirado cancelado com sucesso');
                             } catch (cancelErr: any) {
                                 // Ignorar erro 404 (já foi cancelado)
@@ -424,6 +461,12 @@ export function useCheckoutOrder(
                         cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
                     }
                 } catch (checkErr: any) {
+                    // OTIMIZADO: Ignorar erros de cancelamento intencional
+                    if (checkErr.name === 'AbortError' || checkErr.name === 'CanceledError' || (checkErr.code === 'ERR_CANCELED')) {
+                        console.log('[useCheckoutOrder] ⏸️ Requisição de verificação cancelada intencionalmente');
+                        return;
+                    }
+                    
                     // Se pedido não encontrado (404/403), limpar e criar novo
                     if (checkErr?.response?.status === 404 || checkErr?.response?.status === 403) {
                         console.log('[useCheckoutOrder] ⚠️ Pedido existente não encontrado ou sem acesso, limpando e criando novo');
@@ -466,7 +509,9 @@ export function useCheckoutOrder(
                 customerEmail: orderPayload.customerData.email,
             });
 
-            const response = await api.post('/orders', orderPayload);
+            const response = await api.post('/orders', orderPayload, {
+                signal: abortController.signal,
+            });
             const orderData = response.data?.data?.order;
 
             if (orderData) {
@@ -482,6 +527,7 @@ export function useCheckoutOrder(
                 orderIdRef.current = orderData._id;
                 cachedOrderIdFromStorageRef.current = orderData._id; // OTIMIZADO: Atualizar cache
                 storageHelpers.saveActiveOrderId(orderData._id);
+                createOrderAbortControllerRef.current = null; // Limpar AbortController após sucesso
                 
                 // IMPORTANTE: Se o pedido tem expiresAt, salvar o timer no localStorage para usar como fallback
                 if (orderData.status === 'pending' && orderData.expiresAt) {
@@ -504,6 +550,12 @@ export function useCheckoutOrder(
                 }
             }
         } catch (err: any) {
+            // OTIMIZADO: Ignorar erros de cancelamento intencional
+            if (err.name === 'AbortError' || err.name === 'CanceledError' || (err.code === 'ERR_CANCELED')) {
+                console.log('[useCheckoutOrder] ⏸️ Requisição de criação cancelada intencionalmente');
+                return;
+            }
+            
             const errorMessage = err?.response?.data?.message || err?.message || 'Erro ao criar pedido';
             setError(errorMessage);
             console.error('[useCheckoutOrder] ❌ Erro ao criar pedido:', err);
@@ -522,6 +574,10 @@ export function useCheckoutOrder(
         } finally {
             setLoading(false);
             creatingRef.current = false;
+            // Limpar AbortController no finally para garantir cleanup mesmo em caso de erro
+            if (createOrderAbortControllerRef.current && !createOrderAbortControllerRef.current.signal.aborted) {
+                createOrderAbortControllerRef.current = null;
+            }
         }
     }, [cartItems, customerData]);
 
@@ -595,6 +651,21 @@ export function useCheckoutOrder(
             refreshOrder();
         }
     }, [order, loading, refreshOrder]); // OTIMIZADO: refreshOrder estável via useCallback
+
+    // OTIMIZADO: Cleanup de AbortControllers ao desmontar componente
+    useEffect(() => {
+        return () => {
+            // Cancelar todas as requisições pendentes ao desmontar
+            if (refreshOrderAbortControllerRef.current) {
+                refreshOrderAbortControllerRef.current.abort();
+                refreshOrderAbortControllerRef.current = null;
+            }
+            if (createOrderAbortControllerRef.current) {
+                createOrderAbortControllerRef.current.abort();
+                createOrderAbortControllerRef.current = null;
+            }
+        };
+    }, []);
 
     return {
         order,
