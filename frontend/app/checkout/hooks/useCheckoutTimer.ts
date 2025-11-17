@@ -219,9 +219,12 @@ export function useCheckoutTimer(
             }
 
             // Calcular tempo restante
+            // IMPORTANTE: Timer sempre usa expiresAt do pedido como fonte de verdade
+            // Quando PIX é gerado, o timer continua contando até expiresAt (tempo até cancelamento do pedido)
             let remaining: number;
             if (expiresAt) {
                 // Se temos expiresAt, calcular baseado nele (fonte de verdade)
+                // Isso funciona tanto para pedidos normais quanto para PIX
                 remaining = getRemainingTime(expiresAt);
             } else {
                 // Se não temos expiresAt, usar cálculo baseado em startTimeRef

@@ -44,7 +44,7 @@ interface UsePixPaymentReturn {
  * - Limpeza automática de pedidos pendentes ao criar novo pedido
  * - Performance otimizada com useCallback e useRef
  */
-export function usePixPayment(orderId: string | null): UsePixPaymentReturn {
+export function usePixPayment(orderId: string | null, orderExpiresAt?: string | Date | null): UsePixPaymentReturn {
     const router = useRouter();
     const [status, setStatus] = useState<PixPaymentStatus>('idle');
     const [statusMessage, setStatusMessage] = useState<string>('');
@@ -60,6 +60,7 @@ export function usePixPayment(orderId: string | null): UsePixPaymentReturn {
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const previousOrderIdRef = useRef<string | null>(null);
     const orderIdRef = useRef<string | null>(orderId);
+    const orderExpiresAtRef = useRef<string | Date | null | undefined>(orderExpiresAt);
     const pixGenerationDeadlineMinutes = 30; // PIX expira em 30 minutos
 
     // CRÍTICO: Atualizar orderIdRef ANTES de qualquer outra lógica
@@ -70,6 +71,27 @@ export function usePixPayment(orderId: string | null): UsePixPaymentReturn {
         // Se há orderId, checkout está pronto; se não há, não está pronto
         setIsCheckoutReady(!!orderId);
     }, [orderId]);
+    
+    // Atualizar orderExpiresAtRef quando mudar
+    useEffect(() => {
+        orderExpiresAtRef.current = orderExpiresAt;
+        
+        // Se há pixResult e orderExpiresAt mudou, atualizar descrição de expiração
+        if (pixResult && orderExpiresAt) {
+            const expirationDate = typeof orderExpiresAt === 'string' ? new Date(orderExpiresAt) : orderExpiresAt;
+            const formattedDate = expirationDate.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+            });
+            const formattedTime = expirationDate.toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+            
+            setPixExpirationDescription(`Você pode pagar até: ${formattedDate} às ${formattedTime}`);
+        }
+    }, [orderExpiresAt, pixResult]);
 
 
     
@@ -321,19 +343,27 @@ export function usePixPayment(orderId: string | null): UsePixPaymentReturn {
             });
 
             if (paymentResult && response.data?.success) {
-                // Calcular descrição de expiração
-                const expiresAt = paymentResult.expiresAt;
+                // IMPORTANTE: Usar expiresAt do pedido (não do QR code) para calcular tempo de pagamento
+                // O tempo de expiração do pedido é a fonte de verdade
+                const expiresAt = orderExpiresAtRef.current || orderExpiresAt || paymentResult.expiresAt;
                 let expirationDescription: string | null = null;
                 
                 if (expiresAt) {
-                    const expirationDate = new Date(expiresAt);
+                    const expirationDate = typeof expiresAt === 'string' ? new Date(expiresAt) : expiresAt;
                     const now = new Date();
-                    const diffMs = expirationDate.getTime() - now.getTime();
-                    const diffMinutes = Math.floor(diffMs / 60000);
                     
-                    if (diffMinutes > 0) {
-                        expirationDescription = `O QR Code expira em ${diffMinutes} minuto${diffMinutes > 1 ? 's' : ''}.`;
-                    }
+                    // Formatar data/hora para exibição
+                    const formattedDate = expirationDate.toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                    });
+                    const formattedTime = expirationDate.toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    });
+                    
+                    expirationDescription = `Você pode pagar até: ${formattedDate} às ${formattedTime}`;
                 }
 
                 setPixResult({

@@ -43,6 +43,7 @@ export function IsolatedCardPaymentBrick({
     const handlersRef = useRef({ onSubmit, onReady, onError });
     const amountRef = useRef(amount);
     const previousIsVisibleRef = useRef(isVisible);
+    const recreateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Atualizar handlers e amount quando mudarem (sem causar re-render do Brick)
     useEffect(() => {
@@ -247,15 +248,25 @@ export function IsolatedCardPaymentBrick({
                 
                 // CRÍTICO: Limpar completamente o Brick antigo antes de recriar
                 // Isso evita que o SDK tente inicializar múltiplas vezes
+                // IMPORTANTE: Desmontar de forma assíncrona para evitar race condition com React
                 if (window.__MP_BRICK_ROOT__) {
-                    try {
-                        // Desmontar o React Root para limpar completamente
-                        window.__MP_BRICK_ROOT__.unmount();
-                        console.log('[IsolatedCardPaymentBrick] ✅ React Root desmontado');
-                    } catch (error) {
-                        console.warn('[IsolatedCardPaymentBrick] Erro ao desmontar React Root:', error);
-                    }
+                    const rootToUnmount = window.__MP_BRICK_ROOT__;
                     window.__MP_BRICK_ROOT__ = undefined;
+                    
+                    // Desmontar de forma assíncrona usando requestAnimationFrame para evitar race condition
+                    requestAnimationFrame(() => {
+                        setTimeout(() => {
+                            try {
+                                // Verificar se o root ainda existe antes de desmontar
+                                if (rootToUnmount) {
+                                    rootToUnmount.unmount();
+                                    console.log('[IsolatedCardPaymentBrick] ✅ React Root desmontado');
+                                }
+                            } catch (error) {
+                                console.warn('[IsolatedCardPaymentBrick] Erro ao desmontar React Root:', error);
+                            }
+                        }, 0);
+                    });
                 }
                 
                 // Resetar flags globais para forçar recriação
@@ -263,19 +274,26 @@ export function IsolatedCardPaymentBrick({
                 window.__MP_BRICK_CONTAINER__ = undefined;
                 
                 // CRÍTICO: Aguardar um pouco para garantir que o SDK limpou completamente
-                // Isso evita o erro "fields_setup_failed_after_3_tries"
-                const recreateTimeout = setTimeout(() => {
-                    // Continuar para recriar o container após um pequeno delay
-                    // CRÍTICO: Verificar se o componente ainda está montado antes de recriar
-                    if (!window.__MP_BRICK_MOUNTED__ && wrapperRef.current) {
-                        console.log('[IsolatedCardPaymentBrick] 🏗️ Recriando container após limpeza');
-                        createPersistentContainer();
-                    }
-                }, 200); // Aumentar delay para 200ms para garantir limpeza completa
+                // Isso evita o erro "fields_setup_failed_after_3_tries" e "Could not find the Brick container ID"
+                // Usar requestAnimationFrame + setTimeout para garantir que React terminou de renderizar
+                requestAnimationFrame(() => {
+                    recreateTimeoutRef.current = setTimeout(() => {
+                        // Continuar para recriar o container após um pequeno delay
+                        // CRÍTICO: Verificar se o componente ainda está montado antes de recriar
+                        if (!window.__MP_BRICK_MOUNTED__ && wrapperRef.current) {
+                            console.log('[IsolatedCardPaymentBrick] 🏗️ Recriando container após limpeza');
+                            createPersistentContainer();
+                        }
+                        recreateTimeoutRef.current = null;
+                    }, 300); // Aumentar delay para 300ms para garantir limpeza completa do SDK
+                });
                 
                 // CRÍTICO: Retornar cleanup para evitar memory leaks
                 return () => {
-                    clearTimeout(recreateTimeout);
+                    if (recreateTimeoutRef.current) {
+                        clearTimeout(recreateTimeoutRef.current);
+                        recreateTimeoutRef.current = null;
+                    }
                 };
             } else if (wrapperRef.current) {
                 // Container existe e está no DOM, apenas atualizar visibilidade e mover container

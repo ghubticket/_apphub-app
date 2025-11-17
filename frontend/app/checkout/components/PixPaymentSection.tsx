@@ -119,7 +119,9 @@ export function PixPaymentSection({
                             <p className="font-semibold">Seu pedido está criado e aguardando pagamento via PIX.</p>
                             {pixExpirationDescription ? (
                                 <p className="mt-1 text-xs text-[#2b6b47]">{pixExpirationDescription}</p>
-                            ) : null}
+                            ) : (
+                                <p className="mt-1 text-xs text-[#2b6b47]">O QR Code expira em 30 minutos.</p>
+                            )}
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f1e8] text-[#a38f78]">

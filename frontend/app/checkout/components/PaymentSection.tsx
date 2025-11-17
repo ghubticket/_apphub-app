@@ -29,6 +29,7 @@ interface PaymentSectionProps {
     onTabChange: (tab: 'card' | 'pix') => void;
     pixPaymentActive?: boolean;
     orderId: string | null;
+    orderExpiresAt?: string | Date | null;
     totalAmount: number;
     customerEmail: string;
     onCancelOrder?: () => void;
@@ -39,6 +40,7 @@ export function PaymentSection({
     onTabChange, 
     pixPaymentActive = false,
     orderId,
+    orderExpiresAt,
     totalAmount,
     customerEmail,
     onCancelOrder,
@@ -48,8 +50,8 @@ export function PaymentSection({
     // Hook para gerenciar pagamento com cartão
     const cardPayment = useCardPayment(orderId);
     
-    // Hook para gerenciar pagamento PIX
-    const pixPayment = usePixPayment(orderId);
+    // Hook para gerenciar pagamento PIX (passar expiresAt do pedido)
+    const pixPayment = usePixPayment(orderId, orderExpiresAt);
 
     // Handler para quando Brick estiver pronto
     const handleBrickReady = () => {
@@ -77,7 +79,11 @@ export function PaymentSection({
                 </div>
             ) : null}
 
-            <PaymentTabs selectedTab={selectedTab} onTabChange={onTabChange} pixPaymentActive={pixPaymentActive} />
+            <PaymentTabs 
+                selectedTab={selectedTab} 
+                onTabChange={onTabChange} 
+                pixPaymentActive={pixPaymentActive || !!pixPayment.pixResult} 
+            />
 
             {/* Formulários de pagamento */}
             {selectedTab === 'card' ? (

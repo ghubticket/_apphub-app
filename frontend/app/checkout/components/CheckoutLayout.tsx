@@ -669,14 +669,37 @@ export function CheckoutLayout() {
                     {/* Coluna esquerda */}
                     <section className="space-y-6">
                         {/* Timer - mostrar quando há pedido válido OU quando há timer válido no localStorage (fallback para erro 403) */}
-                        {timerActive && (
-                            <CheckoutTimer
-                                isActive={timerActive}
-                                onExpire={handleTimerExpire}
-                                expiresAt={order?.expiresAt || null}
-                                initialRemainingSeconds={remainingSeconds}
-                            />
-                        )}
+                        {/* IMPORTANTE: Quando PIX é gerado, usar expiresAt do QR code PIX; caso contrário, usar expiresAt do pedido */}
+                        {(() => {
+                            const timerExpiresAt = pixPayment.pixResult?.expiresAt 
+                                ? pixPayment.pixResult.expiresAt 
+                                : order?.expiresAt || null;
+                            
+                            // Log para debug
+                            if (pixPayment.pixResult?.expiresAt) {
+                                console.log('[CheckoutLayout] ⏰ Usando expiresAt do QR code PIX no timer:', {
+                                    pixExpiresAt: pixPayment.pixResult.expiresAt,
+                                    orderExpiresAt: order?.expiresAt,
+                                    usingPixExpiresAt: true,
+                                });
+                            }
+                            
+                            return timerActive && (
+                                <CheckoutTimer
+                                    isActive={timerActive}
+                                    onExpire={handleTimerExpire}
+                                    expiresAt={timerExpiresAt}
+                                    initialRemainingSeconds={remainingSeconds}
+                                    key={
+                                        pixPayment.pixResult?.expiresAt 
+                                            ? String(pixPayment.pixResult.expiresAt)
+                                            : order?.expiresAt 
+                                                ? String(order.expiresAt)
+                                                : 'no-expires'
+                                    } // Forçar re-render quando expiresAt muda
+                                />
+                            );
+                        })()}
 
                         <CheckoutCartSummary
                             items={summarizedCart}
@@ -701,6 +724,7 @@ export function CheckoutLayout() {
                             onTabChange={setSelectedTab}
                             pixPaymentActive={!!pixPayment.pixResult}
                             orderId={order?._id || null}
+                            orderExpiresAt={order?.expiresAt || null}
                             totalAmount={totalAmount}
                             customerEmail={customerData.email}
                             onCancelOrder={handleCancelOrderAndGoHome}
