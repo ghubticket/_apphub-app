@@ -277,6 +277,8 @@ export async function calculateOrderValues(
 
 /**
  * Busca pedido existente para reutilizar
+ * CRÍTICO: NÃO incluir pedidos PIX - pedidos PIX têm 30 minutos para pagamento
+ * e não devem ser reutilizados para permitir criar novo pedido (que pode ser com cartão)
  */
 export async function findExistingOrder(
     eventId: string,
@@ -288,6 +290,8 @@ export async function findExistingOrder(
         event: eventId,
         deletedAt: null,
         status: { $in: ['pending', 'failed'] },
+        // CRÍTICO: Excluir pedidos PIX - não devem ser reutilizados
+        paymentMethod: { $in: [null, 'credit_card', 'debit_card'] },
     };
 
     if (userId) {
@@ -358,6 +362,9 @@ export async function cancelPreviousPendingOrders(
     normalizedUserEmail?: string | null,
     excludeOrderId?: string
 ) {
+    // CRÍTICO: NÃO incluir 'pix' aqui - pedidos PIX têm 30 minutos para pagamento
+    // e devem ser cancelados apenas por expiração de tempo, não por criação de novo pedido
+    // O serviço orderExpirationService já cuida do cancelamento de PIX expirados
     const cancelFilters: any = {
         event: eventId,
         deletedAt: null,

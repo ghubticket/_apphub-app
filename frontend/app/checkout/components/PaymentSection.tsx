@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { SiPix } from 'react-icons/si';
 import { PaymentTabs } from './PaymentTabs';
 import { useCardPayment } from '../hooks/useCardPayment';
+import { usePixPayment } from '../hooks/usePixPayment';
 import { clearCartItems } from '@/lib/cart';
 import { storageHelpers } from '../utils/storageHelpers';
 
@@ -46,6 +47,9 @@ export function PaymentSection({
     
     // Hook para gerenciar pagamento com cartão
     const cardPayment = useCardPayment(orderId);
+    
+    // Hook para gerenciar pagamento PIX
+    const pixPayment = usePixPayment(orderId);
 
     // Handler para quando Brick estiver pronto
     const handleBrickReady = () => {
@@ -132,10 +136,27 @@ export function PaymentSection({
                 </div>
             ) : (
                 <div className="mt-6">
-                    {/* PixPaymentSection será integrado quando as regras forem passadas */}
-                    <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
-                        Formulário PIX será implementado aqui
-                    </div>
+                    {orderId ? (
+                        <PixPaymentSection
+                            pixResult={pixPayment.pixResult}
+                            pixExpirationDescription={pixPayment.pixExpirationDescription || ''}
+                            pixGenerationDeadlineMinutes={pixPayment.pixGenerationDeadlineMinutes}
+                            isCheckoutReady={pixPayment.isCheckoutReady}
+                            isProcessing={pixPayment.isProcessing}
+                            pixPaymentActive={pixPaymentActive}
+                            pixCopySuccess={pixPayment.pixCopySuccess}
+                            onCopyCode={pixPayment.handleCopyCode}
+                            onSubmit={pixPayment.handleFormSubmit}
+                            pixStatus={pixPayment.status}
+                            pixStatusMessage={pixPayment.statusMessage}
+                            redirectCountdown={pixPayment.redirectCountdown}
+                            onNavigateToOrders={pixPayment.onNavigateToOrders}
+                        />
+                    ) : (
+                        <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
+                            Aguardando criação do pedido...
+                        </div>
+                    )}
                 </div>
             )}
 

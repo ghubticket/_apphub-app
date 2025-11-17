@@ -237,6 +237,14 @@ export default function DashboardPage() {
     const router = useRouter();
     const { user, isAuthenticated, isReady } = useAuth();
     const [activeTab, setActiveTab] = useState<TabKey>('orders');
+    
+    // IMPORTANTE: Limpar flag de PIX ativo ao carregar dashboard
+    // Isso permite que quando o usuário voltar ao carrinho, possa criar novo pedido
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+        }
+    }, []);
     const [orders, setOrders] = useState<Array<OrderSummary | OrderGroup>>([]);
     const [ordersPagination, setOrdersPagination] = useState<OrderPagination | null>(null);
     const [ordersError, setOrdersError] = useState<string>('');

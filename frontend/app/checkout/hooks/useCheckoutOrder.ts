@@ -111,6 +111,60 @@ export function useCheckoutOrder(
             console.log('[useCheckoutOrder] 🔄 OrderId restaurado do storage:', savedOrderId);
         } else {
             console.log('[useCheckoutOrder] ℹ️ Nenhum OrderId encontrado no storage');
+            
+            // IMPORTANTE: Se não há orderId no storage mas há flag de PIX ativo no sessionStorage,
+            // significa que o usuário recarregou a página (F5) após gerar QR code PIX
+            // Nesse caso, verificar se há pedido PIX pendente e redirecionar para /dashboard
+            if (typeof window !== 'undefined') {
+                const pixOrderId = sessionStorage.getItem('__PIX_ORDER_ACTIVE__');
+                if (pixOrderId) {
+                    console.log('[useCheckoutOrder] 🔍 Detectado recarregamento após gerar QR code PIX, verificando pedido pendente...');
+                    
+                    // Verificar se há pedido PIX pendente
+                    const checkPixOrder = async () => {
+                        try {
+                            const ordersResponse = await api.get('/orders', {
+                                params: {
+                                    limit: 1,
+                                    status: 'pending',
+                                },
+                            });
+                            
+                            const pendingOrders = ordersResponse.data?.data?.orders || [];
+                            const pendingPixOrder = pendingOrders.find((o: any) => o.paymentMethod === 'pix' && o.status === 'pending');
+                            
+                            if (pendingPixOrder) {
+                                console.log('[useCheckoutOrder] ⚠️ Pedido PIX pendente encontrado, redirecionando para /dashboard:', {
+                                    orderId: pendingPixOrder._id,
+                                    orderNumber: pendingPixOrder.orderNumber,
+                                });
+                                
+                                // Limpar flags
+                                sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+                                
+                                // Definir flag para permitir navegação
+                                (window as any).__ALLOW_NAVIGATION__ = true;
+                                window.onbeforeunload = null;
+                                
+                                // Redirecionar para dashboard
+                                setTimeout(() => {
+                                    window.location.replace('/dashboard');
+                                }, 100);
+                            } else {
+                                // Se não houver pedido PIX pendente, limpar flag
+                                sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+                            }
+                        } catch (err: any) {
+                            console.log('[useCheckoutOrder] ℹ️ Erro ao verificar pedido PIX pendente:', err?.message);
+                            // Limpar flag mesmo em caso de erro
+                            sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+                        }
+                    };
+                    
+                    // Pequeno delay para garantir que a página carregou
+                    setTimeout(checkPixOrder, 500);
+                }
+            }
         }
         
         hasInitializedFromStorageRef.current = true;
@@ -171,6 +225,10 @@ export function useCheckoutOrder(
                     expiresAt: orderData.expiresAt,
                     wasNull,
                 });
+                
+                // IMPORTANTE: Restaurar pedidos PIX pendentes ao recarregar (F5)
+                // O pedido PIX deve ser restaurado para que o usuário possa ver o QR code novamente
+                // O backend já garante que pedidos PIX não são reutilizados ao criar novo pedido
                 
                 // IMPORTANTE: Verificar se pedido PENDING expirou ao carregar a página (F5)
                 let hasExpired = false;
@@ -234,8 +292,52 @@ export function useCheckoutOrder(
                     }
                 }
                 
+                // IMPORTANTE: Se pedido PIX pendente foi restaurado E há flag de PIX ativo,
+                // redirecionar para /dashboard (indica recarregamento após gerar QR code)
+                // Se não houver flag, significa que usuário voltou ao carrinho normalmente e pode criar novo pedido
+                if (wasNull && orderData.status === 'pending' && orderData.paymentMethod === 'pix' && !hasExpired) {
+                    const hasPixActiveFlag = typeof window !== 'undefined' && sessionStorage.getItem('__PIX_ORDER_ACTIVE__');
+                    
+                    if (hasPixActiveFlag) {
+                        console.log('[useCheckoutOrder] ⚠️ Pedido PIX pendente restaurado após recarregar, redirecionando para /dashboard:', {
+                            orderId: orderData._id,
+                            orderNumber: orderData.orderNumber,
+                        });
+                        
+                        // Limpar flags
+                        if (typeof window !== 'undefined') {
+                            sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+                            
+                            // Definir flag para permitir navegação
+                            (window as any).__ALLOW_NAVIGATION__ = true;
+                            window.onbeforeunload = null;
+                            
+                            // Redirecionar para dashboard
+                            setTimeout(() => {
+                                window.location.replace('/dashboard');
+                            }, 100);
+                        }
+                        
+                        // Não mostrar modal e não continuar processamento
+                        setShowRestoreModal(false);
+                        hasShownModalRef.current = true;
+                        return;
+                    } else {
+                        // Usuário voltou ao carrinho normalmente, limpar pedido PIX para permitir novo pedido
+                        console.log('[useCheckoutOrder] 🧹 Pedido PIX pendente encontrado mas usuário voltou ao carrinho normalmente, limpando para permitir novo pedido');
+                        orderIdRef.current = null;
+                        cachedOrderIdFromStorageRef.current = null;
+                        storageHelpers.clearActiveOrderId();
+                        storageHelpers.clearTimerStartTime();
+                        setOrder(null);
+                        setShowRestoreModal(false);
+                        // Continuar para criar novo pedido
+                    }
+                }
+                
                 // Mostrar modal se pedido foi restaurado (estava null e agora tem pedido PENDING válido)
-                if (wasNull && orderData.status === 'pending' && !hasExpired && !hasShownModalRef.current) {
+                // Mas apenas se NÃO for PIX (pedidos PIX são redirecionados acima)
+                if (wasNull && orderData.status === 'pending' && !hasExpired && !hasShownModalRef.current && orderData.paymentMethod !== 'pix') {
                     console.log('[useCheckoutOrder] 🔔 Mostrando modal de restauração');
                     setShowRestoreModal(true);
                     hasShownModalRef.current = true;

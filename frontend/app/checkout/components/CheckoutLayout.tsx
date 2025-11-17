@@ -20,6 +20,7 @@ import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { storageHelpers } from '../utils/storageHelpers';
 import { getRemainingSeconds, parseExpiresAt } from '../utils/orderHelpers';
 import { useCardPayment } from '../hooks/useCardPayment';
+import { usePixPayment } from '../hooks/usePixPayment';
 
 export function CheckoutLayout() {
     const router = useRouter();
@@ -133,10 +134,27 @@ export function CheckoutLayout() {
 
     // Hook para acessar status do pagamento e desabilitar guard quando aprovado
     const cardPayment = useCardPayment(order?._id || null);
+    const pixPayment = usePixPayment(order?._id || null);
+    
+    // IMPORTANTE: NÃO limpar estado do pedido quando QR code PIX é gerado
+    // O orderId deve ser mantido no storage para que ao recarregar (F5), o sistema detecte
+    // que há pedido PIX pendente e redirecione para /dashboard
+    // O storage só será limpo quando o usuário navegar para home normalmente (não F5)
+    
+    // Travar aba de cartão quando QR code PIX é gerado
+    useEffect(() => {
+        if (pixPayment.pixResult && selectedTab === 'card') {
+            console.log('[CheckoutLayout] 🔒 QR code PIX gerado - travando aba de cartão');
+            setSelectedTab('pix');
+        }
+    }, [pixPayment.pixResult, selectedTab]);
     
     // CRÍTICO: Desabilitar guard quando pagamento for aprovado ou quando há redirecionamento ativo
     // Não faz sentido bloquear navegação quando o pagamento já foi aprovado e há redirecionamento automático
-    const isPaymentApproved = cardPayment.status === 'success' || cardPayment.redirectCountdown !== null;
+    // Para PIX: também desabilitar quando QR code foi gerado (permite navegação livre)
+    const isPaymentApproved = cardPayment.status === 'success' || cardPayment.redirectCountdown !== null || 
+                               pixPayment.status === 'success' || pixPayment.redirectCountdown !== null ||
+                               !!pixPayment.pixResult; // QR code PIX gerado = liberar navegação
     
     // CRÍTICO: Definir flag global quando pagamento é aprovado para permitir navegação sem alerta
     // Isso garante que o useNavigationGuard não mostre o alerta durante o redirecionamento
@@ -451,6 +469,12 @@ export function CheckoutLayout() {
             clearOrder();
             clearCartItems();
             refreshCart();
+            
+            // Limpar flag de PIX ativo se existir (navegação normal, não F5)
+            if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+            }
+            
             router.push('/');
             return;
         }
@@ -467,6 +491,11 @@ export function CheckoutLayout() {
 
             // Limpar timer do localStorage também
             storageHelpers.clearTimerStartTime();
+            
+            // Limpar flag de PIX ativo se existir (navegação normal, não F5)
+            if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+            }
 
             // Limpar carrinho
             clearCartItems();
@@ -488,6 +517,12 @@ export function CheckoutLayout() {
                 storageHelpers.clearTimerStartTime();
                 clearCartItems();
                 refreshCart();
+                
+                // Limpar flag de PIX ativo se existir (navegação normal, não F5)
+                if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+                }
+                
                 router.push('/');
                 return;
             }
@@ -500,6 +535,11 @@ export function CheckoutLayout() {
             storageHelpers.clearTimerStartTime();
             clearCartItems();
             refreshCart();
+            
+            // Limpar flag de PIX ativo se existir (navegação normal, não F5)
+            if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+            }
 
             router.push('/');
         }
@@ -659,7 +699,7 @@ export function CheckoutLayout() {
                         <PaymentSection
                             selectedTab={selectedTab}
                             onTabChange={setSelectedTab}
-                            pixPaymentActive={false}
+                            pixPaymentActive={!!pixPayment.pixResult}
                             orderId={order?._id || null}
                             totalAmount={totalAmount}
                             customerEmail={customerData.email}

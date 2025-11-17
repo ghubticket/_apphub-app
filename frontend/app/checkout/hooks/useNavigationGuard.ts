@@ -31,6 +31,13 @@ export function useNavigationGuard({ enabled, onNavigationAttempt, allowedPaths 
 
         // Se estava no checkout e agora não está mais
         if (prevPath === '/checkout' && currentPath !== '/checkout') {
+            // CRÍTICO: Verificar flag global que permite navegação (ex: QR code PIX gerado)
+            if (typeof window !== 'undefined' && (window as any).__ALLOW_NAVIGATION__) {
+                console.log('[useNavigationGuard] ✅ Navegação permitida pela flag __ALLOW_NAVIGATION__');
+                prevPathnameRef.current = currentPath;
+                return;
+            }
+            
             // Verificar se o novo path é permitido
             const isAllowed = allowedPaths.some(allowed => currentPath.startsWith(allowed));
             
@@ -61,6 +68,11 @@ export function useNavigationGuard({ enabled, onNavigationAttempt, allowedPaths 
         if (!enabled) return;
 
         const handleLinkClick = (e: MouseEvent) => {
+            // CRÍTICO: Verificar flag global que permite navegação (ex: QR code PIX gerado)
+            if (typeof window !== 'undefined' && (window as any).__ALLOW_NAVIGATION__) {
+                return; // Permitir navegação sem bloquear
+            }
+            
             const target = e.target as HTMLElement;
             const link = target.closest('a');
 
@@ -122,6 +134,12 @@ export function useNavigationGuard({ enabled, onNavigationAttempt, allowedPaths 
 
     // Wrapper para router.push que intercepta navegação
     const guardedPush = useCallback((url: string) => {
+        // CRÍTICO: Verificar flag global que permite navegação (ex: QR code PIX gerado)
+        if (typeof window !== 'undefined' && (window as any).__ALLOW_NAVIGATION__) {
+            isNavigatingRef.current = true;
+            return router.push(url);
+        }
+        
         if (!enabled || url.includes('/checkout') || allowedPaths.some(allowed => url.startsWith(allowed))) {
             isNavigatingRef.current = true;
             return router.push(url);
