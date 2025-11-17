@@ -581,12 +581,31 @@ export function useCheckoutOrder(
                 // Se o backend retornar 'failed', não salvar no storage para evitar loop infinito
                 if (orderData.status === 'failed' || orderData.status === 'cancelled') {
                     console.error('[useCheckoutOrder] ❌ Pedido criado com status inválido:', orderData.status);
+                    console.error('[useCheckoutOrder] 📋 Detalhes do pedido inválido:', {
+                        orderId: orderData._id,
+                        orderNumber: orderData.orderNumber,
+                        status: orderData.status,
+                        totalAmount: orderData.totalAmount,
+                        eventId: orderData.event,
+                        ticketTypeId: orderData.tickets?.[0]?.ticketType,
+                    });
+                    
                     setLoading(false);
                     creatingRef.current = false;
+                    
+                    // CRÍTICO: Limpar qualquer pedido inválido do storage para evitar loops
+                    storageHelpers.clearActiveOrderId();
+                    orderIdRef.current = null;
+                    cachedOrderIdFromStorageRef.current = null;
+                    
+                    // Mensagem de erro mais amigável
                     setError(`Não foi possível criar um pedido válido. Status: ${orderData.status}. Por favor, tente novamente.`);
-                    // NÃO salvar no storage para evitar loop infinito
+                    
                     // NÃO definir orderIdRef para evitar tentativas de refresh
                     createOrderAbortControllerRef.current = null;
+                    
+                    // CRÍTICO: Não tentar criar novamente automaticamente
+                    // O usuário precisará tentar manualmente ou recarregar a página
                     return; // Retornar sem salvar o pedido inválido
                 }
                 

@@ -1,4 +1,6 @@
 [API] 🔧 Configuração da API: {baseURL: 'https://localhost:3443/api', env: 'https://localhost:3443/api'}
+ticketsCatalog.ts:138 [fetchTicketCatalog] 🔍 Buscando catálogo de ingressos: {limitEvents: 6, limitTicketsPerEvent: 2, search: undefined, onlyWithAvailability: false}
+ticketsCatalog.ts:138 [fetchTicketCatalog] 🔍 Buscando catálogo de ingressos: {limitEvents: 6, limitTicketsPerEvent: 2, search: undefined, onlyWithAvailability: false}
 installHook.js:1 Image with src "/images/5521.avif" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
 overrideMethod @ installHook.js:1
 warnOnce @ warn-once.js:16
@@ -96,505 +98,655 @@ performConcurrentWorkOnRoot @ react-dom.development.js:24559
 workLoop @ scheduler.development.js:256
 flushWork @ scheduler.development.js:225
 performWorkUntilDeadline @ scheduler.development.js:534Understand this warning
-installHook.js:1 [useSessionExpiration] Erro HTTP 404: Rota não encontrada
+ticketsCatalog.ts:156 [fetchTicketCatalog] 📋 Eventos retornados pela API: 1
+ticketsCatalog.ts:158    1. Festa de Ano Novo 2026 - isActive: true - status: draft
+ticketsCatalog.ts:165 [fetchTicketCatalog] ✅ Eventos após filtro: 1
+ticketsCatalog.ts:170 [fetchTicketCatalog] 🎫 Buscando tickets para evento: Festa de Ano Novo 2026 (6915eb106591cf33f8f8cde3)
+ticketsCatalog.ts:156 [fetchTicketCatalog] 📋 Eventos retornados pela API: 1
+ticketsCatalog.ts:158    1. Festa de Ano Novo 2026 - isActive: true - status: draft
+ticketsCatalog.ts:165 [fetchTicketCatalog] ✅ Eventos após filtro: 1
+ticketsCatalog.ts:170 [fetchTicketCatalog] 🎫 Buscando tickets para evento: Festa de Ano Novo 2026 (6915eb106591cf33f8f8cde3)
+ticketsCatalog.ts:182 [fetchTicketCatalog] 🎫 Tickets encontrados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:184    1. Ingresso Normal - isActive: true - soldQuantity: 0 - maxQuantity: 200 - availableQuantity: 193
+ticketsCatalog.ts:184    2. Ingresso VIP - isActive: true - soldQuantity: 0 - maxQuantity: 50 - availableQuantity: 50
+ticketsCatalog.ts:184    3. Ingresso Promocional - isActive: true - soldQuantity: 0 - maxQuantity: 100 - availableQuantity: 100
+ticketsCatalog.ts:197 [fetchTicketCatalog] ✅ Tickets normalizados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:211 [fetchTicketCatalog] 📦 Total de tickets após normalização: 2
+ticketsCatalog.ts:182 [fetchTicketCatalog] 🎫 Tickets encontrados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:184    1. Ingresso Normal - isActive: true - soldQuantity: 0 - maxQuantity: 200 - availableQuantity: 193
+ticketsCatalog.ts:184    2. Ingresso VIP - isActive: true - soldQuantity: 0 - maxQuantity: 50 - availableQuantity: 50
+ticketsCatalog.ts:184    3. Ingresso Promocional - isActive: true - soldQuantity: 0 - maxQuantity: 100 - availableQuantity: 100
+ticketsCatalog.ts:197 [fetchTicketCatalog] ✅ Tickets normalizados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:211 [fetchTicketCatalog] 📦 Total de tickets após normalização: 2
+ticketsCatalog.ts:138 [fetchTicketCatalog] 🔍 Buscando catálogo de ingressos: {limitEvents: 6, limitTicketsPerEvent: 2, search: undefined, onlyWithAvailability: false}
+ticketsCatalog.ts:138 [fetchTicketCatalog] 🔍 Buscando catálogo de ingressos: {limitEvents: 6, limitTicketsPerEvent: 2, search: undefined, onlyWithAvailability: false}
+ticketsCatalog.ts:156 [fetchTicketCatalog] 📋 Eventos retornados pela API: 1
+ticketsCatalog.ts:158    1. Festa de Ano Novo 2026 - isActive: true - status: draft
+ticketsCatalog.ts:165 [fetchTicketCatalog] ✅ Eventos após filtro: 1
+ticketsCatalog.ts:170 [fetchTicketCatalog] 🎫 Buscando tickets para evento: Festa de Ano Novo 2026 (6915eb106591cf33f8f8cde3)
+ticketsCatalog.ts:156 [fetchTicketCatalog] 📋 Eventos retornados pela API: 1
+ticketsCatalog.ts:158    1. Festa de Ano Novo 2026 - isActive: true - status: draft
+ticketsCatalog.ts:165 [fetchTicketCatalog] ✅ Eventos após filtro: 1
+ticketsCatalog.ts:170 [fetchTicketCatalog] 🎫 Buscando tickets para evento: Festa de Ano Novo 2026 (6915eb106591cf33f8f8cde3)
+ticketsCatalog.ts:182 [fetchTicketCatalog] 🎫 Tickets encontrados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:184    1. Ingresso Normal - isActive: true - soldQuantity: 0 - maxQuantity: 200 - availableQuantity: 193
+ticketsCatalog.ts:184    2. Ingresso VIP - isActive: true - soldQuantity: 0 - maxQuantity: 50 - availableQuantity: 50
+ticketsCatalog.ts:184    3. Ingresso Promocional - isActive: true - soldQuantity: 0 - maxQuantity: 100 - availableQuantity: 100
+ticketsCatalog.ts:197 [fetchTicketCatalog] ✅ Tickets normalizados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:211 [fetchTicketCatalog] 📦 Total de tickets após normalização: 2
+ticketsCatalog.ts:182 [fetchTicketCatalog] 🎫 Tickets encontrados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:184    1. Ingresso Normal - isActive: true - soldQuantity: 0 - maxQuantity: 200 - availableQuantity: 193
+ticketsCatalog.ts:184    2. Ingresso VIP - isActive: true - soldQuantity: 0 - maxQuantity: 50 - availableQuantity: 50
+ticketsCatalog.ts:184    3. Ingresso Promocional - isActive: true - soldQuantity: 0 - maxQuantity: 100 - availableQuantity: 100
+ticketsCatalog.ts:197 [fetchTicketCatalog] ✅ Tickets normalizados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:211 [fetchTicketCatalog] 📦 Total de tickets após normalização: 2
+useCheckoutOrder.ts:113 [useCheckoutOrder] ℹ️ Nenhum OrderId encontrado no storage
+VM67641 useCardPayment.ts:38 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: null, current: null}
+VM67641 useCardPayment.ts:38 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: null, current: null}
+useCheckoutOrder.ts:558 [useCheckoutOrder] 🚀 Criando novo pedido no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, customerEmail: 'guilhermehr.designer@gmail.com'}
+useCheckoutOrder.ts:571 [useCheckoutOrder] ✅ Pedido criado com sucesso: {orderId: '691b4d9b0cb7380e77e67fad', orderNumber: '3LE05Y4F32', status: 'pending', expiresAt: '2025-11-17T17:00:19.703Z', totalAmount: 100, …}
+storageHelpers.ts:53 [storageHelpers] 💾 OrderId salvo no storage: 691b4d9b0cb7380e77e67fad
+useCheckoutOrder.ts:627 [useCheckoutOrder] 💾 Timer salvo no localStorage baseado no expiresAt do pedido criado: {expiresAt: '2025-11-17T17:00:19.703Z', startTime: '2025-11-17T16:30:19.703Z', remainingMinutes: 29}
+VM67641 useCardPayment.ts:38 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: '691b4d9b0cb7380e77e67fad', current: '691b4d9b0cb7380e77e67fad'}
+VM67641 useCardPayment.ts:50 [useCardPayment] 🔄 OrderId mudou: {previous: null, current: '691b4d9b0cb7380e77e67fad', currentStatus: 'idle'}
+VM67641 useCardPayment.ts:115 [useCardPayment] 🧹 Resetando estado do pagamento (novo orderId)
+VM67641 useCardPayment.ts:159 [useCardPayment] ⏳ Aguardando Brick ser montado
+VM67641 useCardPayment.ts:38 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: '691b4d9b0cb7380e77e67fad', current: '691b4d9b0cb7380e77e67fad'}
+IsolatedCardPaymentBrick.tsx:497 [IsolatedCardPaymentBrick] 🔍 Verificando isVisible: {wasVisible: false, isVisible: false, hasChanged: false}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+IsolatedCardPaymentBrick.tsx:497 [IsolatedCardPaymentBrick] 🔍 Verificando isVisible: {wasVisible: false, isVisible: false, hasChanged: false}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+CardPaymentFormBrick.tsx:123 [CardPaymentFormBrick] ✅ handleReady chamado, notificando componente pai
+VM67641 useCardPayment.ts:536 [useCardPayment] ✅ handleBrickReady chamado, marcando checkout como pronto
+IsolatedCardPaymentBrick.tsx:497 [IsolatedCardPaymentBrick] 🔍 Verificando isVisible: {wasVisible: false, isVisible: true, hasChanged: true}
+IsolatedCardPaymentBrick.tsx:501 [IsolatedCardPaymentBrick] 🔄 isVisible mudou de false para true, chamando onReady
+CardPaymentFormBrick.tsx:123 [CardPaymentFormBrick] ✅ handleReady chamado, notificando componente pai
+VM67641 useCardPayment.ts:536 [useCardPayment] ✅ handleBrickReady chamado, marcando checkout como pronto
+IsolatedCardPaymentBrick.tsx:507 [IsolatedCardPaymentBrick] ✅ Chamando onReady após mudança de isVisible
+CardPaymentFormBrick.tsx:123 [CardPaymentFormBrick] ✅ handleReady chamado, notificando componente pai
+VM67641 useCardPayment.ts:536 [useCardPayment] ✅ handleBrickReady chamado, marcando checkout como pronto
+VM67662 cardPayment.js:2 50314332
+CardPaymentFormBrick.tsx:141 [CardPaymentFormBrick] 📤 handleBrickSubmit chamado com: {hasToken: true, payment_method_id: 'master', paymentMethodId: undefined, issuer_id: '24', issuerId: undefined, …}
+CardPaymentFormBrick.tsx:171 [CardPaymentFormBrick] 💾 Armazenando dados no form: {token: 'c74503a01a...', installments: 1, paymentMethodId: 'master', issuerId: '24'}
+CardPaymentFormBrick.tsx:195 [CardPaymentFormBrick] ✅ Chamando onSubmit do form...
+VM67641 useCardPayment.ts:488 [useCardPayment] 📝 handleFormSubmit - usando orderId: 691b4d9b0cb7380e77e67fad (orderId atual do hook: 691b4d9b0cb7380e77e67fad )
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'processing', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: processing )
+installHook.js:1 [deviceIdHelper] 🔧 DeviceId gerado (fallback - será substituído quando SDK gerar): mp-2yleso-mi3d2d9h...
 overrideMethod @ installHook.js:1
-window.console.error @ app-index.js:33
-console.error @ hydration-error-info.js:63
-eval @ useSessionExpiration.ts:55
-await in eval
-eval @ useSessionExpiration.ts:155
-commitHookEffectListMount @ react-dom.development.js:21102
-commitHookPassiveMountEffects @ react-dom.development.js:23154
-commitPassiveMountOnFiber @ react-dom.development.js:23259
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23267
-commitPassiveMountEffects @ react-dom.development.js:23225
-flushPassiveEffectsImpl @ react-dom.development.js:26497
-flushPassiveEffects @ react-dom.development.js:26438
-eval @ react-dom.development.js:26172
-workLoop @ scheduler.development.js:256
-flushWork @ scheduler.development.js:225
-performWorkUntilDeadline @ scheduler.development.js:534Understand this error
-installHook.js:1 [useSessionExpiration] Erro ao verificar sessão: Error: Rota não encontrada
-    at eval (useSessionExpiration.ts:64:15)
-overrideMethod @ installHook.js:1
-window.console.error @ app-index.js:33
-console.error @ hydration-error-info.js:63
-eval @ useSessionExpiration.ts:89
-await in eval
-eval @ useSessionExpiration.ts:155
-commitHookEffectListMount @ react-dom.development.js:21102
-commitHookPassiveMountEffects @ react-dom.development.js:23154
-commitPassiveMountOnFiber @ react-dom.development.js:23259
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23267
-commitPassiveMountEffects @ react-dom.development.js:23225
-flushPassiveEffectsImpl @ react-dom.development.js:26497
-flushPassiveEffects @ react-dom.development.js:26438
-eval @ react-dom.development.js:26172
-workLoop @ scheduler.development.js:256
-flushWork @ scheduler.development.js:225
-performWorkUntilDeadline @ scheduler.development.js:534Understand this error
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2346 [RestoreReservation] ✅ Condições atendidas, iniciando restauração...
-page.tsx:2352 [RestoreReservation] 🔄 Buscando reservas ativas da sessão... {sessionId: 'dev-device-f4daccd9-45b1-4f75-a27f-21f5b8a3f4f9'}
-page.tsx:2651 [AutoCreateReservation] 🆕 Criando/atualizando reserva...
-page.tsx:446 [ensureReservation] 🌐 Criando/atualizando reserva no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, sessionId: 'dev-device-f4daccd9-45b1-4f75-a27f-21f5b8a3f4f9'}
-page.tsx:2360 [RestoreReservation] 📦 Reservas encontradas: {count: 0, reservations: Array(0)}
-page.tsx:2660 [AutoCreateReservation] ✅ Reserva criada/atualizada: {reservationId: '69178c1ac711ef67f9295bab', orderId: undefined}
-page.tsx:2796 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '69178c1ac711ef67f9295bab', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T20:37:54.010Z', …}
-installHook.js:1 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '69178c1ac711ef67f9295bab', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T20:37:54.010Z', …}
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c1ac711ef67f9295bab', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-useCheckoutTimer.ts:57 [useCheckoutTimer] 🔄 Timer atualizado com tempo restante: {initialRemainingSeconds: 1799, remainingMs: 1799000, remainingMinutes: 29, startTimeRef: 1763150873024, startTimeRefDate: '2025-11-14T20:07:53.024Z', …}
-page.tsx:3329 [Tab Switch] 🔄 Mudando para PIX, resetando formulário do cartão
-VM5244 cardPayment.js:2 Error: <svg> attribute width: Unexpected end of attribute. Expected length, "".
-C @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-y @ VM5244 cardPayment.js:2
-v @ VM5244 cardPayment.js:2
-Promise.then
-u @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-eval @ page.tsx:1141
-eval @ page.tsx:1124
-onClick @ page.tsx:3330
-callCallback @ react-dom.development.js:20565
-invokeGuardedCallbackImpl @ react-dom.development.js:20614
-invokeGuardedCallback @ react-dom.development.js:20689
-invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
-executeDispatch @ react-dom.development.js:32128
-processDispatchQueueItemsInOrder @ react-dom.development.js:32160
-processDispatchQueue @ react-dom.development.js:32173
-dispatchEventsForPlugins @ react-dom.development.js:32184
-eval @ react-dom.development.js:32374
-batchedUpdates$1 @ react-dom.development.js:24953
-batchedUpdates @ react-dom.development.js:28844
-dispatchEventForPluginEventSystem @ react-dom.development.js:32373
-dispatchEvent @ react-dom.development.js:30141
-dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
-VM5244 cardPayment.js:2 Error: <svg> attribute height: Unexpected end of attribute. Expected length, "".
-C @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-y @ VM5244 cardPayment.js:2
-v @ VM5244 cardPayment.js:2
-Promise.then
-u @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-eval @ page.tsx:1141
-eval @ page.tsx:1124
-onClick @ page.tsx:3330
-callCallback @ react-dom.development.js:20565
-invokeGuardedCallbackImpl @ react-dom.development.js:20614
-invokeGuardedCallback @ react-dom.development.js:20689
-invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
-executeDispatch @ react-dom.development.js:32128
-processDispatchQueueItemsInOrder @ react-dom.development.js:32160
-processDispatchQueue @ react-dom.development.js:32173
-dispatchEventsForPlugins @ react-dom.development.js:32184
-eval @ react-dom.development.js:32374
-batchedUpdates$1 @ react-dom.development.js:24953
-batchedUpdates @ react-dom.development.js:28844
-dispatchEventForPluginEventSystem @ react-dom.development.js:32373
-dispatchEvent @ react-dom.development.js:30141
-dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
-VM5244 cardPayment.js:2 Error: <svg> attribute width: Unexpected end of attribute. Expected length, "".
-C @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-y @ VM5244 cardPayment.js:2
-v @ VM5244 cardPayment.js:2
-Promise.then
-u @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-eval @ page.tsx:1141
-eval @ page.tsx:1124
-onClick @ page.tsx:3330
-callCallback @ react-dom.development.js:20565
-invokeGuardedCallbackImpl @ react-dom.development.js:20614
-invokeGuardedCallback @ react-dom.development.js:20689
-invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
-executeDispatch @ react-dom.development.js:32128
-processDispatchQueueItemsInOrder @ react-dom.development.js:32160
-processDispatchQueue @ react-dom.development.js:32173
-dispatchEventsForPlugins @ react-dom.development.js:32184
-eval @ react-dom.development.js:32374
-batchedUpdates$1 @ react-dom.development.js:24953
-batchedUpdates @ react-dom.development.js:28844
-dispatchEventForPluginEventSystem @ react-dom.development.js:32373
-dispatchEvent @ react-dom.development.js:30141
-dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
-VM5244 cardPayment.js:2 Error: <svg> attribute height: Unexpected end of attribute. Expected length, "".
-C @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-y @ VM5244 cardPayment.js:2
-v @ VM5244 cardPayment.js:2
-Promise.then
-u @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-eval @ page.tsx:1141
-eval @ page.tsx:1124
-onClick @ page.tsx:3330
-callCallback @ react-dom.development.js:20565
-invokeGuardedCallbackImpl @ react-dom.development.js:20614
-invokeGuardedCallback @ react-dom.development.js:20689
-invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
-executeDispatch @ react-dom.development.js:32128
-processDispatchQueueItemsInOrder @ react-dom.development.js:32160
-processDispatchQueue @ react-dom.development.js:32173
-dispatchEventsForPlugins @ react-dom.development.js:32184
-eval @ react-dom.development.js:32374
-batchedUpdates$1 @ react-dom.development.js:24953
-batchedUpdates @ react-dom.development.js:28844
-dispatchEventForPluginEventSystem @ react-dom.development.js:32373
-dispatchEvent @ react-dom.development.js:30141
-dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
-VM5244 cardPayment.js:2 Error: <svg> attribute width: Unexpected end of attribute. Expected length, "".
-C @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-y @ VM5244 cardPayment.js:2
-v @ VM5244 cardPayment.js:2
-Promise.then
-u @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-eval @ page.tsx:1141
-eval @ page.tsx:1124
-onClick @ page.tsx:3330
-callCallback @ react-dom.development.js:20565
-invokeGuardedCallbackImpl @ react-dom.development.js:20614
-invokeGuardedCallback @ react-dom.development.js:20689
-invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
-executeDispatch @ react-dom.development.js:32128
-processDispatchQueueItemsInOrder @ react-dom.development.js:32160
-processDispatchQueue @ react-dom.development.js:32173
-dispatchEventsForPlugins @ react-dom.development.js:32184
-eval @ react-dom.development.js:32374
-batchedUpdates$1 @ react-dom.development.js:24953
-batchedUpdates @ react-dom.development.js:28844
-dispatchEventForPluginEventSystem @ react-dom.development.js:32373
-dispatchEvent @ react-dom.development.js:30141
-dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
-VM5244 cardPayment.js:2 Error: <svg> attribute height: Unexpected end of attribute. Expected length, "".
-C @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-p @ VM5244 cardPayment.js:2
-y @ VM5244 cardPayment.js:2
-v @ VM5244 cardPayment.js:2
-Promise.then
-u @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-(anonymous) @ VM5244 cardPayment.js:2
-eval @ page.tsx:1141
-eval @ page.tsx:1124
-onClick @ page.tsx:3330
-callCallback @ react-dom.development.js:20565
-invokeGuardedCallbackImpl @ react-dom.development.js:20614
-invokeGuardedCallback @ react-dom.development.js:20689
-invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
-executeDispatch @ react-dom.development.js:32128
-processDispatchQueueItemsInOrder @ react-dom.development.js:32160
-processDispatchQueue @ react-dom.development.js:32173
-dispatchEventsForPlugins @ react-dom.development.js:32184
-eval @ react-dom.development.js:32374
-batchedUpdates$1 @ react-dom.development.js:24953
-batchedUpdates @ react-dom.development.js:28844
-dispatchEventForPluginEventSystem @ react-dom.development.js:32373
-dispatchEvent @ react-dom.development.js:30141
-dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
-cardPayment.js:2 Uncaught (in promise) Error: [Checkout Bricks error] Could not find the Brick container ID 'cardPaymentBrick_container'
-te @ cardPayment.js:2
-(anonymous) @ cardPayment.js:2
-(anonymous) @ cardPayment.js:2
-me @ cardPayment.js:2
-getTarget @ cardPayment.js:2
-(anonymous) @ cardPayment.js:2
-a @ cardPayment.js:2
-Promise.then
-l @ cardPayment.js:2
-a @ cardPayment.js:2
-Promise.then
-l @ cardPayment.js:2
-a @ cardPayment.js:2
-Promise.then
-l @ cardPayment.js:2
-(anonymous) @ cardPayment.js:2
-me @ cardPayment.js:2
-setup @ cardPayment.js:2
-(anonymous) @ cardPayment.js:2
-a @ cardPayment.js:2
-Promise.then
-l @ cardPayment.js:2
-(anonymous) @ cardPayment.js:2
-fe @ cardPayment.js:2
-initialize @ cardPayment.js:2
-render @ v2:1
-await in render
-(anonymous) @ v2:1
-create @ v2:1
-await in create
-eval @ index.js:19
-fulfilled @ index.js:9
-Promise.then
-step @ index.js:11
-eval @ index.js:12
-__awaiter @ index.js:8
-initBrick @ index.js:16
-eval @ index.js:57
-setTimeout
-eval @ index.js:56
-commitHookEffectListMount @ react-dom.development.js:21102
-commitHookPassiveMountEffects @ react-dom.development.js:23154
-commitPassiveMountOnFiber @ react-dom.development.js:23259
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23267
-commitPassiveMountEffects @ react-dom.development.js:23225
-flushPassiveEffectsImpl @ react-dom.development.js:26497
-flushPassiveEffects @ react-dom.development.js:26438
-eval @ react-dom.development.js:26172
-workLoop @ scheduler.development.js:256
-flushWork @ scheduler.development.js:225
-performWorkUntilDeadline @ scheduler.development.js:534Understand this error
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c1ac711ef67f9295bab', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-page.tsx:887 [ensureOrder] 🔄 Iniciando ensureOrder... {allowReuse: false, hasOrder: false}
-page.tsx:906 [ensureOrder] ✅ Validações passadas, criando pedido...
-page.tsx:914 [ensureOrder] 🌐 Criando pedido no backend... {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, allowReuse: false}
-page.tsx:959 [ensureOrder] 🆕 NOVO PEDIDO CRIADO: {orderId: '69178c1fc711ef67f9295bb7', orderNumber: 'GWCZCRPWH4', status: 'pending'}
-page.tsx:971 [ensureOrder] 🗑️ Novo pedido criado, limpando activeOrderId antigo: null
-page.tsx:999 [ensureOrder] 💾 Pedido salvo no cache: 69178c1fc711ef67f9295bb7
-page.tsx:1002 [ensureOrder] ✅ Pedido persistido: 69178c1fc711ef67f9295bb7
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c1ac711ef67f9295bab', hasOrder: true, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-page.tsx:2148 [handlePixPayment] ✅ Pedido PIX criado como PENDING: 69178c1fc711ef67f9295bb7
-page.tsx:2152 [handlePixPayment] 🔄 Atualizando estado com reserva vinculada ao pedido PIX: {reservationId: '69178c1ac711ef67f9295bab', orderId: '69178c1fc711ef67f9295bb7', expiresAt: '2025-11-14T20:38:03.585Z'}
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c1ac711ef67f9295bab', hasOrder: true, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: true, isReady: true, …}
-page.tsx:2320 [RestoreReservation] ⏳ Aguardando verificação de pedido pago
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: false, reservationId: undefined, hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2346 [RestoreReservation] ✅ Condições atendidas, iniciando restauração...
-page.tsx:2352 [RestoreReservation] 🔄 Buscando reservas ativas da sessão... {sessionId: 'armor.33ec83e63f870c373156d1b10f261d390c145178d108…240828894c0c78e9.f5770dc45de4432d92800b043faf27c3'}
-page.tsx:2651 [AutoCreateReservation] 🆕 Criando/atualizando reserva...
-page.tsx:446 [ensureReservation] 🌐 Criando/atualizando reserva no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, sessionId: 'armor.33ec83e63f870c373156d1b10f261d390c145178d108…240828894c0c78e9.f5770dc45de4432d92800b043faf27c3'}
-page.tsx:2360 [RestoreReservation] 📦 Reservas encontradas: {count: 1, reservations: Array(1)}
-page.tsx:2660 [AutoCreateReservation] ✅ Reserva criada/atualizada: {reservationId: '69178c2fc711ef67f9295c26', orderId: undefined}
-page.tsx:2796 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '69178c2fc711ef67f9295c26', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T20:38:15.357Z', …}
-installHook.js:1 [calculateRemainingTime] ⏰ Calculando tempo restante: {reservationId: '69178c2fc711ef67f9295c26', reservationOrderId: undefined, orderId: undefined, isReservationLinkedToPixOrder: undefined, expiresAt: '2025-11-14T20:38:15.357Z', …}
-page.tsx:2300 [RestoreReservation] 🔍 Verificando se deve restaurar: {hasReservation: true, reservationId: '69178c2fc711ef67f9295c26', hasOrder: false, checkingPaidOrder: false, isReady: true, …}
-page.tsx:2316 [RestoreReservation] ❌ Já tem reserva ou pedido, não restaurar
-useCheckoutTimer.ts:57 [useCheckoutTimer] 🔄 Timer atualizado com tempo restante: {initialRemainingSeconds: 1799, remainingMs: 1799000, remainingMinutes: 29, startTimeRef: 1763150894371, startTimeRefDate: '2025-11-14T20:08:14.371Z', …}
-page.tsx:2447 [RestoreReservation] ⚠️ Reserva vinculada a pedido PIX pendente (encontrado na lista) para o MESMO evento/ticketType, não restaurando: {reservationId: '69178c1ac711ef67f9295bab', orderId: '69178c1fc711ef67f9295bb7', orderNumber: 'GWCZCRPWH4', eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6'}
-installHook.js:1 [useSessionExpiration] Erro HTTP 404: Rota não encontrada
-overrideMethod @ installHook.js:1
-window.console.error @ app-index.js:33
-console.error @ hydration-error-info.js:63
-eval @ useSessionExpiration.ts:55
-await in eval
-eval @ useSessionExpiration.ts:159
+generateDeviceId @ deviceIdHelper.ts:125
+getMercadoPagoDeviceId @ deviceIdHelper.ts:132
+eval @ deviceIdHelper.ts:191
 setInterval
-eval @ useSessionExpiration.ts:158
-commitHookEffectListMount @ react-dom.development.js:21102
-commitHookPassiveMountEffects @ react-dom.development.js:23154
-commitPassiveMountOnFiber @ react-dom.development.js:23259
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23256
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23370
-recursivelyTraversePassiveMountEffects @ react-dom.development.js:23237
-commitPassiveMountOnFiber @ react-dom.development.js:23267
-commitPassiveMountEffects @ react-dom.development.js:23225
-flushPassiveEffectsImpl @ react-dom.development.js:26497
-flushPassiveEffects @ react-dom.development.js:26438
-eval @ react-dom.development.js:26172
-workLoop @ scheduler.development.js:256
-flushWork @ scheduler.development.js:225
-performWorkUntilDeadline @ scheduler.development.js:534Understand this error
-installHook.js:1 [useSessionExpiration] Erro ao verificar sessão: Error: Rota não encontrada
-    at eval (useSessionExpiration.ts:64:15)
+eval @ deviceIdHelper.ts:175
+waitForMercadoPagoDeviceId @ deviceIdHelper.ts:140
+eval @ VM67641 useCardPayment.ts:221
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67662 cardPayment.js:2
+d @ VM67662 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this warning
+installHook.js:1 [deviceIdHelper] ⏰ Timeout aguardando DeviceId do SDK, usando fallback
+overrideMethod @ installHook.js:1
+eval @ deviceIdHelper.ts:199
+setInterval
+eval @ deviceIdHelper.ts:175
+waitForMercadoPagoDeviceId @ deviceIdHelper.ts:140
+eval @ VM67641 useCardPayment.ts:221
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67662 cardPayment.js:2
+d @ VM67662 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this warning
+VM67641 useCardPayment.ts:227 [useCardPayment] 🚀 Processando pagamento: {orderId: '691b4d9b0cb7380e77e67fad', hasToken: true, paymentMethodId: 'master', installments: 1, hasDeviceId: true, …}
+VM67641 useCardPayment.ts:250 [useCardPayment] 📤 Enviando requisição de pagamento: {url: '/payments/691b4d9b0cb7380e77e67fad/card', payload: {…}, headers: {…}}
+installHook.js:1 [useCardPayment] ❌ Erro ao processar pagamento: {error: AxiosError, status: 400, statusText: 'Bad Request', data: {…}, message: 'Request failed with status code 400'}
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ VM67641 useCardPayment.ts:362
+await in eval
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67662 cardPayment.js:2
+d @ VM67662 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this error
+installHook.js:1 [useCardPayment] 📋 Detalhes do erro do backend: {message: 'The following transactions failed', errors: Array(3), errorDetails: {…}, statusCode: 400, cardAttempts: 1, …}
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ VM67641 useCardPayment.ts:384
+await in eval
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+a @ VM67662 cardPayment.js:2
+Promise.then
+l @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ VM67662 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67662 cardPayment.js:2
+d @ VM67662 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this error
+VM67641 useCardPayment.ts:461 [useCardPayment] 🔴 Status de erro definido: {status: 'error', statusMessage: 'The following transactions failed', statusDetails: Array(3), statusCode: 400}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'error', showOverlay: true, error: true, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:86 [CardPaymentFormBrick] 🔴 Mostrando overlay: {status: 'error', showOverlay: true, error: true, success: false, statusMessage: 'The following transactions failed', …}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: true, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+CardPaymentFormBrick.tsx:123 [CardPaymentFormBrick] ✅ handleReady chamado, notificando componente pai
+VM67641 useCardPayment.ts:536 [useCardPayment] ✅ handleBrickReady chamado, marcando checkout como pronto
+VM67689 cardPayment.js:2 50314332
+CardPaymentFormBrick.tsx:141 [CardPaymentFormBrick] 📤 handleBrickSubmit chamado com: {hasToken: true, payment_method_id: 'master', paymentMethodId: undefined, issuer_id: '24', issuerId: undefined, …}
+CardPaymentFormBrick.tsx:171 [CardPaymentFormBrick] 💾 Armazenando dados no form: {token: '2d0ff7c19d...', installments: 1, paymentMethodId: 'master', issuerId: '24'}
+CardPaymentFormBrick.tsx:195 [CardPaymentFormBrick] ✅ Chamando onSubmit do form...
+VM67641 useCardPayment.ts:488 [useCardPayment] 📝 handleFormSubmit - usando orderId: 691b4d9b0cb7380e77e67fad (orderId atual do hook: 691b4d9b0cb7380e77e67fad )
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'processing', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: processing )
+installHook.js:1 [deviceIdHelper] 🔧 DeviceId gerado (fallback - será substituído quando SDK gerar): mp-2yleso-mi3d2qaw...
+overrideMethod @ installHook.js:1
+generateDeviceId @ deviceIdHelper.ts:125
+getMercadoPagoDeviceId @ deviceIdHelper.ts:132
+eval @ deviceIdHelper.ts:191
+setInterval
+eval @ deviceIdHelper.ts:175
+waitForMercadoPagoDeviceId @ deviceIdHelper.ts:140
+eval @ VM67641 useCardPayment.ts:221
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67689 cardPayment.js:2
+d @ VM67689 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this warning
+installHook.js:1 [deviceIdHelper] ⏰ Timeout aguardando DeviceId do SDK, usando fallback
+overrideMethod @ installHook.js:1
+eval @ deviceIdHelper.ts:199
+setInterval
+eval @ deviceIdHelper.ts:175
+waitForMercadoPagoDeviceId @ deviceIdHelper.ts:140
+eval @ VM67641 useCardPayment.ts:221
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67689 cardPayment.js:2
+d @ VM67689 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this warning
+VM67641 useCardPayment.ts:227 [useCardPayment] 🚀 Processando pagamento: {orderId: '691b4d9b0cb7380e77e67fad', hasToken: true, paymentMethodId: 'master', installments: 1, hasDeviceId: true, …}
+VM67641 useCardPayment.ts:250 [useCardPayment] 📤 Enviando requisição de pagamento: {url: '/payments/691b4d9b0cb7380e77e67fad/card', payload: {…}, headers: {…}}
+installHook.js:1 [useCardPayment] ❌ Erro ao processar pagamento: {error: AxiosError, status: 400, statusText: 'Bad Request', data: {…}, message: 'Request failed with status code 400'}
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ VM67641 useCardPayment.ts:362
+await in eval
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67689 cardPayment.js:2
+d @ VM67689 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this error
+installHook.js:1 [useCardPayment] 📋 Detalhes do erro do backend: {message: 'The following transactions failed', errors: Array(3), errorDetails: {…}, statusCode: 400, cardAttempts: 2, …}
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ VM67641 useCardPayment.ts:384
+await in eval
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+a @ VM67689 cardPayment.js:2
+Promise.then
+l @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ VM67689 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67689 cardPayment.js:2
+d @ VM67689 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this error
+VM67641 useCardPayment.ts:461 [useCardPayment] 🔴 Status de erro definido: {status: 'error', statusMessage: 'The following transactions failed', statusDetails: Array(3), statusCode: 400}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'error', showOverlay: true, error: true, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:86 [CardPaymentFormBrick] 🔴 Mostrando overlay: {status: 'error', showOverlay: true, error: true, success: false, statusMessage: 'The following transactions failed', …}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: true, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+CardPaymentFormBrick.tsx:123 [CardPaymentFormBrick] ✅ handleReady chamado, notificando componente pai
+VM67641 useCardPayment.ts:536 [useCardPayment] ✅ handleBrickReady chamado, marcando checkout como pronto
+VM67707 cardPayment.js:2 50314332
+CardPaymentFormBrick.tsx:141 [CardPaymentFormBrick] 📤 handleBrickSubmit chamado com: {hasToken: true, payment_method_id: 'master', paymentMethodId: undefined, issuer_id: '24', issuerId: undefined, …}
+CardPaymentFormBrick.tsx:171 [CardPaymentFormBrick] 💾 Armazenando dados no form: {token: 'c94b28a05f...', installments: 11, paymentMethodId: 'master', issuerId: '24'}
+CardPaymentFormBrick.tsx:195 [CardPaymentFormBrick] ✅ Chamando onSubmit do form...
+VM67641 useCardPayment.ts:488 [useCardPayment] 📝 handleFormSubmit - usando orderId: 691b4d9b0cb7380e77e67fad (orderId atual do hook: 691b4d9b0cb7380e77e67fad )
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'processing', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: processing )
+installHook.js:1 [deviceIdHelper] 🔧 DeviceId gerado (fallback - será substituído quando SDK gerar): mp-2yleso-mi3d34jh...
+overrideMethod @ installHook.js:1
+generateDeviceId @ deviceIdHelper.ts:125
+getMercadoPagoDeviceId @ deviceIdHelper.ts:132
+eval @ deviceIdHelper.ts:191
+setInterval
+eval @ deviceIdHelper.ts:175
+waitForMercadoPagoDeviceId @ deviceIdHelper.ts:140
+eval @ VM67641 useCardPayment.ts:221
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67707 cardPayment.js:2
+d @ VM67707 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this warning
+installHook.js:1 [deviceIdHelper] ⏰ Timeout aguardando DeviceId do SDK, usando fallback
+overrideMethod @ installHook.js:1
+eval @ deviceIdHelper.ts:199
+setInterval
+eval @ deviceIdHelper.ts:175
+waitForMercadoPagoDeviceId @ deviceIdHelper.ts:140
+eval @ VM67641 useCardPayment.ts:221
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67707 cardPayment.js:2
+d @ VM67707 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this warning
+VM67641 useCardPayment.ts:227 [useCardPayment] 🚀 Processando pagamento: {orderId: '691b4d9b0cb7380e77e67fad', hasToken: true, paymentMethodId: 'master', installments: 11, hasDeviceId: true, …}
+VM67641 useCardPayment.ts:250 [useCardPayment] 📤 Enviando requisição de pagamento: {url: '/payments/691b4d9b0cb7380e77e67fad/card', payload: {…}, headers: {…}}
+installHook.js:1 [useCardPayment] ❌ Erro ao processar pagamento: {error: AxiosError, status: 400, statusText: 'Bad Request', data: {…}, message: 'Request failed with status code 400'}
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ VM67641 useCardPayment.ts:362
+await in eval
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67707 cardPayment.js:2
+d @ VM67707 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this error
+installHook.js:1 [useCardPayment] 📋 Detalhes do erro do backend: {message: 'The following transactions failed', errors: Array(3), errorDetails: {…}, statusCode: 400, cardAttempts: 3, …}
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ VM67641 useCardPayment.ts:384
+await in eval
+eval @ VM67641 useCardPayment.ts:521
+eval @ CardPaymentFormBrick.tsx:196
+handleSubmit @ IsolatedCardPaymentBrick.tsx:110
+i @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+a @ VM67707 cardPayment.js:2
+Promise.then
+l @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+setTimeout
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ VM67707 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1
+(anonymous) @ VM67707 cardPayment.js:2
+d @ VM67707 cardPayment.js:2
+(anonymous) @ 7754.7754.js:1Understand this error
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'error', showOverlay: true, error: true, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:86 [CardPaymentFormBrick] 🔴 Mostrando overlay: {status: 'error', showOverlay: true, error: true, success: false, statusMessage: 'Tentativas esgotadas', …}
+CheckoutLayout.tsx:335 [CheckoutLayout] 🗑️ Cancelando pedido e redirecionando para home (do modal de erro)
+CheckoutLayout.tsx:341 [CheckoutLayout] 🗑️ Cancelando pedido: 691b4d9b0cb7380e77e67fad
+installHook.js:1 [CheckoutLayout] ⚠️ Erro ao cancelar pedido: AxiosError {message: 'Request failed with status code 500', name: 'AxiosError', code: 'ERR_BAD_RESPONSE', config: {…}, request: XMLHttpRequest, …}
+overrideMethod @ installHook.js:1
+window.console.error @ app-index.js:33
+console.error @ hydration-error-info.js:63
+eval @ CheckoutLayout.tsx:347
+await in eval
+callCallback @ react-dom.development.js:20565
+invokeGuardedCallbackImpl @ react-dom.development.js:20614
+invokeGuardedCallback @ react-dom.development.js:20689
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:20703
+executeDispatch @ react-dom.development.js:32128
+processDispatchQueueItemsInOrder @ react-dom.development.js:32160
+processDispatchQueue @ react-dom.development.js:32173
+dispatchEventsForPlugins @ react-dom.development.js:32184
+eval @ react-dom.development.js:32374
+batchedUpdates$1 @ react-dom.development.js:24953
+batchedUpdates @ react-dom.development.js:28844
+dispatchEventForPluginEventSystem @ react-dom.development.js:32373
+dispatchEvent @ react-dom.development.js:30141
+dispatchDiscreteEvent @ react-dom.development.js:30112Understand this error
+CheckoutLayout.tsx:355 [CheckoutLayout] 🧹 Resetando Brick antes de limpar pedido
+useCheckoutOrder.ts:78 [useCheckoutOrder] 🧹 Limpando pedido manualmente: {orderId: '691b4d9b0cb7380e77e67fad'}
+storageHelpers.ts:67 [storageHelpers] 🗑️ OrderId removido do storage: 691b4d9b0cb7380e77e67fad
+storageHelpers.ts:104 [storageHelpers] 🗑️ Timer antigo removido do localStorage: {oldStartTime: '2025-11-17T16:30:19.703Z'}
+CheckoutLayout.tsx:374 [CheckoutLayout] ✅ Pedido cancelado e redirecionando para home
+ticketsCatalog.ts:138 [fetchTicketCatalog] 🔍 Buscando catálogo de ingressos: {limitEvents: 6, limitTicketsPerEvent: 2, search: undefined, onlyWithAvailability: false}
+ticketsCatalog.ts:138 [fetchTicketCatalog] 🔍 Buscando catálogo de ingressos: {limitEvents: 6, limitTicketsPerEvent: 2, search: undefined, onlyWithAvailability: false}
+ticketsCatalog.ts:156 [fetchTicketCatalog] 📋 Eventos retornados pela API: 1
+ticketsCatalog.ts:158    1. Festa de Ano Novo 2026 - isActive: true - status: draft
+ticketsCatalog.ts:165 [fetchTicketCatalog] ✅ Eventos após filtro: 1
+ticketsCatalog.ts:170 [fetchTicketCatalog] 🎫 Buscando tickets para evento: Festa de Ano Novo 2026 (6915eb106591cf33f8f8cde3)
+ticketsCatalog.ts:156 [fetchTicketCatalog] 📋 Eventos retornados pela API: 1
+ticketsCatalog.ts:158    1. Festa de Ano Novo 2026 - isActive: true - status: draft
+ticketsCatalog.ts:165 [fetchTicketCatalog] ✅ Eventos após filtro: 1
+ticketsCatalog.ts:170 [fetchTicketCatalog] 🎫 Buscando tickets para evento: Festa de Ano Novo 2026 (6915eb106591cf33f8f8cde3)
+ticketsCatalog.ts:182 [fetchTicketCatalog] 🎫 Tickets encontrados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:184    1. Ingresso Normal - isActive: true - soldQuantity: 0 - maxQuantity: 200 - availableQuantity: 193
+ticketsCatalog.ts:184    2. Ingresso VIP - isActive: true - soldQuantity: 0 - maxQuantity: 50 - availableQuantity: 50
+ticketsCatalog.ts:184    3. Ingresso Promocional - isActive: true - soldQuantity: 0 - maxQuantity: 100 - availableQuantity: 100
+ticketsCatalog.ts:197 [fetchTicketCatalog] ✅ Tickets normalizados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:211 [fetchTicketCatalog] 📦 Total de tickets após normalização: 2
+ticketsCatalog.ts:182 [fetchTicketCatalog] 🎫 Tickets encontrados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:184    1. Ingresso Normal - isActive: true - soldQuantity: 0 - maxQuantity: 200 - availableQuantity: 193
+ticketsCatalog.ts:184    2. Ingresso VIP - isActive: true - soldQuantity: 0 - maxQuantity: 50 - availableQuantity: 50
+ticketsCatalog.ts:184    3. Ingresso Promocional - isActive: true - soldQuantity: 0 - maxQuantity: 100 - availableQuantity: 100
+ticketsCatalog.ts:197 [fetchTicketCatalog] ✅ Tickets normalizados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:211 [fetchTicketCatalog] 📦 Total de tickets após normalização: 2
+useCheckoutOrder.ts:113 [useCheckoutOrder] ℹ️ Nenhum OrderId encontrado no storage
+VM67641 useCardPayment.ts:38 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: null, current: null}
+VM67641 useCardPayment.ts:38 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: null, current: null}
+useCheckoutOrder.ts:558 [useCheckoutOrder] 🚀 Criando novo pedido no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, customerEmail: 'guilhermehr.designer@gmail.com'}
+useCheckoutOrder.ts:571 [useCheckoutOrder] ✅ Pedido criado com sucesso: {orderId: '691b4de20cb7380e77e68005', orderNumber: 'MLBYDJBFBS', status: 'pending', expiresAt: '2025-11-17T17:01:30.325Z', totalAmount: 100, …}
+storageHelpers.ts:53 [storageHelpers] 💾 OrderId salvo no storage: 691b4de20cb7380e77e68005
+useCheckoutOrder.ts:627 [useCheckoutOrder] 💾 Timer salvo no localStorage baseado no expiresAt do pedido criado: {expiresAt: '2025-11-17T17:01:30.325Z', startTime: '2025-11-17T16:31:30.325Z', remainingMinutes: 29}
+IsolatedCardPaymentBrick.tsx:497 [IsolatedCardPaymentBrick] 🔍 Verificando isVisible: {wasVisible: false, isVisible: false, hasChanged: false}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+VM67641 useCardPayment.ts:38 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: '691b4de20cb7380e77e68005', current: '691b4de20cb7380e77e68005'}
+VM67641 useCardPayment.ts:50 [useCardPayment] 🔄 OrderId mudou: {previous: null, current: '691b4de20cb7380e77e68005', currentStatus: 'idle'}
+VM67641 useCardPayment.ts:115 [useCardPayment] 🧹 Resetando estado do pagamento (novo orderId)
+VM67641 useCardPayment.ts:136 [useCardPayment] ⏳ Brick já montado, resetando e aguardando onReady
+IsolatedCardPaymentBrick.tsx:208 [IsolatedCardPaymentBrick] ✅ previousIsVisibleRef resetado para false
+VM67641 useCardPayment.ts:143 [useCardPayment] ✅ previousIsVisibleRef resetado no IsolatedCardPaymentBrick
+IsolatedCardPaymentBrick.tsx:497 [IsolatedCardPaymentBrick] 🔍 Verificando isVisible: {wasVisible: false, isVisible: false, hasChanged: false}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+VM67641 useCardPayment.ts:38 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: '691b4de20cb7380e77e68005', current: '691b4de20cb7380e77e68005'}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+hot-reloader-client.js:187 [Fast Refresh] rebuilding
+hot-reloader-client.js:44 [Fast Refresh] done in 2764ms
+hot-reloader-client.js:187 [Fast Refresh] rebuilding
+hot-reloader-client.js:44 [Fast Refresh] done in 2017ms
+hot-reloader-client.js:187 [Fast Refresh] rebuilding
+hot-reloader-client.js:44 [Fast Refresh] done in 2719ms
+hot-reloader-client.js:187 [Fast Refresh] rebuilding
+hot-reloader-client.js:44 [Fast Refresh] done in 1911ms
+hot-reloader-client.js:187 [Fast Refresh] rebuilding
+hot-reloader-client.js:44 [Fast Refresh] done in 1548ms
+hot-reloader-client.js:187 [Fast Refresh] rebuilding
+hot-reloader-client.js:44 [Fast Refresh] done in 1624ms
+useNavigationGuard.ts:81 [useNavigationGuard] 🔗 Link clicado bloqueado: {href: '/', enabled: true}
+CheckoutLayout.tsx:397 [CheckoutLayout] 🚪 Usuário escolheu sair do checkout
+CheckoutLayout.tsx:402 [CheckoutLayout] 📋 OrderId para cancelar: {orderId: '691b4de20cb7380e77e68005', fromOrder: true}
+CheckoutLayout.tsx:418 [CheckoutLayout] 🗑️ Cancelando pedido antes de sair: 691b4de20cb7380e77e68005
+CheckoutLayout.tsx:422 [CheckoutLayout] ✅ Pedido cancelado com sucesso, limpando estado
+useCheckoutOrder.ts:78 [useCheckoutOrder] 🧹 Limpando pedido manualmente: {orderId: '691b4de20cb7380e77e68005'}
+storageHelpers.ts:67 [storageHelpers] 🗑️ OrderId removido do storage: 691b4de20cb7380e77e68005
+storageHelpers.ts:104 [storageHelpers] 🗑️ Timer antigo removido do localStorage: {oldStartTime: '2025-11-17T16:31:30.325Z'}
+CheckoutLayout.tsx:437 [CheckoutLayout] 🏠 Navegando para home
+ticketsCatalog.ts:138 [fetchTicketCatalog] 🔍 Buscando catálogo de ingressos: {limitEvents: 6, limitTicketsPerEvent: 2, search: undefined, onlyWithAvailability: false}
+ticketsCatalog.ts:138 [fetchTicketCatalog] 🔍 Buscando catálogo de ingressos: {limitEvents: 6, limitTicketsPerEvent: 2, search: undefined, onlyWithAvailability: false}
+ticketsCatalog.ts:156 [fetchTicketCatalog] 📋 Eventos retornados pela API: 1
+ticketsCatalog.ts:158    1. Festa de Ano Novo 2026 - isActive: true - status: draft
+ticketsCatalog.ts:165 [fetchTicketCatalog] ✅ Eventos após filtro: 1
+ticketsCatalog.ts:170 [fetchTicketCatalog] 🎫 Buscando tickets para evento: Festa de Ano Novo 2026 (6915eb106591cf33f8f8cde3)
+ticketsCatalog.ts:156 [fetchTicketCatalog] 📋 Eventos retornados pela API: 1
+ticketsCatalog.ts:158    1. Festa de Ano Novo 2026 - isActive: true - status: draft
+ticketsCatalog.ts:165 [fetchTicketCatalog] ✅ Eventos após filtro: 1
+ticketsCatalog.ts:170 [fetchTicketCatalog] 🎫 Buscando tickets para evento: Festa de Ano Novo 2026 (6915eb106591cf33f8f8cde3)
+ticketsCatalog.ts:182 [fetchTicketCatalog] 🎫 Tickets encontrados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:184    1. Ingresso Normal - isActive: true - soldQuantity: 0 - maxQuantity: 200 - availableQuantity: 193
+ticketsCatalog.ts:184    2. Ingresso VIP - isActive: true - soldQuantity: 0 - maxQuantity: 50 - availableQuantity: 50
+ticketsCatalog.ts:184    3. Ingresso Promocional - isActive: true - soldQuantity: 0 - maxQuantity: 100 - availableQuantity: 100
+ticketsCatalog.ts:197 [fetchTicketCatalog] ✅ Tickets normalizados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:211 [fetchTicketCatalog] 📦 Total de tickets após normalização: 2
+ticketsCatalog.ts:182 [fetchTicketCatalog] 🎫 Tickets encontrados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:184    1. Ingresso Normal - isActive: true - soldQuantity: 0 - maxQuantity: 200 - availableQuantity: 193
+ticketsCatalog.ts:184    2. Ingresso VIP - isActive: true - soldQuantity: 0 - maxQuantity: 50 - availableQuantity: 50
+ticketsCatalog.ts:184    3. Ingresso Promocional - isActive: true - soldQuantity: 0 - maxQuantity: 100 - availableQuantity: 100
+ticketsCatalog.ts:197 [fetchTicketCatalog] ✅ Tickets normalizados para Festa de Ano Novo 2026: 3
+ticketsCatalog.ts:211 [fetchTicketCatalog] 📦 Total de tickets após normalização: 2
+useCheckoutOrder.ts:113 [useCheckoutOrder] ℹ️ Nenhum OrderId encontrado no storage
+useCardPayment.ts:68 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: null, current: null}
+useCardPayment.ts:68 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: null, current: null}
+useCheckoutOrder.ts:558 [useCheckoutOrder] 🚀 Criando novo pedido no backend: {eventId: '6915eb106591cf33f8f8cde3', ticketTypeId: '6915eb106591cf33f8f8cde6', quantity: 1, customerEmail: 'guilhermehr.designer@gmail.com'}
+useCheckoutOrder.ts:571 [useCheckoutOrder] ✅ Pedido criado com sucesso: {orderId: '691b4e640cb7380e77e6804d', orderNumber: 'P2L6XPE739', status: 'pending', expiresAt: '2025-11-17T17:03:40.456Z', totalAmount: 100, …}
+storageHelpers.ts:53 [storageHelpers] 💾 OrderId salvo no storage: 691b4e640cb7380e77e6804d
+useCheckoutOrder.ts:627 [useCheckoutOrder] 💾 Timer salvo no localStorage baseado no expiresAt do pedido criado: {expiresAt: '2025-11-17T17:03:40.456Z', startTime: '2025-11-17T16:33:40.456Z', remainingMinutes: 29}
+IsolatedCardPaymentBrick.tsx:497 [IsolatedCardPaymentBrick] 🔍 Verificando isVisible: {wasVisible: false, isVisible: false, hasChanged: false}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+useCardPayment.ts:68 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: '691b4e640cb7380e77e6804d', current: '691b4e640cb7380e77e6804d'}
+useCardPayment.ts:76 [useCardPayment] 🔄 OrderId mudou: {previous: null, current: '691b4e640cb7380e77e6804d', currentStatus: 'idle'}
+useCardPayment.ts:149 [useCardPayment] 🧹 Resetando estado do pagamento (novo orderId)
+useCardPayment.ts:172 [useCardPayment] ⏳ Brick já montado, resetando e aguardando onReady
+IsolatedCardPaymentBrick.tsx:208 [IsolatedCardPaymentBrick] ✅ previousIsVisibleRef resetado para false
+useCardPayment.ts:180 [useCardPayment] ✅ previousIsVisibleRef resetado no IsolatedCardPaymentBrick
+IsolatedCardPaymentBrick.tsx:497 [IsolatedCardPaymentBrick] 🔍 Verificando isVisible: {wasVisible: false, isVisible: false, hasChanged: false}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+useCardPayment.ts:68 [useCardPayment] 🔄 Atualizando orderIdRef: {previous: '691b4e640cb7380e77e6804d', current: '691b4e640cb7380e77e6804d'}
+CardPaymentFormBrick.tsx:75 [CardPaymentFormBrick] 🔍 useEffect overlay: {status: 'idle', showOverlay: false, error: false, success: false, overlayMounted: false, …}
+CardPaymentFormBrick.tsx:103 [CardPaymentFormBrick] 🧹 Ocultando overlay (status: idle )
+useCardPayment.ts:199 [useCardPayment] ✅ Setando isCheckoutReady para true para permitir detecção de mudança
+IsolatedCardPaymentBrick.tsx:497 [IsolatedCardPaymentBrick] 🔍 Verificando isVisible: {wasVisible: false, isVisible: true, hasChanged: true}
+IsolatedCardPaymentBrick.tsx:501 [IsolatedCardPaymentBrick] 🔄 isVisible mudou de false para true, chamando onReady
+CardPaymentFormBrick.tsx:123 [CardPaymentFormBrick] ✅ handleReady chamado, notificando componente pai
+useCardPayment.ts:632 [useCardPayment] ✅ handleBrickReady chamado, marcando checkout como pronto
+IsolatedCardPaymentBrick.tsx:507 [IsolatedCardPaymentBrick] ✅ Chamando onReady após mudança de isVisible
+CardPaymentFormBrick.tsx:123 [CardPaymentFormBrick] ✅ handleReady chamado, notificando componente pai
+useCardPayment.ts:632 [useCardPayment] ✅ handleBrickReady chamado, marcando checkout como pronto

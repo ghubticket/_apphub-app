@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { IsolatedCardPaymentBrick } from './IsolatedCardPaymentBrick';
 
@@ -15,9 +15,11 @@ type CardPaymentFormBrickProps = {
     statusDetails: string[];
     isBlocked: boolean;
     redirectCountdown: number | null;
+    maxAttemptsReached?: boolean;
     onStatusDismiss?: () => void;
     onStartNewOrder?: () => void;
     onNavigateToOrders?: () => void;
+    onCancelOrder?: () => void;
     onReady?: () => void;
     amount: number;
     publicKey: string;
@@ -32,9 +34,11 @@ export function CardPaymentFormBrick({
     statusDetails,
     isBlocked,
     redirectCountdown,
+    maxAttemptsReached = false,
     onStatusDismiss,
     onStartNewOrder,
     onNavigateToOrders,
+    onCancelOrder,
     onReady,
     amount,
     publicKey,
@@ -43,7 +47,8 @@ export function CardPaymentFormBrick({
     // Este componente apenas gerencia overlay e comunicação
 
     // Overlay para sucesso E erro
-    const showOverlay = status === 'success' || status === 'error';
+    // CRÍTICO: Usar useMemo para garantir que showOverlay seja recalculado quando status mudar
+    const showOverlay = useMemo(() => status === 'success' || status === 'error', [status]);
     const processing = status === 'processing';
     const success = status === 'success';
     const error = status === 'error';
@@ -67,17 +72,47 @@ export function CardPaymentFormBrick({
     const [overlayEntering, setOverlayEntering] = useState(false);
 
     useEffect(() => {
+        console.log('[CardPaymentFormBrick] 🔍 useEffect overlay:', {
+            status,
+            showOverlay,
+            error,
+            success,
+            overlayMounted,
+            statusMessage,
+            statusDetailsLength: statusDetails.length,
+        });
+        
         if (showOverlay) {
+            console.log('[CardPaymentFormBrick] 🔴 Mostrando overlay:', {
+                status,
+                showOverlay,
+                error,
+                success,
+                statusMessage,
+                statusDetails,
+                errorMessages,
+            });
             setOverlayMounted(true);
-            const frame = requestAnimationFrame(() => setOverlayEntering(true));
+            const frame = requestAnimationFrame(() => {
+                setOverlayEntering(true);
+            });
             return () => cancelAnimationFrame(frame);
         }
+        // CRÍTICO: Quando não há overlay, desmontar imediatamente para não bloquear o formulário
+        // Isso garante que quando um novo pedido é criado após erro, o formulário apareça imediatamente
+        console.log('[CardPaymentFormBrick] 🧹 Ocultando overlay (status:', status, ')');
         setOverlayEntering(false);
+        // Desmontar imediatamente se status é 'idle' para garantir que não bloqueie o formulário
+        if (status === 'idle') {
+            setOverlayMounted(false);
+            return;
+        }
+        // Para outros status, aguardar animação de saída
         const timeout = setTimeout(() => {
             setOverlayMounted(false);
         }, 250);
         return () => clearTimeout(timeout);
-    }, [showOverlay]);
+    }, [showOverlay, status, error, success, statusMessage, statusDetails]);
 
     const overlayActiveClass = overlayEntering
         ? 'opacity-100 translate-y-0 pointer-events-auto'
@@ -85,6 +120,7 @@ export function CardPaymentFormBrick({
 
     // Handler para quando o Brick estiver pronto
     const handleReady = useCallback(() => {
+        console.log('[CardPaymentFormBrick] ✅ handleReady chamado, notificando componente pai');
         // Notificar componente pai que Brick está pronto
         if (onReady) {
             onReady();
@@ -289,23 +325,39 @@ export function CardPaymentFormBrick({
                                         </div>
                                     </div>
                                     <div className="flex gap-3">
-                                        {onStatusDismiss && (
-                                            <button
-                                                type="button"
-                                                onClick={onStatusDismiss}
-                                                className="rounded-full border border-rose-300 bg-white px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-rose-700 transition hover:border-rose-400 hover:bg-rose-50"
-                                            >
-                                                Tentar novamente
-                                            </button>
-                                        )}
-                                        {onNavigateToOrders && (
-                                            <button
-                                                type="button"
-                                                onClick={onNavigateToOrders}
-                                                className="rounded-full border border-[#1a1a1d] px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
-                                            >
-                                                Ver meus pedidos
-                                            </button>
+                                        {maxAttemptsReached ? (
+                                            // Esgotou tentativas: mostrar apenas botão para criar novo pedido
+                                            onStartNewOrder && (
+                                                <button
+                                                    type="button"
+                                                    onClick={onStartNewOrder}
+                                                    className="rounded-full border border-rose-300 bg-white px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-rose-700 transition hover:border-rose-400 hover:bg-rose-50"
+                                                >
+                                                    Criar novo pedido
+                                                </button>
+                                            )
+                                        ) : (
+                                            // Ainda há tentativas: mostrar botões normais
+                                            <>
+                                                {onStatusDismiss && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={onStatusDismiss}
+                                                        className="rounded-full border border-rose-300 bg-white px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-rose-700 transition hover:border-rose-400 hover:bg-rose-50"
+                                                    >
+                                                        Tentar novamente
+                                                    </button>
+                                                )}
+                                                {onCancelOrder && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={onCancelOrder}
+                                                        className="rounded-full border border-[#1a1a1d] px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                                    >
+                                                        Não, prefiro cancelar
+                                                    </button>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 </div>

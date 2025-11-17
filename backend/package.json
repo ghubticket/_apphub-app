@@ -22,7 +22,8 @@
     "test-email-template": "ts-node src/scripts/testEmailTemplates.ts",
     "test-email-outlook": "ts-node src/scripts/testEmailOutlook.ts",
     "create-users": "ts-node src/scripts/createUsers.ts",
-    "create-admin": "ts-node src/scripts/createAdminUser.ts"
+    "create-admin": "ts-node src/scripts/createAdminUser.ts",
+    "fix-stock": "ts-node src/scripts/fixTicketStock.ts"
   },
   "keywords": [
     "eventos",

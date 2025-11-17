@@ -685,25 +685,42 @@ export const createCardPayment = async (req: Request, res: Response) => {
         if (order) {
             try {
                 const previousAttempts = order.cardAttempts || 0;
-                order.status = 'failed';
+                const newAttempts = previousAttempts + 1;
+                const maxAttempts = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
+                
+                // Marcar como failed apenas se esgotou tentativas, senão manter pending para reutilização
+                if (newAttempts >= maxAttempts) {
+                    order.status = 'failed';
+                    order.isActive = false;
+                    console.log(`📊 [createCardPayment] Tentativas esgotadas: cardAttempts ${previousAttempts} → ${newAttempts}/${maxAttempts}, orderNumber=${order.orderNumber}`);
+                } else {
+                    // Manter pending para permitir nova tentativa
+                    order.status = 'pending';
+                    order.isActive = true;
+                    // CRÍTICO: Manter expiresAt original, não renovar o tempo
+                    // O tempo original deve ser preservado mesmo após falhas de pagamento
+                    console.log(`📊 [createCardPayment] Tentativa ${newAttempts}/${maxAttempts} falhou, mantendo pedido pending (expiresAt original: ${order.expiresAt}), orderNumber=${order.orderNumber}`);
+                }
+                
                 order.paymentStatus = 'failed';
                 order.paymentStatusDetail = 'rejected';
                 order.paymentMessage = errorMessage;
                 order.paymentAdminMessage = messages.join(', ');
-                order.isActive = false;
-                order.cardAttempts = previousAttempts + 1;
-                console.log(`📊 [createCardPayment] Erro ao processar: cardAttempts ${previousAttempts} → ${order.cardAttempts}, orderNumber=${order.orderNumber}`);
+                order.cardAttempts = newAttempts;
                 await order.save();
                 
-                // Devolver ingressos ao estoque quando pagamento falha
-                if (order.ticketType && order.totalTickets > 0) {
+                // CRÍTICO: Devolver ingressos ao estoque APENAS quando esgotou tentativas
+                // Se ainda há tentativas disponíveis, manter estoque reservado
+                if (newAttempts >= maxAttempts && order.ticketType && order.totalTickets > 0) {
                     const TicketType = require('../models/TicketType').default;
                     const ticketType = await TicketType.findById(order.ticketType);
                     if (ticketType) {
                         ticketType.soldQuantity = Math.max(0, (ticketType.soldQuantity || 0) - order.totalTickets);
                         await ticketType.save();
-                        console.log(`🔄 [createCardPayment] Ingressos devolvidos ao estoque: ${order.totalTickets} tickets, soldQuantity: ${ticketType.soldQuantity}`);
+                        console.log(`🔄 [createCardPayment] Tentativas esgotadas - ingressos devolvidos ao estoque: ${order.totalTickets} tickets, soldQuantity: ${ticketType.soldQuantity}`);
                     }
+                } else if (newAttempts < maxAttempts) {
+                    console.log(`📦 [createCardPayment] Mantendo estoque reservado (${newAttempts}/${maxAttempts} tentativas)`);
                 }
             } catch (persistError) {
                 console.error('Não foi possível atualizar o pedido após falha no cartão:', persistError);

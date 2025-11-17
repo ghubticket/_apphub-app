@@ -30,6 +30,7 @@ interface UseCardPaymentReturn {
     isProcessing: boolean;
     isCheckoutReady: boolean;
     redirectCountdown: number | null;
+    maxAttemptsReached: boolean;
     processPayment: (orderId: string, paymentData: CardPaymentData) => Promise<void>;
     handleFormSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
     resetPayment: () => void;
@@ -54,63 +55,264 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
     const [statusDetails, setStatusDetails] = useState<string[]>([]);
     const [isCheckoutReady, setIsCheckoutReady] = useState(false);
     const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+    const [maxAttemptsReached, setMaxAttemptsReached] = useState(false);
     
     const processingRef = useRef(false);
     const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const previousOrderIdRef = useRef<string | null>(null);
+    const orderIdRef = useRef<string | null>(orderId); // CRÍTICO: Ref para sempre pegar o orderId mais recente
+
+    // CRÍTICO: Atualizar orderIdRef ANTES de qualquer outra lógica
+    // Isso garante que o handleFormSubmit sempre use o orderId mais recente
+    useEffect(() => {
+        console.log('[useCardPayment] 🔄 Atualizando orderIdRef:', { previous: orderIdRef.current, current: orderId });
+        orderIdRef.current = orderId;
+    }, [orderId]);
 
     // Resetar estado quando orderId mudar ou quando não houver orderId
     useEffect(() => {
         // Se orderId mudou ou foi removido, resetar estado de checkout
         if (previousOrderIdRef.current !== orderId) {
+            console.log('[useCardPayment] 🔄 OrderId mudou:', {
+                previous: previousOrderIdRef.current,
+                current: orderId,
+                currentStatus: status, // Log do status atual para debug
+            });
+            
+            // CRÍTICO: Se há um erro ativo, NÃO resetar o status imediatamente
+            // Isso permite que o modal de erro apareça antes de ser resetado
+            const hasActiveError = status === 'error';
+            
             if (!orderId) {
                 // Sem orderId, resetar tudo incluindo Brick
+                console.log('[useCardPayment] 🧹 Resetando tudo (sem orderId)');
                 setIsCheckoutReady(false);
                 setStatus('idle');
                 setStatusMessage('');
                 setStatusDetails([]);
+                setMaxAttemptsReached(false); // Resetar flag de tentativas esgotadas
+                processingRef.current = false; // CRÍTICO: Resetar flag de processamento
                 
                 // CRÍTICO: Resetar Brick quando orderId é removido
                 // Isso limpa as validações e campos do formulário
                 if (typeof window !== 'undefined' && window.__MP_BRICK_RESET__) {
                     try {
                         window.__MP_BRICK_RESET__();
+                        console.log('[useCardPayment] ✅ Brick resetado (orderId removido)');
                     } catch (error) {
                         console.warn('[useCardPayment] Erro ao resetar Brick quando orderId foi removido:', error);
                     }
                 }
             } else {
                 // OrderId mudou ou foi definido, resetar estado do pagamento
-                setStatus('idle');
-                setStatusMessage('');
-                setStatusDetails([]);
-                
-                // CRÍTICO: Resetar Brick quando orderId muda (novo pedido)
-                // Isso garante que campos e validações sejam limpos para o novo pedido
-                if (previousOrderIdRef.current !== null && typeof window !== 'undefined' && window.__MP_BRICK_RESET__) {
-                    try {
-                        window.__MP_BRICK_RESET__();
-                    } catch (error) {
-                        console.warn('[useCardPayment] Erro ao resetar Brick quando orderId mudou:', error);
+                // CRÍTICO: NÃO resetar status se há um erro ativo - o erro deve ser mantido até ser explicitamente fechado
+                // O status só será resetado quando o usuário fechar o modal de erro ou quando um novo pedido for criado
+                if (hasActiveError) {
+                    console.log('[useCardPayment] ⚠️ Há erro ativo, NÃO resetando status - mantendo erro para exibição do modal');
+                    // NÃO resetar o status - manter o erro para que o modal apareça
+                    // Apenas resetar flags e processamento
+                    setMaxAttemptsReached(false);
+                    processingRef.current = false;
+                    
+                    // Continuar com o resto da lógica normalmente
+                    // CRÍTICO: Resetar Brick quando orderId muda (novo pedido)
+                    if (previousOrderIdRef.current !== null && typeof window !== 'undefined' && window.__MP_BRICK_RESET__) {
+                        try {
+                            window.__MP_BRICK_RESET__();
+                            console.log('[useCardPayment] ✅ Brick resetado (orderId mudou)');
+                        } catch (error) {
+                            console.warn('[useCardPayment] Erro ao resetar Brick quando orderId mudou:', error);
+                        }
+                    }
+                    
+                    // Se Brick já está montado globalmente, resetar e aguardar onReady
+                    if (typeof window !== 'undefined' && window.__MP_BRICK_MOUNTED__) {
+                        console.log('[useCardPayment] ⏳ Brick já montado, resetando e aguardando onReady');
+                        setIsCheckoutReady(false);
+                        
+                        const timer = setTimeout(() => {
+                            console.log('[useCardPayment] ✅ Setando isCheckoutReady para true para permitir detecção de mudança');
+                            setIsCheckoutReady(true);
+                        }, 50);
+                        
+                        // CRÍTICO: Atualizar ref ANTES de sair do useEffect
+                        previousOrderIdRef.current = orderId;
+                        
+                        return () => clearTimeout(timer);
+                    } else {
+                        console.log('[useCardPayment] ⏳ Aguardando Brick ser montado');
+                        setIsCheckoutReady(false);
+                        previousOrderIdRef.current = orderId;
+                    }
+                } else {
+                    // Sem erro ativo, resetar normalmente
+                    console.log('[useCardPayment] 🧹 Resetando estado do pagamento (novo orderId)');
+                    setStatus('idle');
+                    setStatusMessage('');
+                    setStatusDetails([]);
+                    setMaxAttemptsReached(false); // Resetar flag de tentativas esgotadas
+                    processingRef.current = false; // CRÍTICO: Resetar flag de processamento
+                    
+                    // CRÍTICO: Resetar Brick quando orderId muda (novo pedido)
+                    // Isso garante que campos e validações sejam limpos para o novo pedido
+                    if (previousOrderIdRef.current !== null && typeof window !== 'undefined' && window.__MP_BRICK_RESET__) {
+                        try {
+                            window.__MP_BRICK_RESET__();
+                            console.log('[useCardPayment] ✅ Brick resetado (orderId mudou)');
+                        } catch (error) {
+                            console.warn('[useCardPayment] Erro ao resetar Brick quando orderId mudou:', error);
+                        }
+                    }
+                    
+                    // Se Brick já está montado globalmente, resetar e aguardar onReady
+                    // O IsolatedCardPaymentBrick vai chamar onReady quando isVisible mudar para true
+                    if (typeof window !== 'undefined' && window.__MP_BRICK_MOUNTED__) {
+                        // CRÍTICO: Resetar para false primeiro para garantir que o IsolatedCardPaymentBrick detecte a mudança
+                        // Depois setar para true após um delay maior para garantir que o componente detecte a transição
+                        console.log('[useCardPayment] ⏳ Brick já montado, resetando e aguardando onReady');
+                        
+                        // CRÍTICO: Atualizar ref ANTES de resetar isCheckoutReady para evitar problemas de timing
+                        previousOrderIdRef.current = orderId;
+                        
+                        // CRÍTICO: Capturar orderId no closure para verificar depois
+                        const currentOrderId = orderId;
+                        
+                        // CRÍTICO: Resetar isCheckoutReady para false primeiro
+                        setIsCheckoutReady(false);
+                        
+                        // CRÍTICO: Forçar reset do previousIsVisibleRef no IsolatedCardPaymentBrick
+                        // Isso garante que a mudança de false para true seja detectada corretamente
+                        // IMPORTANTE: Fazer isso DEPOIS de setar isCheckoutReady para false para garantir sincronização
+                        if (window.__MP_BRICK_RESET_VISIBILITY_REF__) {
+                            try {
+                                const resetVisibilityRef = window.__MP_BRICK_RESET_VISIBILITY_REF__;
+                                // Pequeno delay para garantir que o React processou o setIsCheckoutReady(false)
+                                setTimeout(() => {
+                                    if (resetVisibilityRef) {
+                                        resetVisibilityRef();
+                                        console.log('[useCardPayment] ✅ previousIsVisibleRef resetado no IsolatedCardPaymentBrick');
+                                    }
+                                    
+                                    // CRÍTICO: Após resetar o ref, aguardar um pouco e então setar isCheckoutReady para true
+                                    // Isso garante que o IsolatedCardPaymentBrick detecte a mudança de false para true
+                                    setTimeout(() => {
+                                        // Verificar se o orderId ainda é o mesmo antes de setar isCheckoutReady
+                                        if (previousOrderIdRef.current === currentOrderId) {
+                                            console.log('[useCardPayment] ✅ Setando isCheckoutReady para true para permitir detecção de mudança');
+                                            setIsCheckoutReady(true);
+                                        } else {
+                                            console.log('[useCardPayment] ⚠️ OrderId mudou durante o delay, não setando isCheckoutReady');
+                                        }
+                                    }, 100); // Delay para garantir que o ref foi resetado e o componente foi renderizado
+                                }, 50); // Delay inicial para garantir que o React processou o setIsCheckoutReady(false)
+                            } catch (error) {
+                                console.warn('[useCardPayment] Erro ao resetar previousIsVisibleRef:', error);
+                                // Em caso de erro, tentar setar isCheckoutReady mesmo assim após um delay
+                                setTimeout(() => {
+                                    if (previousOrderIdRef.current === currentOrderId) {
+                                        console.log('[useCardPayment] ✅ Setando isCheckoutReady para true (fallback após erro)');
+                                        setIsCheckoutReady(true);
+                                    }
+                                }, 150);
+                            }
+                        } else {
+                            // Se não há função de reset, apenas aguardar e setar isCheckoutReady
+                            setTimeout(() => {
+                                if (previousOrderIdRef.current === currentOrderId) {
+                                    console.log('[useCardPayment] ✅ Setando isCheckoutReady para true (sem reset de ref)');
+                                    setIsCheckoutReady(true);
+                                }
+                            }, 200);
+                        }
+                        
+                        // CRÍTICO: NÃO retornar cleanup function para garantir que os timers executem
+                        // Os timers verificam o orderId antes de executar, então são seguros mesmo se o useEffect rodar novamente
+                    } else {
+                        // Brick ainda não está montado, mas pode estar sendo renderizado
+                        // CRÍTICO: Aguardar um pouco para verificar se o Brick foi montado
+                        // Isso resolve o problema quando o pedido é restaurado do storage
+                        console.log('[useCardPayment] ⏳ Aguardando Brick ser montado (pode estar sendo renderizado)');
+                        setIsCheckoutReady(false);
+                        
+                        // CRÍTICO: Atualizar ref ANTES de setar o timer
+                        previousOrderIdRef.current = orderId;
+                        
+                        // CRÍTICO: Capturar orderId no closure para verificar depois
+                        const currentOrderId = orderId;
+                        
+                        // CRÍTICO: Verificar periodicamente se o Brick foi montado
+                        // Isso resolve o problema quando o componente ainda não foi renderizado
+                        let attempts = 0;
+                        const maxAttempts = 10; // 10 tentativas = 500ms máximo
+                        const checkInterval = setInterval(() => {
+                            attempts++;
+                            
+                            // Se o Brick foi montado, seguir o fluxo normal
+                            if (typeof window !== 'undefined' && window.__MP_BRICK_MOUNTED__) {
+                                console.log('[useCardPayment] ✅ Brick montado detectado após', attempts, 'tentativas');
+                                clearInterval(checkInterval);
+                                
+                                // Resetar isCheckoutReady para false primeiro
+                                setIsCheckoutReady(false);
+                                
+                                // Resetar previousIsVisibleRef se disponível
+                                if (window.__MP_BRICK_RESET_VISIBILITY_REF__) {
+                                    try {
+                                        const resetVisibilityRef = window.__MP_BRICK_RESET_VISIBILITY_REF__;
+                                        setTimeout(() => {
+                                            if (resetVisibilityRef) {
+                                                resetVisibilityRef();
+                                                console.log('[useCardPayment] ✅ previousIsVisibleRef resetado no IsolatedCardPaymentBrick');
+                                            }
+                                            
+                                            // Após resetar o ref, setar isCheckoutReady para true
+                                            setTimeout(() => {
+                                                if (previousOrderIdRef.current === currentOrderId) {
+                                                    console.log('[useCardPayment] ✅ Setando isCheckoutReady para true após detectar Brick montado');
+                                                    setIsCheckoutReady(true);
+                                                }
+                                            }, 100);
+                                        }, 50);
+                                    } catch (error) {
+                                        console.warn('[useCardPayment] Erro ao resetar previousIsVisibleRef:', error);
+                                        // Em caso de erro, tentar setar isCheckoutReady mesmo assim
+                                        setTimeout(() => {
+                                            if (previousOrderIdRef.current === currentOrderId) {
+                                                setIsCheckoutReady(true);
+                                            }
+                                        }, 150);
+                                    }
+                                } else {
+                                    // Se não há função de reset, apenas aguardar e setar isCheckoutReady
+                                    setTimeout(() => {
+                                        if (previousOrderIdRef.current === currentOrderId) {
+                                            console.log('[useCardPayment] ✅ Setando isCheckoutReady para true (sem reset de ref)');
+                                            setIsCheckoutReady(true);
+                                        }
+                                    }, 150);
+                                }
+                            } else if (attempts >= maxAttempts) {
+                                // Se excedeu o número máximo de tentativas, assumir que o Brick será montado depois
+                                console.log('[useCardPayment] ⚠️ Brick não detectado após', maxAttempts, 'tentativas, aguardando onReady');
+                                clearInterval(checkInterval);
+                                // O Brick será marcado como pronto quando onReady for chamado
+                            }
+                        }, 50); // Verificar a cada 50ms
+                        
+                        // Cleanup: limpar o intervalo se o componente for desmontado ou orderId mudar
+                        return () => {
+                            clearInterval(checkInterval);
+                        };
                     }
                 }
-                
-                // Se Brick já está montado globalmente, marcar como pronto imediatamente
-                // Isso resolve o problema de não aparecer quando volta para o checkout
-                if (typeof window !== 'undefined' && window.__MP_BRICK_MOUNTED__) {
-                    // Pequeno delay para garantir que o componente foi renderizado e Brick foi resetado
-                    const timer = setTimeout(() => {
-                        setIsCheckoutReady(true);
-                    }, 200); // Aumentado para dar tempo do reset do Brick
-                    return () => clearTimeout(timer);
-                } else {
-                    // Brick ainda não está montado, será marcado como pronto quando onReady for chamado
-                    setIsCheckoutReady(false);
-                }
             }
-            previousOrderIdRef.current = orderId;
+            
+            // CRÍTICO: Atualizar ref ANTES de sair do useEffect para evitar loops (se não foi atualizado acima)
+            if (previousOrderIdRef.current !== orderId) {
+                previousOrderIdRef.current = orderId;
+            }
         }
-    }, [orderId]);
+    }, [orderId]); // CRÍTICO: NÃO adicionar status como dependência para evitar loops
 
     // Resetar pagamento para estado inicial
     const resetPayment = useCallback(() => {
@@ -118,6 +320,7 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
         setStatusMessage('');
         setStatusDetails([]);
         setRedirectCountdown(null);
+        setMaxAttemptsReached(false); // Resetar flag de tentativas esgotadas
         processingRef.current = false;
         
         // Limpar countdown se existir
@@ -280,31 +483,53 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                 ]);
             } else {
                 // Pagamento recusado ou erro
+                // Verificar se esgotou tentativas
+                const cardAttempts = paymentResult?.cardAttempts ?? response.data?.cardAttempts;
+                const maxCardAttempts = paymentResult?.maxCardAttempts ?? response.data?.maxCardAttempts ?? 3;
+                const attemptsExhausted = cardAttempts !== undefined && maxCardAttempts !== undefined && cardAttempts >= maxCardAttempts;
+                
+                setMaxAttemptsReached(attemptsExhausted);
                 setStatus('error');
-                setStatusMessage(paymentMessage || 'Pagamento não aprovado');
                 
-                const errorDetails: string[] = [];
-                
-                // Adicionar detalhes específicos do erro
-                if (paymentStatusDetail) {
-                    const detailMessages: Record<string, string> = {
-                        'cc_rejected_insufficient_amount': 'Saldo insuficiente no cartão.',
-                        'cc_rejected_bad_filled_card_number': 'Número do cartão inválido.',
-                        'cc_rejected_bad_filled_date': 'Data de validade inválida.',
-                        'cc_rejected_bad_filled_other': 'Dados do cartão inválidos.',
-                        'cc_rejected_call_for_authorize': 'Cartão requer autorização. Entre em contato com o banco.',
-                        'cc_rejected_card_error': 'Erro no cartão. Verifique os dados e tente novamente.',
-                        'cc_rejected_high_risk': 'Pagamento recusado por segurança.',
-                        'cc_rejected_invalid_installments': 'Número de parcelas inválido.',
-                        'cc_rejected_max_attempts': 'Muitas tentativas. Tente novamente mais tarde.',
-                    };
-                    
-                    errorDetails.push(detailMessages[paymentStatusDetail] || 'Tente novamente ou use outro cartão.');
+                if (attemptsExhausted) {
+                    // Esgotou tentativas: mostrar mensagem especial
+                    setStatusMessage('Tentativas esgotadas');
+                    setStatusDetails([
+                        'Infelizmente você esgotou suas tentativas nesse pedido.',
+                        'Você vai precisar criar um novo pedido para tentar novamente.',
+                    ]);
                 } else {
-                    errorDetails.push('Tente novamente ou use outro cartão.');
+                    // Ainda há tentativas disponíveis
+                    setStatusMessage(paymentMessage || 'Pagamento não aprovado');
+                    const remainingAttempts = maxCardAttempts - (cardAttempts || 0);
+                    const errorDetails: string[] = [];
+                    
+                    // Adicionar detalhes específicos do erro
+                    if (paymentStatusDetail) {
+                        const detailMessages: Record<string, string> = {
+                            'cc_rejected_insufficient_amount': 'Saldo insuficiente no cartão.',
+                            'cc_rejected_bad_filled_card_number': 'Número do cartão inválido.',
+                            'cc_rejected_bad_filled_date': 'Data de validade inválida.',
+                            'cc_rejected_bad_filled_other': 'Dados do cartão inválidos.',
+                            'cc_rejected_call_for_authorize': 'Cartão requer autorização. Entre em contato com o banco.',
+                            'cc_rejected_card_error': 'Erro no cartão. Verifique os dados e tente novamente.',
+                            'cc_rejected_high_risk': 'Pagamento recusado por segurança.',
+                            'cc_rejected_invalid_installments': 'Número de parcelas inválido.',
+                            'cc_rejected_max_attempts': 'Muitas tentativas. Tente novamente mais tarde.',
+                        };
+                        
+                        errorDetails.push(detailMessages[paymentStatusDetail] || 'Tente novamente ou use outro cartão.');
+                    } else {
+                        errorDetails.push('Tente novamente ou use outro cartão.');
+                    }
+                    
+                    // Adicionar informação sobre tentativas restantes
+                    if (remainingAttempts > 0) {
+                        errorDetails.push(`Você ainda tem ${remainingAttempts} tentativa${remainingAttempts > 1 ? 's' : ''} restante${remainingAttempts > 1 ? 's' : ''}.`);
+                    }
+                    
+                    setStatusDetails(errorDetails);
                 }
-                
-                setStatusDetails(errorDetails);
             }
         } catch (error: any) {
             console.error('[useCardPayment] ❌ Erro ao processar pagamento:', {
@@ -324,6 +549,12 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
             const errorDetails = errorResponse?.errors || [];
             const errorDetailsFull = errorResponse?.errorDetails || null;
             
+            // Verificar se esgotou tentativas no erro
+            const cardAttempts = errorResponse?.cardAttempts;
+            const maxCardAttempts = errorResponse?.maxCardAttempts ?? 3;
+            const attemptsExhausted = cardAttempts !== undefined && cardAttempts >= maxCardAttempts;
+            setMaxAttemptsReached(attemptsExhausted);
+            
             // Log detalhado do erro do backend
             if (errorResponse) {
                 console.error('[useCardPayment] 📋 Detalhes do erro do backend:', {
@@ -331,41 +562,106 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                     errors: errorDetails,
                     errorDetails: errorDetailsFull,
                     statusCode,
+                    cardAttempts,
+                    maxCardAttempts,
+                    attemptsExhausted,
                 });
+            }
+            
+            // CRÍTICO: Se esgotou tentativas, definir mensagem especial ANTES de qualquer outra coisa
+            if (attemptsExhausted) {
+                setStatusMessage('Tentativas esgotadas');
+                setStatusDetails([
+                    'Infelizmente você esgotou suas tentativas nesse pedido.',
+                    'Você vai precisar criar um novo pedido para tentar novamente.',
+                ]);
+                // Não processar mais nada - já definimos tudo que precisa
+                return;
             }
             
             setStatusMessage(errorMessage);
             
+            // CRÍTICO: Garantir que sempre há mensagens de erro para exibir no modal
+            let finalErrorDetails: string[] = [];
+            
             if (errorDetails.length > 0) {
                 // Se errorDetails é um array de strings, usar diretamente
                 // Se é um array de objetos, extrair mensagens
-                const details = errorDetails.map((err: any) => 
-                    typeof err === 'string' ? err : err.message || err
+                finalErrorDetails = errorDetails.map((err: any) => 
+                    typeof err === 'string' ? err : err.message || String(err)
                 );
-                setStatusDetails(details);
             } else if (errorDetailsFull) {
                 // Usar errorDetails se disponível
-                setStatusDetails([errorDetailsFull.message || errorMessage]);
+                const fullMessage = typeof errorDetailsFull === 'string' 
+                    ? errorDetailsFull 
+                    : errorDetailsFull.message || errorMessage;
+                finalErrorDetails = [fullMessage];
             } else {
-                setStatusDetails([
-                    'Não foi possível processar o pagamento.',
-                    statusCode === 400 ? 'Verifique os dados do cartão e tente novamente.' : 'Verifique seus dados e tente novamente.',
-                ]);
+                // Sempre garantir pelo menos uma mensagem de erro
+                finalErrorDetails = [
+                    errorMessage || 'Não foi possível processar o pagamento.',
+                    statusCode === 400 
+                        ? 'Verifique os dados do cartão e tente novamente.' 
+                        : statusCode === 404
+                            ? 'Pedido não encontrado. Por favor, recarregue a página.'
+                            : 'Verifique seus dados e tente novamente.',
+                ];
             }
+            
+            // Garantir que há pelo menos uma mensagem
+            // NOTA: attemptsExhausted já foi tratado acima com return, então não precisa verificar aqui novamente
+            if (finalErrorDetails.length === 0) {
+                finalErrorDetails = [errorMessage || 'Erro ao processar pagamento. Tente novamente.'];
+            }
+            
+            // CRÍTICO: Filtrar mensagens em inglês do Mercado Pago/Backend
+            // Remover mensagens como "The following transactions failed", "failed", etc.
+            const filteredErrorDetails = finalErrorDetails.filter((msg) => {
+                const lowerMsg = msg.toLowerCase().trim();
+                // Filtrar mensagens comuns em inglês que não agregam valor
+                const englishPatterns = [
+                    'the following transactions failed',
+                    '^failed$', // Apenas a palavra "failed" sozinha
+                    '^transaction failed$', // Apenas "transaction failed" sozinha
+                    '^payment failed$', // Apenas "payment failed" sozinha
+                ];
+                // Se a mensagem corresponde exatamente a um padrão em inglês, remover
+                // Mas manter se contém informações úteis em português ou detalhes específicos
+                const isOnlyEnglishPattern = englishPatterns.some(pattern => {
+                    const regex = new RegExp(pattern, 'i');
+                    return regex.test(lowerMsg);
+                });
+                
+                // Se é apenas um padrão em inglês genérico, remover
+                if (isOnlyEnglishPattern) {
+                    return false;
+                }
+                
+                // Manter mensagens em português ou que contenham informações úteis
+                return true;
+            });
+            
+            // Se após filtrar não sobrou nada, usar mensagem padrão em português
+            const finalFilteredDetails = filteredErrorDetails.length > 0 
+                ? filteredErrorDetails 
+                : ['Não foi possível processar o pagamento. Verifique os dados do cartão e tente novamente.'];
+            
+            setStatusDetails(finalFilteredDetails);
+            
+            // Log para debug
+            console.log('[useCardPayment] 🔴 Status de erro definido:', {
+                status: 'error',
+                statusMessage: errorMessage,
+                statusDetails: finalErrorDetails,
+                statusCode,
+            });
         } finally {
             processingRef.current = false;
         }
     }, [router]);
 
     // Handler para submit do formulário (chamado pelo Brick)
-    // CRÍTICO: Usar ref para sempre pegar o orderId mais recente, não o capturado no closure
-    const orderIdRef = useRef<string | null>(orderId);
-    
-    // Atualizar ref sempre que orderId mudar
-    useEffect(() => {
-        orderIdRef.current = orderId;
-    }, [orderId]);
-    
+    // CRÍTICO: orderIdRef já foi declarado e atualizado acima, apenas usar aqui
     const handleFormSubmit = useCallback(async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         
@@ -380,7 +676,18 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
             return;
         }
 
-        console.log('[useCardPayment] 📝 handleFormSubmit - usando orderId:', currentOrderId);
+        console.log('[useCardPayment] 📝 handleFormSubmit - usando orderId:', currentOrderId, '(orderId atual do hook:', orderId, ')');
+        
+        // CRÍTICO: Verificar se o orderId do ref está sincronizado com o orderId atual
+        if (currentOrderId !== orderId) {
+            console.warn('[useCardPayment] ⚠️ ATENÇÃO: orderIdRef está desatualizado!', {
+                refValue: currentOrderId,
+                currentValue: orderId,
+            });
+            // Atualizar o ref imediatamente antes de processar
+            orderIdRef.current = orderId;
+            console.log('[useCardPayment] ✅ orderIdRef atualizado para:', orderId);
+        }
 
         // Obter dados do Brick do form
         const form = event.currentTarget;
@@ -393,7 +700,16 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
             return;
         }
 
-        await processPayment(currentOrderId, brickData);
+        // CRÍTICO: Usar o orderId atualizado (pode ter sido corrigido acima)
+        const finalOrderId = orderIdRef.current;
+        if (!finalOrderId) {
+            console.error('[useCardPayment] ⚠️ orderIdRef está null após correção');
+            setStatus('error');
+            setStatusMessage('Pedido não encontrado');
+            setStatusDetails(['Por favor, recarregue a página e tente novamente.']);
+            return;
+        }
+        await processPayment(finalOrderId, brickData);
     }, [processPayment]); // Removido orderId das dependências - usamos ref
 
     // Dismiss status (fechar modal de erro)
@@ -405,6 +721,7 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
 
     // Marcar checkout como pronto quando Brick estiver pronto
     const handleBrickReady = useCallback(() => {
+        console.log('[useCardPayment] ✅ handleBrickReady chamado, marcando checkout como pronto');
         setIsCheckoutReady(true);
     }, []);
 
@@ -415,6 +732,7 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
         isProcessing: status === 'processing',
         isCheckoutReady,
         redirectCountdown,
+        maxAttemptsReached,
         processPayment,
         handleFormSubmit,
         resetPayment,

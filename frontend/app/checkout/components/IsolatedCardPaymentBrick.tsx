@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { CardPayment } from '@mercadopago/sdk-react';
 
@@ -11,6 +11,7 @@ declare global {
         __MP_BRICK_ROOT__?: Root;
         __MP_BRICK_CONTAINER__?: HTMLDivElement;
         __MP_BRICK_RESET__?: () => void;
+        __MP_BRICK_RESET_VISIBILITY_REF__?: () => void;
     }
 }
 
@@ -41,6 +42,7 @@ export function IsolatedCardPaymentBrick({
     const wrapperRef = useRef<HTMLDivElement>(null);
     const handlersRef = useRef({ onSubmit, onReady, onError });
     const amountRef = useRef(amount);
+    const previousIsVisibleRef = useRef(isVisible);
 
     // Atualizar handlers e amount quando mudarem (sem causar re-render do Brick)
     useEffect(() => {
@@ -49,391 +51,269 @@ export function IsolatedCardPaymentBrick({
     }, [onSubmit, onReady, onError, amount]);
 
     // Montar Brick apenas UMA VEZ por sessão em container persistente
+    // Criar container persistente para o Brick
+    const createPersistentContainer = useCallback(() => {
+        if (!wrapperRef.current) {
+            console.log('[IsolatedCardPaymentBrick] ⏸️ wrapperRef.current não está disponível, aguardando...');
+            return;
+        }
+        
+        if (window.__MP_BRICK_MOUNTED__) {
+            console.log('[IsolatedCardPaymentBrick] ⏸️ Brick já está montado, pulando criação');
+            return;
+        }
+        
+        console.log('[IsolatedCardPaymentBrick] 🏗️ Criando novo container para o Brick');
+
+        // Criar container DOM que nunca será removido
+        const container = document.createElement('div');
+        container.className = 'w-full';
+        container.style.display = isVisible ? 'block' : 'none';
+        container.style.visibility = isVisible ? 'visible' : 'hidden';
+        container.id = 'mp-brick-persistent-container';
+
+        // Adicionar ao wrapper
+        wrapperRef.current.appendChild(container);
+
+        // Criar React Root para renderizar o Brick
+        const root = createRoot(container);
+
+        // Handlers que sempre usam a versão mais recente dos callbacks
+        const handleSubmit = async (data: any) => {
+            await handlersRef.current.onSubmit(data);
+        };
+
+        const handleReady = () => {
+            // Quando o Brick está pronto, tentar capturar o deviceId do SDK
+            // O SDK do Mercado Pago pode ter definido window.MP_DEVICE_SESSION_ID neste momento
+            if (typeof window !== 'undefined') {
+                // Tentar múltiplas formas de obter o deviceId
+                let deviceId: string | undefined;
+                
+                // 1. window.MP_DEVICE_SESSION_ID (mais comum)
+                if (window.MP_DEVICE_SESSION_ID) {
+                    deviceId = window.MP_DEVICE_SESSION_ID;
+                }
+                
+                // 2. Tentar acessar através do objeto MercadoPago
+                if (!deviceId && window.MercadoPago) {
+                    try {
+                        const mp = window.MercadoPago as any;
+                        if (mp.getDeviceId && typeof mp.getDeviceId === 'function') {
+                            deviceId = mp.getDeviceId();
+                        } else if (mp.deviceId) {
+                            deviceId = mp.deviceId;
+                        } else if (mp.device_session_id) {
+                            deviceId = mp.device_session_id;
+                        }
+                    } catch (error) {
+                        // Ignorar erros silenciosamente
+                    }
+                }
+                
+                // 3. Tentar buscar no DOM (o SDK pode injetar)
+                if (!deviceId) {
+                    try {
+                        const mpElements = document.querySelectorAll('[data-mp-device-id], [data-device-id]');
+                        for (const element of Array.from(mpElements)) {
+                            const id = element.getAttribute('data-mp-device-id') || element.getAttribute('data-device-id');
+                            if (id && id.length > 10 && !id.startsWith('mp-')) {
+                                deviceId = id;
+                                break;
+                            }
+                        }
+                    } catch (error) {
+                        // Ignorar erros silenciosamente
+                    }
+                }
+                
+                // Salvar no localStorage se encontrado
+                if (deviceId && deviceId.length > 10 && !deviceId.startsWith('mp-')) {
+                    localStorage.setItem('mp-device-session-id', deviceId);
+                    console.log('[IsolatedCardPaymentBrick] ✅ DeviceId capturado quando Brick ficou pronto:', deviceId.substring(0, 15) + '...');
+                }
+            }
+            
+            handlersRef.current.onReady();
+        };
+
+        const handleError = (error: any) => {
+            handlersRef.current.onError(error);
+        };
+
+        // Renderizar Brick no container persistente - APENAS UMA VEZ
+        root.render(
+            <CardPayment
+                initialization={{
+                    amount: Number(amountRef.current.toFixed(2)),
+                }}
+                customization={{
+                    visual: {
+                        style: {
+                            theme: 'flat',
+                        },
+                        texts: {
+                            cardholderName: {
+                                label: 'Nome igual ao cartão',
+                                placeholder: 'Nome completo',
+                            },
+                            email: {
+                                label: 'E-mail para recibo',
+                                placeholder: 'email@testuser.com',
+                            },
+                        },
+                    },
+                }}
+                onSubmit={handleSubmit}
+                onReady={handleReady}
+                onError={handleError}
+            />
+        );
+
+        // Armazenar referências globais - NUNCA resetar
+        window.__MP_BRICK_MOUNTED__ = true;
+        window.__MP_BRICK_ROOT__ = root;
+        window.__MP_BRICK_CONTAINER__ = container;
+        
+        // Função global para resetar o previousIsVisibleRef (usado quando orderId muda)
+        window.__MP_BRICK_RESET_VISIBILITY_REF__ = () => {
+            previousIsVisibleRef.current = false;
+            console.log('[IsolatedCardPaymentBrick] ✅ previousIsVisibleRef resetado para false');
+        };
+        
+        // Função global para resetar o Brick (forçar re-render para limpar estado de erro)
+        window.__MP_BRICK_RESET__ = () => {
+            // CRÍTICO: Verificar se o container existe e está no DOM antes de resetar
+            if (!window.__MP_BRICK_ROOT__ || !window.__MP_BRICK_CONTAINER__) {
+                console.warn('[Brick Reset] ⚠️ Container ou root não encontrado, não é possível resetar');
+                return;
+            }
+            
+            // Verificar se o container está no DOM
+            if (!document.body.contains(window.__MP_BRICK_CONTAINER__)) {
+                console.warn('[Brick Reset] ⚠️ Container não está no DOM, não é possível resetar');
+                return;
+            }
+            
+            try {
+                // Forçar re-render do Brick para limpar estado de erro
+                root.render(
+                    <CardPayment
+                        initialization={{
+                            amount: Number(amountRef.current.toFixed(2)),
+                        }}
+                        customization={{
+                            visual: {
+                                style: {
+                                    theme: 'flat',
+                                },
+                                texts: {
+                                    cardholderName: {
+                                        label: 'Nome igual ao cartão',
+                                        placeholder: 'Nome completo',
+                                    },
+                                    email: {
+                                        label: 'E-mail para recibo',
+                                        placeholder: 'email@testuser.com',
+                                    },
+                                },
+                            },
+                        }}
+                        onSubmit={handleSubmit}
+                        onReady={handleReady}
+                        onError={handleError}
+                    />
+                );
+                console.log('[Brick Reset] ✅ Brick resetado com sucesso');
+            } catch (error) {
+                console.error('[Brick Reset] ❌ Erro ao resetar Brick:', error);
+            }
+        };
+    }, [isVisible, publicKey]);
+
     useEffect(() => {
         if (!publicKey) {
             return;
         }
 
-        // Se já existe uma instância montada globalmente, apenas atualizar visibilidade e mover container
-        if (window.__MP_BRICK_MOUNTED__ && window.__MP_BRICK_CONTAINER__ && wrapperRef.current) {
-            // CRÍTICO: Mover container para o wrapper atual se necessário (evita remontagem)
-            // Isso garante que o container esteja sempre no lugar correto quando o componente é renderizado
-            if (window.__MP_BRICK_CONTAINER__.parentElement !== wrapperRef.current) {
-                wrapperRef.current.appendChild(window.__MP_BRICK_CONTAINER__);
-            }
-            // CRÍTICO: Sempre tornar visível quando componente é montado e isVisible é true
-            // Isso resolve o problema de o formulário não aparecer às vezes
-            if (isVisible) {
-                window.__MP_BRICK_CONTAINER__.style.display = 'block';
-                window.__MP_BRICK_CONTAINER__.style.visibility = 'visible';
-                // Forçar reflow para garantir que o estilo seja aplicado
-                window.__MP_BRICK_CONTAINER__.offsetHeight;
-                
-                // Se Brick já está montado e visível, chamar onReady imediatamente
-                // Isso garante que o estado isCheckoutReady seja atualizado quando voltar ao checkout
-                if (handlersRef.current.onReady) {
-                    // Pequeno delay para garantir que o DOM foi atualizado
-                    setTimeout(() => {
-                        handlersRef.current.onReady();
-                    }, 50);
-                }
-            } else {
-                window.__MP_BRICK_CONTAINER__.style.display = 'none';
-                window.__MP_BRICK_CONTAINER__.style.visibility = 'hidden';
-            }
-            return;
-        }
-
-        // Criar container persistente para o Brick
-        const createPersistentContainer = () => {
-            if (!wrapperRef.current || window.__MP_BRICK_MOUNTED__) {
-                return;
-            }
-
-            // Criar container DOM que nunca será removido
-            const container = document.createElement('div');
-            container.className = 'w-full';
-            container.style.display = isVisible ? 'block' : 'none';
-            container.style.visibility = isVisible ? 'visible' : 'hidden';
-            container.id = 'mp-brick-persistent-container';
-
-            // Adicionar ao wrapper
-            wrapperRef.current.appendChild(container);
-
-            // Criar React Root para renderizar o Brick
-            const root = createRoot(container);
-
-            // Handlers que sempre usam a versão mais recente dos callbacks
-            const handleSubmit = async (data: any) => {
-                await handlersRef.current.onSubmit(data);
-            };
-
-            const handleReady = () => {
-                // Quando o Brick está pronto, tentar capturar o deviceId do SDK
-                // O SDK do Mercado Pago pode ter definido window.MP_DEVICE_SESSION_ID neste momento
-                if (typeof window !== 'undefined') {
-                    // Tentar múltiplas formas de obter o deviceId
-                    let deviceId: string | undefined;
-                    
-                    // 1. window.MP_DEVICE_SESSION_ID (mais comum)
-                    if (window.MP_DEVICE_SESSION_ID) {
-                        deviceId = window.MP_DEVICE_SESSION_ID;
-                    }
-                    
-                    // 2. Tentar acessar através do objeto MercadoPago
-                    if (!deviceId && window.MercadoPago) {
-                        try {
-                            const mp = window.MercadoPago as any;
-                            if (mp.getDeviceId && typeof mp.getDeviceId === 'function') {
-                                deviceId = mp.getDeviceId();
-                            } else if (mp.deviceId) {
-                                deviceId = mp.deviceId;
-                            } else if (mp.device_session_id) {
-                                deviceId = mp.device_session_id;
-                            }
-                        } catch (error) {
-                            // Ignorar erros silenciosamente
-                        }
-                    }
-                    
-                    // 3. Tentar buscar no DOM (o SDK pode injetar)
-                    if (!deviceId) {
-                        try {
-                            const mpElements = document.querySelectorAll('[data-mp-device-id], [data-device-id]');
-                            for (const element of Array.from(mpElements)) {
-                                const id = element.getAttribute('data-mp-device-id') || element.getAttribute('data-device-id');
-                                if (id && id.length > 10 && !id.startsWith('mp-')) {
-                                    deviceId = id;
-                                    break;
-                                }
-                            }
-                        } catch (error) {
-                            // Ignorar erros silenciosamente
-                        }
-                    }
-                    
-                    // Salvar no localStorage se encontrado
-                    if (deviceId && deviceId.length > 10 && !deviceId.startsWith('mp-')) {
-                        localStorage.setItem('mp-device-session-id', deviceId);
-                        console.log('[IsolatedCardPaymentBrick] ✅ DeviceId capturado quando Brick ficou pronto:', deviceId.substring(0, 15) + '...');
-                    }
-                }
-                
-                handlersRef.current.onReady();
-            };
-
-            const handleError = (error: any) => {
-                handlersRef.current.onError(error);
-            };
-
-            // Renderizar Brick no container persistente - APENAS UMA VEZ
-            root.render(
-                <CardPayment
-                    initialization={{
-                        amount: Number(amountRef.current.toFixed(2)),
-                    }}
-                    customization={{
-                        visual: {
-                            style: {
-                                theme: 'flat',
-                            },
-                            texts: {
-                                cardholderName: {
-                                    label: 'Nome igual ao cartão',
-                                    placeholder: 'Nome completo',
-                                },
-                                email: {
-                                    label: 'E-mail para recibo',
-                                    placeholder: 'email@testuser.com',
-                                },
-                            },
-                        },
-                    }}
-                    onSubmit={handleSubmit}
-                    onReady={handleReady}
-                    onError={handleError}
-                />
-            );
-
-            // Armazenar referências globais - NUNCA resetar
-            window.__MP_BRICK_MOUNTED__ = true;
-            window.__MP_BRICK_ROOT__ = root;
-            window.__MP_BRICK_CONTAINER__ = container;
+        // Se já existe uma instância montada globalmente, verificar se o container ainda existe no DOM
+        if (window.__MP_BRICK_MOUNTED__ && window.__MP_BRICK_CONTAINER__) {
+            // CRÍTICO: Verificar se o container ainda está no DOM
+            // Se não estiver, significa que foi removido (ex: quando foi para home) e precisa ser recriado
+            const containerExists = document.body.contains(window.__MP_BRICK_CONTAINER__);
             
-            // Função global para resetar o Brick (forçar re-render para limpar estado de erro)
-            window.__MP_BRICK_RESET__ = () => {
-                // CRÍTICO: Verificar se o container existe e está no DOM antes de resetar
-                if (!window.__MP_BRICK_ROOT__ || !window.__MP_BRICK_CONTAINER__) {
-                    console.warn('[Brick Reset] ⚠️ Container ou root não encontrado, não é possível resetar');
-                    return;
-                }
+            if (!containerExists) {
+                console.log('[IsolatedCardPaymentBrick] ⚠️ Container do Brick foi removido do DOM, limpando e recriando...');
                 
-                // Verificar se o container está no DOM
-                const containerInBody = document.body.contains(window.__MP_BRICK_CONTAINER__);
-                const containerInWrapper = wrapperRef.current?.contains(window.__MP_BRICK_CONTAINER__);
-                
-                if (!containerInBody && !containerInWrapper) {
-                    // Tentar encontrar o wrapper de outra forma (pode estar em outro lugar do DOM)
-                    const form = document.getElementById('checkout-card-form');
-                    const wrapperFromForm = form?.closest('form')?.parentElement?.querySelector('[ref]') || 
-                                          form?.parentElement?.querySelector('div[class*="w-full"]');
-                    
-                    if (wrapperFromForm && wrapperFromForm instanceof HTMLElement) {
-                        console.log('[Brick Reset] 🔍 Wrapper encontrado via busca no DOM, movendo container');
-                        wrapperFromForm.appendChild(window.__MP_BRICK_CONTAINER__);
-                    } else if (wrapperRef.current) {
-                        console.log('[Brick Reset] 🔍 Movendo container para wrapper atual');
-                        wrapperRef.current.appendChild(window.__MP_BRICK_CONTAINER__);
-                    } else {
-                        // Se não encontrar o wrapper, apenas limpar os campos sem re-renderizar o Brick
-                        // Isso evita erros quando o componente não está montado
-                        console.warn('[Brick Reset] ⚠️ Wrapper não encontrado, apenas limpando campos sem re-renderizar');
-                        const formForReset = document.getElementById('checkout-card-form') as HTMLFormElement | null;
-                        if (formForReset) {
-                            formForReset.reset();
-                            const allInputs = formForReset.querySelectorAll('input, textarea, select');
-                            allInputs.forEach((input) => {
-                                const htmlInput = input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-                                htmlInput.value = '';
-                                if (htmlInput instanceof HTMLInputElement || htmlInput instanceof HTMLTextAreaElement) {
-                                    htmlInput.defaultValue = '';
-                                    htmlInput.removeAttribute('value');
-                                }
-                                htmlInput.setAttribute('autocomplete', 'new-password');
-                            });
-                        }
-                        return; // Não tentar re-renderizar o Brick se o wrapper não existe
+                // CRÍTICO: Limpar completamente o Brick antigo antes de recriar
+                // Isso evita que o SDK tente inicializar múltiplas vezes
+                if (window.__MP_BRICK_ROOT__) {
+                    try {
+                        // Desmontar o React Root para limpar completamente
+                        window.__MP_BRICK_ROOT__.unmount();
+                        console.log('[IsolatedCardPaymentBrick] ✅ React Root desmontado');
+                    } catch (error) {
+                        console.warn('[IsolatedCardPaymentBrick] Erro ao desmontar React Root:', error);
                     }
+                    window.__MP_BRICK_ROOT__ = undefined;
                 }
                 
-                // CRÍTICO: Tornar o container visível antes de resetar para evitar erros do Brick
-                if (window.__MP_BRICK_CONTAINER__) {
+                // Resetar flags globais para forçar recriação
+                window.__MP_BRICK_MOUNTED__ = false;
+                window.__MP_BRICK_CONTAINER__ = undefined;
+                
+                // CRÍTICO: Aguardar um pouco para garantir que o SDK limpou completamente
+                // Isso evita o erro "fields_setup_failed_after_3_tries"
+                setTimeout(() => {
+                    // Continuar para recriar o container após um pequeno delay
+                    if (!window.__MP_BRICK_MOUNTED__ && wrapperRef.current) {
+                        console.log('[IsolatedCardPaymentBrick] 🏗️ Recriando container após limpeza');
+                        createPersistentContainer();
+                    }
+                }, 200); // Aumentar delay para 200ms para garantir limpeza completa
+                
+                return; // Retornar aqui para não continuar com a lógica antiga
+            } else if (wrapperRef.current) {
+                // Container existe e está no DOM, apenas atualizar visibilidade e mover container
+                // CRÍTICO: Mover container para o wrapper atual se necessário (evita remontagem)
+                // Isso garante que o container esteja sempre no lugar correto quando o componente é renderizado
+                if (window.__MP_BRICK_CONTAINER__.parentElement !== wrapperRef.current) {
+                    wrapperRef.current.appendChild(window.__MP_BRICK_CONTAINER__);
+                }
+                // CRÍTICO: Sempre tornar visível quando componente é montado e isVisible é true
+                // Isso resolve o problema de o formulário não aparecer às vezes
+                if (isVisible) {
                     window.__MP_BRICK_CONTAINER__.style.display = 'block';
                     window.__MP_BRICK_CONTAINER__.style.visibility = 'visible';
                     // Forçar reflow para garantir que o estilo seja aplicado
                     window.__MP_BRICK_CONTAINER__.offsetHeight;
+                    
+                    // CRÍTICO: Verificar se isVisible mudou de false para true antes de chamar onReady
+                    // Isso evita chamadas desnecessárias quando já está visível
+                    const wasVisible = previousIsVisibleRef.current;
+                    if (!wasVisible && handlersRef.current.onReady) {
+                        console.log('[IsolatedCardPaymentBrick] 🔄 Brick já montado e isVisible mudou para true, chamando onReady');
+                        // Atualizar ref ANTES de chamar onReady
+                        previousIsVisibleRef.current = isVisible;
+                        // Pequeno delay para garantir que o DOM foi atualizado
+                        setTimeout(() => {
+                            handlersRef.current.onReady();
+                        }, 50);
+                    } else if (wasVisible) {
+                        // Já estava visível, apenas atualizar o ref
+                        previousIsVisibleRef.current = isVisible;
+                    }
+                } else {
+                    window.__MP_BRICK_CONTAINER__.style.display = 'none';
+                    window.__MP_BRICK_CONTAINER__.style.visibility = 'hidden';
+                    // Atualizar ref quando fica invisível
+                    previousIsVisibleRef.current = isVisible;
                 }
-                
-                if (window.__MP_BRICK_ROOT__ && window.__MP_BRICK_CONTAINER__) {
-                    // Função auxiliar para limpar todos os campos do formulário de forma agressiva
-                    const clearAllFormFields = () => {
-                        const form = document.getElementById('checkout-card-form') as HTMLFormElement | null;
-                        if (form) {
-                            // Limpar todos os inputs, textareas e selects dentro do form
-                            const allInputs = form.querySelectorAll('input, textarea, select');
-                            allInputs.forEach((input) => {
-                                const htmlInput = input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-                                
-                                // Limpar valor atual
-                                htmlInput.value = '';
-                                
-                                // Limpar valor padrão
-                                if (htmlInput instanceof HTMLInputElement || htmlInput instanceof HTMLTextAreaElement) {
-                                    htmlInput.defaultValue = '';
-                                    // Limpar também atributos que podem conter valores
-                                    htmlInput.removeAttribute('value');
-                                }
-                                
-                                // Remover classes de erro/validação
-                                htmlInput.classList.remove('error', 'invalid', 'mp-form-control-error');
-                                
-                                // Remover atributos de validação
-                                htmlInput.removeAttribute('aria-invalid');
-                                htmlInput.removeAttribute('data-error');
-                                
-                                // Desabilitar autocomplete
-                                htmlInput.setAttribute('autocomplete', 'off');
-                                htmlInput.setAttribute('autocomplete', 'new-password'); // Truque para evitar autofill do Chrome
-                                
-                                // Disparar eventos para notificar o Brick
-                                htmlInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-                                htmlInput.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-                                htmlInput.dispatchEvent(new Event('blur', { bubbles: true, cancelable: true }));
-                                
-                                // Tentar limpar via setter se disponível
-                                try {
-                                    Object.defineProperty(htmlInput, 'value', {
-                                        value: '',
-                                        writable: true,
-                                        configurable: true,
-                                    });
-                                } catch (e) {
-                                    // Ignorar erros
-                                }
-                            });
-                            
-                            // Remover mensagens de erro/validação do DOM
-                            const errorMessages = form.querySelectorAll('.mp-form-control-error, .error-message, [role="alert"]');
-                            errorMessages.forEach((errorMsg) => {
-                                errorMsg.remove();
-                            });
-                            
-                            // Limpar também dentro do container do Brick (pode ter shadow DOM)
-                            const brickContainer = form.querySelector('[data-testid="card-form"]') || 
-                                                  form.querySelector('.mp-card-form') ||
-                                                  form.querySelector('[class*="mp-"]') ||
-                                                  form;
-                            if (brickContainer) {
-                                const containerInputs = brickContainer.querySelectorAll('input, textarea, select');
-                                containerInputs.forEach((input) => {
-                                    const htmlInput = input as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-                                    htmlInput.value = '';
-                                    if (htmlInput instanceof HTMLInputElement || htmlInput instanceof HTMLTextAreaElement) {
-                                        htmlInput.defaultValue = '';
-                                        htmlInput.removeAttribute('value');
-                                    }
-                                    
-                                    // Remover classes de erro/validação
-                                    htmlInput.classList.remove('error', 'invalid', 'mp-form-control-error');
-                                    htmlInput.removeAttribute('aria-invalid');
-                                    htmlInput.removeAttribute('data-error');
-                                    
-                                    htmlInput.setAttribute('autocomplete', 'off');
-                                    htmlInput.setAttribute('autocomplete', 'new-password');
-                                    htmlInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-                                    htmlInput.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-                                });
-                                
-                                // Remover mensagens de erro dentro do container do Brick
-                                const containerErrorMessages = brickContainer.querySelectorAll('.mp-form-control-error, .error-message, [role="alert"]');
-                                containerErrorMessages.forEach((errorMsg) => {
-                                    errorMsg.remove();
-                                });
-                            }
-                            
-                            // Resetar o formulário novamente após limpar campos individuais
-                            form.reset();
-                        }
-                    };
+                return;
+            }
+        }
 
-                    // Limpar campos antes do reset
-                    clearAllFormFields();
-
-                    // Re-renderizar o Brick com amount atualizado para forçar reset do estado interno
-                    // Adicionar 0.01 e depois subtrair para forçar atualização sem mudar o valor real
-                    const currentAmount = Number(amountRef.current.toFixed(2));
-                    const tempAmount = currentAmount + 0.01;
-                    
-                    // Primeiro render com amount temporário
-                    window.__MP_BRICK_ROOT__.render(
-                        <CardPayment
-                            initialization={{
-                                amount: tempAmount,
-                            }}
-                            customization={{
-                                visual: {
-                                    style: {
-                                        theme: 'flat',
-                                    },
-                                    texts: {
-                                        cardholderName: {
-                                            label: 'Nome igual ao cartão',
-                                            placeholder: 'Nome completo',
-                                        },
-                                        email: {
-                                            label: 'E-mail para recibo',
-                                            placeholder: 'email@testuser.com',
-                                        },
-                                    },
-                                },
-                            }}
-                            onSubmit={handleSubmit}
-                            onReady={handleReady}
-                            onError={handleError}
-                        />
-                    );
-                    
-                    // Limpar campos após primeiro render
-                    setTimeout(() => {
-                        clearAllFormFields();
-                    }, 25);
-                    
-                    // Depois voltar ao amount original (força reset completo)
-                    setTimeout(() => {
-                        if (window.__MP_BRICK_ROOT__) {
-                            window.__MP_BRICK_ROOT__.render(
-                                <CardPayment
-                                    initialization={{
-                                        amount: currentAmount,
-                                    }}
-                                    customization={{
-                                        visual: {
-                                            style: {
-                                                theme: 'flat',
-                                            },
-                                            texts: {
-                                                cardholderName: {
-                                                    label: 'Nome igual ao cartão',
-                                                    placeholder: 'Nome completo',
-                                                },
-                                                email: {
-                                                    label: 'E-mail para recibo',
-                                                    placeholder: 'email@testuser.com',
-                                                },
-                                            },
-                                        },
-                                    }}
-                                    onSubmit={handleSubmit}
-                                    onReady={handleReady}
-                                    onError={handleError}
-                                />
-                            );
-                            
-                            // Limpar campos após segundo render (garantir limpeza completa)
-                            setTimeout(() => {
-                                clearAllFormFields();
-                                
-                                // Limpar novamente após um delay maior para garantir que o Brick terminou de renderizar
-                                setTimeout(() => {
-                                    clearAllFormFields();
-                                }, 150);
-                            }, 50);
-                        }
-                    }, 50);
-                }
-            };
-        };
-
+        // Se chegou aqui, significa que o Brick não está montado, então criar
         // Aguardar wrapper estar disponível
         if (wrapperRef.current) {
             createPersistentContainer();
@@ -445,7 +325,7 @@ export function IsolatedCardPaymentBrick({
             }, 100);
             return () => clearTimeout(timer);
         }
-    }, [publicKey, isVisible]);
+    }, [publicKey, isVisible, createPersistentContainer]);
 
     // CRÍTICO: Garantir que o container seja sempre movido para o wrapper e visível quando necessário
     // Isso resolve o problema de o formulário não aparecer quando o componente é remontado
@@ -481,6 +361,43 @@ export function IsolatedCardPaymentBrick({
         // Verificar imediatamente
         updateContainer();
 
+        // CRÍTICO: Detectar mudança de isVisible e chamar onReady quando necessário
+        // Isso garante que o estado isCheckoutReady seja atualizado quando um novo pedido é criado
+        const wasVisible = previousIsVisibleRef.current;
+        const hasChanged = wasVisible !== isVisible;
+        
+        console.log('[IsolatedCardPaymentBrick] 🔍 Verificando isVisible:', { wasVisible, isVisible, hasChanged });
+        
+        // Se isVisible mudou de false para true, chamar onReady
+        if (!wasVisible && isVisible && handlersRef.current.onReady) {
+            console.log('[IsolatedCardPaymentBrick] 🔄 isVisible mudou de false para true, chamando onReady');
+            // Atualizar ref ANTES de chamar onReady para evitar chamadas duplicadas
+            previousIsVisibleRef.current = isVisible;
+            
+            // Pequeno delay para garantir que o DOM foi atualizado e o container está visível
+            const readyTimeout = setTimeout(() => {
+                console.log('[IsolatedCardPaymentBrick] ✅ Chamando onReady após mudança de isVisible');
+                handlersRef.current.onReady();
+            }, 150); // Delay um pouco maior para garantir que tudo está pronto
+            
+            // Verificar novamente após um pequeno delay para garantir que o DOM esteja pronto
+            // Isso resolve problemas de timing quando o componente é remontado rapidamente
+            const timeout = setTimeout(updateContainer, 50);
+            
+            // Verificar também após um delay maior para garantir que tudo esteja pronto
+            const timeout2 = setTimeout(updateContainer, 200);
+
+            return () => {
+                clearTimeout(readyTimeout);
+                clearTimeout(timeout);
+                clearTimeout(timeout2);
+            };
+        }
+        
+        // CRÍTICO: Sempre atualizar o ref para refletir o valor atual de isVisible
+        // Isso garante que na próxima renderização, a comparação seja correta
+        previousIsVisibleRef.current = isVisible;
+
         // Verificar novamente após um pequeno delay para garantir que o DOM esteja pronto
         // Isso resolve problemas de timing quando o componente é remontado rapidamente
         const timeout = setTimeout(updateContainer, 50);
@@ -494,18 +411,11 @@ export function IsolatedCardPaymentBrick({
         };
     }, [isVisible]);
 
-    if (!publicKey) {
-        return null;
-    }
-
-    // Wrapper que apenas contém o container persistente
     return (
-        <div
-            ref={wrapperRef}
-            className=""
-        >
+        <div ref={wrapperRef} className="w-full">
+            {/* Container do Brick será injetado aqui pelo useEffect */}
             {!window.__MP_BRICK_MOUNTED__ && (
-                <div className="flex h-full items-center justify-center">
+                <div className="flex h-[700px] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
                     <div className="text-center">
                         <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-[#635BF5] mx-auto" />
                         <p className="text-sm text-gray-600">Inicializando formulário de pagamento...</p>
@@ -515,4 +425,3 @@ export function IsolatedCardPaymentBrick({
         </div>
     );
 }
-

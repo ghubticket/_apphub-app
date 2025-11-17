@@ -95,22 +95,44 @@ export const createEvent = async (req: Request, res: Response) => {
 export const listEvents = async (req: Request, res: Response) => {
     try {
         const { page = 1, limit = 10, search = '' } = req.query
-        const filters: any = { deletedAt: null } // Filtrar apenas eventos não deletados
+        
+        // CRÍTICO: Filtrar eventos inativos e cancelados no backend
+        // Isso garante consistência entre backend e frontend
+        const baseFilters: any = { 
+            deletedAt: null, // Filtrar apenas eventos não deletados
+            isActive: { $ne: false }, // Incluir eventos com isActive: true ou undefined/null
+        };
+        
+        // Filtrar status: incluir eventos publicados, draft, ou sem status
+        // Excluir apenas eventos com status 'cancelled' ou 'finished'
+        baseFilters.status = { $nin: ['cancelled', 'finished'] }; // Excluir cancelados e finalizados
+
+        const filters: any = { ...baseFilters };
 
         if (search) {
-            filters.$or = [
-                { name: { $regex: String(search), $options: 'i' } },
-                { location: { $regex: String(search), $options: 'i' } },
-                { city: { $regex: String(search), $options: 'i' } }
-            ]
+            // Adicionar filtro de busca usando $and para combinar com filtros base
+            filters.$and = [
+                ...(filters.$and || []),
+                {
+                    $or: [
+                        { name: { $regex: String(search), $options: 'i' } },
+                        { location: { $regex: String(search), $options: 'i' } },
+                        { city: { $regex: String(search), $options: 'i' } }
+                    ]
+                }
+            ];
         }
 
         const skip = (Number(page) - 1) * Number(limit)
+
+        console.log('[listEvents] 🔍 Filtros aplicados:', JSON.stringify(filters, null, 2));
 
         const [events, total] = await Promise.all([
             Event.find(filters).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
             Event.countDocuments(filters)
         ])
+
+        console.log(`[listEvents] ✅ Encontrados ${events.length} eventos (total: ${total})`);
 
         res.json({
             success: true,
@@ -125,6 +147,7 @@ export const listEvents = async (req: Request, res: Response) => {
             }
         })
     } catch (error: any) {
+        console.error('[listEvents] ❌ Erro:', error);
         res.status(500).json({ success: false, message: 'Erro ao listar eventos', errors: [error.message] })
     }
 }

@@ -213,9 +213,46 @@ export const createOrder = async (req: Request, res: Response) => {
             const paymentMethod = existingOrder.paymentMethod;
             console.log(`♻️ [createOrder] Pedido existente encontrado para mesmo evento/cliente, adicionando ingressos: orderNumber=${existingOrder.orderNumber}, status=${orderStatus}, paymentMethod=${paymentMethod}`);
             
-            // Buscar pedido completo (não lean) para atualizar
-            const orderToUpdate = await Order.findById(existingOrder._id);
-            if (orderToUpdate) {
+            // CRÍTICO: Se o pedido existente tem status 'failed', verificar se ainda pode ser reutilizado
+            // Permitir reutilização até esgotar tentativas (MAX_CARD_PAYMENT_ATTEMPTS)
+            if (orderStatus === 'failed') {
+                const cardAttempts = existingOrder.cardAttempts || 0;
+                if (cardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS) {
+                    // Esgotou tentativas: cancelar pedido e criar novo
+                    console.log(`⚠️ [createOrder] Pedido failed esgotou tentativas (${cardAttempts}/${MAX_CARD_PAYMENT_ATTEMPTS}), cancelando e criando novo pedido`);
+                    try {
+                        await orderService.cancelOrderAndReturnStock(existingOrder);
+                        console.log(`✅ [createOrder] Pedido failed cancelado (tentativas esgotadas), criando novo pedido`);
+                    } catch (cancelError) {
+                        console.error(`❌ [createOrder] Erro ao cancelar pedido failed:`, cancelError);
+                    }
+                    // Não reutilizar - continuar para criar novo pedido
+                } else {
+                    // Ainda pode tentar: reutilizar o pedido failed
+                    console.log(`♻️ [createOrder] Pedido failed pode ser reutilizado (${cardAttempts}/${MAX_CARD_PAYMENT_ATTEMPTS} tentativas), resetando status para pending`);
+                    const orderToUpdate = await Order.findById(existingOrder._id);
+                    if (orderToUpdate) {
+                        // Resetar status para pending para permitir nova tentativa
+                        // CRÍTICO: Manter expiresAt original, não renovar o tempo
+                        orderToUpdate.status = 'pending';
+                        orderToUpdate.isActive = true;
+                        // Não alterar expiresAt - manter o tempo original do pedido
+                        await orderToUpdate.save();
+                        console.log(`✅ [createOrder] Pedido resetado para pending (mantendo expiresAt original: ${orderToUpdate.expiresAt}), pode tentar pagamento novamente`);
+                        // Continuar para reutilizar o pedido (código abaixo)
+                    } else {
+                        // Não encontrou pedido, continuar para criar novo
+                        console.log(`⚠️ [createOrder] Pedido não encontrado no banco, criando novo`);
+                    }
+                }
+            }
+            
+            // Reutilizar pedido (se não foi cancelado acima e ainda tem tentativas)
+            const canReuse = orderStatus !== 'failed' || (existingOrder.cardAttempts || 0) < MAX_CARD_PAYMENT_ATTEMPTS;
+            if (canReuse) {
+                // Buscar pedido completo (não lean) para atualizar
+                const orderToUpdate = await Order.findById(existingOrder._id);
+                if (orderToUpdate) {
                 // Pedido já está pending ou failed, pode ser atualizado normalmente
                 // Não precisa mudar status - já está em estado válido para adicionar ingressos
                 // Verificar disponibilidade antes de adicionar
@@ -327,7 +364,8 @@ export const createOrder = async (req: Request, res: Response) => {
                         },
                     });
                 }
-            }
+            } // Fechar else do if (orderStatus === 'failed')
+        } // Fechar if (existingOrder)
 
         // Tentar reaproveitar pedido pendente/falho existente (somente para cartão)
         // CRÍTICO: Esta lógica só é executada se não encontrou pedido existente acima

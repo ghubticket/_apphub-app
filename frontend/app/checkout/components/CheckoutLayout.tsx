@@ -24,7 +24,7 @@ export function CheckoutLayout() {
     const router = useRouter();
     const [selectedTab, setSelectedTab] = useState<'card' | 'pix'>('card');
     const [showExitWarning, setShowExitWarning] = useState(false);
-    
+
     // Carregar dados do carrinho
     const { summarizedCart, totalAmount, totalTickets, loading: cartLoading, refreshCart } = useCheckoutCart();
 
@@ -40,6 +40,12 @@ export function CheckoutLayout() {
     // OTIMIZADO: Usar order do hook diretamente ao invés de buscar do storage
     // hasPendingOrderInStorage agora é derivado do order, não precisa buscar do storage
     const hasPendingOrderInStorage = !!(order?._id && order.status === 'pending');
+    
+    // Verificar se há pagamento pendente (bloquear remoção de itens)
+    // CRÍTICO: Desabilitar remoção quando há pedido pendente para evitar problemas
+    // Bloquear quando há qualquer pedido pendente (PIX, cartão, ou qualquer outro método)
+    // Isso evita que o usuário remova itens enquanto há um pagamento em andamento
+    const hasPendingPayment = !!(order?.status === 'pending' && order?._id);
 
     // Escutar mudanças no storage apenas para sincronizar entre abas
     useEffect(() => {
@@ -110,7 +116,7 @@ export function CheckoutLayout() {
         if (order?.expiresAt) {
             return getRemainingSeconds(order.expiresAt);
         }
-        
+
         // Fallback: usar timer do localStorage se não temos pedido carregado
         if (hasPendingOrderInStorage && hasValidTimerInStorage) {
             const savedStartTime = storageHelpers.loadTimerStartTime();
@@ -120,7 +126,7 @@ export function CheckoutLayout() {
                 return Math.floor(remaining / 1000);
             }
         }
-        
+
         return null;
     }, [order?.expiresAt, hasPendingOrderInStorage, hasValidTimerInStorage]);
 
@@ -145,10 +151,10 @@ export function CheckoutLayout() {
     // OTIMIZADO: Memoizar callbacks para evitar re-renders desnecessários
     const handleTimerExpire = useCallback(async () => {
         console.log('[CheckoutLayout] ⏰ Timer do pedido expirado!');
-        
+
         // OTIMIZADO: Usar order do hook diretamente
         const orderId = order?._id;
-        
+
         if (orderId) {
             try {
                 // Cancelar pedido expirado no backend
@@ -162,12 +168,12 @@ export function CheckoutLayout() {
                 }
             }
         }
-        
+
         // Limpar estado e carrinho
         clearOrder();
         clearCartItems();
         refreshCart();
-        
+
         // Atualizar pedido para verificar status final
         await refreshOrder();
     }, [order?._id, clearOrder, refreshCart, refreshOrder]);
@@ -184,15 +190,15 @@ export function CheckoutLayout() {
 
     const handleCreateNewOrder = useCallback(async () => {
         console.log('[CheckoutLayout] 🔄 Usuário confirmou criação de novo pedido após expiração');
-        
+
         // Fechar modal de expiração
         closeExpiredModal();
-        
+
         // Limpar carrinho antes de criar novo pedido (se necessário)
         // O carrinho já foi limpo quando o pedido expirou, mas garantimos aqui
         clearCartItems();
         refreshCart();
-        
+
         // Criar novo pedido
         await createOrder();
     }, [closeExpiredModal, refreshCart, createOrder]);
@@ -207,31 +213,31 @@ export function CheckoutLayout() {
             console.log('[CheckoutLayout] ⚠️ handleCancelOrder chamado mas não há pedido');
             return;
         }
-        
+
         console.log('[CheckoutLayout] 🗑️ Cancelando pedido:', {
             orderId: order._id,
             orderNumber: order.orderNumber,
             status: order.status,
         });
-        
+
         try {
             // Cancelar pedido no backend (usar POST /orders/:id/cancel ao invés de DELETE)
             await api.post(`/orders/${order._id}/cancel`);
-            
+
             console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso no backend');
-            
+
             // Limpar estado do pedido no hook
             clearOrder();
-            
+
             // Limpar timer também
             storageHelpers.clearTimerStartTime();
-            
+
             // Limpar carrinho
             clearCartItems();
             refreshCart();
-            
+
             console.log('[CheckoutLayout] 🧹 Estado limpo, recarregando página');
-            
+
             // Recarregar página para resetar estado
             router.refresh();
         } catch (err: any) {
@@ -246,7 +252,7 @@ export function CheckoutLayout() {
                 router.refresh();
                 return;
             }
-            
+
             // Para outros erros, logar mas ainda assim limpar estado
             console.error('[CheckoutLayout] ❌ Erro ao cancelar pedido:', err);
             clearOrder();
@@ -259,17 +265,145 @@ export function CheckoutLayout() {
         setShowExitWarning(false);
     }, []);
 
+    // Handler para remover item do carrinho e limpar tudo
+    const handleRemoveItem = useCallback(async (itemId: string) => {
+        console.log('[CheckoutLayout] 🗑️ Removendo item do carrinho e limpando tudo:', itemId);
+        
+        try {
+            // Se há pedido ativo, cancelar no backend
+            if (order?._id) {
+                try {
+                    console.log('[CheckoutLayout] 🗑️ Cancelando pedido antes de limpar carrinho:', order._id);
+                    await api.post(`/orders/${order._id}/cancel`);
+                    console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso');
+                } catch (cancelErr: any) {
+                    // Ignorar erro 404 (pedido já não existe)
+                    if (cancelErr?.response?.status !== 404) {
+                        console.error('[CheckoutLayout] ⚠️ Erro ao cancelar pedido:', cancelErr);
+                    }
+                }
+            }
+            
+            // CRÍTICO: Resetar Brick ANTES de limpar o pedido
+            // Isso garante que o formulário seja limpo completamente
+            if (typeof window !== 'undefined' && window.__MP_BRICK_RESET__) {
+                try {
+                    console.log('[CheckoutLayout] 🧹 Resetando Brick antes de limpar pedido');
+                    window.__MP_BRICK_RESET__();
+                } catch (brickErr) {
+                    console.warn('[CheckoutLayout] ⚠️ Erro ao resetar Brick:', brickErr);
+                }
+            }
+            
+            // Limpar estado do pedido
+            clearOrder();
+            
+            // Limpar timer do localStorage
+            storageHelpers.clearTimerStartTime();
+            
+            // Limpar carrinho completamente (storage)
+            clearCartItems();
+            
+            // Atualizar carrinho na UI
+            refreshCart();
+            
+            console.log('[CheckoutLayout] ✅ Carrinho e pedido limpos completamente');
+            
+            // Redirecionar para home após limpar tudo
+            router.push('/');
+        } catch (error: any) {
+            console.error('[CheckoutLayout] ❌ Erro ao remover item e limpar carrinho:', error);
+            // Mesmo com erro, tentar limpar localmente
+            // CRÍTICO: Resetar Brick mesmo em caso de erro
+            if (typeof window !== 'undefined' && window.__MP_BRICK_RESET__) {
+                try {
+                    window.__MP_BRICK_RESET__();
+                } catch (brickErr) {
+                    console.warn('[CheckoutLayout] ⚠️ Erro ao resetar Brick (fallback):', brickErr);
+                }
+            }
+            clearCartItems();
+            refreshCart();
+            clearOrder();
+            storageHelpers.clearTimerStartTime();
+            router.push('/');
+        }
+    }, [order?._id, clearOrder, refreshCart, router]);
+
+    // Handler para cancelar pedido e ir para home (usado no modal de erro do cartão)
+    const handleCancelOrderAndGoHome = useCallback(async () => {
+        console.log('[CheckoutLayout] 🗑️ Cancelando pedido e redirecionando para home (do modal de erro)');
+        
+        try {
+            // Se há pedido ativo, cancelar no backend
+            if (order?._id) {
+                try {
+                    console.log('[CheckoutLayout] 🗑️ Cancelando pedido:', order._id);
+                    await api.post(`/orders/${order._id}/cancel`);
+                    console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso');
+                } catch (cancelErr: any) {
+                    // Ignorar erro 404 (pedido já não existe)
+                    if (cancelErr?.response?.status !== 404) {
+                        console.error('[CheckoutLayout] ⚠️ Erro ao cancelar pedido:', cancelErr);
+                    }
+                }
+            }
+            
+            // CRÍTICO: Resetar Brick ANTES de limpar o pedido
+            if (typeof window !== 'undefined' && window.__MP_BRICK_RESET__) {
+                try {
+                    console.log('[CheckoutLayout] 🧹 Resetando Brick antes de limpar pedido');
+                    window.__MP_BRICK_RESET__();
+                } catch (brickErr) {
+                    console.warn('[CheckoutLayout] ⚠️ Erro ao resetar Brick:', brickErr);
+                }
+            }
+            
+            // Limpar estado do pedido
+            clearOrder();
+            
+            // Limpar timer do localStorage
+            storageHelpers.clearTimerStartTime();
+            
+            // Limpar carrinho completamente (storage)
+            clearCartItems();
+            
+            // Atualizar carrinho na UI
+            refreshCart();
+            
+            console.log('[CheckoutLayout] ✅ Pedido cancelado e redirecionando para home');
+            
+            // Redirecionar para home
+            router.push('/');
+        } catch (error: any) {
+            console.error('[CheckoutLayout] ❌ Erro ao cancelar pedido:', error);
+            // Mesmo com erro, tentar limpar localmente e redirecionar
+            if (typeof window !== 'undefined' && window.__MP_BRICK_RESET__) {
+                try {
+                    window.__MP_BRICK_RESET__();
+                } catch (brickErr) {
+                    console.warn('[CheckoutLayout] ⚠️ Erro ao resetar Brick (fallback):', brickErr);
+                }
+            }
+            clearCartItems();
+            refreshCart();
+            clearOrder();
+            storageHelpers.clearTimerStartTime();
+            router.push('/');
+        }
+    }, [order?._id, clearOrder, refreshCart, router]);
+
     const handleLeavePage = useCallback(async () => {
         console.log('[CheckoutLayout] 🚪 Usuário escolheu sair do checkout');
         setShowExitWarning(false);
-        
+
         // OTIMIZADO: Usar order do hook diretamente
         const orderId = order?._id;
         console.log('[CheckoutLayout] 📋 OrderId para cancelar:', {
             orderId,
             fromOrder: !!order?._id,
         });
-        
+
         if (!orderId) {
             // Não há pedido para cancelar, apenas sair
             console.log('[CheckoutLayout] ⚠️ Nenhum pedido encontrado, apenas saindo');
@@ -279,27 +413,27 @@ export function CheckoutLayout() {
             router.push('/');
             return;
         }
-        
+
         try {
             console.log('[CheckoutLayout] 🗑️ Cancelando pedido antes de sair:', orderId);
             // Cancelar pedido no backend (usar POST /orders/:id/cancel ao invés de DELETE)
             await api.post(`/orders/${orderId}/cancel`);
-            
+
             console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso, limpando estado');
-            
+
             // Limpar estado do pedido no hook ANTES de limpar storage
             clearOrder();
-            
+
             // Limpar timer do localStorage também
             storageHelpers.clearTimerStartTime();
-            
+
             // Limpar carrinho
             clearCartItems();
             refreshCart();
-            
+
             // Pequeno delay para garantir que estado foi limpo
             await new Promise(resolve => setTimeout(resolve, 100));
-            
+
             console.log('[CheckoutLayout] 🏠 Navegando para home');
             // Navegar para home (agora permitido porque pedido foi cancelado)
             router.push('/');
@@ -316,16 +450,16 @@ export function CheckoutLayout() {
                 router.push('/');
                 return;
             }
-            
+
             // Para outros erros, logar mas ainda assim limpar estado e permitir sair
             console.error('[CheckoutLayout] ❌ Erro ao cancelar pedido ao sair:', err);
-            
+
             // Mesmo com erro, limpar estado e permitir sair
             clearOrder();
             storageHelpers.clearTimerStartTime();
             clearCartItems();
             refreshCart();
-            
+
             router.push('/');
         }
     }, [order?._id, clearOrder, refreshCart, router]);
@@ -346,7 +480,8 @@ export function CheckoutLayout() {
     // Mostrar erro se houver
     if (orderError && summarizedCart.length > 0) {
         const isRateLimitError = orderError.includes('Muitas tentativas') || orderError.includes('aguarde');
-        
+        const isFailedStatusError = orderError.includes('Status: failed') || orderError.includes('Status: cancelled');
+
         // Formatar tempo restante
         const formatRemainingTime = (seconds: number | null): string => {
             if (seconds === null || seconds <= 0) return '';
@@ -357,7 +492,22 @@ export function CheckoutLayout() {
             }
             return `${secs}s`;
         };
-        
+
+        // Handler para tentar criar pedido novamente
+        const handleRetryCreateOrder = async () => {
+            console.log('[CheckoutLayout] 🔄 Tentando criar pedido novamente após erro');
+            try {
+                // Limpar storage de pedidos inválidos antes de tentar novamente
+                storageHelpers.clearActiveOrderId();
+                storageHelpers.clearTimerStartTime();
+                
+                // Tentar criar pedido novamente
+                await createOrder();
+            } catch (err) {
+                console.error('[CheckoutLayout] ❌ Erro ao tentar criar pedido novamente:', err);
+            }
+        };
+
         return (
             <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
                 <Container className="py-12">
@@ -372,20 +522,42 @@ export function CheckoutLayout() {
                                 </p>
                             </div>
                         )}
-                        {isRateLimitError && (
-                            <div className="mt-4">
+                        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                            {isRateLimitError ? (
                                 <button
                                     onClick={() => {
                                         resetRateLimitBlock();
                                         // Recarregar a página para resetar completamente
                                         window.location.reload();
                                     }}
-                                    className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+                                    className="rounded-lg bg-rose-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-rose-700"
                                 >
                                     Recarregar página para tentar novamente
                                 </button>
-                            </div>
-                        )}
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={handleRetryCreateOrder}
+                                        disabled={orderLoading}
+                                        className="rounded-lg bg-rose-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {orderLoading ? 'Criando pedido...' : 'Tentar novamente'}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            // Limpar tudo e voltar para home
+                                            clearOrder();
+                                            clearCartItems();
+                                            refreshCart();
+                                            router.push('/');
+                                        }}
+                                        className="rounded-lg border border-rose-300 bg-white px-6 py-3 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50"
+                                    >
+                                        Voltar para início
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </Container>
             </main>
@@ -417,8 +589,8 @@ export function CheckoutLayout() {
                     <section className="space-y-6">
                         {/* Timer - mostrar quando há pedido válido OU quando há timer válido no localStorage (fallback para erro 403) */}
                         {timerActive && (
-                            <CheckoutTimer 
-                                isActive={timerActive} 
+                            <CheckoutTimer
+                                isActive={timerActive}
                                 onExpire={handleTimerExpire}
                                 expiresAt={order?.expiresAt || null}
                                 initialRemainingSeconds={remainingSeconds}
@@ -429,8 +601,8 @@ export function CheckoutLayout() {
                             items={summarizedCart}
                             totalTickets={totalTickets}
                             totalAmount={totalAmount}
-                            pixPaymentActive={false}
-                            onRemoveItem={() => {}}
+                            pixPaymentActive={hasPendingPayment}
+                            onRemoveItem={handleRemoveItem}
                         />
 
                         <CustomerDataForm
@@ -450,6 +622,7 @@ export function CheckoutLayout() {
                             orderId={order?._id || null}
                             totalAmount={totalAmount}
                             customerEmail={customerData.email}
+                            onCancelOrder={handleCancelOrderAndGoHome}
                         />
                     </section>
                 </div>

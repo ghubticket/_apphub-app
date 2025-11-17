@@ -135,6 +135,8 @@ const normalizeTicketType = (
 export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}): Promise<TicketProduct[]> => {
     const { limitEvents = 12, limitTicketsPerEvent, search, onlyWithAvailability = false } = options;
 
+    console.log('[fetchTicketCatalog] 🔍 Buscando catálogo de ingressos:', { limitEvents, limitTicketsPerEvent, search, onlyWithAvailability });
+
     const eventsResponse = await api.get('/events', {
         params: {
             page: 1,
@@ -151,13 +153,21 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
             ? eventsResponse.data
             : [];
 
+    console.log('[fetchTicketCatalog] 📋 Eventos retornados pela API:', eventsRaw.length);
+    eventsRaw.forEach((event, idx) => {
+        console.log(`   ${idx + 1}. ${event.name} - isActive: ${event.isActive} - status: ${event.status || 'undefined'}`);
+    });
+
     const filteredEvents = eventsRaw.filter(
         (event) => event && event.isActive !== false && (event.status ?? 'published') !== 'cancelled',
     );
 
+    console.log('[fetchTicketCatalog] ✅ Eventos após filtro:', filteredEvents.length);
+
     const ticketsNested = await Promise.all(
         filteredEvents.map(async (event) => {
             try {
+                console.log(`[fetchTicketCatalog] 🎫 Buscando tickets para evento: ${event.name} (${event._id ?? event.id})`);
                 const ticketTypesResponse = await api.get(`/events/${event._id ?? event.id}/ticket-types`, {
                     params: {
                         includeInactive: false,
@@ -169,22 +179,36 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
                       ? ticketTypesResponse.data
                       : [];
 
+                console.log(`[fetchTicketCatalog] 🎫 Tickets encontrados para ${event.name}:`, ticketTypes.length);
+                ticketTypes.forEach((ticket, idx) => {
+                    console.log(`   ${idx + 1}. ${ticket.name} - isActive: ${ticket.isActive} - soldQuantity: ${ticket.soldQuantity} - maxQuantity: ${ticket.maxQuantity} - availableQuantity: ${ticket.availableQuantity ?? (ticket.maxQuantity - ticket.soldQuantity)}`);
+                });
+
                 const normalizedTickets = ticketTypes
-                    .map((ticket) => normalizeTicketType(ticket, event, { onlyWithAvailability }))
+                    .map((ticket) => {
+                        const normalized = normalizeTicketType(ticket, event, { onlyWithAvailability });
+                        if (!normalized) {
+                            console.log(`[fetchTicketCatalog] ⚠️ Ticket ${ticket.name} foi filtrado (isActive: ${ticket.isActive}, isSoldOut: ${(ticket.maxQuantity - ticket.soldQuantity) <= 0}, onlyWithAvailability: ${onlyWithAvailability})`);
+                        }
+                        return normalized;
+                    })
                     .filter((ticket): ticket is TicketProduct => Boolean(ticket));
+
+                console.log(`[fetchTicketCatalog] ✅ Tickets normalizados para ${event.name}:`, normalizedTickets.length);
 
                 if (limitTicketsPerEvent !== undefined && limitTicketsPerEvent > 0) {
                     return normalizedTickets.slice(0, limitTicketsPerEvent);
                 }
                 return normalizedTickets;
             } catch (error) {
-                console.error('Erro ao carregar ingressos do evento', event._id ?? event.id, error);
+                console.error('[fetchTicketCatalog] ❌ Erro ao carregar ingressos do evento', event._id ?? event.id, error);
                 return [];
             }
         }),
     );
 
     const flattened = ticketsNested.flat();
+    console.log('[fetchTicketCatalog] 📦 Total de tickets após normalização:', flattened.length);
 
     return flattened.sort((a, b) => {
         const dateA = a.sortTimestamp ?? Number.POSITIVE_INFINITY;

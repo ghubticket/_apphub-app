@@ -28,6 +28,7 @@ interface PaymentSectionProps {
     orderId: string | null;
     totalAmount: number;
     customerEmail: string;
+    onCancelOrder?: () => void;
 }
 
 export function PaymentSection({ 
@@ -37,6 +38,7 @@ export function PaymentSection({
     orderId,
     totalAmount,
     customerEmail,
+    onCancelOrder,
 }: PaymentSectionProps) {
     const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
     
@@ -85,10 +87,12 @@ export function PaymentSection({
                             isBlocked={!orderId || totalAmount <= 0}
                             redirectCountdown={cardPayment.redirectCountdown}
                             onStatusDismiss={cardPayment.dismissStatus}
-                            onStartNewOrder={cardPayment.resetPayment}
+                            maxAttemptsReached={cardPayment.maxAttemptsReached}
+                            onStartNewOrder={onCancelOrder} // Usar mesmo handler que cancela e vai para home
                             onNavigateToOrders={() => {
                                 window.location.href = '/orders';
                             }}
+                            onCancelOrder={onCancelOrder}
                             amount={totalAmount}
                             publicKey={MP_PUBLIC_KEY}
                             onReady={handleBrickReady}
