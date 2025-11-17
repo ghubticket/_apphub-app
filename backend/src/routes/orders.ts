@@ -57,9 +57,11 @@ const router = express.Router();
  *         description: Evento ou tipo de ingresso não encontrado
  */
 // Rate limit específico para criação de pedidos
+// Em desenvolvimento, limites mais altos para facilitar testes
+const isDevelopment = process.env.NODE_ENV !== 'production';
 const createOrderRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 20, // 20 pedidos por 15min por IP
+    max: isDevelopment ? 200 : 20, // 200 em dev, 20 em produção
     standardHeaders: true,
     legacyHeaders: false,
     message: 'Muitas criações de pedidos. Tente novamente em alguns minutos.'

@@ -32,7 +32,7 @@ export function CheckoutLayout() {
     const { customerData, handleChange: handleCustomerChange } = useCheckoutCustomer();
 
     // Criar/gerenciar pedido (REFATORADO: pedido PENDING = reserva de ingressos)
-    const { order, loading: orderLoading, error: orderError, refreshOrder, clearOrder, showRestoreModal, closeRestoreModal, showExpiredModal, closeExpiredModal, createOrder } = useCheckoutOrder(
+    const { order, loading: orderLoading, error: orderError, refreshOrder, clearOrder, resetRateLimitBlock, rateLimitRemainingSeconds, showRestoreModal, closeRestoreModal, showExpiredModal, closeExpiredModal, createOrder } = useCheckoutOrder(
         summarizedCart,
         customerData
     );
@@ -345,6 +345,19 @@ export function CheckoutLayout() {
 
     // Mostrar erro se houver
     if (orderError && summarizedCart.length > 0) {
+        const isRateLimitError = orderError.includes('Muitas tentativas') || orderError.includes('aguarde');
+        
+        // Formatar tempo restante
+        const formatRemainingTime = (seconds: number | null): string => {
+            if (seconds === null || seconds <= 0) return '';
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            if (mins > 0) {
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+            return `${secs}s`;
+        };
+        
         return (
             <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
                 <Container className="py-12">
@@ -352,6 +365,27 @@ export function CheckoutLayout() {
                     <div className="rounded-3xl border border-rose-200 bg-rose-50 p-10 text-center text-sm text-rose-700">
                         <p className="font-semibold">Erro ao criar pedido</p>
                         <p className="mt-2">{orderError}</p>
+                        {isRateLimitError && rateLimitRemainingSeconds !== null && rateLimitRemainingSeconds > 0 && (
+                            <div className="mt-4">
+                                <p className="text-base font-medium">
+                                    Tempo restante: <span className="font-bold text-rose-800">{formatRemainingTime(rateLimitRemainingSeconds)}</span>
+                                </p>
+                            </div>
+                        )}
+                        {isRateLimitError && (
+                            <div className="mt-4">
+                                <button
+                                    onClick={() => {
+                                        resetRateLimitBlock();
+                                        // Recarregar a página para resetar completamente
+                                        window.location.reload();
+                                    }}
+                                    className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+                                >
+                                    Recarregar página para tentar novamente
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </Container>
             </main>
@@ -413,6 +447,9 @@ export function CheckoutLayout() {
                             selectedTab={selectedTab}
                             onTabChange={setSelectedTab}
                             pixPaymentActive={false}
+                            orderId={order?._id || null}
+                            totalAmount={totalAmount}
+                            customerEmail={customerData.email}
                         />
                     </section>
                 </div>

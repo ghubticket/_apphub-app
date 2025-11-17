@@ -26,6 +26,8 @@ type OrderTicketSummary = {
 };
 
 type OrderEventSummary = {
+    _id?: string;
+    id?: string;
     name?: string;
     date?: string;
     location?: string;
@@ -59,6 +61,20 @@ type OrderSummary = {
     event?: OrderEventSummary | null;
     tickets: OrderTicketSummary[];
     pixInfo?: PixInfo; // Informações do PIX para pedidos pendentes
+};
+
+// Tipo para agrupar pedidos pagos do mesmo evento
+type OrderGroup = {
+    eventId: string;
+    eventName: string;
+    eventDate?: string;
+    eventLocation?: string;
+    orders: OrderSummary[]; // Pedidos agrupados
+    totalAmount: number; // Soma de todos os pedidos
+    totalTickets: number; // Soma de todos os ingressos
+    paymentMethods: string[]; // Métodos de pagamento únicos
+    earliestCreatedAt?: string; // Data do pedido mais antigo
+    latestCreatedAt?: string; // Data do pedido mais recente
 };
 
 type OrderPagination = {
@@ -128,20 +144,128 @@ const paymentLabels: Record<string, string> = {
     vip_free: 'Cortesia',
 };
 
+// Função para agrupar pedidos pagos do mesmo evento
+// Pedidos PENDING são mantidos separados (fluxo de checkout ativo)
+function groupOrdersByEvent(orders: OrderSummary[]): Array<OrderSummary | OrderGroup> {
+    // Separar pedidos pagos e pendentes
+    const paidOrders = orders.filter(order => order.status === 'paid');
+    const pendingOrders = orders.filter(order => order.status !== 'paid');
+
+    // Agrupar pedidos pagos por evento
+    const groupsMap = new Map<string, OrderSummary[]>();
+
+    paidOrders.forEach(order => {
+        // Extrair eventId de diferentes formatos possíveis
+        let eventId: string = 'unknown';
+
+        if (order.event) {
+            if (typeof order.event === 'string') {
+                // Se event é uma string (ObjectId não populado)
+                eventId = order.event;
+            } else if (typeof order.event === 'object') {
+                // Se event é um objeto populado
+                const eventObj = order.event as OrderEventSummary;
+                eventId = eventObj._id || eventObj.id || 'unknown';
+            }
+        }
+
+        // Log para debug (remover em produção se necessário)
+        if (eventId === 'unknown') {
+            console.warn('[groupOrdersByEvent] ⚠️ EventId não encontrado para pedido:', {
+                orderId: order._id,
+                orderNumber: order.orderNumber,
+                event: order.event,
+                eventType: typeof order.event,
+            });
+        }
+
+        if (!groupsMap.has(eventId)) {
+            groupsMap.set(eventId, []);
+        }
+        groupsMap.get(eventId)!.push(order);
+    });
+
+    // Criar grupos consolidados
+    const groups: OrderGroup[] = [];
+    groupsMap.forEach((groupOrders, eventId) => {
+        if (groupOrders.length > 1) {
+            // Só agrupar se houver mais de 1 pedido
+            const firstOrder = groupOrders[0];
+            const totalAmount = groupOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+            const totalTickets = groupOrders.reduce((sum, o) => sum + o.totalTickets, 0);
+            const paymentMethods = [...new Set(groupOrders.map(o => o.paymentMethod).filter((m): m is string => Boolean(m)))];
+            const createdAts = groupOrders.map(o => o.createdAt).filter((d): d is string => Boolean(d)).sort();
+
+            groups.push({
+                eventId,
+                eventName: firstOrder.event?.name || 'Evento não informado',
+                eventDate: firstOrder.event?.date,
+                eventLocation: firstOrder.event?.location || firstOrder.event?.address,
+                orders: groupOrders.sort((a, b) => {
+                    // Ordenar por data de criação (mais recente primeiro)
+                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return dateB - dateA;
+                }),
+                totalAmount,
+                totalTickets,
+                paymentMethods,
+                earliestCreatedAt: createdAts[createdAts.length - 1],
+                latestCreatedAt: createdAts[0],
+            });
+        } else {
+            // Se só tem 1 pedido, não agrupar (adicionar como pedido individual)
+            pendingOrders.push(groupOrders[0]);
+        }
+    });
+
+    // Combinar: grupos primeiro, depois pedidos pendentes/individuais
+    // Ordenar por data (mais recente primeiro)
+    const allItems: Array<OrderSummary | OrderGroup> = [...groups, ...pendingOrders];
+    allItems.sort((a, b) => {
+        const dateA = (a as OrderGroup).latestCreatedAt || (a as OrderSummary).createdAt || '';
+        const dateB = (b as OrderGroup).latestCreatedAt || (b as OrderSummary).createdAt || '';
+        const timeA = dateA ? new Date(dateA).getTime() : 0;
+        const timeB = dateB ? new Date(dateB).getTime() : 0;
+        return timeB - timeA;
+    });
+
+    return allItems;
+}
+
 export default function DashboardPage() {
     const router = useRouter();
     const { user, isAuthenticated, isReady } = useAuth();
     const [activeTab, setActiveTab] = useState<TabKey>('orders');
-    const [orders, setOrders] = useState<OrderSummary[]>([]);
+    const [orders, setOrders] = useState<Array<OrderSummary | OrderGroup>>([]);
     const [ordersPagination, setOrdersPagination] = useState<OrderPagination | null>(null);
     const [ordersError, setOrdersError] = useState<string>('');
     const [ordersLoading, setOrdersLoading] = useState<boolean>(false);
     const [hasFetchedOrders, setHasFetchedOrders] = useState(false);
     const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+    const [openGroupId, setOpenGroupId] = useState<string | null>(null); // Para grupos consolidados
     const [modalSlideIndex, setModalSlideIndex] = useState(0);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+    const [showSecurityModal, setShowSecurityModal] = useState(false);
     const modalScrollRef = useRef<HTMLDivElement | null>(null);
+
+    // Função para verificar se é mobile
+    const isMobileDevice = useCallback(() => {
+        if (typeof window === 'undefined') return false;
+        return window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }, []);
+
+    // Handler para abrir detalhes com verificação de segurança
+    const handleViewDetails = useCallback((orderId: string) => {
+        if (isMobileDevice() || isMobileViewport) {
+            // Mobile: permitir visualização normal
+            setOpenOrderId(orderId);
+        } else {
+            // Desktop: mostrar modal de segurança
+            setShowSecurityModal(true);
+        }
+    }, [isMobileDevice, isMobileViewport]);
 
     const greetingName = useMemo(() => {
         if (!user) return 'Bem-vindo';
@@ -217,7 +341,10 @@ export default function DashboardPage() {
                 }))
                 : [];
 
-            setOrders(normalizedOrders);
+            // Agrupar pedidos pagos do mesmo evento
+            const groupedOrders = groupOrdersByEvent(normalizedOrders);
+
+            setOrders(groupedOrders);
             setOrdersPagination(
                 paginationRaw
                     ? {
@@ -271,25 +398,110 @@ export default function DashboardPage() {
         }
     }, [activeTab, fetchOrders, hasFetchedOrders, isAuthenticated, isReady]);
 
-    const activeOrder = openOrderId ? orders.find((order) => order._id === openOrderId) : null;
+    // Helper para verificar se é um grupo
+    const isOrderGroup = (item: OrderSummary | OrderGroup): item is OrderGroup => {
+        return 'orders' in item && Array.isArray((item as OrderGroup).orders);
+    };
+
+    // Helper para encontrar pedido ativo ou criar ordem consolidada de grupo
+    // Usar useMemo para garantir estabilidade e evitar recálculos desnecessários
+    const activeOrder = useMemo(() => {
+        if (openGroupId) {
+            // Se estamos abrindo um grupo, criar um objeto consolidado com todos os tickets
+            const group = orders.find(item => isOrderGroup(item) && `group-${(item as OrderGroup).eventId}` === openGroupId) as OrderGroup | undefined;
+            if (group) {
+                // Coletar todos os tickets de todos os pedidos do grupo
+                const allTickets = group.orders.flatMap(o => {
+                    if (Array.isArray(o.tickets)) {
+                        return o.tickets;
+                    }
+                    return [];
+                });
+                
+                // Criar um objeto "virtual" que representa o grupo consolidado
+                const firstOrder = group.orders[0];
+                return {
+                    ...firstOrder,
+                    _id: `group-${group.eventId}`, // ID único para o grupo
+                    orderNumber: `${group.orders.length} Pedidos Consolidados`,
+                    totalTickets: group.totalTickets,
+                    totalAmount: group.totalAmount,
+                    tickets: allTickets, // Todos os tickets do grupo
+                } as OrderSummary;
+            }
+        }
+        
+        if (openOrderId) {
+            // Buscar pedido individual
+            for (const item of orders) {
+                if (isOrderGroup(item)) {
+                    const found = item.orders.find(o => o._id === openOrderId);
+                    if (found) return found;
+                } else if (item._id === openOrderId) {
+                    return item;
+                }
+            }
+        }
+        
+        return null;
+    }, [orders, openGroupId, openOrderId]);
 
     useEffect(() => {
         if (activeOrder && modalScrollRef.current) {
+            // Resetar para o primeiro slide quando o pedido muda
             setModalSlideIndex(0);
-            modalScrollRef.current.scrollTo({ left: 0, behavior: 'auto' });
+            // Usar setTimeout para garantir que o DOM está pronto
+            setTimeout(() => {
+                if (modalScrollRef.current) {
+                    modalScrollRef.current.scrollTo({ left: 0, behavior: 'auto' });
+                }
+            }, 100);
         }
-    }, [activeOrder]);
+    }, [activeOrder?._id]); // Usar _id para detectar mudanças no pedido
 
     const handleModalScroll = useCallback(() => {
         if (!modalScrollRef.current || !activeOrder) return;
         const container = modalScrollRef.current;
-        const width = container.clientWidth || 1;
-        const index = Math.round(container.scrollLeft / width);
-        const clamped = Math.max(0, Math.min(activeOrder.tickets.length - 1, index));
-        if (clamped !== modalSlideIndex) {
-            setModalSlideIndex(clamped);
-        }
-    }, [activeOrder, modalSlideIndex]);
+
+        // Obter todos os elementos filhos (slides)
+        const slides = Array.from(container.children) as HTMLElement[];
+        if (slides.length === 0) return;
+
+        // Calcular qual slide está mais visível no viewport
+        // Usar requestAnimationFrame para garantir que o cálculo acontece após o scroll
+        requestAnimationFrame(() => {
+            if (!modalScrollRef.current || !activeOrder) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const containerCenter = containerRect.left + containerRect.width / 2;
+
+            let closestIndex = 0;
+            let closestDistance = Infinity;
+
+            slides.forEach((slide, index) => {
+                const slideRect = slide.getBoundingClientRect();
+                const slideCenter = slideRect.left + slideRect.width / 2;
+                const distance = Math.abs(containerCenter - slideCenter);
+
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestIndex = index;
+                }
+            });
+
+            // Garantir que o índice está dentro dos limites
+            const maxIndex = Math.max(0, activeOrder.tickets.length - 1);
+            const clamped = Math.max(0, Math.min(maxIndex, closestIndex));
+
+            // Atualizar apenas se mudou
+            setModalSlideIndex((currentIndex) => {
+                if (clamped !== currentIndex) {
+                    return clamped;
+                }
+                return currentIndex;
+            });
+        });
+    }, [activeOrder]);
 
     const renderProfileContent = () => (
         <div className="space-y-6">
@@ -334,7 +546,167 @@ export default function DashboardPage() {
 
         return (
             <div className="space-y-6">
-                {orders.map((order) => {
+                {orders.map((item, index) => {
+                    // Verificar se é grupo ou pedido individual
+                    if (isOrderGroup(item)) {
+                        // Renderizar grupo consolidado
+                        const group = item;
+                        const eventDate = formatEventDate(group.eventDate || undefined);
+                        const paymentLabelsList = group.paymentMethods
+                            .map(method => paymentLabels[method] || method)
+                            .join(', ');
+                        const earliestDate = formatDate(group.earliestCreatedAt);
+                        const latestDate = formatDate(group.latestCreatedAt);
+                        const groupId = `group-${group.eventId}`;
+                        const isExpanded = expandedOrderId === groupId;
+
+                        // Coletar todos os tickets do grupo
+                        // IMPORTANTE: Garantir que todos os tickets sejam coletados, mesmo se alguns pedidos não tiverem tickets populados
+                        const allTickets = group.orders.flatMap(o => {
+                            // Verificar se tickets é um array válido
+                            if (Array.isArray(o.tickets)) {
+                                return o.tickets;
+                            }
+                            return [];
+                        });
+                        const ticketsConfirmed = allTickets.filter((ticket) => ticket?.status === 'confirmed').length;
+
+                        // Log para debug (remover em produção se necessário)
+                        if (allTickets.length !== group.totalTickets) {
+                            console.warn('[Dashboard] ⚠️ Discrepância no número de tickets:', {
+                                totalTicketsCalculado: group.totalTickets,
+                                ticketsColetados: allTickets.length,
+                                pedidosNoGrupo: group.orders.length,
+                                ticketsPorPedido: group.orders.map(o => ({
+                                    orderId: o._id,
+                                    orderNumber: o.orderNumber,
+                                    totalTickets: o.totalTickets,
+                                    ticketsArrayLength: Array.isArray(o.tickets) ? o.tickets.length : 0,
+                                })),
+                            });
+                        }
+
+                        return (
+                            <article
+                                key={groupId}
+                                className="rounded-2xl border border-[#ded7ca] bg-white/80 p-6 shadow-[0_25px_45px_-25px_rgba(20,20,32,0.25)] transition hover:shadow-[0_30px_60px_-25px_rgba(20,20,32,0.35)]"
+                            >
+                                <header>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setExpandedOrderId((current) =>
+                                                current === groupId ? null : groupId,
+                                            )
+                                        }
+                                        className="flex w-full flex-col gap-4 text-left transition hover:text-[#1a1a1d] md:flex-row md:items-center md:justify-between"
+                                    >
+                                        <div className="space-y-1">
+                                            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#a38f78]">
+                                                {group.orders.length} Pedido{group.orders.length > 1 ? 's' : ''} Consolidado{group.orders.length > 1 ? 's' : ''}
+                                            </span>
+                                            <h3 className="text-lg font-semibold uppercase tracking-[0.15em] text-[#1a1a1d]">
+                                                {group.eventName}
+                                            </h3>
+                                            <p className="text-xs text-[#7d796c]">
+                                                {eventDate ? `${eventDate}` : 'Data a confirmar'}
+                                                {group.eventLocation ? ` • ${group.eventLocation}` : ''}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-10">
+                                            <div className='flex flex-col gap-2'>
+                                                <span
+                                                    className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${statusConfig.paid.badgeClass}`}
+                                                >
+                                                    {statusConfig.paid.label}
+                                                </span>
+                                                <span className="text-xs uppercase tracking-[0.2em] text-[#7d796c]">
+                                                    {group.orders.length > 1
+                                                        ? `De ${earliestDate} até ${latestDate}`
+                                                        : `Criado em ${latestDate}`
+                                                    }
+                                                </span>
+                                                <span className="text-xs font-medium text-[#4c4c55]">
+                                                    Valor total {currencyFormatter.format(group.totalAmount)}
+                                                </span>
+                                                <span className="text-[0.65rem] uppercase tracking-[0.2em] text-[#a38f78]">
+                                                    {paymentLabelsList || 'Pagamento confirmado'}
+                                                </span>
+                                                <span className="text-xs text-[#7d796c]">
+                                                    {group.totalTickets} ingresso{group.totalTickets > 1 ? 's' : ''} total{group.totalTickets > 1 ? 'is' : ''}
+                                                </span>
+                                            </div>
+                                            <HiOutlineChevronDown
+                                                className={`text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                                                aria-hidden
+                                            />
+                                        </div>
+                                    </button>
+                                </header>
+
+                                <div
+                                    className={`overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[2000px] pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}
+                                >
+                                    {/* Lista de pedidos do grupo */}
+                                    <div className="mb-4 space-y-4">
+                                        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
+                                            Pedidos Consolidados ({group.orders.length})
+                                        </span>
+                                        {group.orders.map((order) => {
+                                            const orderCreatedAt = formatDate(order.createdAt);
+                                            const orderPaymentLabel = order.paymentMethod && paymentLabels[order.paymentMethod]
+                                                ? paymentLabels[order.paymentMethod]
+                                                : 'Pagamento confirmado';
+
+                                            return (
+                                                <div
+                                                    key={order._id}
+                                                    className="rounded-xl border border-[#ded7ca]/50 bg-white/50 p-4"
+                                                >
+                                                    <div>
+                                                        <span className="text-xs font-semibold text-[#a38f78]">
+                                                            Pedido #{order.orderNumber}
+                                                        </span>
+                                                        <p className="text-xs text-[#7d796c] mt-1">
+                                                            {orderCreatedAt} • {orderPaymentLabel}
+                                                        </p>
+                                                        <p className="text-xs font-medium text-[#4c4c55] mt-1">
+                                                            {order.totalTickets} ingresso{order.totalTickets > 1 ? 's' : ''} • {currencyFormatter.format(order.totalAmount)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Botão para visualizar ingressos */}
+                                    <div className="flex justify-center mt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (isMobileDevice() || isMobileViewport) {
+                                                    // Mobile: abrir grupo consolidado com todos os tickets
+                                                    setOpenGroupId(groupId);
+                                                    setOpenOrderId(null); // Limpar orderId individual
+                                                    setModalSlideIndex(0);
+                                                } else {
+                                                    // Desktop: mostrar modal de segurança
+                                                    setShowSecurityModal(true);
+                                                }
+                                            }}
+                                            className="flex items-center gap-2 rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                        >
+                                            <HiOutlineTicket className="text-base" />
+                                            Visualizar Ingressos ({allTickets.length})
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+                        );
+                    }
+
+                    // Renderizar pedido individual
+                    const order = item as OrderSummary;
                     const statusInfo = statusConfig[order.status] ?? statusConfig.pending;
                     const eventName = order.event?.name ?? 'Evento não informado';
                     const eventDate = formatEventDate(order.event?.date || undefined);
@@ -419,7 +791,7 @@ export default function DashboardPage() {
                                             <p className="mb-4 text-sm text-emerald-700">
                                                 Seu pedido ainda está pendente. Copie e cole o código PIX abaixo para finalizar o pagamento.
                                             </p>
-                                            
+
                                             {/* QR Code */}
                                             {order.pixInfo.qrCodeBase64 && (
                                                 <div className="mb-4 flex justify-center">
@@ -430,7 +802,7 @@ export default function DashboardPage() {
                                                     />
                                                 </div>
                                             )}
-                                            
+
                                             {/* Código PIX para copiar */}
                                             {(order.pixInfo.ticketUrl || order.pixInfo.qrCode) && (
                                                 <div className="mb-4">
@@ -463,7 +835,7 @@ export default function DashboardPage() {
                                                     </div>
                                                 </div>
                                             )}
-                                            
+
                                             {/* Timer de expiração dinâmico */}
                                             {order.pixInfo.expiresAt && (
                                                 <PixExpirationTimer expiresAt={order.pixInfo.expiresAt} />
@@ -488,7 +860,7 @@ export default function DashboardPage() {
                                         </div>
                                     )
                                 )}
-                                
+
                                 <div className="rounded-2xl border border-[#ded7ca] bg-white/70 p-4">
                                     <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
                                         Ingressos
@@ -510,7 +882,7 @@ export default function DashboardPage() {
                                                 type="button"
                                                 onClick={() => {
                                                     setModalSlideIndex(0);
-                                                    setOpenOrderId(order._id);
+                                                    handleViewDetails(order._id);
                                                 }}
                                                 className="mt-4 flex gap-3 w-full md:w-fit text-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
                                             >
@@ -527,7 +899,7 @@ export default function DashboardPage() {
 
                 {ordersPagination && ordersPagination.total > orders.length && (
                     <p className="text-center text-xs uppercase tracking-[0.3em] text-[#7d796c]">
-                        Exibindo {orders.length} de {ordersPagination.total} pedidos recentes.
+                        Exibindo {orders.length} de {ordersPagination.total} pedido{ordersPagination.total > 1 ? 's' : ''} recente{ordersPagination.total > 1 ? 's' : ''}.
                     </p>
                 )}
             </div>
@@ -644,6 +1016,7 @@ export default function DashboardPage() {
                     slideIndex={modalSlideIndex}
                     onClose={() => {
                         setOpenOrderId(null);
+                        setOpenGroupId(null);
                         setModalSlideIndex(0);
                     }}
                     scrollRef={modalScrollRef}
@@ -651,6 +1024,74 @@ export default function DashboardPage() {
                     isMobile={isMobileViewport}
                 />
             ) : null}
+
+            {/* Modal de Segurança para Desktop */}
+            {showSecurityModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="relative w-full max-w-md rounded-2xl border border-[#ded7ca] bg-white/95 p-6 shadow-2xl">
+                        <button
+                            type="button"
+                            onClick={() => setShowSecurityModal(false)}
+                            className="absolute right-4 top-4 text-[#7d796c] hover:text-[#1a1a1d] transition"
+                        >
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+                                <HiOutlineExclamationTriangle className="h-6 w-6 text-amber-600" />
+                            </div>
+                            <h3 className="text-lg font-semibold uppercase tracking-[0.15em] text-[#1a1a1d]">
+                                Segurança e Comodidade
+                            </h3>
+                        </div>
+
+                        <div className="space-y-4 text-sm text-[#4c4c55]">
+                            <p>
+                                Para sua <strong className="text-[#1a1a1d]">SEGURANÇA</strong> e <strong className="text-[#1a1a1d]">MAIOR COMODIDADE</strong>, seus ingressos estão disponíveis somente no <strong className="text-[#1a1a1d]">mobile</strong>.
+                            </p>
+
+                            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800 mb-2">
+                                    Proteções Ativas:
+                                </p>
+                                <ul className="space-y-2 text-xs text-amber-700">
+                                    <li className="flex items-start gap-2">
+                                        <span className="mt-0.5">•</span>
+                                        <span>Detecção de prints de tela</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="mt-0.5">•</span>
+                                        <span>Identificação de atividades suspeitas</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="mt-0.5">•</span>
+                                        <span>Proteção contra tentativas de burlar o sistema</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span className="mt-0.5">•</span>
+                                        <span>Visualização otimizada para dispositivos móveis</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <p className="text-xs text-[#7d796c]">
+                                Acesse seus ingressos através do seu celular ou tablet para uma experiência segura e completa.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => setShowSecurityModal(false)}
+                            className="mt-6 w-full rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                        >
+                            Entendi
+                        </button>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
@@ -821,13 +1262,13 @@ function PixExpirationTimer({ expiresAt }: { expiresAt: string }) {
             const expirationDate = new Date(expiresAt);
             const now = new Date();
             const diff = expirationDate.getTime() - now.getTime();
-            
+
             if (diff <= 0) {
                 setTimeRemaining(0);
                 setIsExpired(true);
                 return;
             }
-            
+
             setIsExpired(false);
             setTimeRemaining(Math.floor(diff / 1000)); // segundos restantes
         };

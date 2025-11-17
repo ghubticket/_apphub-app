@@ -25,6 +25,8 @@ interface UseCheckoutOrderReturn {
     createOrder: () => Promise<void>;
     refreshOrder: () => Promise<void>;
     clearOrder: () => void; // Limpar pedido manualmente (quando cancelado externamente)
+    resetRateLimitBlock: () => void; // Resetar bloqueio de rate limit manualmente
+    rateLimitRemainingSeconds: number | null; // Tempo restante do bloqueio de rate limit em segundos
     showRestoreModal: boolean; // Mostrar modal quando pedido é restaurado
     closeRestoreModal: () => void; // Fechar modal manualmente
     showExpiredModal: boolean; // Mostrar modal quando pedido expirou
@@ -46,11 +48,13 @@ export function useCheckoutOrder(
     const [error, setError] = useState<string | null>(null);
     const [showRestoreModal, setShowRestoreModal] = useState(false);
     const [showExpiredModal, setShowExpiredModal] = useState(false);
+    const [rateLimitRemainingSeconds, setRateLimitRemainingSeconds] = useState<number | null>(null);
     const creatingRef = useRef(false);
     const orderIdRef = useRef<string | null>(null);
     const hasShownModalRef = useRef(false); // Evitar mostrar modal múltiplas vezes
     const hasShownExpiredModalRef = useRef(false); // Evitar mostrar modal de expiração múltiplas vezes
     const lastCancelTimeRef = useRef<number>(0); // Timestamp do último cancelamento
+    const lastCreateTimeRef = useRef<number>(0); // CRÍTICO: Timestamp da última criação para evitar loop infinito
     const fetchingOrderRef = useRef(false); // Evitar múltiplas buscas simultâneas do mesmo pedido
     const cachedOrderIdFromStorageRef = useRef<string | null>(null); // OTIMIZADO: Cache do orderId do storage
     const hasInitializedFromStorageRef = useRef(false); // OTIMIZADO: Flag para evitar múltiplas inicializações
@@ -87,6 +91,13 @@ export function useCheckoutOrder(
         hasShownModalRef.current = false; // Resetar flag do modal também
         hasShownExpiredModalRef.current = false; // Resetar flag do modal de expiração
     }, []); // Sem dependências - usa apenas refs e setters estáveis
+
+    // Função para resetar bloqueio de rate limit manualmente
+    const resetRateLimitBlock = useCallback(() => {
+        console.log('[useCheckoutOrder] 🔓 Resetando bloqueio de rate limit manualmente');
+        lastCreateTimeRef.current = 0;
+        setError(null);
+    }, []);
 
     // OTIMIZADO: Carregar orderId salvo do storage apenas uma vez ao montar
     useEffect(() => {
@@ -374,6 +385,33 @@ export function useCheckoutOrder(
             return;
         }
         
+        // CRÍTICO: Proteção contra loop infinito - evitar criar pedidos muito rapidamente
+        const now = Date.now();
+        const lastCreateTime = lastCreateTimeRef.current;
+        
+        // Se lastCreateTime está no futuro, significa que há um bloqueio ativo (ex: após rate limit)
+        if (lastCreateTime > now) {
+            const remainingBlockTime = Math.ceil((lastCreateTime - now) / 1000); // segundos restantes
+            const remainingMinutes = Math.ceil(remainingBlockTime / 60);
+            const remainingSeconds = remainingBlockTime % 60;
+            
+            console.warn(`[useCheckoutOrder] ⚠️ Criação de pedido bloqueada. Aguarde ${remainingBlockTime} segundos.`);
+            
+            if (remainingMinutes > 0) {
+                setError(`Muitas tentativas de criar pedido. Aguarde ${remainingMinutes} minuto${remainingMinutes > 1 ? 's' : ''} antes de tentar novamente. Ou recarregue a página para resetar.`);
+            } else {
+                setError(`Muitas tentativas de criar pedido. Aguarde ${remainingSeconds} segundo${remainingSeconds > 1 ? 's' : ''} antes de tentar novamente.`);
+            }
+            return;
+        }
+        
+        // Verificar se passou tempo mínimo desde última criação
+        const timeSinceLastCreate = now - lastCreateTime;
+        if (timeSinceLastCreate < 2000 && lastCreateTime > 0) { // Mínimo de 2 segundos entre criações
+            console.warn('[useCheckoutOrder] ⚠️ Tentativa de criar pedido muito rapidamente após última criação, ignorando para evitar loop infinito');
+            return;
+        }
+        
         // OTIMIZADO: Cancelar requisição anterior se existir
         if (createOrderAbortControllerRef.current) {
             console.log('[useCheckoutOrder] 🛑 Cancelando requisição anterior de createOrder');
@@ -385,6 +423,7 @@ export function useCheckoutOrder(
         createOrderAbortControllerRef.current = abortController;
         
         creatingRef.current = true;
+        lastCreateTimeRef.current = now; // Registrar timestamp da criação
 
         try {
             setLoading(true);
@@ -454,11 +493,25 @@ export function useCheckoutOrder(
                         }
                     } else {
                         // Pedido não é PENDING ou não tem expiresAt, limpar
-                        console.log('[useCheckoutOrder] 🗑️ Pedido existente não é válido (status:', existingOrder?.status, '), limpando');
+                        const orderStatus = existingOrder?.status || 'undefined';
+                        console.log('[useCheckoutOrder] 🗑️ Pedido existente não é válido (status:', orderStatus, '), limpando');
                         storageHelpers.clearActiveOrderId();
                         storageHelpers.clearTimerStartTime();
                         orderIdRef.current = null;
                         cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
+                        
+                        // CRÍTICO: Se o pedido tem status 'failed', não criar novo automaticamente
+                        // Isso evita loop infinito quando o backend retorna pedidos com status 'failed'
+                        if (orderStatus === 'failed' || orderStatus === 'cancelled') {
+                            console.warn('[useCheckoutOrder] ⚠️ Pedido com status inválido detectado, abortando criação de novo pedido para evitar loop infinito');
+                            setLoading(false);
+                            creatingRef.current = false;
+                            setError('Não foi possível criar um pedido válido. Por favor, tente novamente.');
+                            return; // CRÍTICO: Retornar para evitar criar novo pedido
+                        }
+                        
+                        // Para outros status inválidos, continuar e criar novo pedido
+                        // (mas apenas se não for 'failed' ou 'cancelled')
                     }
                 } catch (checkErr: any) {
                     // OTIMIZADO: Ignorar erros de cancelamento intencional
@@ -523,6 +576,21 @@ export function useCheckoutOrder(
                     totalAmount: orderData.totalAmount,
                     totalTickets: orderData.totalTickets,
                 });
+                
+                // CRÍTICO: Validar se o pedido foi criado com status válido
+                // Se o backend retornar 'failed', não salvar no storage para evitar loop infinito
+                if (orderData.status === 'failed' || orderData.status === 'cancelled') {
+                    console.error('[useCheckoutOrder] ❌ Pedido criado com status inválido:', orderData.status);
+                    setLoading(false);
+                    creatingRef.current = false;
+                    setError(`Não foi possível criar um pedido válido. Status: ${orderData.status}. Por favor, tente novamente.`);
+                    // NÃO salvar no storage para evitar loop infinito
+                    // NÃO definir orderIdRef para evitar tentativas de refresh
+                    createOrderAbortControllerRef.current = null;
+                    return; // Retornar sem salvar o pedido inválido
+                }
+                
+                // Pedido válido, salvar normalmente
                 setOrder(orderData);
                 orderIdRef.current = orderData._id;
                 cachedOrderIdFromStorageRef.current = orderData._id; // OTIMIZADO: Atualizar cache
@@ -556,12 +624,45 @@ export function useCheckoutOrder(
                 return;
             }
             
-            const errorMessage = err?.response?.data?.message || err?.message || 'Erro ao criar pedido';
+            const statusCode = err?.response?.status;
+            let errorMessage = err?.response?.data?.message || err?.message || 'Erro ao criar pedido';
+            
+            // CRÍTICO: Tratar erro 429 (Rate Limit) especificamente
+            if (statusCode === 429) {
+                // Em desenvolvimento, bloqueio mais curto para facilitar testes
+                const isDevelopment = typeof window !== 'undefined' && (
+                    process.env.NODE_ENV !== 'production' || 
+                    window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1'
+                );
+                const blockDuration = isDevelopment ? 10 * 1000 : 5 * 60 * 1000; // 10 segundos em dev, 5 minutos em produção
+                const blockUntil = Date.now() + blockDuration;
+                lastCreateTimeRef.current = blockUntil;
+                
+                const blockSeconds = isDevelopment ? 10 : 300;
+                const blockMinutes = Math.floor(blockSeconds / 60);
+                errorMessage = `Muitas tentativas de criar pedido. O sistema está temporariamente bloqueado. Aguarde ${isDevelopment ? `${blockSeconds} segundos` : `${blockMinutes} minutos`} ou recarregue a página para tentar novamente.`;
+                console.warn(`[useCheckoutOrder] ⚠️ Rate limit atingido (429). Bloqueando tentativas automáticas por ${isDevelopment ? `${blockSeconds} segundos` : `${blockMinutes} minutos`}.`);
+                
+                // Limpar qualquer pedido inválido do storage
+                const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current;
+                if (savedOrderId) {
+                    orderIdRef.current = null;
+                    cachedOrderIdFromStorageRef.current = null;
+                    storageHelpers.clearActiveOrderId();
+                    setOrder(null);
+                }
+            }
+            
             setError(errorMessage);
-            console.error('[useCheckoutOrder] ❌ Erro ao criar pedido:', err);
+            console.error('[useCheckoutOrder] ❌ Erro ao criar pedido:', {
+                status: statusCode,
+                message: errorMessage,
+                error: err,
+            });
             
             // Se erro 400 ou 404, pode ser que pedido já foi cancelado - limpar storage
-            if (err?.response?.status === 400 || err?.response?.status === 404) {
+            if (statusCode === 400 || statusCode === 404) {
                 // OTIMIZADO: Usar cache primeiro
                 const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current;
                 if (savedOrderId) {
@@ -601,6 +702,14 @@ export function useCheckoutOrder(
         const timeSinceCancel = Date.now() - lastCancelTimeRef.current;
         if (timeSinceCancel < 2000) {
             return; // Cancelamento recente
+        }
+        
+        // CRÍTICO: Verificar se há bloqueio ativo (ex: após rate limit 429)
+        const now = Date.now();
+        const lastCreateTime = lastCreateTimeRef.current;
+        if (lastCreateTime > now) {
+            // Há um bloqueio ativo, não tentar criar pedido automaticamente
+            return;
         }
 
         // OTIMIZADO: Usar cache primeiro, só buscar do storage se necessário
@@ -652,6 +761,33 @@ export function useCheckoutOrder(
         }
     }, [order, loading, refreshOrder]); // OTIMIZADO: refreshOrder estável via useCallback
 
+    // Atualizar tempo restante do bloqueio de rate limit em tempo real
+    useEffect(() => {
+        const updateRemainingTime = () => {
+            const now = Date.now();
+            const lastCreateTime = lastCreateTimeRef.current;
+            
+            if (lastCreateTime > now) {
+                // Há um bloqueio ativo
+                const remainingSeconds = Math.ceil((lastCreateTime - now) / 1000);
+                setRateLimitRemainingSeconds(remainingSeconds);
+            } else {
+                // Não há bloqueio ativo
+                setRateLimitRemainingSeconds(null);
+            }
+        };
+        
+        // Atualizar imediatamente
+        updateRemainingTime();
+        
+        // Atualizar a cada segundo se houver bloqueio
+        const interval = setInterval(() => {
+            updateRemainingTime();
+        }, 1000);
+        
+        return () => clearInterval(interval);
+    }, []);
+
     // OTIMIZADO: Cleanup de AbortControllers ao desmontar componente
     useEffect(() => {
         return () => {
@@ -674,6 +810,8 @@ export function useCheckoutOrder(
         createOrder,
         refreshOrder,
         clearOrder,
+        resetRateLimitBlock,
+        rateLimitRemainingSeconds,
         showRestoreModal,
         closeRestoreModal,
         showExpiredModal,

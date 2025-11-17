@@ -6,9 +6,11 @@ import rateLimit from 'express-rate-limit';
 const router = Router();
 
 // Rate limiting específico para pagamentos (mais restritivo)
+// Em desenvolvimento, limites mais altos para facilitar testes
+const isDevelopment = process.env.NODE_ENV !== 'production';
 const paymentRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 10, // máximo 10 requisições por 15 minutos
+    max: isDevelopment ? 100 : 10, // 100 em dev, 10 em produção
     message: 'Muitas tentativas de pagamento. Tente novamente em alguns minutos.',
     standardHeaders: true,
     legacyHeaders: false,

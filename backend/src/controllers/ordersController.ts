@@ -555,8 +555,9 @@ export const listMyOrders = async (req: Request, res: Response) => {
         const skip = (Number(page) - 1) * Number(limit);
 
         // Buscar pedidos com paginação
+        // IMPORTANTE: Incluir _id do evento para permitir agrupamento no frontend
         const orders = await Order.find(filters)
-            .populate('event', 'name date location coverImage')
+            .populate('event', '_id name date location coverImage')
             .populate({
                 path: 'tickets',
                 select: 'code qrCode status price',

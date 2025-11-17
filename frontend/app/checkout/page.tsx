@@ -39,6 +39,21 @@ function CheckoutPageContent() {
             try {
                 initMercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
                 window.__MP_INITIALIZED__ = true;
+                
+                // Tentar capturar deviceId após inicialização
+                // O SDK pode definir window.MP_DEVICE_SESSION_ID após alguns milissegundos
+                const checkDeviceId = setInterval(() => {
+                    if (window.MP_DEVICE_SESSION_ID) {
+                        localStorage.setItem('mp-device-session-id', window.MP_DEVICE_SESSION_ID);
+                        console.log('[Checkout] ✅ DeviceId capturado após inicialização:', window.MP_DEVICE_SESSION_ID.substring(0, 15) + '...');
+                        clearInterval(checkDeviceId);
+                    }
+                }, 100);
+                
+                // Limpar após 5 segundos
+                setTimeout(() => {
+                    clearInterval(checkDeviceId);
+                }, 5000);
             } catch (error) {
                 console.error('[Checkout] Erro ao inicializar Mercado Pago:', error);
             }

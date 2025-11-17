@@ -68,6 +68,15 @@ export function IsolatedCardPaymentBrick({
                 window.__MP_BRICK_CONTAINER__.style.visibility = 'visible';
                 // Forçar reflow para garantir que o estilo seja aplicado
                 window.__MP_BRICK_CONTAINER__.offsetHeight;
+                
+                // Se Brick já está montado e visível, chamar onReady imediatamente
+                // Isso garante que o estado isCheckoutReady seja atualizado quando voltar ao checkout
+                if (handlersRef.current.onReady) {
+                    // Pequeno delay para garantir que o DOM foi atualizado
+                    setTimeout(() => {
+                        handlersRef.current.onReady();
+                    }, 50);
+                }
             } else {
                 window.__MP_BRICK_CONTAINER__.style.display = 'none';
                 window.__MP_BRICK_CONTAINER__.style.visibility = 'hidden';
@@ -100,6 +109,56 @@ export function IsolatedCardPaymentBrick({
             };
 
             const handleReady = () => {
+                // Quando o Brick está pronto, tentar capturar o deviceId do SDK
+                // O SDK do Mercado Pago pode ter definido window.MP_DEVICE_SESSION_ID neste momento
+                if (typeof window !== 'undefined') {
+                    // Tentar múltiplas formas de obter o deviceId
+                    let deviceId: string | undefined;
+                    
+                    // 1. window.MP_DEVICE_SESSION_ID (mais comum)
+                    if (window.MP_DEVICE_SESSION_ID) {
+                        deviceId = window.MP_DEVICE_SESSION_ID;
+                    }
+                    
+                    // 2. Tentar acessar através do objeto MercadoPago
+                    if (!deviceId && window.MercadoPago) {
+                        try {
+                            const mp = window.MercadoPago as any;
+                            if (mp.getDeviceId && typeof mp.getDeviceId === 'function') {
+                                deviceId = mp.getDeviceId();
+                            } else if (mp.deviceId) {
+                                deviceId = mp.deviceId;
+                            } else if (mp.device_session_id) {
+                                deviceId = mp.device_session_id;
+                            }
+                        } catch (error) {
+                            // Ignorar erros silenciosamente
+                        }
+                    }
+                    
+                    // 3. Tentar buscar no DOM (o SDK pode injetar)
+                    if (!deviceId) {
+                        try {
+                            const mpElements = document.querySelectorAll('[data-mp-device-id], [data-device-id]');
+                            for (const element of Array.from(mpElements)) {
+                                const id = element.getAttribute('data-mp-device-id') || element.getAttribute('data-device-id');
+                                if (id && id.length > 10 && !id.startsWith('mp-')) {
+                                    deviceId = id;
+                                    break;
+                                }
+                            }
+                        } catch (error) {
+                            // Ignorar erros silenciosamente
+                        }
+                    }
+                    
+                    // Salvar no localStorage se encontrado
+                    if (deviceId && deviceId.length > 10 && !deviceId.startsWith('mp-')) {
+                        localStorage.setItem('mp-device-session-id', deviceId);
+                        console.log('[IsolatedCardPaymentBrick] ✅ DeviceId capturado quando Brick ficou pronto:', deviceId.substring(0, 15) + '...');
+                    }
+                }
+                
                 handlersRef.current.onReady();
             };
 
@@ -215,6 +274,13 @@ export function IsolatedCardPaymentBrick({
                                     htmlInput.removeAttribute('value');
                                 }
                                 
+                                // Remover classes de erro/validação
+                                htmlInput.classList.remove('error', 'invalid', 'mp-form-control-error');
+                                
+                                // Remover atributos de validação
+                                htmlInput.removeAttribute('aria-invalid');
+                                htmlInput.removeAttribute('data-error');
+                                
                                 // Desabilitar autocomplete
                                 htmlInput.setAttribute('autocomplete', 'off');
                                 htmlInput.setAttribute('autocomplete', 'new-password'); // Truque para evitar autofill do Chrome
@@ -236,6 +302,12 @@ export function IsolatedCardPaymentBrick({
                                 }
                             });
                             
+                            // Remover mensagens de erro/validação do DOM
+                            const errorMessages = form.querySelectorAll('.mp-form-control-error, .error-message, [role="alert"]');
+                            errorMessages.forEach((errorMsg) => {
+                                errorMsg.remove();
+                            });
+                            
                             // Limpar também dentro do container do Brick (pode ter shadow DOM)
                             const brickContainer = form.querySelector('[data-testid="card-form"]') || 
                                                   form.querySelector('.mp-card-form') ||
@@ -250,10 +322,22 @@ export function IsolatedCardPaymentBrick({
                                         htmlInput.defaultValue = '';
                                         htmlInput.removeAttribute('value');
                                     }
+                                    
+                                    // Remover classes de erro/validação
+                                    htmlInput.classList.remove('error', 'invalid', 'mp-form-control-error');
+                                    htmlInput.removeAttribute('aria-invalid');
+                                    htmlInput.removeAttribute('data-error');
+                                    
                                     htmlInput.setAttribute('autocomplete', 'off');
                                     htmlInput.setAttribute('autocomplete', 'new-password');
                                     htmlInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
                                     htmlInput.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                                });
+                                
+                                // Remover mensagens de erro dentro do container do Brick
+                                const containerErrorMessages = brickContainer.querySelectorAll('.mp-form-control-error, .error-message, [role="alert"]');
+                                containerErrorMessages.forEach((errorMsg) => {
+                                    errorMsg.remove();
                                 });
                             }
                             

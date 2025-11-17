@@ -3,11 +3,13 @@
 import dynamic from 'next/dynamic';
 import { SiPix } from 'react-icons/si';
 import { PaymentTabs } from './PaymentTabs';
+import { useCardPayment } from '../hooks/useCardPayment';
 
 const CardPaymentFormBrick = dynamic(
     () => import('./CardPaymentFormBrick').then((mod) => ({ default: mod.CardPaymentFormBrick })),
     {
         loading: () => <div className="mt-6 text-sm text-[#7d796c]">Carregando formulário de pagamento...</div>,
+        ssr: false, // Desabilitar SSR para evitar problemas com Mercado Pago SDK
     }
 );
 
@@ -15,6 +17,7 @@ const PixPaymentSection = dynamic(
     () => import('./PixPaymentSection').then((mod) => ({ default: mod.PixPaymentSection })),
     {
         loading: () => <div className="mt-6 text-sm text-[#7d796c]">Carregando seção PIX...</div>,
+        ssr: false,
     }
 );
 
@@ -22,11 +25,28 @@ interface PaymentSectionProps {
     selectedTab: 'card' | 'pix';
     onTabChange: (tab: 'card' | 'pix') => void;
     pixPaymentActive?: boolean;
-    // Props serão adicionadas conforme necessário
+    orderId: string | null;
+    totalAmount: number;
+    customerEmail: string;
 }
 
-export function PaymentSection({ selectedTab, onTabChange, pixPaymentActive = false }: PaymentSectionProps) {
+export function PaymentSection({ 
+    selectedTab, 
+    onTabChange, 
+    pixPaymentActive = false,
+    orderId,
+    totalAmount,
+    customerEmail,
+}: PaymentSectionProps) {
     const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
+    
+    // Hook para gerenciar pagamento com cartão
+    const cardPayment = useCardPayment(orderId);
+
+    // Handler para quando Brick estiver pronto
+    const handleBrickReady = () => {
+        cardPayment.handleBrickReady();
+    };
 
     return (
         <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] relative">
@@ -51,16 +71,33 @@ export function PaymentSection({ selectedTab, onTabChange, pixPaymentActive = fa
 
             <PaymentTabs selectedTab={selectedTab} onTabChange={onTabChange} pixPaymentActive={pixPaymentActive} />
 
-            {/* Placeholder para mensagens de erro/sucesso */}
-            {/* Será implementado conforme as regras forem passadas */}
-
             {/* Formulários de pagamento */}
             {selectedTab === 'card' ? (
                 <div className="mt-6">
-                    {/* CardPaymentFormBrick será integrado quando as regras forem passadas */}
-                    <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
-                        Formulário de cartão será implementado aqui
-                    </div>
+                    {MP_PUBLIC_KEY && orderId ? (
+                        <CardPaymentFormBrick
+                            onSubmit={cardPayment.handleFormSubmit}
+                            isCheckoutReady={cardPayment.isCheckoutReady}
+                            isProcessing={cardPayment.isProcessing}
+                            status={cardPayment.status}
+                            statusMessage={cardPayment.statusMessage}
+                            statusDetails={cardPayment.statusDetails}
+                            isBlocked={!orderId || totalAmount <= 0}
+                            redirectCountdown={cardPayment.redirectCountdown}
+                            onStatusDismiss={cardPayment.dismissStatus}
+                            onStartNewOrder={cardPayment.resetPayment}
+                            onNavigateToOrders={() => {
+                                window.location.href = '/orders';
+                            }}
+                            amount={totalAmount}
+                            publicKey={MP_PUBLIC_KEY}
+                            onReady={handleBrickReady}
+                        />
+                    ) : (
+                        <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
+                            {!orderId ? 'Aguardando criação do pedido...' : 'Configurando formulário de pagamento...'}
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="mt-6">

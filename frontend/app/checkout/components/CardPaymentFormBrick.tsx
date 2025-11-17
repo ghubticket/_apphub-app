@@ -18,6 +18,7 @@ type CardPaymentFormBrickProps = {
     onStatusDismiss?: () => void;
     onStartNewOrder?: () => void;
     onNavigateToOrders?: () => void;
+    onReady?: () => void;
     amount: number;
     publicKey: string;
 };
@@ -34,6 +35,7 @@ export function CardPaymentFormBrick({
     onStatusDismiss,
     onStartNewOrder,
     onNavigateToOrders,
+    onReady,
     amount,
     publicKey,
 }: CardPaymentFormBrickProps) {
@@ -50,9 +52,14 @@ export function CardPaymentFormBrick({
         (success
             ? 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.'
             : 'Não foi possível processar o pagamento. Tente novamente.');
-    const errorMessages = statusDetails.length
+    const successMessages = success && statusDetails.length
         ? statusDetails
-        : statusMessage
+        : success && statusMessage
+            ? [statusMessage]
+            : [];
+    const errorMessages = error && statusDetails.length
+        ? statusDetails
+        : error && statusMessage
             ? [statusMessage]
             : [];
 
@@ -78,8 +85,11 @@ export function CardPaymentFormBrick({
 
     // Handler para quando o Brick estiver pronto
     const handleReady = useCallback(() => {
-        // Silencioso - Brick isolado gerencia seus próprios logs
-    }, []);
+        // Notificar componente pai que Brick está pronto
+        if (onReady) {
+            onReady();
+        }
+    }, [onReady]);
 
     // Handler para erros do Brick
     const handleError = useCallback((param: any) => {
@@ -217,9 +227,9 @@ export function CardPaymentFormBrick({
                         }}
                     >
                         <div
-                            className={`relative w-full max-w-md rounded-3xl border-2 px-6 py-10 text-center shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] backdrop-blur-sm ${
+                            className={`relative w-full max-w-md rounded-3xl border-2 px-6 py-10 text-center shadow-2xl backdrop-blur-sm ${
                                 success
-                                    ? 'border-green-200 bg-white/95'
+                                    ? 'border-green-200 bg-green-50/95'
                                     : error
                                         ? 'border-rose-200 bg-white/95'
                                         : 'border-[#ded7ca] bg-white/95'
@@ -232,8 +242,8 @@ export function CardPaymentFormBrick({
                                             Pagamento aprovado
                                         </h1>
                                         <div className="mt-4 space-y-2 text-sm leading-relaxed">
-                                            {errorMessages.length > 0 ? (
-                                                errorMessages.map((msg, index) => {
+                                            {successMessages.length > 0 ? (
+                                                successMessages.map((msg, index) => {
                                                     const hasHTML = /<[^>]+>/.test(msg);
                                                     if (hasHTML) {
                                                         return <p key={`${msg}-${index}`} className="leading-relaxed" dangerouslySetInnerHTML={{ __html: msg }} />;
@@ -253,7 +263,7 @@ export function CardPaymentFormBrick({
                                     <button
                                         type="button"
                                         onClick={onNavigateToOrders}
-                                        className="rounded-full border border-[#1a1a1d] px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                        className="rounded-full bg-[#1a1a1d] px-6 py-3 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
                                     >
                                         Ver meus pedidos
                                     </button>
