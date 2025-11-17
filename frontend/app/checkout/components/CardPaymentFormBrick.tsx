@@ -263,9 +263,9 @@ export function CardPaymentFormBrick({
                         }}
                     >
                         <div
-                            className={`relative w-full max-w-md rounded-3xl border-2 px-6 py-10 text-center shadow-2xl backdrop-blur-sm ${
+                            className={`relative w-full max-w-md rounded-3xl border px-6 py-10 text-center shadow-2xl ${
                                 success
-                                    ? 'border-green-200 bg-green-50/95'
+                                    ? 'border-[#b6f0d2] bg-[#f1fff6]'
                                     : error
                                         ? 'border-rose-200 bg-white/95'
                                         : 'border-[#ded7ca] bg-white/95'
@@ -273,8 +273,8 @@ export function CardPaymentFormBrick({
                         >
                             {success ? (
                                 <div className="flex w-full flex-col items-center gap-6">
-                                    <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-green-700">
-                                        <h1 className="text-2xl font-bold uppercase text-green-600">
+                                    <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-[#1f5d3d]">
+                                        <h1 className="text-2xl font-bold uppercase text-[#1f5d3d]">
                                             Pagamento aprovado
                                         </h1>
                                         <div className="mt-4 space-y-2 text-sm leading-relaxed">
@@ -291,7 +291,7 @@ export function CardPaymentFormBrick({
                                             )}
                                         </div>
                                         {redirectCountdown !== null ? (
-                                            <p className="mt-4 text-sm font-semibold text-green-600">
+                                            <p className="mt-4 text-sm font-semibold text-[#2b6b47]">
                                                 Redirecionaremos você em {redirectCountdown}s para ver seus pedidos.
                                             </p>
                                         ) : null}

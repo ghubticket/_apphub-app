@@ -490,9 +490,12 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                     'Você receberá um e-mail com os detalhes do pedido.',
                 ]);
 
+                // CRÍTICO: Atualizar estado imediatamente para desabilitar o navigation guard
+                // Isso garante que o beforeunload seja removido antes do redirecionamento
+                setRedirectCountdown(5);
+
                 // Iniciar countdown para redirecionamento
                 let countdown = 5;
-                setRedirectCountdown(countdown);
                 
                 countdownIntervalRef.current = setInterval(() => {
                     countdown -= 1;
@@ -504,7 +507,25 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                             countdownIntervalRef.current = null;
                         }
                         setRedirectCountdown(null);
-                        router.push('/orders');
+                        
+                        // CRÍTICO: Definir flag global para permitir navegação sem alerta
+                        // Isso garante que o useNavigationGuard não mostre o alerta durante o redirecionamento
+                        if (typeof window !== 'undefined') {
+                            // Definir flag global que o useNavigationGuard verifica
+                            (window as any).__ALLOW_NAVIGATION__ = true;
+                            
+                            // Limpar onbeforeunload
+                            window.onbeforeunload = null;
+                            
+                            // Pequeno delay para garantir que a flag foi definida e o React atualizou
+                            setTimeout(() => {
+                                // Usar window.location.replace para forçar navegação completa
+                                // Isso remove automaticamente todos os event listeners
+                                window.location.replace('/orders');
+                            }, 50);
+                        } else {
+                            router.push('/orders');
+                        }
                     }
                 }, 1000);
             } else if (paymentStatus === 'pending' || paymentStatus === 'in_process') {

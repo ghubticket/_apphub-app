@@ -19,6 +19,7 @@ import api from '@/lib/api';
 import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { storageHelpers } from '../utils/storageHelpers';
 import { getRemainingSeconds, parseExpiresAt } from '../utils/orderHelpers';
+import { useCardPayment } from '../hooks/useCardPayment';
 
 export function CheckoutLayout() {
     const router = useRouter();
@@ -130,9 +131,43 @@ export function CheckoutLayout() {
         return null;
     }, [order?.expiresAt, hasPendingOrderInStorage, hasValidTimerInStorage]);
 
+    // Hook para acessar status do pagamento e desabilitar guard quando aprovado
+    const cardPayment = useCardPayment(order?._id || null);
+    
+    // CRÍTICO: Desabilitar guard quando pagamento for aprovado ou quando há redirecionamento ativo
+    // Não faz sentido bloquear navegação quando o pagamento já foi aprovado e há redirecionamento automático
+    const isPaymentApproved = cardPayment.status === 'success' || cardPayment.redirectCountdown !== null;
+    
+    // CRÍTICO: Definir flag global quando pagamento é aprovado para permitir navegação sem alerta
+    // Isso garante que o useNavigationGuard não mostre o alerta durante o redirecionamento
+    useEffect(() => {
+        if (isPaymentApproved && typeof window !== 'undefined') {
+            console.log('[CheckoutLayout] ✅ Pagamento aprovado - definindo flag para permitir redirecionamento sem alerta');
+            
+            // Definir flag global que o useNavigationGuard verifica
+            (window as any).__ALLOW_NAVIGATION__ = true;
+            
+            // Também limpar o onbeforeunload caso tenha sido definido diretamente
+            window.onbeforeunload = null;
+            
+            return () => {
+                // Limpar flag quando componente desmontar ou pagamento não for mais aprovado
+                if (typeof window !== 'undefined') {
+                    (window as any).__ALLOW_NAVIGATION__ = false;
+                }
+            };
+        } else {
+            // Limpar flag quando pagamento não for mais aprovado
+            if (typeof window !== 'undefined') {
+                (window as any).__ALLOW_NAVIGATION__ = false;
+            }
+        }
+    }, [isPaymentApproved]);
+    
     // Interceptar navegação quando há pedido PENDING (mesmo durante loading)
+    // CRÍTICO: Desabilitar guard quando pagamento for aprovado
     useNavigationGuard({
-        enabled: !!(order && order.status === 'pending') || hasPendingOrderInStorage,
+        enabled: (!isPaymentApproved && (!!(order && order.status === 'pending') || hasPendingOrderInStorage)),
         onNavigationAttempt: () => {
             setShowExitWarning(true);
         },
@@ -149,18 +184,22 @@ export function CheckoutLayout() {
     }, [showExpiredModal, refreshCart]);
 
     // OTIMIZADO: Memoizar callbacks para evitar re-renders desnecessários
+    // CRÍTICO: Quando o timer expira, redirecionar diretamente sem mostrar modal
     const handleTimerExpire = useCallback(async () => {
-        console.log('[CheckoutLayout] ⏰ Timer do pedido expirado!');
+        console.log('[CheckoutLayout] ⏰ Timer do pedido expirado! Redirecionando diretamente...');
+
+        // CRÍTICO: Fechar modal de expiração se estiver aberto (evita mostrar modal antes de redirecionar)
+        closeExpiredModal();
 
         // OTIMIZADO: Usar order do hook diretamente
         const orderId = order?._id;
 
         if (orderId) {
             try {
-                // Cancelar pedido expirado no backend
+                // Cancelar pedido expirado no backend (devolve estoque automaticamente)
                 console.log('[CheckoutLayout] 🗑️ Cancelando pedido expirado:', orderId);
                 await api.post(`/orders/${orderId}/cancel`);
-                console.log('[CheckoutLayout] ✅ Pedido expirado cancelado com sucesso');
+                console.log('[CheckoutLayout] ✅ Pedido expirado cancelado com sucesso, estoque devolvido');
             } catch (err: any) {
                 // Se já foi cancelado (404), tudo bem
                 if (err?.response?.status !== 404) {
@@ -174,9 +213,11 @@ export function CheckoutLayout() {
         clearCartItems();
         refreshCart();
 
-        // Atualizar pedido para verificar status final
-        await refreshOrder();
-    }, [order?._id, clearOrder, refreshCart, refreshOrder]);
+        // CRÍTICO: Redirecionar diretamente para home sem mostrar modal
+        // Não faz sentido mostrar alerta quando o timer expira - o usuário já sabe que o tempo acabou
+        console.log('[CheckoutLayout] 🏠 Redirecionando para home após expiração do timer');
+        router.push('/');
+    }, [order?._id, clearOrder, refreshCart, router, closeExpiredModal]);
 
     const handleContinueOrder = useCallback(() => {
         // Fechar modal e continuar com o pedido

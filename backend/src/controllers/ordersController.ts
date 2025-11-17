@@ -1348,12 +1348,15 @@ export const cancelOrder = async (req: Request, res: Response) => {
             }
         }
 
-        // Liberar estoque para cada ticketType (apenas dos tickets pending)
+        // CRÍTICO: Liberar estoque IMEDIATAMENTE para cada ticketType (apenas dos tickets pending)
+        // Isso garante que os ingressos fiquem disponíveis assim que o pedido é cancelado
         for (const [ticketTypeId, quantity] of ticketTypeCounts.entries()) {
             const ticketType = await TicketType.findById(ticketTypeId);
             if (ticketType && quantity > 0) {
+                const oldSoldQuantity = ticketType.soldQuantity;
                 ticketType.soldQuantity = Math.max(0, ticketType.soldQuantity - quantity);
                 await ticketType.save();
+                console.log(`✅ [cancelOrder] Estoque devolvido: ${quantity} ingressos do tipo ${ticketTypeId} (${oldSoldQuantity} -> ${ticketType.soldQuantity})`);
             }
         }
         

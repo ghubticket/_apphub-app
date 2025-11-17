@@ -101,6 +101,13 @@ export function useNavigationGuard({ enabled, onNavigationAttempt, allowedPaths 
         if (!enabled) return;
 
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            // CRÍTICO: Verificar se há uma flag global que permite navegação
+            // Isso é usado quando o pagamento é aprovado e queremos redirecionar sem alerta
+            if (typeof window !== 'undefined' && (window as any).__ALLOW_NAVIGATION__) {
+                // Não fazer nada - permite navegação sem alerta
+                return;
+            }
+            
             e.preventDefault();
             e.returnValue = 'Você tem um pedido pendente. Deseja realmente sair?';
             return e.returnValue;

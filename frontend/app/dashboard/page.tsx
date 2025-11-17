@@ -418,13 +418,17 @@ export default function DashboardPage() {
                     return [];
                 });
                 
+                // CRÍTICO: Usar o número real de tickets coletados ao invés do totalTickets calculado
+                // Isso resolve discrepâncias causadas por tickets deletados ou não populados
+                const realTotalTickets = allTickets.length;
+                
                 // Criar um objeto "virtual" que representa o grupo consolidado
                 const firstOrder = group.orders[0];
                 return {
                     ...firstOrder,
                     _id: `group-${group.eventId}`, // ID único para o grupo
                     orderNumber: `${group.orders.length} Pedidos Consolidados`,
-                    totalTickets: group.totalTickets,
+                    totalTickets: realTotalTickets, // Usar número real de tickets
                     totalAmount: group.totalAmount,
                     tickets: allTickets, // Todos os tickets do grupo
                 } as OrderSummary;
@@ -571,18 +575,29 @@ export default function DashboardPage() {
                         });
                         const ticketsConfirmed = allTickets.filter((ticket) => ticket?.status === 'confirmed').length;
 
-                        // Log para debug (remover em produção se necessário)
-                        if (allTickets.length !== group.totalTickets) {
+                        // CRÍTICO: Usar o número real de tickets coletados ao invés do totalTickets calculado
+                        // Isso resolve discrepâncias causadas por tickets deletados ou não populados
+                        const realTotalTickets = allTickets.length;
+                        
+                        // Log para debug apenas se houver discrepância (qualquer diferença)
+                        // Isso ajuda a identificar quando tickets foram deletados ou não foram criados corretamente
+                        if (realTotalTickets !== group.totalTickets) {
+                            const missingTickets = group.totalTickets - realTotalTickets;
                             console.warn('[Dashboard] ⚠️ Discrepância no número de tickets:', {
                                 totalTicketsCalculado: group.totalTickets,
-                                ticketsColetados: allTickets.length,
+                                ticketsColetados: realTotalTickets,
+                                ticketsFaltando: missingTickets > 0 ? missingTickets : 0,
                                 pedidosNoGrupo: group.orders.length,
                                 ticketsPorPedido: group.orders.map(o => ({
                                     orderId: o._id,
                                     orderNumber: o.orderNumber,
                                     totalTickets: o.totalTickets,
                                     ticketsArrayLength: Array.isArray(o.tickets) ? o.tickets.length : 0,
+                                    status: o.status,
                                 })),
+                                observacao: missingTickets > 0 
+                                    ? `⚠️ ATENÇÃO: ${missingTickets} ticket(s) podem ter sido deletados ou não foram criados corretamente. Verifique no banco de dados.`
+                                    : 'Tickets adicionais podem ter sido criados manualmente.',
                             });
                         }
 
@@ -633,7 +648,7 @@ export default function DashboardPage() {
                                                     {paymentLabelsList || 'Pagamento confirmado'}
                                                 </span>
                                                 <span className="text-xs text-[#7d796c]">
-                                                    {group.totalTickets} ingresso{group.totalTickets > 1 ? 's' : ''} total{group.totalTickets > 1 ? 'is' : ''}
+                                                    {realTotalTickets} ingresso{realTotalTickets > 1 ? 's' : ''} total{realTotalTickets > 1 ? 'is' : ''}
                                                 </span>
                                             </div>
                                             <HiOutlineChevronDown

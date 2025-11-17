@@ -67,18 +67,18 @@ export function PixPaymentSection({
                         }
                     }}
                 >
-                    <div className="relative w-full max-w-md rounded-3xl border-2 border-green-200 bg-green-50/95 p-8 shadow-2xl backdrop-blur-sm">
+                    <div className="relative w-full max-w-md rounded-3xl border border-[#b6f0d2] bg-[#f1fff6] p-8 shadow-2xl">
                         {pixStatus === 'success' ? (
                             <div className="flex w-full max-w-md flex-col items-center gap-6">
-                                <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-green-700">
-                                    <h1 className="text-2xl font-bold uppercase text-green-600">
+                                <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-[#1f5d3d]">
+                                    <h1 className="text-2xl font-bold uppercase text-[#1f5d3d]">
                                         Pagamento aprovado
                                     </h1>
                                     <div className="mt-4 space-y-2 text-sm leading-relaxed">
                                         <p className="leading-relaxed">{pixStatusMessage}</p>
                                     </div>
                                     {redirectCountdown !== null ? (
-                                        <p className="mt-4 text-sm font-semibold text-green-600">
+                                        <p className="mt-4 text-sm font-semibold text-[#2b6b47]">
                                             Redirecionaremos você em {redirectCountdown}s para ver seus pedidos.
                                         </p>
                                     ) : null}
