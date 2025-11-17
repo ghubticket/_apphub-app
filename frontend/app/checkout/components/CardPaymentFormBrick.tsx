@@ -18,7 +18,7 @@ type CardPaymentFormBrickProps = {
     maxAttemptsReached?: boolean;
     onStatusDismiss?: () => void;
     onStartNewOrder?: () => void;
-    onNavigateToOrders?: () => void;
+    onNavigateTodashboard?: () => void;
     onCancelOrder?: () => void;
     onReady?: () => void;
     amount: number;
@@ -37,7 +37,7 @@ export function CardPaymentFormBrick({
     maxAttemptsReached = false,
     onStatusDismiss,
     onStartNewOrder,
-    onNavigateToOrders,
+    onNavigateTodashboard,
     onCancelOrder,
     onReady,
     amount,
@@ -298,7 +298,7 @@ export function CardPaymentFormBrick({
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={onNavigateToOrders}
+                                        onClick={onNavigateTodashboard}
                                         className="rounded-full bg-[#1a1a1d] px-6 py-3 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
                                     >
                                         Ver meus pedidos

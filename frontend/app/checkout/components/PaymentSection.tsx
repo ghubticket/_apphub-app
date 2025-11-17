@@ -4,6 +4,8 @@ import dynamic from 'next/dynamic';
 import { SiPix } from 'react-icons/si';
 import { PaymentTabs } from './PaymentTabs';
 import { useCardPayment } from '../hooks/useCardPayment';
+import { clearCartItems } from '@/lib/cart';
+import { storageHelpers } from '../utils/storageHelpers';
 
 const CardPaymentFormBrick = dynamic(
     () => import('./CardPaymentFormBrick').then((mod) => ({ default: mod.CardPaymentFormBrick })),
@@ -89,8 +91,33 @@ export function PaymentSection({
                             onStatusDismiss={cardPayment.dismissStatus}
                             maxAttemptsReached={cardPayment.maxAttemptsReached}
                             onStartNewOrder={onCancelOrder} // Usar mesmo handler que cancela e vai para home
-                            onNavigateToOrders={() => {
-                                window.location.href = '/orders';
+                            onNavigateTodashboard={() => {
+                                // CRÍTICO: Limpar todo o estado do checkout antes de redirecionar
+                                // Isso garante que não haja dados residuais após o pagamento aprovado
+                                if (typeof window !== 'undefined') {
+                                    // Limpar pedido ativo do storage
+                                    storageHelpers.clearActiveOrderId();
+                                    
+                                    // Limpar timer do checkout
+                                    storageHelpers.clearTimerStartTime();
+                                    
+                                    // Limpar carrinho (já que o pagamento foi aprovado)
+                                    clearCartItems();
+                                    
+                                    // Definir flag global para permitir navegação sem alerta
+                                    // Isso garante que o useNavigationGuard não mostre o alerta durante o redirecionamento
+                                    (window as any).__ALLOW_NAVIGATION__ = true;
+                                    
+                                    // Limpar onbeforeunload
+                                    window.onbeforeunload = null;
+                                    
+                                    // Pequeno delay para garantir que a flag foi definida e o React atualizou
+                                    setTimeout(() => {
+                                        // Usar window.location.replace para forçar navegação completa
+                                        // Isso remove automaticamente todos os event listeners
+                                        window.location.replace('/dashboard');
+                                    }, 50);
+                                }
                             }}
                             onCancelOrder={onCancelOrder}
                             amount={totalAmount}

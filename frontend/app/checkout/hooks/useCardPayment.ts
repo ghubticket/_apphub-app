@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import type { FormEvent } from 'react';
 import { getMercadoPagoDeviceId, waitForMercadoPagoDeviceId } from '../utils/deviceIdHelper';
+import { clearCartItems } from '@/lib/cart';
+import { storageHelpers } from '../utils/storageHelpers';
 
 export type PaymentStatus = 'idle' | 'processing' | 'success' | 'error';
 
@@ -508,10 +510,20 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                         }
                         setRedirectCountdown(null);
                         
-                        // CRÍTICO: Definir flag global para permitir navegação sem alerta
-                        // Isso garante que o useNavigationGuard não mostre o alerta durante o redirecionamento
+                        // CRÍTICO: Limpar todo o estado do checkout antes de redirecionar
+                        // Isso garante que não haja dados residuais após o pagamento aprovado
                         if (typeof window !== 'undefined') {
-                            // Definir flag global que o useNavigationGuard verifica
+                            // Limpar pedido ativo do storage
+                            storageHelpers.clearActiveOrderId();
+                            
+                            // Limpar timer do checkout
+                            storageHelpers.clearTimerStartTime();
+                            
+                            // Limpar carrinho (já que o pagamento foi aprovado)
+                            clearCartItems();
+                            
+                            // Definir flag global para permitir navegação sem alerta
+                            // Isso garante que o useNavigationGuard não mostre o alerta durante o redirecionamento
                             (window as any).__ALLOW_NAVIGATION__ = true;
                             
                             // Limpar onbeforeunload
@@ -521,10 +533,10 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                             setTimeout(() => {
                                 // Usar window.location.replace para forçar navegação completa
                                 // Isso remove automaticamente todos os event listeners
-                                window.location.replace('/orders');
+                                window.location.replace('/dashboard');
                             }, 50);
                         } else {
-                            router.push('/orders');
+                            router.push('/dashboard');
                         }
                     }
                 }, 1000);
