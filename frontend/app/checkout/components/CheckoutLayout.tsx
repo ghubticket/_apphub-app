@@ -266,6 +266,9 @@ export function CheckoutLayout() {
         router.push('/');
     }, [clearOrder, refreshCart, router]);
 
+    // Calcular expiresAt para o timer (sempre usa o expiresAt do pedido)
+    const timerExpiresAt = order?.expiresAt || null;
+
     // Mostrar loading
     if (cartLoading || orderLoading) {
         return <CheckoutLoadingState cartLoading={cartLoading} orderLoading={orderLoading} />;
@@ -293,11 +296,6 @@ export function CheckoutLayout() {
         return <CheckoutEmptyState />;
     }
 
-    // Calcular expiresAt para o timer
-    const timerExpiresAt = pixPayment.pixResult?.expiresAt 
-        ? pixPayment.pixResult.expiresAt 
-        : order?.expiresAt || null;
-
     return (
         <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
             <Container className="py-12">
@@ -311,13 +309,7 @@ export function CheckoutLayout() {
                                 onExpire={handleTimerExpire}
                                 expiresAt={timerExpiresAt}
                                 initialRemainingSeconds={checkoutState.remainingSeconds}
-                                key={
-                                    pixPayment.pixResult?.expiresAt 
-                                        ? String(pixPayment.pixResult.expiresAt)
-                                        : order?.expiresAt 
-                                            ? String(order.expiresAt)
-                                            : 'no-expires'
-                                }
+                                key={order?.expiresAt ? String(order.expiresAt) : 'no-expires'}
                             />
                         )}
 
