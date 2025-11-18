@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment, cancelOrder, getFinancialStats } from '../controllers/ordersController';
+import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment, cancelOrder, getFinancialStats, updateOrderPromoterCode } from '../controllers/ordersController';
 import rateLimit from 'express-rate-limit';
 import { authenticate, isAdmin } from '../middleware/auth';
 
@@ -220,6 +220,44 @@ router.post('/:id/confirm-payment', authenticate, confirmPayment);
  *         description: Acesso negado - apenas ADMIN
  */
 router.get('/financial/stats', authenticate, isAdmin, getFinancialStats);
+
+/**
+ * @swagger
+ * /api/orders/{id}/promoter-code:
+ *   patch:
+ *     summary: Atualizar código de promotor em pedido existente
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               promoterCode:
+ *                 type: string
+ *                 description: Código de promotor (ou null para remover)
+ *     responses:
+ *       200:
+ *         description: Código de promotor atualizado com sucesso
+ *       400:
+ *         description: Código inválido ou pedido não pode ser atualizado
+ *       401:
+ *         description: Não autenticado
+ *       403:
+ *         description: Acesso negado
+ *       404:
+ *         description: Pedido não encontrado
+ */
+router.patch('/:id/promoter-code', authenticate, updateOrderPromoterCode);
 
 export default router;
 

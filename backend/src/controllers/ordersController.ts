@@ -1573,3 +1573,266 @@ export const getFinancialStats = async (req: Request, res: Response) => {
         });
     }
 };
+
+/**
+ * Atualiza código de promotor em pedido existente
+ * Recalcula valores do pedido sem resetar timer ou status
+ */
+export const updateOrderPromoterCode = async (req: Request, res: Response) => {
+    try {
+        console.log('[updateOrderPromoterCode] 🎯 Requisição recebida:', {
+            orderId: req.params.id,
+            promoterCode: req.body.promoterCode,
+            userId: (req as any).user?._id?.toString(),
+            method: req.method,
+            url: req.url,
+        });
+
+        const userId = (req as any).user?._id?.toString();
+        const { id: orderId } = req.params;
+        const { promoterCode } = req.body;
+
+        if (!orderId) {
+            console.log('[updateOrderPromoterCode] ❌ OrderId não fornecido');
+            return res.status(400).json({
+                success: false,
+                message: 'ID do pedido é obrigatório'
+            });
+        }
+
+        // Buscar pedido
+        console.log('[updateOrderPromoterCode] 🔍 Buscando pedido:', orderId);
+        const order = await Order.findById(orderId)
+            .populate('event')
+            .populate('tickets')
+            .lean();
+
+        if (!order) {
+            console.log('[updateOrderPromoterCode] ❌ Pedido não encontrado:', orderId);
+            return res.status(404).json({
+                success: false,
+                message: 'Pedido não encontrado'
+            });
+        }
+
+        console.log('[updateOrderPromoterCode] ✅ Pedido encontrado:', {
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            subtotal: order.subtotal,
+            currentDiscountAmount: order.discountAmount,
+            currentTotalAmount: order.totalAmount,
+            currentPromoterCode: order.promoterCode,
+        });
+
+        // Verificar se o pedido pertence ao usuário (se autenticado)
+        if (userId) {
+            const orderUserId = order.customer?.toString() || order.customer;
+            console.log('[updateOrderPromoterCode] 🔐 Verificando propriedade do pedido:', {
+                userId,
+                orderUserId,
+                match: orderUserId === userId,
+            });
+            if (orderUserId !== userId) {
+                console.log('[updateOrderPromoterCode] ❌ Acesso negado - pedido não pertence ao usuário');
+                return res.status(403).json({
+                    success: false,
+                    message: 'Acesso negado'
+                });
+            }
+        }
+
+        // Verificar se o pedido está pendente
+        if (order.status !== 'pending') {
+            console.log('[updateOrderPromoterCode] ❌ Pedido não está pendente:', {
+                status: order.status,
+            });
+            return res.status(400).json({
+                success: false,
+                message: 'Apenas pedidos pendentes podem ter código de promotor atualizado'
+            });
+        }
+
+        // Buscar evento e ticketType
+        const eventId = typeof order.event === 'object' ? (order.event as any)._id : order.event;
+        console.log('[updateOrderPromoterCode] 🔍 Buscando evento:', eventId);
+        const event = await Event.findById(eventId).lean();
+        if (!event) {
+            console.log('[updateOrderPromoterCode] ❌ Evento não encontrado:', eventId);
+            return res.status(404).json({
+                success: false,
+                message: 'Evento não encontrado'
+            });
+        }
+        console.log('[updateOrderPromoterCode] ✅ Evento encontrado:', {
+            eventId: event._id,
+            name: event.name,
+            platformFeePercentage: event.platformFeePercentage,
+        });
+
+        // Buscar tickets do pedido para obter ticketType
+        console.log('[updateOrderPromoterCode] 🔍 Buscando tickets do pedido');
+        const tickets = await Ticket.find({ order: orderId, deletedAt: null })
+            .populate('ticketType')
+            .lean();
+
+        if (tickets.length === 0) {
+            console.log('[updateOrderPromoterCode] ❌ Pedido não possui tickets');
+            return res.status(400).json({
+                success: false,
+                message: 'Pedido não possui tickets'
+            });
+        }
+        console.log('[updateOrderPromoterCode] ✅ Tickets encontrados:', tickets.length);
+
+        // Usar o primeiro ticket para obter ticketType (todos devem ser do mesmo tipo)
+        const ticketType = tickets[0].ticketType as any;
+        if (!ticketType) {
+            console.log('[updateOrderPromoterCode] ❌ Tipo de ingresso não encontrado no ticket');
+            return res.status(404).json({
+                success: false,
+                message: 'Tipo de ingresso não encontrado'
+            });
+        }
+        console.log('[updateOrderPromoterCode] ✅ Tipo de ingresso encontrado:', {
+            ticketTypeId: ticketType._id,
+            isVIP: ticketType.isVIP,
+        });
+
+        // Validar código de promotor se fornecido
+        let usedPromoterCode: string | undefined = undefined;
+        let discountAmount = 0;
+
+        if (promoterCode) {
+            const codeToSearch = String(promoterCode).toUpperCase().trim();
+            console.log('[updateOrderPromoterCode] 🔍 Buscando código de promotor:', {
+                code: codeToSearch,
+                eventId,
+            });
+            
+            const code = await PromoterCode.findOne({
+                code: codeToSearch,
+                isActive: true,
+                deletedAt: null,
+                events: eventId
+            }).lean();
+
+            if (!code) {
+                console.log('[updateOrderPromoterCode] ❌ Código de promotor não encontrado ou inválido:', {
+                    code: codeToSearch,
+                    eventId,
+                });
+                return res.status(400).json({
+                    success: false,
+                    message: 'Código de promotor inválido ou não válido para este evento'
+                });
+            }
+
+            console.log('[updateOrderPromoterCode] ✅ Código de promotor encontrado:', {
+                code: code.code,
+                discountType: code.discountType,
+                discountValue: code.discountValue,
+            });
+
+            usedPromoterCode = code.code;
+
+            // Recalcular desconto baseado no subtotal atual do pedido
+            const isVIP = ticketType.isVIP;
+            if (!isVIP) {
+                if (code.discountType === 'percentage') {
+                    discountAmount = (order.subtotal || 0) * (code.discountValue / 100);
+                    console.log('[updateOrderPromoterCode] 💰 Desconto percentual calculado:', {
+                        subtotal: order.subtotal,
+                        percentage: code.discountValue,
+                        discountAmount,
+                    });
+                } else {
+                    discountAmount = Math.min(code.discountValue, order.subtotal || 0);
+                    console.log('[updateOrderPromoterCode] 💰 Desconto fixo calculado:', {
+                        subtotal: order.subtotal,
+                        fixedValue: code.discountValue,
+                        discountAmount,
+                    });
+                }
+            } else {
+                console.log('[updateOrderPromoterCode] ℹ️ Ticket VIP - desconto não aplicado');
+            }
+        } else {
+            console.log('[updateOrderPromoterCode] ℹ️ Removendo código de promotor (promoterCode é null/undefined)');
+        }
+
+        // Recalcular valores do pedido
+        const isVIP = ticketType.isVIP;
+        const subtotal = order.subtotal || 0;
+        const platformFeePercentage = event.platformFeePercentage || 0;
+        const subtotalAfterDiscount = subtotal - discountAmount;
+        const platformFee = isVIP ? 0 : (subtotalAfterDiscount * (platformFeePercentage / 100));
+        const totalAmount = subtotalAfterDiscount + platformFee;
+
+        console.log('[updateOrderPromoterCode] 💰 Valores recalculados:', {
+            subtotal,
+            discountAmount,
+            subtotalAfterDiscount,
+            platformFeePercentage,
+            platformFee,
+            totalAmount,
+            isVIP,
+        });
+
+        // Atualizar pedido
+        console.log('[updateOrderPromoterCode] 💾 Atualizando pedido no banco:', {
+            orderId,
+            promoterCode: usedPromoterCode || null,
+            discountAmount,
+            platformFee,
+            totalAmount,
+        });
+
+        const updatedOrder = await Order.findByIdAndUpdate(
+            orderId,
+            {
+                promoterCode: usedPromoterCode || null,
+                discountAmount,
+                platformFee,
+                totalAmount,
+            },
+            { new: true }
+        )
+            .populate('event', 'name date location address')
+            .populate('tickets', 'code qrCode status price ticketType holder')
+            .populate('customer', 'name email')
+            .populate('tickets.ticketType', 'name')
+            .lean();
+
+        if (!updatedOrder) {
+            console.log('[updateOrderPromoterCode] ❌ Erro ao atualizar pedido - pedido não encontrado após update');
+            return res.status(500).json({
+                success: false,
+                message: 'Erro ao atualizar pedido'
+            });
+        }
+
+        console.log('[updateOrderPromoterCode] ✅ Pedido atualizado com sucesso:', {
+            orderId: updatedOrder._id,
+            orderNumber: updatedOrder.orderNumber,
+            promoterCode: updatedOrder.promoterCode,
+            discountAmount: updatedOrder.discountAmount,
+            totalAmount: updatedOrder.totalAmount,
+        });
+
+        return res.json({
+            success: true,
+            message: promoterCode ? 'Código de promotor aplicado com sucesso' : 'Código de promotor removido com sucesso',
+            data: {
+                order: updatedOrder
+            }
+        });
+    } catch (error: any) {
+        console.error('Erro ao atualizar código de promotor:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Erro ao atualizar código de promotor',
+            errors: [error.message || 'Erro desconhecido']
+        });
+    }
+};

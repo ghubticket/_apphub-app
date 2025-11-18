@@ -18,6 +18,8 @@ export interface CheckoutOrder {
     totalTickets: number;
     paymentMethod?: string;
     createdAt?: string | Date;
+    discountAmount?: number;
+    promoterCode?: string | null;
 }
 
 interface UseCheckoutOrderReturn {
@@ -93,7 +95,8 @@ function orderReducer(state: OrderState, action: OrderAction): OrderState {
  */
 export function useCheckoutOrder(
     cartItems: CheckoutCartItem[],
-    customerData: { name: string; email: string; cpf: string; phone: string }
+    customerData: { name: string; email: string; cpf: string; phone: string },
+    promoterCode?: string | null
 ): UseCheckoutOrderReturn {
     const storage = useCheckoutStorage();
     const navigation = useCheckoutNavigation();
@@ -159,6 +162,7 @@ export function useCheckoutOrder(
         hasShownExpiredModalRef,
         createOrderAbortControllerRef,
         order: state.order,
+        promoterCode,
     });
 
     // Order restoration hook
@@ -260,7 +264,7 @@ export function useCheckoutOrder(
                             setTimeout(() => {
                                 navigation.navigateToDashboard({ useReplace: true });
                             }, 100);
-                        } else {
+                    } else {
                             storage.clearPixOrderActive();
                         }
                     } catch (err: any) {

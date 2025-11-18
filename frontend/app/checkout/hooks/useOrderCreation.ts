@@ -18,6 +18,7 @@ interface UseOrderCreationOptions {
     hasShownExpiredModalRef: React.MutableRefObject<boolean>;
     createOrderAbortControllerRef: React.MutableRefObject<AbortController | null>;
     order: any | null;
+    promoterCode?: string | null;
 }
 
 interface UseOrderCreationReturn {
@@ -43,6 +44,7 @@ export function useOrderCreation({
     hasShownExpiredModalRef,
     createOrderAbortControllerRef,
     order,
+    promoterCode,
 }: UseOrderCreationOptions): UseOrderCreationReturn {
     const storage = useCheckoutStorage();
 
@@ -245,6 +247,7 @@ export function useOrderCreation({
                     cpf: customerData.cpf || undefined,
                     phone: customerData.phone || undefined,
                 },
+                ...(promoterCode ? { promoterCode: promoterCode.toUpperCase().trim() } : {}),
             };
 
             console.log('[useOrderCreation] 🚀 Criando novo pedido no backend:', {
