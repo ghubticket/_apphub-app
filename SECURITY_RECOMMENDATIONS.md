@@ -1,248 +1,367 @@
-# Recomendações de Segurança para Sistema de Venda de Ingressos
+# 🔴 Segurança - O Que Falta Fazer
 
-## 1. Segurança de Dados e Transações
+> **Data:** Janeiro 2025  
+> **Status:** ~90% implementado ✅  
+> **Foco:** Apenas o que precisa ser feito daqui pra frente
 
-### 1.1 Validação de Estoque
-- ✅ **Implementado**: Verificação de quantidade máxima por lote
-- ✅ **Implementado**: Validação de limite por compra
-- ✅ **Implementado**: Transações atômicas na criação de pedidos (Mongoose Transactions)
-- 🔄 **Recomendado**: Lock otimista/estratégias anti-race para picos de venda
+---
 
-### 1.2 Rate Limiting por Compra
-- ✅ **Implementado**: Rate limiting global no backend
-- ✅ **Implementado**: Proteções de rate limiting nos endpoints de pagamento e status (básico)
-- ✅ **Implementado**: Rate limiting específico para criação de pedidos (20 requisições por 15 minutos por IP)
-- 🔄 **Recomendado**: Rate limiting por usuário autenticado (ex: 10 pedidos por hora)
+## 🔴 CRÍTICO - Implementar ANTES de Produção
 
-### 1.3 Validação de Quantidade
-- ✅ **Implementado**: Validação de limite por compra (`maxPerPurchase`)
-- ✅ **Implementado**: Validação de estoque disponível
-- ✅ **Implementado**: Reserva temporária de ingressos (15 minutos)
-  - Quando um pedido é criado, o estoque é decrementado (`soldQuantity += quantity`)
-  - Se o pedido não for pago em 15 minutos, é cancelado automaticamente e o estoque é liberado (`soldQuantity -= quantity`)
-  - Funciona tanto para cancelamento manual quanto automático (scheduler)
-  - Sistema de reservas temporárias (`TicketReservation`) também disponível para reservas pré-compra
+### 1. ✅ Backup Automático do MongoDB
 
-## 2. Segurança de QR Codes
+**Status:** ✅ **IMPLEMENTADO** - Scripts criados, falta apenas configurar
 
-### 2.1 Geração Segura
-- ✅ **Implementado**: Criptografia do payload com AES-256-GCM (com IV e auth tag)
-- ✅ **Implementado**: Assinatura HMAC-SHA256 do payload
-- ✅ **Implementado**: Inclusão de timestamp e nonce (anti-replay)
-- ℹ️ **Obs.**: Variáveis `QR_SECRET` (32 bytes hex/base64) e opcional `QR_HMAC_SECRET`
+**O que foi feito:**
+- ✅ Script `scripts/backup-mongodb.sh` criado (Linux/Mac)
+- ✅ Script `scripts/backup-mongodb.ps1` criado (Windows)
+- ✅ Comando `npm run backup:mongodb` adicionado
+- ✅ Suporte para upload automático para S3
+- ✅ Limpeza automática de backups antigos (7 dias)
 
-### 2.3 Validação
-- ✅ **Implementado**: Validação de assinatura HMAC e decriptografia AES-256-GCM
-- ✅ **Implementado**: Checagem de timestamp e nonce anti-replay (persistente)
-- ✅ **Implementado**: Verificação de status do ingresso (confirmado) e pedido (pago)
-- ✅ **Implementado**: Apenas role QRCODE pode validar ingressos (Admin não valida para evitar confusão)
-- ✅ **Implementado**: Blacklist de usuários - usuários bloqueados não podem validar ingressos
-- ✅ **Implementado**: Sistema de rastreamento de tentativas (`ValidationAttempt`) com IP e user-agent
-- 🔄 **Recomendado**: Blacklist de códigos cancelados/estornados (além da blacklist de usuários)
+**O que fazer:**
+- [ ] **MongoDB Atlas:** Ativar backups automáticos no painel (recomendado)
+- [ ] **MongoDB self-hosted:** Configurar cron job/Task Scheduler
+  ```bash
+  # Linux/Mac: crontab -e
+  0 2 * * * cd /caminho/backend && npm run backup:mongodb
+  
+  # Windows: Task Scheduler
+  # Ação: powershell.exe -File "C:\caminho\backend\scripts\backup-mongodb.ps1"
+  ```
+- [ ] **Teste de restauração** (pelo menos mensal)
+- [ ] **Backup de arquivos de upload** (se necessário)
 
-## 3. Segurança de Pagamentos
+**Impacto:** 🔴 **CRÍTICO** - Perda de dados = perda de negócio
 
-### 3.1 Integração com Gateway
-- ✅ **Implementado**: Idempotência nas requisições à Orders API via `X-Idempotency-Key`
-- ✅ **Implementado**: Autorização via `Authorization: Bearer <MP_ACCESS_TOKEN>` com validação e logs de diagnóstico
-- ✅ **Implementado**: Tratamento de sandbox (forçar email `*@testuser.com` em ambiente dev)
-- ✅ **Implementado**: Armazenamento e exibição de mensagens detalhadas de status/erros (user/admin)
-- ✅ **Implementado**: Logs detalhados de criação de pagamentos e respostas do MP (ambiente dev)
-- ✅ **Implementado**: Webhook tipo `order` (Orders API) com idempotência persistente (DB + fila + retry) e assinatura HMAC-SHA256 obrigatória em produção (`MP_WEBHOOK_SECRET`)
+---
 
-### 3.2 Processamento de Pagamento
-- ✅ **Implementado**: Nunca processar pagamento diretamente no frontend (toda a criação acontece no backend)
-- ✅ **Implementado**: Validações server-side (CPF, email, amount, status do pedido, expiração)
-- ✅ **Implementado**: Timeout/expiração automática de pedidos pendentes (serviço agendado)
-- ✅ **Implementado**: Exigir `deviceId`/fingerprint (`X-meli-session-id` ou `deviceId`) no checkout
-- 🔄 **Recomendado**: Heurísticas antifraude por sessão (ex.: correlação IP/UA, velocity rules)
+### 2. ✅ Configurar ENCRYPTION_KEY
 
-## 4. Segurança de API
+**Status:** ✅ **IMPLEMENTADO** - Script criado, falta apenas executar
 
-### 4.1 Autenticação e Autorização
-- ✅ **Implementado**: JWT com verificação de token
-- ✅ **Implementado**: Middleware de autorização por role (ADMIN, QRCODE)
-- ✅ **Implementado**: Lockout progressivo no login (5 falhas/15 min → bloqueio 15 min)
-- ✅ **Implementado**: Controle de acesso granular - apenas role QRCODE pode validar ingressos (Admin não valida)
-- ✅ **Implementado**: Verificação de blacklist antes de permitir validação
-- 🔄 **Recomendado**: Refresh tokens + rotação
-- 🔄 **Recomendado**: Rate limiting por usuário autenticado
+**O que foi feito:**
+- ✅ Script `scripts/generate-secrets.js` criado
+- ✅ Comando `npm run generate-secrets` adicionado
+- ✅ `env.example` atualizado com `ENCRYPTION_KEY`
 
-### 4.2 Validação de Input
-- ✅ **Implementado**: Validação de schema com Mongoose
-- 🔄 **Recomendado**: Sanitização adicional de inputs (prevenir XSS, SQL Injection)
-- 🔄 **Recomendado**: Validação de tipos de dados no controller
+**O que fazer:**
+- [ ] Executar: `npm run generate-secrets`
+- [ ] Adicionar `ENCRYPTION_KEY` ao `.env`
+- [ ] **Em produção:** Usar serviço de secrets (AWS Secrets Manager, Azure Key Vault, etc.)
 
-### 4.3 CORS e Headers de Segurança
-- ✅ **Implementado**: Helmet com configuração de CSP
-- ✅ **Implementado**: CORS restrito por domínio (prod), permissivo em dev
-- ✅ **Implementado**: Headers adicionais nas chamadas ao MP (`X-Idempotency-Key`, `X-meli-session-id` quando disponível)
-- 🔄 **Recomendado**: Implementar Content-Security-Policy mais restritiva
+**Impacto:** 🔴 **CRÍTICO** - Sem chave, criptografia não funciona (mas em DEV gera chave temporária)
 
-## 5. Prevenção de Fraude
+---
 
-### 5.1 Limites por CPF/Email
-- ✅ **Implementado**: Limite acumulado de ingressos por CPF por tipo de ingresso (`maxPerCPF`)
-  - Configurável por tipo de ingresso (opcional)
-  - Considera apenas pedidos pagos (status = 'paid')
-  - Normaliza CPF para comparação (remove formatação)
-  - Mensagem clara informando quantos ingressos já foram comprados e quantos ainda podem ser comprados
-- ✅ **Implementado**: Limite acumulado de ingressos por Email por tipo de ingresso (`maxPerEmail`)
-  - Configurável por tipo de ingresso (opcional)
-  - Considera apenas pedidos pagos (status = 'paid')
-  - Normaliza Email para comparação (lowercase, trim)
-  - Mensagem clara informando quantos ingressos já foram comprados e quantos ainda podem ser comprados
-- ✅ **Implementado**: Índices otimizados no modelo `Order` para queries por CPF/Email (`customerData.cpf`, `customerData.email`)
-- 🔄 **Recomendado**: Implementar blacklist de CPFs/emails suspeitos
+### 3. ✅ HTTPS com Certificado Válido em Produção
 
-### 5.2 Detecção de Padrões Suspeitos
-- ✅ **Implementado**: Sistema de detecção automática de tentativas suspeitas
-  - Rastreamento de todas as tentativas de validação (`ValidationAttempt` model)
-  - **Detecção agressiva: 1+ tentativa de usar QR já utilizado → marca como suspeito imediatamente** (melhoria: antes era 3+ em 24h)
-  - **Sempre marca o holder do ticket como suspeito quando há tentativa de replay** (independente de quem tenta passar)
-  - Detecção de mesmo QR code usado em múltiplos eventos (2+ eventos → marca como suspeito)
-  - Flags automáticas no modelo `User` (`isSuspicious`, `suspiciousActivityCount`, `lastSuspiciousActivity`, `suspiciousReason`)
-  - Endpoints para gerenciamento manual (`PATCH /api/users/:userId/suspicious`, `PATCH /api/users/:userId/blacklist`)
-  - Filtros no dashboard para visualizar usuários suspeitos/bloqueados
-  - **Proteção contra spam no banco de dados:**
-    - Cooldown de 5 minutos para tentativas de replay do mesmo QR code
-    - Evita múltiplos registros de `ValidationAttempt` para o mesmo QR code em período curto
-    - Ainda marca usuário como suspeito mesmo durante o cooldown (via `checkSuspiciousPatterns`)
-- 🔄 **Recomendado**: Alertar sobre múltiplas compras do mesmo IP em pouco tempo
-- 🔄 **Recomendado**: Alertar sobre múltiplos pedidos com mesmo CPF mas diferentes emails
-- 🔄 **Recomendado**: Implementar CAPTCHA após X tentativas de compra
-- ✅ **Implementado**: Validação server-side de códigos de promotor vinculados ao evento, com contador de uso e bloqueio de códigos inativos
+**Status:** ✅ **IMPLEMENTADO** - Script de validação criado, falta configurar certificado
 
-### 5.3 Validação de Dados do Comprador
-- 🔄 **Recomendado**: Validar CPF (algoritmo de validação)
-- 🔄 **Recomendado**: Validar formato de telefone
-- 🔄 **Recomendado**: Verificar se email é válido (envio de confirmação)
+**O que foi feito:**
+- ✅ Redirect HTTP → HTTPS em produção
+- ✅ HSTS configurado
+- ✅ Suporte para SSL local (mkcert)
+- ✅ Script `scripts/validate-https.js` criado
+- ✅ Comando `npm run validate-https` adicionado
 
-## 6. Auditoria e Logs
+**O que fazer:**
+- [ ] **Validar certificado SSL válido em produção**
+  ```bash
+  npm run validate-https https://seu-dominio.com
+  ```
+- [ ] **Configurar certificado no servidor/proxy**
+  - Let's Encrypt (certbot) OU
+  - Cloudflare OU
+  - AWS ALB com certificado ACM
+- [ ] **Testar com SSL Labs:** https://www.ssllabs.com/ssltest/
 
-### 6.1 Logging
-- ✅ **Implementado**: Logging estruturado por requisição com `requestId`, status e duração
-- ✅ **Implementado**: Captura de IP, user-agent e timestamp nos logs HTTP
-- 🔄 **Recomendado**: Implementar log rotation e envio para agregador (Elastic/CloudWatch)
+**Impacto:** 🔴 **CRÍTICO** - Sem HTTPS válido, dados trafegam em texto plano
 
-### 6.2 Auditoria
-- ✅ **Implementado**: Rastreamento de tentativas de validação (`ValidationAttempt`)
-  - Registro de todas as tentativas (sucesso e falha)
-  - Armazenamento de IP, user-agent, motivo da falha
-  - Associação com usuário (holder), validador, evento e ticket
-  - Índices para queries eficientes de padrões suspeitos
-- 🔄 **Recomendado**: Criar tabela de auditoria para mudanças em pedidos e ingressos
-- 🔄 **Recomendado**: Registrar quem fez cada alteração (admin, sistema, etc.)
-- 🔄 **Recomendado**: Manter histórico de alterações de status
+---
 
-## 7. Backup e Recuperação
+### 4. ✅ Gerenciamento de Secrets em Produção
 
-### 7.1 Backup
-- 🔄 **Recomendado**: Backup diário do banco de dados
-- 🔄 **Recomendado**: Backup de arquivos de upload (imagens)
-- 🔄 **Recomendado**: Testar processo de restauração periodicamente
+**Status:** ✅ **IMPLEMENTADO** - Utilitário criado, falta configurar em produção
 
-### 7.2 Recuperação
-- 🔄 **Recomendado**: Implementar processo de reembolso automatizado
-- 🔄 **Recomendado**: Implementar processo de cancelamento de evento
-- 🔄 **Recomendado**: Notificar todos os compradores em caso de cancelamento
+**O que foi feito:**
+- ✅ Utilitário `src/utils/secretsManager.ts` criado
+- ✅ Suporte para AWS Secrets Manager
+- ✅ Fallback para variáveis de ambiente
+- ✅ Funções helper (`getSecret`, `initializeSecrets`)
 
-## 8. Segurança de Infraestrutura
+**O que fazer:**
+- [ ] **Em produção:** Configurar `SECRETS_PROVIDER=aws` (se usar AWS)
+  ```bash
+  # Instalar AWS SDK (opcional)
+  npm install @aws-sdk/client-secrets-manager
+  
+  # Configurar no .env
+  SECRETS_PROVIDER=aws
+  AWS_REGION=us-east-1
+  ```
+- [ ] **Criar secrets no AWS Secrets Manager** (ou usar variáveis do provedor)
+- [ ] **Integrar `initializeSecrets()` no `server.ts`** (opcional)
 
-### 8.1 Variáveis de Ambiente
-- ✅ **Implementado**: Uso de dotenv
-- ✅ **Implementado**: Projeto frontend com `.env.example` e `.gitignore` para evitar commitar secrets
-- 🔄 **Recomendado**: Nunca commitar secrets no código
-- 🔄 **Recomendado**: Usar serviços de gerenciamento de secrets (AWS Secrets Manager, Azure Key Vault)
+**Impacto:** 🔴 **CRÍTICO** - Secrets em `.env` podem ser expostos acidentalmente
 
-### 8.2 HTTPS
-- ✅ **Implementado**: Forçar HTTPS em produção (redirect 301 quando não seguro)
-- ✅ **Implementado**: HSTS (HTTP Strict Transport Security) com preload em produção
+---
 
-### 8.3 Monitoramento
-- ✅ **Implementado**: Sentry/APM (opcional) habilitável via `SENTRY_DSN` e `SENTRY_TRACES_SAMPLE_RATE`
-- 🔄 **Recomendado**: Alertas e métricas (fraude/erros críticos)
+## 🟡 ALTA PRIORIDADE - Implementar em Breve
 
-## 9. Segurança do PWA de Validação
+### 5. 🟡 Integração de Auditoria nos Controllers Críticos
 
-### 9.1 Restrição de Acesso
-- ✅ **Implementado**: Validação de User-Agent no backend (bloqueia bots e crawlers)
-- ✅ **Implementado**: Validação de dispositivo móvel no frontend (bloqueia acesso via desktop)
-- ✅ **Implementado**: Middleware global de validação de User-Agent no backend
-- ✅ **Implementado**: Apenas role QRCODE pode validar ingressos (controle de acesso granular)
+**Status:** 🟡 **PARCIAL** - Iniciado (2/5 controllers)
 
-### 9.2 Proteção de Câmera e HTTPS
-- ✅ **Implementado**: Suporte para HTTPS via túneis (Cloudflare Tunnel, ngrok) para acesso à câmera
-- ✅ **Implementado**: Validação de contexto seguro (HTTPS) no frontend
-- ✅ **Implementado**: Detecção automática de câmera traseira (priorização em Android e iOS)
-- 🔄 **Recomendado**: Certificado SSL válido em produção (não depender apenas de túneis)
+**O que foi feito:**
+- ✅ Modelo `AuditLog` criado
+- ✅ Serviço `auditService.ts` implementado
+- ✅ Integrado em `createOrder` (ordersController.ts)
+- ✅ Integrado em `cancelOrder` (ordersController.ts)
 
-### 9.3 Interface e UX Segura
-- ✅ **Implementado**: Migração para Bootstrap 5 (reduz superfície de ataque de CSS customizado)
-- ✅ **Implementado**: Limpeza de CSS não utilizado (reduz tamanho do bundle)
-- ✅ **Implementado**: Histórico persistente sincronizado com backend (não confia apenas em localStorage)
-- ✅ **Implementado**: Mensagens detalhadas de erro sem expor informações sensíveis do sistema
-- ✅ **Implementado**: Estatísticas de validações (válidas vs duplicadas) para auditoria
+**O que falta:**
+- [ ] **Adicionar chamadas de auditoria nos controllers:**
+  - `paymentController.ts`:
+    - Criação de pagamento
+    - Atualização de status via webhook
+  - `eventsController.ts`:
+    - Criação/edição de eventos
+    - Distribuição de VIPs
+  - `usersController.ts`:
+    - Marcar/desmarcar suspeito
+    - Adicionar/remover blacklist
+    - Mudanças de role
 
-### 9.4 Comunicação com Backend
-- ✅ **Implementado**: Autenticação via JWT armazenado em localStorage
-- ✅ **Implementado**: Integração com API via Axios com interceptors
-- ✅ **Implementado**: Detecção automática de URL da API (localhost, IP local, ou HTTPS tunnel)
-- 🔄 **Recomendado**: Implementar refresh tokens para maior segurança
-- 🔄 **Recomendado**: Criptografar token no localStorage (opcional, mas recomendado)
+**Exemplo de implementação:**
+```typescript
+// No ordersController.ts
+import { recordAudit, createAuditContext } from '../services/auditService';
 
-## 10. Proteção de Arquivos Estáticos/Imagens (Uploads)
+export const createOrder = async (req: Request, res: Response) => {
+  // ... código existente ...
+  
+  await order.save();
+  
+  // Registrar auditoria
+  await recordAudit(
+    'ORDER_CREATED',
+    'Order',
+    order._id,
+    {
+      orderNumber: order.orderNumber,
+      totalAmount: order.totalAmount,
+      totalTickets: order.totalTickets,
+    },
+    createAuditContext(req)
+  );
+  
+  // ... resto do código ...
+};
+```
 
-### 10.1 Riscos
-- Abuso de URL direta (hotlink) para consumir banda e tentar derrubar o servidor
-- Varredura/bots baixando repetidamente imagens grandes
+**Impacto:** 🟡 **ALTA** - Sem auditoria, não há rastreamento de ações críticas
 
-### 10.2 O que já ajuda
-- ✅ Rate limiting global aplicado a todas as rotas (inclui `/uploads`)
-- ✅ Helmet/CSP (camada de headers – não bloqueia acesso direto, mas reduz superfície de risco)
-- ✅ Cache-Control forte em `/uploads` (`public, max-age=2592000, immutable`)
-- ✅ Hotlink protection por `Referer` em produção (bloqueia origens fora de `FRONTEND_URL`/`DASHBOARD_URL`)
+---
 
-### 10.3 Recomendações
-- 🔄 Colocar imagens atrás de CDN (Cloudflare/CloudFront/R2) com cache no edge
-- 🔄 Hotlink protection no edge (WAF/CDN) e/ou URLs assinadas
-- 🔄 Limitar taxa de download por IP no edge (Rate limiting da CDN)
-- 🔄 Servir estático via Nginx/CDN (tirar carga do Node)
+### 6. 🟡 Monitoramento e Alertas de Fraude
 
-## 11. Segurança do Frontend Público (Next.js)
+**Status:** ⚠️ **PARCIAL** - Detecção existe, mas falta dashboard/alertas
 
-### 11.1 Base Implementada
-- ✅ Projeto base com Next.js 14, TypeScript, ESLint e Tailwind (reforça tipagem e linting)
-- ✅ Cliente Axios único com interceptor para anexar token e tratar `401` (redireciona para login)
-- ✅ Organização de variáveis e mixins SASS reutilizáveis reduzindo risco de CSS duplicado inseguro
-- ✅ Arquivo `.env.example` documentando apenas variáveis públicas e mantendo secrets fora do versionamento
+**O que já tem:**
+- ✅ Sistema de detecção (`SuspiciousOrderAlert`)
+- ✅ Modelo para armazenar alertas
+- ✅ Sentry configurado (opcional)
 
-### 11.2 Recomendações
-- 🔄 Avaliar uso de cookies `httpOnly` ou Storage seguro para tokens no frontend público
-- 🔄 Configurar headers de segurança adicionais (CSP, Referrer-Policy) via Next.js Middleware
-- 🔄 Implementar monitoramento de bundle para evitar dependências vulneráveis (ex.: `npm audit`, `dependabot`)
-- 🔄 Adicionar testes E2E para fluxos críticos (compra, login) garantindo ausência de regressões de segurança
+**O que falta:**
+- [ ] **Dashboard para visualizar alertas suspeitos**
+  - Endpoint `GET /api/alerts/suspicious-orders` (apenas ADMIN)
+  - Filtros por tipo, severidade, resolvido/não resolvido
+  - Integração no dashboard administrativo
+- [ ] **Alertas em tempo real**
+  - Email/Slack quando alerta "high" é criado
+  - Notificação para admins
+- [ ] **Métricas de fraude**
+  - Taxa de tentativas suspeitas
+  - Alertas por período
+  - Gráficos de tendências
 
-## 12. Checklist de Implementação Prioritária
+**Impacto:** 🟡 **ALTA** - Sem alertas, fraudes podem passar despercebidas
 
-### Alta Prioridade 🔴
-1. ✅ Validação de estoque e limites por compra
-2. ✅ Transações atômicas para vendas (Mongoose Transactions)
-3. ✅ Rate limiting específico para criação de pedidos (IP)
-4. ✅ Geração segura de QR Codes com criptografia (AES-256-GCM)
-5. ✅ Validação de QR Codes com HMAC + timestamp/nonce (anti-replay persistente)
-6. ✅ Webhooks com assinatura obrigatória + idempotência persistente (fila + retry)
-7. ✅ Sistema de detecção de tentativas suspeitas e blacklist de usuários
-8. ✅ Controle de acesso granular (apenas QRCODE pode validar)
+---
 
-### Média Prioridade 🟡
-9. ✅ Reserva temporária de ingressos (implementado - estoque liberado ao cancelar)
-10. ✅ Limites acumulados por CPF/Email por tipo de ingresso (implementado)
-11. 🔄 Validação de CPF (algoritmo de validação de dígitos verificadores)
-12. 🔄 Logging de operações críticas
+### 7. 🟡 Logging Estruturado com Persistência
 
-### Baixa Prioridade 🟢
-13. 🔄 Refresh tokens
-14. 🔄 CAPTCHA após tentativas suspeitas
-15. 🔄 Sistema de auditoria completo (além do rastreamento de validações)
-16. 🔄 Monitoramento avançado
+**Status:** ⚠️ **PARCIAL** - Logs estruturados existem, mas não persistem
+
+**O que já tem:**
+- ✅ Logging estruturado por requisição (`requestId`, status, duração, IP, user-agent)
+- ✅ Logs no console
+
+**O que falta:**
+- [ ] **Persistência de logs**
+  - Enviar para agregador (CloudWatch, Elastic, Datadog)
+  - Retenção de logs (30-90 dias)
+- [ ] **Log rotation**
+  - Evitar crescimento infinito de arquivos de log
+  - Compactação de logs antigos
+- [ ] **Alertas de erros críticos**
+  - Notificar quando taxa de erro > X%
+  - Alertar sobre erros de pagamento
+  - Alertar sobre falhas de validação
+
+**Impacto:** 🟡 **ALTA** - Sem persistência, logs são perdidos ao reiniciar servidor
+
+---
+
+## 🟢 MÉDIA PRIORIDADE - Melhorias Futuras
+
+### 8. 🟢 Lock Otimista/Anti-Race para Picos de Venda
+
+**Status:** 🔄 **RECOMENDADO**
+
+**O que fazer:**
+- [ ] Implementar lock otimista para criação de pedidos
+- [ ] Estratégias anti-race para picos de venda simultâneos
+- [ ] Testes de carga para validar
+
+**Impacto:** 🟢 **MÉDIA** - Melhora resiliência em picos de tráfego
+
+---
+
+### 9. 🟢 Heurísticas Antifraude por Sessão
+
+**Status:** 🔄 **RECOMENDADO**
+
+**O que fazer:**
+- [ ] Correlação IP/User-Agent
+- [ ] Velocity rules (múltiplas compras em tempo curto)
+- [ ] Análise de padrões de comportamento
+
+**Impacto:** 🟢 **MÉDIA** - Melhora detecção de fraude
+
+---
+
+### 10. 🟢 Blacklist de CPFs/Emails Suspeitos
+
+**Status:** 🔄 **RECOMENDADO**
+
+**O que fazer:**
+- [ ] Modelo para blacklist de CPFs/emails
+- [ ] Endpoint para adicionar/remover da blacklist
+- [ ] Validação antes de criar pedido
+
+**Impacto:** 🟢 **MÉDIA** - Previne compras de CPFs/emails conhecidamente suspeitos
+
+---
+
+### 11. 🟢 CAPTCHA após Tentativas Suspeitas
+
+**Status:** 🔄 **RECOMENDADO**
+
+**O que fazer:**
+- [ ] Integrar reCAPTCHA ou hCaptcha
+- [ ] Exibir após X tentativas de compra falhadas
+- [ ] Validar no backend antes de processar pedido
+
+**Impacto:** 🟢 **MÉDIA** - Previne bots automatizados
+
+---
+
+### 12. 🟢 CDN para Arquivos Estáticos
+
+**Status:** 🔄 **RECOMENDADO**
+
+**O que fazer:**
+- [ ] Colocar imagens atrás de CDN (Cloudflare/CloudFront/R2)
+- [ ] Hotlink protection no edge (WAF/CDN)
+- [ ] Limitar taxa de download por IP no edge
+- [ ] Servir estático via Nginx/CDN (tirar carga do Node)
+
+**Impacto:** 🟢 **MÉDIA** - Melhora performance e reduz custos de servidor
+
+---
+
+### 13. 🟢 Processo de Reembolso Automatizado
+
+**Status:** 🔄 **RECOMENDADO**
+
+**O que fazer:**
+- [ ] Endpoint para processar reembolsos
+- [ ] Integração com Mercado Pago para reembolso
+- [ ] Notificação automática ao cliente
+- [ ] Atualização de status de pedidos/tickets
+
+**Impacto:** 🟢 **MÉDIA** - Melhora experiência do cliente
+
+---
+
+### 14. 🟢 Processo de Cancelamento de Evento
+
+**Status:** 🔄 **RECOMENDADO**
+
+**O que fazer:**
+- [ ] Endpoint para cancelar evento
+- [ ] Cancelar todos os pedidos pendentes
+- [ ] Processar reembolsos automáticos
+- [ ] Notificar todos os compradores
+
+**Impacto:** 🟢 **MÉDIA** - Necessário para gestão de eventos
+
+---
+
+## 📋 Checklist Pré-Produção
+
+### Crítico (Antes de Produção)
+- [ ] Backup automático do MongoDB configurado e testado
+- [ ] `ENCRYPTION_KEY` configurado no `.env` (e em serviço de secrets em produção)
+- [ ] HTTPS com certificado válido testado (SSL Labs score A+)
+- [ ] Secrets gerenciados via serviço (AWS Secrets Manager, Azure Key Vault, etc.)
+
+### Alta Prioridade (Primeira Semana em Produção)
+- [ ] Auditoria integrada nos controllers críticos
+- [ ] Dashboard de alertas de fraude implementado
+- [ ] Logs persistindo em agregador (CloudWatch, Elastic, etc.)
+
+### Média Prioridade (Melhorias Contínuas)
+- [ ] Lock otimista para picos de venda
+- [ ] Heurísticas antifraude por sessão
+- [ ] Blacklist de CPFs/emails suspeitos
+- [ ] CAPTCHA após tentativas suspeitas
+- [ ] CDN para arquivos estáticos
+- [ ] Processo de reembolso automatizado
+- [ ] Processo de cancelamento de evento
+
+---
+
+## 🎯 Priorização Recomendada
+
+### Semana 1 (Crítico)
+1. **Configurar `ENCRYPTION_KEY`** - 5 minutos
+2. **Backup automático do MongoDB** - 1-2 horas
+3. **Validar HTTPS em produção** - 1-2 horas
+4. **Configurar serviço de secrets** - 2-3 horas
+
+### Semana 2 (Alta Prioridade)
+5. **Integrar auditoria nos controllers** - 4-6 horas
+6. **Dashboard de alertas de fraude** - 6-8 horas
+7. **Logging estruturado com persistência** - 4-6 horas
+
+### Semana 3+ (Média Prioridade)
+8. **Melhorias de antifraude** (CAPTCHA, heurísticas, blacklist)
+9. **CDN para arquivos estáticos**
+10. **Processos automatizados** (reembolso, cancelamento)
+
+---
+
+## 📊 Status Atual
+
+**Implementado:** ~90% ✅  
+**Crítico faltando:** 4 itens 🔴  
+**Alta prioridade faltando:** 3 itens 🟡  
+**Média prioridade faltando:** 7 itens 🟢
+
+**Recomendação:** Implementar os 4 itens críticos ANTES de colocar em produção.
+
+---
+
+**Última atualização:** Janeiro 2025

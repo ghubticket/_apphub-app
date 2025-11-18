@@ -240,6 +240,20 @@ export const validateTicket = async (req: Request, res: Response) => {
             }
         }
 
+        // BLACKLIST: Verificar se o ingresso está cancelado ou estornado
+        // QR codes de ingressos cancelados/estornados não podem ser validados
+        if (ticket.status === 'cancelled' || ticket.status === 'refunded') {
+            await recordValidationAttempt(code, false, 'ticket_cancelled_or_refunded', req, ticket, validatorId);
+            return res.status(403).json({
+                success: false,
+                message: 'Ingresso cancelado ou estornado',
+                errors: [
+                    `Este ingresso foi ${ticket.status === 'cancelled' ? 'cancelado' : 'estornado'} e não pode ser validado.`,
+                    'QR codes de ingressos cancelados/estornados estão na blacklist.'
+                ]
+            });
+        }
+
         // Verificar se o ingresso está confirmado
         if (ticket.status !== 'confirmed') {
             await recordValidationAttempt(code, false, 'invalid_status', req, ticket, validatorId);
@@ -250,9 +264,32 @@ export const validateTicket = async (req: Request, res: Response) => {
             });
         }
 
-        // Verificar se o pedido está pago
+        // BLACKLIST: Verificar se o pedido está cancelado ou estornado
+        // Mesmo que o ticket esteja 'confirmed', se o pedido foi cancelado/estornado, não pode validar
         const order = await Order.findById(ticket.order).populate('tickets');
-        if (!order || order.status !== 'paid') {
+        if (!order) {
+            await recordValidationAttempt(code, false, 'order_not_found', req, ticket, validatorId);
+            return res.status(404).json({
+                success: false,
+                message: 'Pedido não encontrado',
+                errors: ['Pedido associado ao ingresso não foi encontrado']
+            });
+        }
+
+        if (order.status === 'cancelled' || order.status === 'refunded') {
+            await recordValidationAttempt(code, false, 'order_cancelled_or_refunded', req, ticket, validatorId);
+            return res.status(403).json({
+                success: false,
+                message: 'Pedido cancelado ou estornado',
+                errors: [
+                    `O pedido associado a este ingresso foi ${order.status === 'cancelled' ? 'cancelado' : 'estornado'}.`,
+                    'QR codes de ingressos de pedidos cancelados/estornados estão na blacklist.'
+                ]
+            });
+        }
+
+        // Verificar se o pedido está pago (order já foi buscado acima)
+        if (order.status !== 'paid') {
             await recordValidationAttempt(code, false, 'order_not_paid', req, ticket, validatorId);
             return res.status(400).json({
                 success: false,
@@ -563,14 +600,33 @@ export const getValidationHistory = async (req: Request, res: Response) => {
             const ticketIds = matchingTickets.map(t => t._id);
 
             // Buscar usuários (holders) que correspondem ao CPF ou nome
-            const matchingUsers = await User.find({
-                $or: [
-                    { cpf: { $regex: search.replace(/\D/g, ''), $options: 'i' } }, // Remove formatação do CPF
+            // CPF está criptografado, então usar hash para busca
+            const { hashCPFForSearch } = await import('../utils/encryption');
+            const searchDigits = search.replace(/\D/g, '');
+            const searchCPFHash = searchDigits.length === 11 
+                ? hashCPFForSearch(searchDigits) // hashCPFForSearch aceita apenas dígitos
+                : null;
+            
+            const userFilters: any = {
+                deletedAt: null
+            };
+            
+            if (searchCPFHash) {
+                // Se parece ser um CPF, buscar por hash
+                userFilters.$or = [
+                    { cpfHash: searchCPFHash },
                     { name: { $regex: search, $options: 'i' } },
                     { email: { $regex: search, $options: 'i' } }
-                ],
-                deletedAt: null
-            }).select('_id').lean();
+                ];
+            } else {
+                // Se não parece ser CPF, buscar apenas por nome/email
+                userFilters.$or = [
+                    { name: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } }
+                ];
+            }
+            
+            const matchingUsers = await User.find(userFilters).select('_id').lean();
 
             const userIds = matchingUsers.map(u => u._id);
 

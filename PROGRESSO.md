@@ -188,9 +188,18 @@
 - ✅ Logging estruturado por requisição (`requestId`, status, duração, IP, user-agent)
 - ✅ Lockout progressivo no login (5 falhas/15min → bloqueio por 15min)
 - ✅ CORS restrito por domínio em produção
-- ✅ Sanitização de inputs em rotas de Eventos (XSS básico)
+- ✅ **Sanitização global de inputs** (aplicada em todas as rotas, não apenas eventos)
+  - Remove tags `<script>`, `<style>` e eventos `on*`
+  - Remove URLs `javascript:`
+  - Implementado em `middleware/sanitization.ts` e aplicado globalmente em `server.ts`
 - ✅ Uploads com Cache-Control forte e proteção simples de hotlink (produção)
 - ✅ Sentry/APM opcional habilitado via `SENTRY_DSN` e `SENTRY_TRACES_SAMPLE_RATE`
+- ✅ **Content-Security-Policy mais restritiva** (removido `unsafe-inline` em produção, sistema de nonces)
+- ✅ **Sistema de auditoria geral** (modelo `AuditLog` para rastrear mudanças em entidades)
+- ✅ **Sistema de alertas para padrões suspeitos** (modelo `SuspiciousOrderAlert`)
+  - Detecção de múltiplas compras do mesmo IP
+  - Detecção de mesmo CPF com diferentes emails
+  - Detecção de múltiplos pedidos em tempo muito curto
 
   - Endereço: contador de caracteres (0/300), validação min/max
   - Quantidade VIP: input numérico limitado a 2 caracteres, validação de estoque
@@ -280,17 +289,19 @@
   - ✅ Atualização de pedido e tickets
   - ✅ Envio de emails automático
 
-#### Frontend ❌ PENDENTE
+#### Frontend ✅ IMPLEMENTADO
 - ✅ Projeto base configurado em `frontend/` (Next.js 14 + Tailwind + SASS + TypeScript + Axios + Zustand)
-- [ ] **Cartão de Crédito/Débito** (Frontend)
-  - [ ] Integração com MercadoPago.js SDK
-  - [ ] Formulário de cartão (número, nome, validade, CVV)
-  - [ ] Tokenização do cartão no frontend
-  - [ ] Seleção de parcelas (com valores e juros)
-  - [ ] Tratamento de 3D Secure (modal/iframe)
-  - [ ] Página de checkout integrada
-  - [ ] Feedback visual (loading, sucesso, erro)
-  - [ ] Tratamento de erros amigável
+- ✅ **Cartão de Crédito/Débito** (Frontend)
+  - ✅ Integração com MercadoPago.js SDK (`@mercadopago/sdk-react`)
+  - ✅ Formulário de cartão via Brick (`CardPaymentFormBrick`, `IsolatedCardPaymentBrick`)
+  - ✅ Tokenização do cartão no frontend
+  - ✅ Seleção de parcelas (com valores e juros)
+  - ✅ Tratamento de 3D Secure (automático via Orders API)
+  - ✅ Página de checkout integrada (`/checkout`)
+  - ✅ Feedback visual (loading, sucesso, erro com overlay)
+  - ✅ Tratamento de erros amigável
+  - ✅ Redirecionamento após pagamento aprovado
+  - ✅ Gerenciamento de tentativas máximas
 
 - [ ] **Boleto** (se aplicável ao MVP)
   - [ ] Frontend para exibir código de barras
@@ -302,6 +313,12 @@
 
 #### Prioridade: ALTA
 - ✅ **Sistema de Email com Resend**
+- ⚠️ **Endpoint de Redefinição de Senha** (PENDENTE no backend)
+  - [ ] `POST /api/auth/forgot-password` - Solicitar redefinição (gerar token e enviar email)
+  - [ ] `POST /api/auth/reset-password` - Redefinir senha com token
+  - [ ] Modelo `PasswordResetToken` ou usar JWT com expiração curta
+  - ✅ Template de email existe (`password-reset.html`)
+  - ✅ Função `sendPasswordResetEmail` existe em `emailTemplates.ts`
   - ✅ Integração com Resend API
   - ✅ Templates HTML responsivos com base template
   - ✅ Geração de PDF com QR Codes usando `pdfkit`
@@ -314,7 +331,7 @@
     - ✅ Pedido cancelado
     - ✅ Email de boas-vindas (registro)
     - ✅ Email de cortesia (VIP)
-    - ✅ Redefinição de senha (template pronto, aguardando endpoint)
+    - ✅ Redefinição de senha (template pronto, função `sendPasswordResetEmail` existe, **falta endpoint no backend**)
   - ✅ Integração nos fluxos:
     - ✅ Registro de usuário (welcome email)
     - ✅ Criação de pedido PIX/Cartão (payment pending)
@@ -333,20 +350,35 @@
 ### 📱 Portal Público de Compra
 
 #### Prioridade: ALTA
-- [ ] Landing page pública
-  - [ ] Lista de eventos disponíveis
-  - [ ] Detalhes do evento (fotos, descrição, local, data)
+- ✅ **Landing page pública** (`/`)
+  - ✅ Lista de eventos disponíveis (até 6 destaques)
+  - ✅ Página de ingressos (`/ingressos`) com lista completa
+  - ⚠️ **Detalhes do evento** (página dedicada) - PENDENTE
+    - [ ] Página `/eventos/[id]` com informações completas
+    - [ ] Fotos do evento
+    - [ ] Descrição completa
+    - [ ] Local e data
+    - [ ] Mapa de localização
+    - [ ] Galeria de imagens
 
-- [ ] Página de compra
-  - [ ] Seleção de tipo de ingresso
-  - [ ] Formulário de dados do comprador
-  - [ ] Integração com gateway de pagamento
-  - [ ] Confirmação de compra
+- ✅ **Página de compra** (`/checkout`)
+  - ✅ Seleção de tipo de ingresso (via carrinho)
+  - ✅ Formulário de dados do comprador
+  - ✅ Integração com gateway de pagamento (PIX + Cartão)
+  - ✅ Confirmação de compra
+  - ✅ Código de promotor integrado
 
-- [ ] Área do cliente
-  - [ ] Lista de ingressos comprados
-  - [ ] Download de QR Codes
-  - [ ] Reenvio de email
+- ✅ **Área do cliente** (`/dashboard`)
+  - ✅ Lista de ingressos comprados (pedidos do usuário)
+  - ✅ Visualização de QR Codes (modal com slides para cada ingresso)
+  - ✅ Agrupamento de pedidos por evento
+  - ✅ Status dos pedidos (pendente, pago, cancelado, reembolsado)
+  - ✅ Informações de pagamento PIX (QR code, código para copiar, timer de expiração)
+  - ✅ Detalhes completos de cada pedido
+  - ✅ Proteção de segurança (QR codes visíveis apenas no mobile)
+  - ✅ **PDF com QR Codes enviado automaticamente por email** (quando pagamento confirmado)
+  - ✅ **Email de confirmação enviado automaticamente** (com PDF anexado)
+  - ✅ Autenticação (login/cadastro) implementada
 
 ### 🔍 Sistema de Validação de QR Codes
 
@@ -515,8 +547,9 @@
   - Auth: 5 req/15min por IP+email (lockout progressivo)
   - Sensitive: 10 req/15min por IP
   - Payment: 20 req/15min por IP
-  - Order creation: 20 req/15min por IP
+  - Order creation: 20 req/15min por IP + **10 pedidos/hora por usuário autenticado** (novo)
   - Configuração de `trust proxy` para identificar IPs corretamente
+  - **Rate limiting por usuário autenticado** implementado em `middleware/rateLimiting.ts`
 
 - ✅ **Proteção de QR Codes**
   - Criptografia AES-256-GCM
@@ -529,7 +562,14 @@
   - Detecção automática de padrões suspeitos
   - Identificação de quem passou primeiro em caso de tentativa de burla
   - Blacklist automática (usuários bloqueados não podem validar)
+  - **Blacklist de QR codes cancelados/estornados** (novo - implementado em `ticketsController.ts`)
   - Endpoints para gerenciamento manual
+  - **Sistema de alertas para padrões suspeitos de compra** (novo)
+    - Modelo `SuspiciousOrderAlert` para armazenar alertas
+    - Detecção automática de múltiplas compras do mesmo IP
+    - Detecção de mesmo CPF com diferentes emails
+    - Detecção de múltiplos pedidos em tempo muito curto
+    - Campo `ipAddress` adicionado ao modelo `Order` para rastreamento
 
 - ✅ **Logging e Observabilidade**
   - Logging estruturado por requisição (`requestId`, status, duração, IP, user-agent)
@@ -539,13 +579,22 @@
 - ✅ **Proteções Adicionais**
   - Lockout progressivo no login (5 falhas/15min → bloqueio por 15min)
   - CORS restrito por domínio em produção
-  - Sanitização de inputs (XSS básico)
+  - **Sanitização global de inputs** (aplicada em todas as rotas, não apenas eventos)
   - Uploads com Cache-Control forte e proteção de hotlink
   - HSTS e redirecionamento HTTP → HTTPS em produção
+  - **Content-Security-Policy mais restritiva** (nonces em produção, removido `unsafe-inline`)
+  - **Sistema de auditoria geral** (modelo `AuditLog` para rastrear mudanças em entidades)
 
-- [ ] Criptografia em repouso
-  - [ ] Criptografar dados sensíveis (CPF, telefone) em repouso
-  - [ ] HTTPS obrigatório (verificar no deploy)
+- ✅ **Criptografia em repouso** (IMPLEMENTADO)
+  - ✅ Criptografia AES-256-GCM para CPF e telefone (modelos User e Order)
+  - ✅ Utilitário `encryption.ts` com funções de criptografia/descriptografia automática
+  - ✅ Hash SHA-256 para busca eficiente (cpfHash, phoneHash)
+  - ✅ Middleware Mongoose pre-save para criptografar automaticamente
+  - ✅ Middleware Mongoose post para descriptografar automaticamente ao buscar
+  - ✅ Queries atualizadas para usar hash ao invés de CPF criptografado
+  - ✅ Backward compatibility (dados antigos não criptografados continuam funcionando)
+  - ⚠️ **Configuração necessária:** Adicionar `ENCRYPTION_KEY` no `.env` (32 bytes, hex ou base64)
+  - ✅ HTTPS obrigatório (redirect HTTP → HTTPS em produção)
 
 - [ ] Backup e redundância
   - [ ] Backup automático do MongoDB
@@ -604,7 +653,7 @@
   - Interface moderna com Bootstrap 5
   - Busca, paginação e filtros no histórico
   - Estatísticas de validações (válidas vs duplicadas)
-- ⏳ **EM ANDAMENTO:** Cartão de crédito via Orders API
+- ✅ **Cartão de crédito via Orders API** (Backend completo, Frontend funcional com MercadoPago.js Brick)
 
 ### Fase 2 - Portal Público (2-3 semanas)
 - ✅ Projeto base Next.js/Tailwind preparado para desenvolvimento do portal
@@ -665,6 +714,19 @@
 
 ---
 
-**Status Geral:** ~80% do MVP completo ✅  
-**Próxima milestone:** Finalizar pagamentos (cartão) + Portal público + Testes em evento real
+**Status Geral:** ~85% do MVP completo ✅  
+**Backend:** ~95% completo ✅  
+**Próxima milestone:** Portal público + Endpoint de redefinição de senha + Testes em evento real
+
+**Melhorias de Segurança Implementadas:**
+- ✅ Rate limiting por usuário autenticado
+- ✅ Sanitização global de inputs
+- ✅ Content-Security-Policy mais restritiva
+- ✅ Blacklist de QR codes cancelados/estornados
+- ✅ Sistema de alertas para padrões suspeitos de compra
+- ✅ Sistema de auditoria geral
+- ✅ **Criptografia em repouso para dados sensíveis (CPF e telefone)** 🆕
+  - Criptografia AES-256-GCM automática
+  - Hash SHA-256 para busca eficiente
+  - Backward compatibility com dados antigos
 

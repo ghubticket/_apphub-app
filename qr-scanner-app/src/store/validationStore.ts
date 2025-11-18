@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ValidationHistory } from '../types';
 import { getValidationHistory } from '../services/validationService';
+import { logger } from '../utils/logger';
 
 interface ValidationStore {
   history: ValidationHistory[];
@@ -104,9 +105,7 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
         isLoading: false 
       });
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Erro ao carregar histórico do backend:', error);
-      }
+      logger.error('Erro ao carregar histórico do backend:', error);
       set({ isLoading: false });
     }
   },
@@ -135,9 +134,7 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
         duplicateAttempts: result.duplicateAttempts
       });
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Erro ao sincronizar histórico:', error);
-      }
+      logger.error('Erro ao sincronizar histórico:', error);
     }
   },
 }));

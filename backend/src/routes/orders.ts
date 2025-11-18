@@ -2,6 +2,7 @@ import express from 'express';
 import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment, cancelOrder, getFinancialStats, updateOrderPromoterCode } from '../controllers/ordersController';
 import rateLimit from 'express-rate-limit';
 import { authenticate, isAdmin } from '../middleware/auth';
+import { orderCreationUserRateLimit } from '../middleware/rateLimiting';
 
 const router = express.Router();
 
@@ -67,7 +68,8 @@ const createOrderRateLimit = rateLimit({
     message: 'Muitas criações de pedidos. Tente novamente em alguns minutos.'
 });
 
-router.post('/', authenticate, createOrderRateLimit, createOrder);
+// Rate limiting duplo: por IP (já existente) + por usuário autenticado (novo)
+router.post('/', authenticate, createOrderRateLimit, orderCreationUserRateLimit, createOrder);
 
 /**
  * @swagger

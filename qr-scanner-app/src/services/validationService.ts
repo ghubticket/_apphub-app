@@ -1,5 +1,6 @@
 import api from '../config/api';
 import { ValidationResult, Ticket, ValidationHistory } from '../types';
+import { logger } from '../utils/logger';
 
 /**
  * Escaneia um QR code seguro e retorna os dados do ingresso
@@ -105,7 +106,7 @@ export const getTicketByCode = async (code: string): Promise<Ticket | null> => {
 
         return null;
     } catch (error: any) {
-        console.error('Erro ao buscar ingresso:', error);
+        logger.error('Erro ao buscar ingresso:', error);
         return null;
     }
 };
@@ -187,7 +188,7 @@ export const getValidationHistory = async (
             }
         };
     } catch (error: any) {
-        console.error('Erro ao buscar histórico de validações:', error);
+        logger.error('Erro ao buscar histórico de validações:', error);
         return {
             data: [],
             totalValidations: 0,

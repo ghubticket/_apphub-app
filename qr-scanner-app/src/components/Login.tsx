@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import api from '../config/api';
+import { logger } from '../utils/logger';
 
 interface LoginProps {
-    onLogin: (token: string) => void;
+    onLogin: (token: string, refreshToken?: string) => void;
 }
 
 const Login = ({ onLogin }: LoginProps) => {
@@ -22,24 +23,25 @@ const Login = ({ onLogin }: LoginProps) => {
                 password,
             });
 
-            console.log('Resposta do login:', response.data);
+            logger.log('Resposta do login:', response.data);
 
             if (response.data.success) {
                 // O backend retorna accessToken ou token
                 const token = response.data.data?.accessToken || response.data.data?.token;
+                const refreshToken = response.data.data?.refreshToken;
 
                 if (token) {
-                    console.log('Token encontrado, fazendo login...');
-                    onLogin(token);
+                    logger.log('Token encontrado, fazendo login...');
+                    onLogin(token, refreshToken);
                 } else {
-                    console.error('Token não encontrado na resposta:', response.data);
+                    logger.error('Token não encontrado na resposta:', response.data);
                     setError('Erro: Token não recebido do servidor');
                 }
             } else {
                 setError(response.data.message || 'Credenciais inválidas');
             }
         } catch (err: any) {
-            console.error('Erro ao fazer login:', err);
+            logger.error('Erro ao fazer login:', err);
 
             // Tratamento específico para erro de conexão
             if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {

@@ -17,7 +17,9 @@
 **Ordem de leitura recomendada:**
 1. **README.md** (este arquivo) - Visão geral e quick start
 2. **PREMISSAS.md** - A BÍBLIA do projeto (leitura obrigatória!)
-3. **ARCHITECTURE.md** - Detalhes técnicos de implementação
+3. **PROGRESSO.md** - O que foi implementado e o que falta
+4. **SECURITY_RECOMMENDATIONS.md** - O que falta fazer em segurança
+5. **CHECKLIST_DEV.md** - Checklist para ambiente de desenvolvimento
 
 ---
 

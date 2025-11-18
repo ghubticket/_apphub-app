@@ -2,7 +2,6 @@ import { Router } from 'express'
 import { authenticate, isAdmin } from '../middleware/auth'
 import { eventImageUpload, validatePngMagicBytes } from '../middleware/upload'
 import { createEvent, listEvents, getEvent, updateEvent, updateEventStatus, deleteEvent, getEventTicketStats, distributeVip } from '../controllers/eventsController'
-import { sanitizeBody } from '../middleware/sanitization'
 
 const router = Router()
 
@@ -79,7 +78,7 @@ router.get('/:id', getEvent)
  *     responses:
  *       201: { description: Criado }
  */
-router.post('/', authenticate, isAdmin, sanitizeBody, uploadFields, validatePngMagicBytes, createEvent)
+router.post('/', authenticate, isAdmin, uploadFields, validatePngMagicBytes, createEvent)
 
 /**
  * @swagger
@@ -109,7 +108,7 @@ router.post('/', authenticate, isAdmin, sanitizeBody, uploadFields, validatePngM
  *     responses:
  *       200: { description: Atualizado }
  */
-router.put('/:id', authenticate, isAdmin, sanitizeBody, uploadFields, validatePngMagicBytes, updateEvent)
+router.put('/:id', authenticate, isAdmin, uploadFields, validatePngMagicBytes, updateEvent)
 
 /**
  * @swagger

@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { encryptSensitiveData, decryptSensitiveData, hashCPFForSearch, hashPhoneForSearch, isEncrypted } from '../utils/encryption';
 
 // Interface para o documento Order
 export interface IOrder extends Document {
@@ -30,8 +31,11 @@ export interface IOrder extends Document {
         name: string;
         email: string;
         phone?: string;
+        phoneHash?: string; // Hash SHA-256 do telefone para busca eficiente
         cpf?: string;
+        cpfHash?: string; // Hash SHA-256 do CPF para busca eficiente
     };
+    ipAddress?: string; // IP de onde o pedido foi criado (para detecção de padrões suspeitos)
     isActive: boolean;
     cardAttempts: number;
     deletedAt?: Date; // Data de soft delete (para limpeza periódica)
@@ -195,6 +199,10 @@ const orderSchema = new Schema<IOrder>(
                     'Telefone deve estar no formato (11) 99999-9999',
                 ],
             },
+            phoneHash: {
+                type: String,
+                index: true, // Índice para busca eficiente
+            },
             cpf: {
                 type: String,
                 trim: true,
@@ -203,6 +211,15 @@ const orderSchema = new Schema<IOrder>(
                     'CPF deve estar no formato 000.000.000-00',
                 ],
             },
+            cpfHash: {
+                type: String,
+                index: true, // Índice para busca eficiente
+            },
+        },
+        ipAddress: {
+            type: String,
+            trim: true,
+            index: true, // Índice para queries de detecção de padrões suspeitos
         },
         isActive: {
             type: Boolean,
@@ -239,8 +256,8 @@ orderSchema.index({ event: 1, customer: 1, status: 1 });
 orderSchema.index({ paymentId: 1 });
 orderSchema.index({ isActive: 1 });
 orderSchema.index({ cardAttempts: 1 });
-// Índices para validação de limites por CPF/Email
-orderSchema.index({ 'customerData.cpf': 1, event: 1, status: 1 });
+// Índices para validação de limites por CPF/Email (usando hash para busca eficiente)
+orderSchema.index({ 'customerData.cpfHash': 1, event: 1, status: 1 });
 orderSchema.index({ 'customerData.email': 1, event: 1, status: 1 });
 
 // Regras de transição de status
@@ -276,49 +293,93 @@ orderSchema.virtual('isFailed').get(function () {
     return this.status === 'failed';
 });
 
-// Middleware para gerar número único do pedido antes de salvar
+// Middleware para gerar número único do pedido e criptografar dados sensíveis antes de salvar
 orderSchema.pre('save', async function (next) {
-    if (this.isNew) {
-        // Gerar número único do pedido (10 caracteres)
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let orderNumber = '';
-
-        for (let i = 0; i < 10; i++) {
-            orderNumber += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-
-        // Verificar se o número já existe (apenas em pedidos não deletados)
-        const existingOrder = await mongoose.model('Order').findOne({ 
-            orderNumber,
-            deletedAt: null,
-        });
-        if (existingOrder) {
-            // Se existir, gerar novo número recursivamente
+    try {
+        if (this.isNew) {
+            // Gerar número único do pedido (10 caracteres)
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let newOrderNumber = '';
+            let orderNumber = '';
 
             for (let i = 0; i < 10; i++) {
-                newOrderNumber += chars.charAt(Math.floor(Math.random() * chars.length));
+                orderNumber += chars.charAt(Math.floor(Math.random() * chars.length));
             }
 
-            this.orderNumber = newOrderNumber;
-        } else {
-            this.orderNumber = orderNumber;
-        }
-    }
-    // Validar transição de status quando não é novo
-    if (!this.isNew && this.isModified('status')) {
-        const current = await mongoose.model('Order').findById(this._id).select('status').lean() as any;
-        const fromStatus = current?.status as string | undefined;
-        const toStatus = (this as any).status as string;
-        if (fromStatus && toStatus && fromStatus !== toStatus) {
-            const allowed = ALLOWED_STATUS_TRANSITIONS[fromStatus] || [];
-            if (!allowed.includes(toStatus)) {
-                return next(new Error(`Transição de status inválida: ${fromStatus} -> ${toStatus}`));
+            // Verificar se o número já existe (apenas em pedidos não deletados)
+            const existingOrder = await mongoose.model('Order').findOne({ 
+                orderNumber,
+                deletedAt: null,
+            });
+            if (existingOrder) {
+                // Se existir, gerar novo número recursivamente
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let newOrderNumber = '';
+
+                for (let i = 0; i < 10; i++) {
+                    newOrderNumber += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+
+                this.orderNumber = newOrderNumber;
+            } else {
+                this.orderNumber = orderNumber;
             }
         }
+        
+        // Validar transição de status quando não é novo
+        if (!this.isNew && this.isModified('status')) {
+            const current = await mongoose.model('Order').findById(this._id).select('status').lean() as any;
+            const fromStatus = current?.status as string | undefined;
+            const toStatus = (this as any).status as string;
+            if (fromStatus && toStatus && fromStatus !== toStatus) {
+                const allowed = ALLOWED_STATUS_TRANSITIONS[fromStatus] || [];
+                if (!allowed.includes(toStatus)) {
+                    return next(new Error(`Transição de status inválida: ${fromStatus} -> ${toStatus}`));
+                }
+            }
+        }
+
+        // Criptografar CPF em customerData se foi modificado e não está criptografado
+        if (this.isModified('customerData.cpf') && this.customerData?.cpf) {
+            // Se já está criptografado, descriptografar temporariamente para gerar hash
+            let plainCPF = this.customerData.cpf;
+            if (isEncrypted(this.customerData.cpf)) {
+                plainCPF = decryptSensitiveData(this.customerData.cpf);
+            } else {
+                // Se não está criptografado, criptografar agora
+                this.customerData.cpf = encryptSensitiveData(this.customerData.cpf);
+            }
+            // Sempre atualizar hash para busca (usando CPF descriptografado)
+            this.customerData.cpfHash = hashCPFForSearch(plainCPF);
+        } else if (this.isModified('customerData.cpf') && !this.customerData?.cpf) {
+            // Se CPF foi removido, limpar hash também
+            if (this.customerData) {
+                this.customerData.cpfHash = undefined;
+            }
+        }
+
+        // Criptografar telefone em customerData se foi modificado e não está criptografado
+        if (this.isModified('customerData.phone') && this.customerData?.phone) {
+            // Se já está criptografado, descriptografar temporariamente para gerar hash
+            let plainPhone = this.customerData.phone;
+            if (isEncrypted(this.customerData.phone)) {
+                plainPhone = decryptSensitiveData(this.customerData.phone);
+            } else {
+                // Se não está criptografado, criptografar agora
+                this.customerData.phone = encryptSensitiveData(this.customerData.phone);
+            }
+            // Sempre atualizar hash para busca (usando telefone descriptografado)
+            this.customerData.phoneHash = hashPhoneForSearch(plainPhone);
+        } else if (this.isModified('customerData.phone') && !this.customerData?.phone) {
+            // Se telefone foi removido, limpar hash também
+            if (this.customerData) {
+                this.customerData.phoneHash = undefined;
+            }
+        }
+
+        next();
+    } catch (error) {
+        next(error as Error);
     }
-    next();
 });
 
 // Validar transições em operações findOneAndUpdate
@@ -357,6 +418,64 @@ orderSchema.statics.findByStatus = function (status: string) {
 // Static method para buscar pedido por número
 orderSchema.statics.findByOrderNumber = function (orderNumber: string) {
     return this.findOne({ orderNumber, isActive: true, deletedAt: null });
+};
+
+// Middleware para descriptografar dados sensíveis ao buscar
+orderSchema.post(['find', 'findOne', 'findOneAndUpdate'], function (docs: any) {
+    if (!docs) return;
+    
+    const documents = Array.isArray(docs) ? docs : [docs];
+    documents.forEach((doc: any) => {
+        if (doc && doc.customerData) {
+            // Descriptografar CPF
+            if (doc.customerData.cpf && isEncrypted(doc.customerData.cpf)) {
+                try {
+                    doc.customerData.cpf = decryptSensitiveData(doc.customerData.cpf);
+                } catch (error) {
+                    console.error('Erro ao descriptografar CPF do pedido:', error);
+                }
+            }
+            // Descriptografar telefone
+            if (doc.customerData.phone && isEncrypted(doc.customerData.phone)) {
+                try {
+                    doc.customerData.phone = decryptSensitiveData(doc.customerData.phone);
+                } catch (error) {
+                    console.error('Erro ao descriptografar telefone do pedido:', error);
+                }
+            }
+            // Não expor hashes
+            delete doc.customerData.cpfHash;
+            delete doc.customerData.phoneHash;
+        }
+    });
+});
+
+// Método toJSON para garantir descriptografia
+orderSchema.methods.toJSON = function () {
+    const orderObject = this.toObject();
+    
+    // Descriptografar dados sensíveis se estiverem criptografados
+    if (orderObject.customerData) {
+        if (orderObject.customerData.cpf && isEncrypted(orderObject.customerData.cpf)) {
+            try {
+                orderObject.customerData.cpf = decryptSensitiveData(orderObject.customerData.cpf);
+            } catch (error) {
+                console.error('Erro ao descriptografar CPF no toJSON:', error);
+            }
+        }
+        if (orderObject.customerData.phone && isEncrypted(orderObject.customerData.phone)) {
+            try {
+                orderObject.customerData.phone = decryptSensitiveData(orderObject.customerData.phone);
+            } catch (error) {
+                console.error('Erro ao descriptografar telefone no toJSON:', error);
+            }
+        }
+        // Não expor hashes
+        delete orderObject.customerData.cpfHash;
+        delete orderObject.customerData.phoneHash;
+    }
+    
+    return orderObject;
 };
 
 // Exportar o modelo

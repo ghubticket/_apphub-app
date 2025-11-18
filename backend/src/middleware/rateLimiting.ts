@@ -1,4 +1,5 @@
 import rateLimit from 'express-rate-limit';
+import { Request, Response, NextFunction } from 'express';
 
 // Detectar ambiente (desenvolvimento se NODE_ENV não for 'production')
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -67,3 +68,51 @@ export const sensitiveRateLimit = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+/**
+ * Rate limiting por usuário autenticado
+ * Usa userId como chave para limitar requisições por usuário
+ * Útil para prevenir abuso mesmo quando o IP muda
+ */
+export const userRateLimit = (windowMs: number, max: number, message?: string) => {
+    return rateLimit({
+        windowMs,
+        max,
+        keyGenerator: (req: Request) => {
+            // Usar userId se autenticado, senão usar IP como fallback
+            const user = (req as any).user;
+            return user ? `user:${user._id || user.id}` : `ip:${req.ip}`;
+        },
+        message: {
+            success: false,
+            message: message || 'Muitas requisições. Tente novamente mais tarde.',
+            errors: ['Rate limit excedido por usuário']
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+        skip: (req: Request) => {
+            // Pular rate limit para usuários não autenticados (já tem rate limit por IP)
+            return !(req as any).user;
+        }
+    });
+};
+
+/**
+ * Rate limiting para criação de pedidos por usuário autenticado
+ * Limita a 10 pedidos por hora por usuário
+ */
+export const orderCreationUserRateLimit = userRateLimit(
+    60 * 60 * 1000, // 1 hora
+    isDevelopment ? 1000 : 10, // 10 pedidos por hora em produção
+    'Limite de pedidos excedido. Máximo de 10 pedidos por hora.'
+);
+
+/**
+ * Rate limiting para operações críticas por usuário autenticado
+ * Limita a 20 operações por 15 minutos por usuário
+ */
+export const criticalOperationsUserRateLimit = userRateLimit(
+    15 * 60 * 1000, // 15 minutos
+    isDevelopment ? 1000 : 20, // 20 operações por 15 minutos em produção
+    'Muitas operações. Tente novamente em 15 minutos.'
+);

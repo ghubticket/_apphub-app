@@ -4,13 +4,13 @@ import { scanQRCode, validateTicket } from '../services/validationService';
 import { useValidationStore } from '../store/validationStore';
 import ValidationResult from './ValidationResult';
 import { ValidationResult as ValidationResultType } from '../types';
+import { logger } from '../utils/logger';
 
 interface QRScannerProps {
   onScanningChange?: (isScanning: boolean) => void;
 }
 
 // Configuração de ambiente
-const IS_DEV = import.meta.env.DEV;
 const QR_SCAN_DEBOUNCE_MS = 1000; // Prevenir múltiplas validações do mesmo QR em 1s
 const OVERLAY_DURATION_SUCCESS = 2000;
 const OVERLAY_DURATION_ERROR = 5000;
@@ -52,7 +52,7 @@ const QRScanner = ({ onScanningChange }: QRScannerProps) => {
         html5QrCodeRef.current.clear();
         html5QrCodeRef.current = null;
       } catch (err) {
-        if (IS_DEV) console.error('Erro ao parar scanner:', err);
+        logger.error('Erro ao parar scanner:', err);
       }
     }
     setIsScanning(false);
@@ -389,7 +389,7 @@ const QRScanner = ({ onScanningChange }: QRScannerProps) => {
       // Sincronizar histórico (debounced)
       setTimeout(() => syncHistory(), 500);
     } catch (err: any) {
-      if (IS_DEV) console.error('Erro ao processar QR code:', err);
+      logger.error('Erro ao processar QR code:', err);
       setError('Erro ao processar QR code. Tente novamente.');
       setShowOverlay(true);
       overlayTimeoutRef.current = setTimeout(() => {

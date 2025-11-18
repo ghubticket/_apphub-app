@@ -10,6 +10,7 @@ import { setupSwagger } from './config/swagger';
 import { generalRateLimit } from './middleware/rateLimiting';
 import { authenticateWithCookies } from './middleware/cookies';
 import { validateUserAgent } from './middleware/deviceValidation';
+import { sanitizeBody } from './middleware/sanitization';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/node';
 import { getSSLOptions } from './config/ssl';
@@ -57,14 +58,35 @@ if (process.env.SENTRY_DSN) {
 // Confiar apenas em um hop de proxy (evita trust proxy permissivo)
 app.set('trust proxy', 1);
 
+// Gerar nonce para CSP (Content Security Policy)
+// Nonce permite estilos/scripts específicos sem usar 'unsafe-inline'
+app.use((req: any, _res, next) => {
+    req.nonce = crypto.randomBytes(16).toString('base64');
+    next();
+});
+
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
     contentSecurityPolicy: {
+        useDefaults: true,
         directives: {
             defaultSrc: ["'self'"],
             imgSrc: ["'self'", "data:", "http://localhost:3001", "https:"],
-            scriptSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: [
+                "'self'",
+                (req: any) => `'nonce-${req.nonce}'`, // Permitir scripts com nonce
+            ],
+            styleSrc: [
+                "'self'",
+                (req: any) => `'nonce-${req.nonce}'`, // Permitir estilos com nonce
+                // Manter 'unsafe-inline' apenas em desenvolvimento para compatibilidade
+                ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
+            ],
+            fontSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", "https:"],
+            frameSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
         },
     },
 }));
@@ -213,6 +235,17 @@ app.use(express.json({
     }
 }));
 app.use(express.urlencoded({ extended: true }));
+
+// Sanitização Global - Proteção XSS
+// Aplicar em todas as rotas exceto webhooks (que precisam do body raw para assinatura)
+app.use((req: Request, res: Response, next: NextFunction) => {
+    // Excluir webhooks e rotas que precisam do body raw
+    const excludedPaths = ['/api/payments/webhook'];
+    if (excludedPaths.some(path => req.path.startsWith(path))) {
+        return next();
+    }
+    sanitizeBody(req, res, next);
+});
 
 // ====================================
 // Swagger Documentation

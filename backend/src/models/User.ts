@@ -1,5 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { encryptSensitiveData, decryptSensitiveData, hashCPFForSearch, hashPhoneForSearch, isEncrypted } from '../utils/encryption';
 
 // Interface para o documento User
 export interface IUser extends Document {
@@ -8,7 +9,9 @@ export interface IUser extends Document {
     password: string;
     role: 'ADMIN' | 'CLIENTE' | 'QRCODE';
     phone?: string;
+    phoneHash?: string; // Hash SHA-256 do telefone para busca eficiente
     cpf?: string;
+    cpfHash?: string; // Hash SHA-256 do CPF para busca eficiente
     isActive: boolean;
     deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     lastLogin?: Date;
@@ -71,6 +74,12 @@ const userSchema = new Schema<IUser>(
                 /^\(\d{2}\)\s\d{4,5}-\d{4}$/,
                 'Telefone deve estar no formato (11) 99999-9999',
             ],
+            select: false, // Não incluir por padrão (dados sensíveis)
+        },
+        phoneHash: {
+            type: String,
+            index: true, // Índice para busca eficiente
+            select: false, // Não incluir por padrão
         },
         cpf: {
             type: String,
@@ -79,6 +88,12 @@ const userSchema = new Schema<IUser>(
                 /^\d{3}\.\d{3}\.\d{3}-\d{2}$/,
                 'CPF deve estar no formato 000.000.000-00',
             ],
+            select: false, // Não incluir por padrão (dados sensíveis)
+        },
+        cpfHash: {
+            type: String,
+            index: true, // Índice para busca eficiente
+            select: false, // Não incluir por padrão
         },
         isActive: {
             type: Boolean,
@@ -136,16 +151,52 @@ const userSchema = new Schema<IUser>(
 userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
+userSchema.index({ cpfHash: 1 }); // Índice para busca por CPF via hash
+userSchema.index({ phoneHash: 1 }); // Índice para busca por telefone via hash
 
-// Middleware para hash da senha antes de salvar
+// Middleware para hash da senha e criptografia de dados sensíveis antes de salvar
 userSchema.pre('save', async function (next) {
-    // Só faz hash se a senha foi modificada
-    if (!this.isModified('password')) return next();
-
     try {
-        // Hash da senha com salt rounds do .env
-        const saltRounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
-        this.password = await bcrypt.hash(this.password, saltRounds);
+        // Hash da senha se foi modificada
+        if (this.isModified('password')) {
+            const saltRounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
+            this.password = await bcrypt.hash(this.password, saltRounds);
+        }
+
+        // Criptografar CPF se foi modificado e não está criptografado
+        if (this.isModified('cpf') && this.cpf) {
+            // Se já está criptografado, descriptografar temporariamente para gerar hash
+            let plainCPF = this.cpf;
+            if (isEncrypted(this.cpf)) {
+                plainCPF = decryptSensitiveData(this.cpf);
+            } else {
+                // Se não está criptografado, criptografar agora
+                this.cpf = encryptSensitiveData(this.cpf);
+            }
+            // Sempre atualizar hash para busca (hashCPFForSearch aceita qualquer formato e normaliza internamente)
+            this.cpfHash = hashCPFForSearch(plainCPF);
+        } else if (this.isModified('cpf') && !this.cpf) {
+            // Se CPF foi removido, limpar hash também
+            this.cpfHash = undefined;
+        }
+
+        // Criptografar telefone se foi modificado e não está criptografado
+        if (this.isModified('phone') && this.phone) {
+            // Se já está criptografado, descriptografar temporariamente para gerar hash
+            let plainPhone = this.phone;
+            if (isEncrypted(this.phone)) {
+                plainPhone = decryptSensitiveData(this.phone);
+            } else {
+                // Se não está criptografado, criptografar agora
+                this.phone = encryptSensitiveData(this.phone);
+            }
+            // Sempre atualizar hash para busca (hashPhoneForSearch aceita qualquer formato e normaliza internamente)
+            this.phoneHash = hashPhoneForSearch(plainPhone);
+        } else if (this.isModified('phone') && !this.phone) {
+            // Se telefone foi removido, limpar hash também
+            this.phoneHash = undefined;
+        }
+
         next();
     } catch (error) {
         next(error as Error);
@@ -163,12 +214,54 @@ userSchema.methods.comparePassword = async function (
     }
 };
 
-// Método para retornar dados seguros (sem senha)
+// Middleware para descriptografar dados sensíveis ao buscar
+userSchema.post(['find', 'findOne', 'findOneAndUpdate'], function (docs: any) {
+    if (!docs) return;
+    
+    const documents = Array.isArray(docs) ? docs : [docs];
+    documents.forEach((doc: any) => {
+        if (doc && doc.cpf && isEncrypted(doc.cpf)) {
+            try {
+                doc.cpf = decryptSensitiveData(doc.cpf);
+            } catch (error) {
+                console.error('Erro ao descriptografar CPF do usuário:', error);
+            }
+        }
+        if (doc && doc.phone && isEncrypted(doc.phone)) {
+            try {
+                doc.phone = decryptSensitiveData(doc.phone);
+            } catch (error) {
+                console.error('Erro ao descriptografar telefone do usuário:', error);
+            }
+        }
+    });
+});
+
+// Método para retornar dados seguros (sem senha e com dados sensíveis descriptografados)
 userSchema.methods.toJSON = function () {
     const userObject = this.toObject();
     delete userObject.password;
     delete userObject.__v;
     delete userObject.publicData; // Remove o virtual para evitar duplicação
+    delete userObject.cpfHash; // Não expor hash
+    delete userObject.phoneHash; // Não expor hash
+    
+    // Descriptografar dados sensíveis se estiverem criptografados
+    if (userObject.cpf && isEncrypted(userObject.cpf)) {
+        try {
+            userObject.cpf = decryptSensitiveData(userObject.cpf);
+        } catch (error) {
+            console.error('Erro ao descriptografar CPF no toJSON:', error);
+        }
+    }
+    if (userObject.phone && isEncrypted(userObject.phone)) {
+        try {
+            userObject.phone = decryptSensitiveData(userObject.phone);
+        } catch (error) {
+            console.error('Erro ao descriptografar telefone no toJSON:', error);
+        }
+    }
+    
     return userObject;
 };
 

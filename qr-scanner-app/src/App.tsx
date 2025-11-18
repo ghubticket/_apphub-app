@@ -5,15 +5,55 @@ import ValidationHistory from './components/ValidationHistory';
 import Login from './components/Login';
 import { useValidationStore } from './store/validationStore';
 import { validateDeviceAccess, isSecureContext } from './utils/deviceDetection';
+import { validateToken, isTokenExpired } from './utils/token';
+import { useSessionTimeout } from './hooks/useSessionTimeout';
+import { logger } from './utils/logger';
 
 function App() {
   const [currentView, setCurrentView] = useState<'scanner' | 'search' | 'history'>('scanner');
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return !!localStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token');
+    if (!token) return false;
+    
+    // Validar token antes de considerar autenticado
+    if (!validateToken(token) || isTokenExpired(token)) {
+      logger.warn('Token inválido ou expirado no mount, removendo...');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
+      return false;
+    }
+    
+    return true;
   });
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
   const loadHistoryFromBackend = useValidationStore((state) => state.loadHistoryFromBackend);
+
+  // Handler para logout quando sessão expira
+  const handleSessionTimeout = useCallback(() => {
+    logger.warn('Sessão expirada por inatividade');
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
+    setIsAuthenticated(false);
+    setShowSessionWarning(false);
+  }, []);
+
+  // Handler para aviso de sessão
+  const handleSessionWarning = useCallback((timeRemaining: number) => {
+    const minutes = Math.floor(timeRemaining / 60000);
+    logger.warn(`Sessão expirando em ${minutes} minutos`);
+    setShowSessionWarning(true);
+  }, []);
+
+  // Timeout de sessão (apenas quando autenticado)
+  const { minutesRemaining, showWarning } = useSessionTimeout({
+    onTimeout: handleSessionTimeout,
+    onWarning: handleSessionWarning,
+    timeoutMs: 30 * 60 * 1000, // 30 minutos
+    warningMs: 5 * 60 * 1000, // Aviso 5 min antes
+    enabled: isAuthenticated, // Só ativar quando autenticado
+  });
 
   // Validar dispositivo ao montar
   useEffect(() => {
@@ -23,8 +63,8 @@ function App() {
     }
     
     // Validar contexto seguro (HTTPS)
-    if (!isSecureContext() && import.meta.env.DEV) {
-      console.warn('⚠️ Acesso via HTTP detectado. Câmera pode não funcionar.');
+    if (!isSecureContext()) {
+      logger.warn('⚠️ Acesso via HTTP detectado. Câmera pode não funcionar.');
     }
   }, []);
 
@@ -35,15 +75,27 @@ function App() {
     }
   }, [isAuthenticated, loadHistoryFromBackend]);
 
-  const handleLogin = useCallback((token: string) => {
+  const handleLogin = useCallback((token: string, refreshToken?: string) => {
+    // Validar token antes de armazenar
+    if (!validateToken(token)) {
+      logger.error('Token inválido recebido no login');
+      return;
+    }
+    
     localStorage.setItem('auth_token', token);
+    if (refreshToken) {
+      localStorage.setItem('refresh_token', refreshToken);
+    }
     setIsAuthenticated(true);
+    setShowSessionWarning(false);
     // Histórico será carregado pelo useEffect acima
   }, []);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
     setIsAuthenticated(false);
+    setShowSessionWarning(false);
   }, []);
 
   // Mostrar erro se dispositivo não for permitido
@@ -121,6 +173,21 @@ function App() {
         {currentView === 'search' && <ManualSearch />}
         {currentView === 'history' && <ValidationHistory />}
       </main>
+
+      {/* Aviso de sessão expirando */}
+      {showSessionWarning && showWarning && (
+        <div className="position-fixed top-0 start-0 end-0 p-3" style={{ zIndex: 9999 }}>
+          <div className="alert alert-warning alert-dismissible fade show" role="alert">
+            <strong>⚠️ Atenção:</strong> Sua sessão expirará em {minutesRemaining} minutos por inatividade.
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setShowSessionWarning(false)}
+              aria-label="Fechar"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

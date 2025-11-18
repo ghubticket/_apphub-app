@@ -11,6 +11,8 @@ export { default as WebhookEvent } from './WebhookEvent';
 export { default as QrNonce } from './QrNonce';
 export { default as ValidationAttempt } from './ValidationAttempt';
 export { default as NewsletterSubscription } from './NewsletterSubscription';
+export { default as SuspiciousOrderAlert } from './SuspiciousOrderAlert';
+export { default as AuditLog } from './AuditLog';
 
 // Re-exportar tipos para facilitar importação
 export type { IUser } from './User';
@@ -25,3 +27,5 @@ export type { IWebhookEvent } from './WebhookEvent';
 export type { IQrNonce } from './QrNonce';
 export type { IValidationAttempt } from './ValidationAttempt';
 export type { INewsletterSubscription } from './NewsletterSubscription';
+export type { ISuspiciousOrderAlert } from './SuspiciousOrderAlert';
+export type { IAuditLog } from './AuditLog';

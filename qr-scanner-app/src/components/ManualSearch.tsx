@@ -3,6 +3,8 @@ import { getTicketByCode, validateTicket } from '../services/validationService';
 import { useValidationStore } from '../store/validationStore';
 import ValidationResult from './ValidationResult';
 import { ValidationResult as ValidationResultType } from '../types';
+import { sanitizeTicketCode, sanitizeCPF } from '../utils/sanitize';
+import { logger } from '../utils/logger';
 
 const ManualSearch = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,8 +24,11 @@ const ManualSearch = () => {
     setValidationResult(null);
 
     try {
-      // Remove espaços e formata
-      const code = searchTerm.trim().toUpperCase().replace(/\s/g, '');
+      // Sanitizar input (código de ingresso ou CPF)
+      const sanitized = searchTerm.trim();
+      const code = sanitized.length <= 12 
+        ? sanitizeTicketCode(sanitized) 
+        : sanitizeCPF(sanitized);
 
       // Busca o ingresso
       const ticket = await getTicketByCode(code);
@@ -50,9 +55,7 @@ const ManualSearch = () => {
         timestamp: new Date(),
       });
     } catch (err: any) {
-      if (import.meta.env.DEV) {
-        console.error('Erro ao buscar ingresso:', err);
-      }
+      logger.error('Erro ao buscar ingresso:', err);
       setError('Erro ao buscar ingresso. Tente novamente.');
     } finally {
       setIsSearching(false);

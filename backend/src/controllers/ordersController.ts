@@ -6,6 +6,7 @@ import { sendOrderCancelledEmail } from '../services/emailTemplates';
 import { normalizeCPF, normalizeEmail } from '../utils/validationHelpers';
 import * as orderService from '../services/orderService';
 import { generateQRCode } from '../services/qrCodeService';
+import { logAudit, createAuditContextFromRequest } from '../services/auditService';
 
 const MAX_CARD_PAYMENT_ATTEMPTS = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
 const ORDER_NUMBER_LENGTH = 10;
@@ -56,31 +57,34 @@ export const countPurchasedTicketsByCPFOrEmail = async (
     };
 
     // Adicionar filtro por CPF ou Email
-    // CRÍTICO: Buscar CPF de forma flexível, pois pode estar salvo em diferentes formatos
+    // CRÍTICO: Usar hash do CPF para busca eficiente (CPF está criptografado)
+    const { hashCPFForSearch } = await import('../utils/encryption');
+    
     if (normalizedCPF && normalizedEmail) {
         // Se ambos estão presentes, usar OR
-        // Buscar CPF em qualquer formato (com ou sem formatação)
-        const cpfFormatted = normalizedCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-        orderFilters.$or = [
-            { 'customerData.cpf': cpfFormatted },
-            { 'customerData.cpf': normalizedCPF },
-            { 'customerData.email': normalizedEmail }
-        ];
+        const cpfHash = hashCPFForSearch(normalizedCPF);
+        if (cpfHash) {
+            orderFilters.$or = [
+                { 'customerData.cpfHash': cpfHash },
+                { 'customerData.email': normalizedEmail }
+            ];
+        } else {
+            // Se hash falhou, buscar apenas por email
+            orderFilters['customerData.email'] = normalizedEmail;
+        }
     } else if (normalizedCPF) {
-        // Buscar por CPF de forma flexível (com ou sem formatação)
-        // Tentar múltiplos formatos: 000.000.000-00, 00000000000, etc.
-        const cpfFormatted = normalizedCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-        // CRÍTICO: Usar $or para buscar em múltiplos formatos
-        // MongoDB aggregate suporta $or no $match
-        orderFilters.$or = [
-            { 'customerData.cpf': cpfFormatted },
-            { 'customerData.cpf': normalizedCPF }
-        ];
-        
-        console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Buscando CPF em múltiplos formatos:', {
-            normalizedCPF: `${normalizedCPF.substring(0, 3)}.***.***-**`,
-            cpfFormatted: `${cpfFormatted.substring(0, 3)}.***.***-**`,
-        });
+        // Buscar por CPF usando hash (CPF está criptografado no banco)
+        const cpfHash = hashCPFForSearch(normalizedCPF);
+        if (cpfHash) {
+            orderFilters['customerData.cpfHash'] = cpfHash;
+            
+            console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Buscando CPF via hash:', {
+                normalizedCPF: `${normalizedCPF.substring(0, 3)}.***.***-**`,
+                cpfHash: cpfHash.substring(0, 16) + '...',
+            });
+        } else {
+            console.warn('[countPurchasedTicketsByCPFOrEmail] ⚠️ Não foi possível gerar hash do CPF:', normalizedCPF);
+        }
     } else if (normalizedEmail) {
         orderFilters['customerData.email'] = normalizedEmail;
     }
@@ -105,13 +109,13 @@ export const countPurchasedTicketsByCPFOrEmail = async (
         deletedAt: null,
     }).select('orderNumber paymentMethod customerData.cpf customerData.email').limit(3).lean();
     
-    // Teste direto: buscar pedidos com o CPF exato
-    const cpfFormatted = normalizedCPF ? normalizeCPF(normalizedCPF)?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : null;
-    const directCPFQuery = cpfFormatted ? await Order.find({
+    // Teste direto: buscar pedidos com o CPF via hash
+    const cpfHash = normalizedCPF ? hashCPFForSearch(normalizedCPF) : null;
+    const directCPFQuery = cpfHash ? await Order.find({
         event: eventObjectId,
         status: 'paid',
         deletedAt: null,
-        'customerData.cpf': cpfFormatted,
+        'customerData.cpfHash': cpfHash,
     }).select('orderNumber paymentMethod customerData.cpf').limit(5).lean() : [];
     
     console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Teste: Pedidos pagos no evento (amostra):', {
@@ -128,7 +132,7 @@ export const countPurchasedTicketsByCPFOrEmail = async (
             normalizedEmail: normalizedEmail || 'null',
         },
         directCPFSearch: {
-            cpfFormatted: cpfFormatted || 'null',
+            cpfHash: cpfHash ? cpfHash.substring(0, 16) + '...' : 'null',
             foundOrders: directCPFQuery.length,
             orders: directCPFQuery.map((o: any) => ({
                 orderNumber: o.orderNumber,
@@ -626,6 +630,9 @@ export const createOrder = async (req: Request, res: Response) => {
                 ? new Date(now.getTime() + CHECKOUT_TIMEOUT_MS)
                 : undefined;
             
+            // Capturar IP do cliente para detecção de padrões suspeitos
+            const ipAddress = (req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown').toString();
+
             const order = new Order({
                 customer: userId || null,
                 event: eventId,
@@ -652,11 +659,59 @@ export const createOrder = async (req: Request, res: Response) => {
                         return normalized ? normalized.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : undefined;
                     })() : undefined,
                 },
+                ipAddress, // IP para detecção de padrões suspeitos
                 cardAttempts: 0,
                 isActive: Boolean(isReallyVIP),
             });
 
             await order.save();
+
+            // Registrar auditoria (executar em background, não bloquear criação)
+            const auditContext = createAuditContextFromRequest(req);
+            logAudit({
+                entityType: 'Order',
+                entityId: String(order._id),
+                action: 'create',
+                performedBy: auditContext.performedBy,
+                performedByRole: auditContext.performedByRole,
+                changes: [{
+                    field: 'status',
+                    oldValue: null,
+                    newValue: order.status,
+                }, {
+                    field: 'totalAmount',
+                    oldValue: null,
+                    newValue: order.totalAmount,
+                }, {
+                    field: 'totalTickets',
+                    oldValue: null,
+                    newValue: order.totalTickets,
+                }],
+                metadata: {
+                    ipAddress: auditContext.ipAddress,
+                    userAgent: auditContext.userAgent,
+                    orderNumber: order.orderNumber,
+                    eventId: String(eventId),
+                    ticketTypeId: String(ticketTypeId),
+                    quantity,
+                    paymentMethod: order.paymentMethod,
+                },
+            }).catch((error) => {
+                console.error('Erro ao registrar auditoria (não crítico):', error);
+            });
+
+            // Detectar padrões suspeitos (executar em background, não bloquear criação)
+            import('../services/suspiciousOrderDetection').then(({ detectSuspiciousPatterns }) => {
+                detectSuspiciousPatterns({
+                    orderId: String(order._id),
+                    ipAddress,
+                    cpf: cpfToValidate,
+                    email: finalCustomerEmail,
+                    userId: userId || undefined,
+                }).catch((error) => {
+                    console.error('Erro ao detectar padrões suspeitos (não crítico):', error);
+                });
+            });
 
             // Incrementar contador de uso do código de promotor (se usado)
             if (usedPromoterCode) {
@@ -1548,9 +1603,34 @@ export const cancelOrder = async (req: Request, res: Response) => {
         // O pedido PENDING já funciona como reserva e quando cancelado, o estoque é liberado automaticamente
 
         // Cancelar pedido
+        const oldStatus = order.status;
         order.status = 'cancelled';
         order.cancelledAt = new Date();
         await order.save();
+
+        // Registrar auditoria
+        const auditContext = createAuditContextFromRequest(req);
+        logAudit({
+            entityType: 'Order',
+            entityId: String(order._id),
+            action: 'cancel',
+            performedBy: auditContext.performedBy,
+            performedByRole: auditContext.performedByRole,
+            changes: [{
+                field: 'status',
+                oldValue: oldStatus,
+                newValue: 'cancelled',
+            }],
+            metadata: {
+                ipAddress: auditContext.ipAddress,
+                userAgent: auditContext.userAgent,
+                orderNumber: order.orderNumber,
+                reason: 'Cancelamento manual',
+                paymentMethod: order.paymentMethod,
+            },
+        }).catch((error) => {
+            console.error('Erro ao registrar auditoria (não crítico):', error);
+        });
 
         // CRÍTICO: Cancelar APENAS tickets pending (não cancelar tickets já confirmados/pagos)
         // Se o pedido tem tickets confirmados (já pagos) e tickets pending (aguardando pagamento),
