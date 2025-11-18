@@ -54,8 +54,15 @@ export function IsolatedCardPaymentBrick({
     // Montar Brick apenas UMA VEZ por sessão em container persistente
     // Criar container persistente para o Brick
     const createPersistentContainer = useCallback(() => {
+        // CRÍTICO: Verificar se o componente ainda está montado antes de criar container
         if (!wrapperRef.current) {
             console.log('[IsolatedCardPaymentBrick] ⏸️ wrapperRef.current não está disponível, aguardando...');
+            return;
+        }
+        
+        // CRÍTICO: Verificar se o wrapper ainda está no DOM (componente pode estar sendo desmontado)
+        if (!document.body.contains(wrapperRef.current)) {
+            console.log('[IsolatedCardPaymentBrick] ⏸️ Wrapper não está no DOM, componente pode estar sendo desmontado');
             return;
         }
         
@@ -142,34 +149,51 @@ export function IsolatedCardPaymentBrick({
             handlersRef.current.onError(error);
         };
 
+        // CRÍTICO: Verificar novamente se o container ainda está no DOM antes de renderizar
+        // Isso previne o erro "Could not find the Brick container ID" quando o componente é desmontado rapidamente
+        if (!document.body.contains(container)) {
+            console.warn('[IsolatedCardPaymentBrick] ⚠️ Container não está mais no DOM antes da renderização, cancelando');
+            return;
+        }
+
         // Renderizar Brick no container persistente - APENAS UMA VEZ
-        root.render(
-            <CardPayment
-                initialization={{
-                    amount: Number(amountRef.current.toFixed(2)),
-                }}
-                customization={{
-                    visual: {
-                        style: {
-                            theme: 'flat',
-                        },
-                        texts: {
-                            cardholderName: {
-                                label: 'Nome igual ao cartão',
-                                placeholder: 'Nome completo',
+        try {
+            root.render(
+                <CardPayment
+                    initialization={{
+                        amount: Number(amountRef.current.toFixed(2)),
+                    }}
+                    customization={{
+                        visual: {
+                            style: {
+                                theme: 'flat',
                             },
-                            email: {
-                                label: 'E-mail para recibo',
-                                placeholder: 'email@testuser.com',
+                            texts: {
+                                cardholderName: {
+                                    label: 'Nome igual ao cartão',
+                                    placeholder: 'Nome completo',
+                                },
+                                email: {
+                                    label: 'E-mail para recibo',
+                                    placeholder: 'email@testuser.com',
+                                },
                             },
                         },
-                    },
-                }}
-                onSubmit={handleSubmit}
-                onReady={handleReady}
-                onError={handleError}
-            />
-        );
+                    }}
+                    onSubmit={handleSubmit}
+                    onReady={handleReady}
+                    onError={handleError}
+                />
+            );
+            console.log('[IsolatedCardPaymentBrick] ✅ Brick renderizado com sucesso');
+        } catch (error) {
+            console.error('[IsolatedCardPaymentBrick] ❌ Erro ao renderizar Brick:', error);
+            // Limpar referências globais em caso de erro
+            window.__MP_BRICK_CONTAINER__ = undefined;
+            window.__MP_BRICK_ROOT__ = undefined;
+            window.__MP_BRICK_MOUNTED__ = false;
+            return;
+        }
 
         // Armazenar referências globais - NUNCA resetar
         window.__MP_BRICK_MOUNTED__ = true;
@@ -338,10 +362,16 @@ export function IsolatedCardPaymentBrick({
         // Se chegou aqui, significa que o Brick não está montado, então criar
         // Aguardar wrapper estar disponível
         if (wrapperRef.current) {
-            createPersistentContainer();
+            // CRÍTICO: Verificar se o wrapper ainda está no DOM antes de criar container
+            if (document.body.contains(wrapperRef.current)) {
+                createPersistentContainer();
+            } else {
+                console.log('[IsolatedCardPaymentBrick] ⏸️ Wrapper não está no DOM, aguardando...');
+            }
         } else {
             const timer = setTimeout(() => {
-                if (wrapperRef.current && !window.__MP_BRICK_MOUNTED__) {
+                // CRÍTICO: Verificar se o wrapper existe E está no DOM antes de criar container
+                if (wrapperRef.current && document.body.contains(wrapperRef.current) && !window.__MP_BRICK_MOUNTED__) {
                     createPersistentContainer();
                 }
             }, 100);

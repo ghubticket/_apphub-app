@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import Container from '@/components/shared/Container';
 import { CheckoutHeader } from './CheckoutHeader';
 import { CheckoutTimer } from './CheckoutTimer';
@@ -44,79 +44,40 @@ export function CheckoutLayout() {
     const [promoterCode, setPromoterCode] = useState<string | null>(null);
 
     // Criar/gerenciar pedido
-    const { 
-        order, 
-        loading: orderLoading, 
-        error: orderError, 
-        refreshOrder, 
-        clearOrder, 
-        resetRateLimitBlock, 
-        rateLimitRemainingSeconds, 
-        showRestoreModal, 
-        closeRestoreModal, 
-        showExpiredModal, 
-        closeExpiredModal, 
-        createOrder 
+    const {
+        order,
+        loading: orderLoading,
+        error: orderError,
+        refreshOrder,
+        clearOrder,
+        resetRateLimitBlock,
+        rateLimitRemainingSeconds,
+        showRestoreModal,
+        closeRestoreModal,
+        showExpiredModal,
+        closeExpiredModal,
+        createOrder
     } = useCheckoutOrder(summarizedCart, customerData, promoterCode);
 
     // Atualizar código de promotor no pedido existente via API
+    // REFATORADO: Simplificado - lógica movida para hooks especializados
     const handlePromoterCodeChange = useCallback(async (code: string | null) => {
-        console.log('[CheckoutLayout] 🎯 handlePromoterCodeChange chamado:', {
-            code,
-            hasOrder: !!order?._id,
-            orderId: order?._id,
-            previousCode: promoterCode,
-        });
-
         setPromoterCode(code);
-        
+
         // Se já existe um pedido, atualizar via API sem resetar nada
         if (order?._id) {
             try {
-                console.log('[CheckoutLayout] 🔄 Atualizando código de promotor no pedido existente via API:', {
-                    orderId: order._id,
-                    code,
-                    url: `/orders/${order._id}/promoter-code`,
-                });
-                
                 const response = await api.patch(`/orders/${order._id}/promoter-code`, {
                     promoterCode: code,
                 });
-                
-                console.log('[CheckoutLayout] 📡 Resposta da API:', {
-                    status: response.status,
-                    success: response.data?.success,
-                    message: response.data?.message,
-                    hasOrder: !!response.data?.data?.order,
-                    orderId: response.data?.data?.order?._id,
-                    discountAmount: response.data?.data?.order?.discountAmount,
-                    totalAmount: response.data?.data?.order?.totalAmount,
-                });
-                
+
                 if (response.data?.success && response.data?.data?.order) {
-                    console.log('[CheckoutLayout] ✅ Código de promotor atualizado com sucesso, atualizando pedido local');
-                    // Atualizar pedido com resposta da API
                     await refreshOrder();
-                    console.log('[CheckoutLayout] ✅ Pedido atualizado após aplicar código');
-                } else {
-                    console.error('[CheckoutLayout] ⚠️ Resposta inválida da API:', {
-                        responseData: response.data,
-                    });
                 }
             } catch (error: any) {
-                console.error('[CheckoutLayout] ❌ Erro ao atualizar código de promotor:', {
-                    error: error?.message,
-                    status: error?.response?.status,
-                    statusText: error?.response?.statusText,
-                    data: error?.response?.data,
-                    stack: error?.stack,
-                });
                 // Reverter estado do código se houver erro
-                console.log('[CheckoutLayout] 🔄 Revertendo código para:', promoterCode);
                 setPromoterCode(promoterCode);
             }
-        } else {
-            console.log('[CheckoutLayout] ℹ️ Sem pedido existente, código será aplicado na próxima criação');
         }
     }, [order?._id, promoterCode, refreshOrder]);
 
@@ -253,7 +214,7 @@ export function CheckoutLayout() {
 
     const handleRemoveItem = useCallback(async (itemId: string) => {
         console.log('[CheckoutLayout] 🗑️ Removendo item do carrinho e limpando tudo:', itemId);
-        
+
         try {
             if (order?._id) {
                 try {
@@ -266,7 +227,7 @@ export function CheckoutLayout() {
                     }
                 }
             }
-            
+
             orderCleanup.cleanupAll(order?._id || null, { skipBackend: false, redirectTo: '/' });
         } catch (error: any) {
             console.error('[CheckoutLayout] ❌ Erro ao remover item e limpar carrinho:', error);
@@ -333,22 +294,10 @@ export function CheckoutLayout() {
     // Calcular expiresAt para o timer (sempre usa o expiresAt do pedido)
     const timerExpiresAt = order?.expiresAt || null;
 
-    // Usar totalAmount do pedido se existir (já inclui desconto), senão usar do carrinho
-    const displayTotalAmount = order?.totalAmount ?? totalAmount;
-    
-    // Log para debug - verificar se totalAmount está sendo atualizado
-    useEffect(() => {
-        if (order?._id) {
-            console.log('[CheckoutLayout] 💰 TotalAmount atual:', {
-                orderId: order._id,
-                orderTotalAmount: order.totalAmount,
-                cartTotalAmount: totalAmount,
-                displayTotalAmount,
-                discountAmount: order.discountAmount,
-                promoterCode: order.promoterCode,
-            });
-        }
-    }, [order?._id, order?.totalAmount, order?.discountAmount, order?.promoterCode, totalAmount, displayTotalAmount]);
+    // OTIMIZADO: Memoizar displayTotalAmount para evitar recálculos desnecessários
+    const displayTotalAmount = useMemo(() => {
+        return order?.totalAmount ?? totalAmount;
+    }, [order?.totalAmount, totalAmount]);
 
     // Mostrar loading
     if (cartLoading || orderLoading) {
