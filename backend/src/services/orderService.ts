@@ -153,19 +153,46 @@ export async function validateAvailabilityAndLimits(
     }
 
     // Verificar limite acumulado por CPF (se configurado)
+    // CRÍTICO: Esta validação deve funcionar para TODOS os tipos de ingresso, incluindo VIP
     if (ticketType.maxPerCPF && cpfToValidate) {
         // Importar função dinamicamente para evitar dependência circular
         const ordersController = await import('../controllers/ordersController');
+        
+        console.log('[validateAvailabilityAndLimits] 🔍 Validando limite por CPF:', {
+            eventId,
+            ticketTypeId,
+            ticketTypeName: ticketType.name,
+            isVIP: ticketType.isVIP,
+            maxPerCPF: ticketType.maxPerCPF,
+            cpfToValidate: cpfToValidate ? `${cpfToValidate.substring(0, 3)}.***.***-**` : 'null',
+            quantity,
+        });
+        
         const purchasedByCPF = await ordersController.countPurchasedTicketsByCPFOrEmail(
             eventId,
             ticketTypeId,
             cpfToValidate,
             undefined
         );
+        
+        console.log('[validateAvailabilityAndLimits] 📊 Contagem de ingressos já comprados:', {
+            purchasedByCPF,
+            quantity,
+            totalAfterPurchase: purchasedByCPF + quantity,
+            maxPerCPF: ticketType.maxPerCPF,
+        });
+        
         const totalAfterPurchase = purchasedByCPF + quantity;
 
         if (totalAfterPurchase > ticketType.maxPerCPF) {
             const remaining = Math.max(0, ticketType.maxPerCPF - purchasedByCPF);
+            console.log('[validateAvailabilityAndLimits] ❌ Limite por CPF excedido:', {
+                purchasedByCPF,
+                quantity,
+                totalAfterPurchase,
+                maxPerCPF: ticketType.maxPerCPF,
+                remaining,
+            });
             return {
                 isValid: false,
                 error: {
@@ -179,6 +206,30 @@ export async function validateAvailabilityAndLimits(
                 }
             };
         }
+        
+        console.log('[validateAvailabilityAndLimits] ✅ Limite por CPF OK:', {
+            purchasedByCPF,
+            quantity,
+            totalAfterPurchase,
+            maxPerCPF: ticketType.maxPerCPF,
+        });
+    } else if (ticketType.maxPerCPF && !cpfToValidate) {
+        // CRÍTICO: Se há limite por CPF mas CPF não foi fornecido, bloquear
+        console.warn('[validateAvailabilityAndLimits] ⚠️ Limite por CPF configurado mas CPF não fornecido:', {
+            ticketTypeName: ticketType.name,
+            maxPerCPF: ticketType.maxPerCPF,
+        });
+        return {
+            isValid: false,
+            error: {
+                status: 400,
+                message: 'CPF obrigatório',
+                errors: [
+                    `Este tipo de ingresso requer CPF para validação de limite. ` +
+                    `Limite máximo: ${ticketType.maxPerCPF} ingresso(s) por CPF.`
+                ]
+            }
+        };
     }
 
     // Verificar limite acumulado por Email (se configurado)
@@ -232,7 +283,9 @@ export async function calculateOrderValues(
     quantity: number,
     promoterCode?: string
 ): Promise<OrderCalculationResult> {
-    const isVIP = ticketType.isVIP;
+    // CRÍTICO: Validação rigorosa - APENAS boolean true explícito
+    // Evitar que undefined, null, ou valores truthy sejam tratados como VIP
+    const isVIP = Boolean(ticketType?.isVIP === true);
     const ticketPrice = isVIP ? 0 : ticketType.price;
     const subtotal = ticketPrice * quantity;
 

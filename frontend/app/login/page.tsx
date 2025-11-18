@@ -2,12 +2,12 @@
 
 import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { HiOutlineEnvelope, HiOutlineLockClosed } from 'react-icons/hi2';
+import { HiOutlineEnvelope, HiOutlineLockClosed, HiOutlineUserPlus, HiOutlineIdentification } from 'react-icons/hi2';
 import { useRouter } from 'next/navigation';
-import AuthCard from '@/components/auth/AuthCard';
 import InputField from '@/components/forms/InputField';
 import PasswordField from '@/components/forms/PasswordField';
 import Button from '@/components/shared/Button';
+import Container from '@/components/shared/Container';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { sanitizeInput } from '@/utils/sanitize';
@@ -28,19 +28,38 @@ const validators: Record<LoginFormFields, (value: string) => string> = {
     },
 };
 
+// Função para formatar CPF
+const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+    if (numbers.length <= 9) return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
+    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
+};
+
+// Função para validar CPF básico
+const validateCPF = (cpf: string): boolean => {
+    const numbers = cpf.replace(/\D/g, '');
+    return numbers.length === 11;
+};
+
 export default function LoginPage() {
     const router = useRouter();
     const { login: authLogin, isAuthenticated, isReady } = useAuth();
+    
     useEffect(() => {
         if (isReady && isAuthenticated) {
             router.replace('/dashboard');
         }
     }, [isReady, isAuthenticated, router]);
+
     const [formData, setFormData] = useState({
         email: '',
         password: '',
         remember: true,
     });
+
+    const [cpf, setCpf] = useState('');
 
     const [errors, setErrors] = useState<Record<LoginFormFields, string>>({
         email: '',
@@ -54,6 +73,11 @@ export default function LoginPage() {
         const value = field === 'email' ? sanitizeInput(rawValue) : rawValue;
         setFormData((prev) => ({ ...prev, [field]: value }));
         if (formMessage) setFormMessage(null);
+    };
+
+    const handleCPFChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatCPF(event.target.value);
+        setCpf(formatted);
     };
 
     const handleRememberToggle = (event: ChangeEvent<HTMLInputElement>) => {
@@ -154,93 +178,156 @@ export default function LoginPage() {
         }
     };
 
+    const handleCreateAccount = () => {
+        const cpfNumbers = cpf.replace(/\D/g, '');
+        if (validateCPF(cpf)) {
+            router.push(`/cadastro?cpf=${encodeURIComponent(cpfNumbers)}`);
+        } else {
+            // Se CPF não está completo, ainda pode ir para cadastro
+            router.push('/cadastro');
+        }
+    };
+
     return (
-        <main
-            className="flex w-full items-center justify-center bg-slate-200"
-            style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
-        >
-            <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-10 text-[#1a1a1d]">
-                <div className="text-center text-black">
-                    <span className="text-xs font-semibold uppercase tracking-[0.35em]">
-                        Olá, seja bem-vindo de volta.
-                    </span>
-                    <h1 className="mt-3 text-4xl font-bold uppercase tracking-[0.25em]">
+        <main className="min-h-screen bg-[#faf7f0] py-12">
+            <Container>
+                <div className="mb-12 text-center">
+                    <h1 className="text-4xl uppercase font-bold text-[#1a1a1d]">
                         Bem-vindo à 5521
                     </h1>
+                    <p className="mt-2 text-sm text-[#6f6b63]">
+                        Entre com sua conta ou crie uma nova
+                    </p>
                 </div>
 
-                <AuthCard title="Entrar" description="Use seus dados de acesso para continuar.">
-                    <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-                        <InputField
-                            label="E-mail"
-                            type="email"
-                            placeholder="seu@email.com"
-                            startIcon={<HiOutlineEnvelope className="h-5 w-5" />}
-                            autoComplete="email"
-                            value={formData.email}
-                            onChange={handleChange('email')}
-                            onBlur={handleBlur('email')}
-                            error={errors.email}
-                        />
+                <div className="relative grid gap-24 md:grid-cols-2">
+                    {/* Divider vertical no meio */}
+                    <div className="absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-[#ded7ca] md:block" />
 
-                        <PasswordField
-                            label="Senha"
-                            placeholder="Digite sua senha"
-                            startIcon={<HiOutlineLockClosed className="h-5 w-5" />}
-                            autoComplete="current-password"
-                            value={formData.password}
-                            onChange={handleChange('password')}
-                            onBlur={handleBlur('password')}
-                            error={errors.password}
-                        />
-
-                        <div className="flex items-center justify-between text-xs text-[#5b5866]">
-                            <label className="inline-flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    className="h-4 w-4 rounded border border-[#cfc9bd] text-[#f97316] focus:ring-[#f97316]/40"
-                                    checked={formData.remember}
-                                    onChange={handleRememberToggle}
-                                />
-                                Lembrar-me
-                            </label>
-                            <Link
-                                href="/recuperar-senha"
-                                className="font-semibold text-[#f97316] underline-offset-4 hover:underline"
-                            >
-                                Esqueci minha senha
-                            </Link>
+                    {/* Box de Login */}
+                    <div className="rounded-3xl border border-[#ded7ca] bg-white/80 p-8 ">
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-semibold text-[#1a1a1d]">
+                                Entrar
+                            </h2>
+                            <p className="mt-1 text-sm text-[#6f6b63]">
+                                Use seus dados de acesso para continuar
+                            </p>
                         </div>
 
-                        <Button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full bg-[#1a1a1d] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d] disabled:cursor-not-allowed disabled:bg-[#1a1a1d]/60"
-                        >
-                            {isSubmitting ? 'Entrando...' : 'Entrar'}
-                        </Button>
+                        <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+                            <InputField
+                                    label="E-mail"
+                                    type="email"
+                                    placeholder="seu@email.com"
+                                    startIcon={<HiOutlineEnvelope className="h-5 w-5" />}
+                                    autoComplete="email"
+                                    value={formData.email}
+                                    onChange={handleChange('email')}
+                                    onBlur={handleBlur('email')}
+                                    error={errors.email}
+                                />
 
-                        {formMessage && (
-                            <div
-                                className={`rounded-xl border ${
-                                    formMessage.type === 'error'
-                                        ? 'border-[#f2c4c4] bg-[#fbecec] text-[#a22d2d]'
-                                        : 'border-[#c1f1ce] bg-[#e9fbef] text-[#256b3f]'
-                                } p-4 text-sm text-center`}
-                            >
-                                {formMessage.text}
+                            <PasswordField
+                                    label="Senha"
+                                    placeholder="Digite sua senha"
+                                    startIcon={<HiOutlineLockClosed className="h-5 w-5" />}
+                                    autoComplete="current-password"
+                                    value={formData.password}
+                                    onChange={handleChange('password')}
+                                    onBlur={handleBlur('password')}
+                                    error={errors.password}
+                                />
+
+                            <div className="flex items-center justify-between text-xs text-[#6f6b63]">
+                                    <label className="inline-flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border border-[#ded7ca] text-[#f97316] focus:ring-[#f97316]/40"
+                                            checked={formData.remember}
+                                            onChange={handleRememberToggle}
+                                        />
+                                        Lembrar-me
+                                    </label>
+                                    <Link
+                                        href="/recuperar-senha"
+                                        className="font-medium text-[#f97316] underline-offset-4 hover:underline"
+                                    >
+                                        Esqueci minha senha
+                                    </Link>
                             </div>
-                        )}
 
-                        <p className="text-center text-xs text-[#5b5866]">
-                            Ainda não tem uma conta?{' '}
-                            <Link href="/cadastro" className="font-semibold text-[#f97316] underline-offset-4 hover:underline">
-                                Criar conta
-                            </Link>
-                        </p>
-                    </form>
-                </AuthCard>
-            </div>
+                            <Button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="w-full bg-[#1a1a1d] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d] disabled:cursor-not-allowed disabled:bg-[#1a1a1d]/60 disabled:hover:bg-[#1a1a1d]/60"
+                            >
+                                {isSubmitting ? 'Entrando...' : 'Entrar'}
+                            </Button>
+
+                            {formMessage && (
+                                <div
+                                    className={`rounded-xl border p-4 text-sm text-center ${
+                                        formMessage.type === 'error'
+                                            ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                    }`}
+                                >
+                                    {formMessage.text}
+                                </div>
+                            )}
+                        </form>
+                    </div>
+
+                    {/* Box de Criar Conta */}
+                    <div className="rounded-3xl border border-[#ded7ca] bg-[#f5f1e8]/40 p-8">
+                        <div className="mb-6">
+                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#f5f1e8] text-[#a38f78]">
+                                <HiOutlineUserPlus className="text-2xl" />
+                            </div>
+                            <h2 className="text-2xl font-semibold text-[#1a1a1d]">
+                                Vamos criar sua conta?
+                            </h2>
+                            <p className="mt-1 text-sm text-[#6f6b63]">
+                                Digite seu CPF para continuar
+                            </p>
+                        </div>
+
+                        <div className="space-y-5">
+                            <div>
+                                <InputField
+                                    label="CPF"
+                                    type="text"
+                                    placeholder="000.000.000-00"
+                                    startIcon={<HiOutlineIdentification className="h-5 w-5" />}
+                                    value={cpf}
+                                    onChange={handleCPFChange}
+                                    maxLength={14}
+                                />
+                            </div>
+
+                            <Button
+                                type="button"
+                                onClick={handleCreateAccount}
+                                className="w-full border-2 border-[#1a1a1d] bg-transparent text-[#1a1a1d] transition hover:bg-[#1a1a1d] hover:text-white"
+                            >
+                                Continuar
+                            </Button>
+
+                            <p className="text-center text-xs text-[#6f6b63]">
+                                Ao continuar, você concorda com nossos{' '}
+                                <Link href="/termos" className="font-medium text-[#f97316] underline-offset-4 hover:underline">
+                                    Termos de Uso
+                                </Link>
+                                {' '}e{' '}
+                                <Link href="/privacidade" className="font-medium text-[#f97316] underline-offset-4 hover:underline">
+                                    Política de Privacidade
+                                </Link>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </Container>
         </main>
     );
 }

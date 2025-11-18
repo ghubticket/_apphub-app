@@ -56,25 +56,106 @@ export const countPurchasedTicketsByCPFOrEmail = async (
     };
 
     // Adicionar filtro por CPF ou Email
+    // CRÍTICO: Buscar CPF de forma flexível, pois pode estar salvo em diferentes formatos
     if (normalizedCPF && normalizedEmail) {
         // Se ambos estão presentes, usar OR
+        // Buscar CPF em qualquer formato (com ou sem formatação)
+        const cpfFormatted = normalizedCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
         orderFilters.$or = [
-            { 'customerData.cpf': { $regex: normalizedCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') } },
+            { 'customerData.cpf': cpfFormatted },
+            { 'customerData.cpf': normalizedCPF },
             { 'customerData.email': normalizedEmail }
         ];
     } else if (normalizedCPF) {
-        // Buscar por CPF (normalizado, mas comparar com formato do DB)
-        // CPF no DB está no formato 000.000.000-00, então precisamos buscar de forma flexível
+        // Buscar por CPF de forma flexível (com ou sem formatação)
+        // Tentar múltiplos formatos: 000.000.000-00, 00000000000, etc.
         const cpfFormatted = normalizedCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-        orderFilters['customerData.cpf'] = cpfFormatted;
+        // CRÍTICO: Usar $or para buscar em múltiplos formatos
+        // MongoDB aggregate suporta $or no $match
+        orderFilters.$or = [
+            { 'customerData.cpf': cpfFormatted },
+            { 'customerData.cpf': normalizedCPF }
+        ];
+        
+        console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Buscando CPF em múltiplos formatos:', {
+            normalizedCPF: `${normalizedCPF.substring(0, 3)}.***.***-**`,
+            cpfFormatted: `${cpfFormatted.substring(0, 3)}.***.***-**`,
+        });
     } else if (normalizedEmail) {
         orderFilters['customerData.email'] = normalizedEmail;
     }
 
     // OTIMIZADO: Usar agregação para evitar queries N+1
     // Buscar contagem de tickets diretamente via agregação
+    
+    // Log detalhado dos filtros antes da busca
+    console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Filtros de busca:', {
+        eventId,
+        ticketTypeId,
+        status: 'paid',
+        orderFilters: JSON.stringify(orderFilters, null, 2),
+    });
+    
+    // CRÍTICO: Verificar se há pedidos que correspondem aos filtros básicos primeiro
+    // Isso ajuda a identificar se o problema está na busca de CPF ou na agregação
+    const eventObjectId = new mongoose.Types.ObjectId(eventId);
+    const testQuery = await Order.find({
+        event: eventObjectId,
+        status: 'paid',
+        deletedAt: null,
+    }).select('orderNumber paymentMethod customerData.cpf customerData.email').limit(3).lean();
+    
+    // Teste direto: buscar pedidos com o CPF exato
+    const cpfFormatted = normalizedCPF ? normalizeCPF(normalizedCPF)?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : null;
+    const directCPFQuery = cpfFormatted ? await Order.find({
+        event: eventObjectId,
+        status: 'paid',
+        deletedAt: null,
+        'customerData.cpf': cpfFormatted,
+    }).select('orderNumber paymentMethod customerData.cpf').limit(5).lean() : [];
+    
+    console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Teste: Pedidos pagos no evento (amostra):', {
+        count: testQuery.length,
+        orders: testQuery.map((o: any) => ({
+            orderNumber: o.orderNumber,
+            paymentMethod: o.paymentMethod,
+            cpf: o.customerData?.cpf || 'null',
+            cpfType: typeof o.customerData?.cpf,
+            email: o.customerData?.email || 'null',
+        })),
+        searchingFor: {
+            normalizedCPF: normalizedCPF || 'null',
+            normalizedEmail: normalizedEmail || 'null',
+        },
+        directCPFSearch: {
+            cpfFormatted: cpfFormatted || 'null',
+            foundOrders: directCPFQuery.length,
+            orders: directCPFQuery.map((o: any) => ({
+                orderNumber: o.orderNumber,
+                paymentMethod: o.paymentMethod,
+                cpf: o.customerData?.cpf || 'null',
+            })),
+        }
+    });
+    
+    // CRÍTICO: Converter ticketTypeId para ObjectId antes da agregação
+    // eventObjectId já foi criado acima no testQuery
+    const ticketTypeObjectId = new mongoose.Types.ObjectId(ticketTypeId);
+    
+    // Ajustar filtros para usar ObjectId
+    const adjustedFilters = {
+        ...orderFilters,
+        event: eventObjectId,
+    };
+    
+    console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Filtros ajustados (com ObjectId):', {
+        eventId: eventObjectId.toString(),
+        ticketTypeId: ticketTypeObjectId.toString(),
+        adjustedFilters: JSON.stringify(adjustedFilters, null, 2),
+    });
+    
     const result = await Order.aggregate([
-        { $match: orderFilters },
+        { $match: adjustedFilters },
         {
             $lookup: {
                 from: 'tickets',
@@ -85,7 +166,7 @@ export const countPurchasedTicketsByCPFOrEmail = async (
                             $expr: {
                                 $and: [
                                     { $eq: ['$order', '$$orderId'] },
-                                    { $eq: ['$ticketType', new mongoose.Types.ObjectId(ticketTypeId)] },
+                                    { $eq: ['$ticketType', ticketTypeObjectId] },
                                     { $eq: ['$deletedAt', null] }
                                 ]
                             }
@@ -97,18 +178,78 @@ export const countPurchasedTicketsByCPFOrEmail = async (
         },
         {
             $project: {
-                ticketCount: { $size: '$matchingTickets' }
+                ticketCount: { $size: '$matchingTickets' },
+                orderNumber: 1,
+                paymentMethod: 1,
+                status: 1,
+                customerData: 1, // Incluir para debug
+            }
+        },
+        {
+            $match: {
+                ticketCount: { $gt: 0 } // Filtrar apenas pedidos que têm tickets do tipo correto
             }
         },
         {
             $group: {
                 _id: null,
-                totalPurchased: { $sum: '$ticketCount' }
+                totalPurchased: { $sum: '$ticketCount' },
+                orders: { $push: { orderNumber: '$orderNumber', paymentMethod: '$paymentMethod', status: '$status', ticketCount: '$ticketCount', cpf: '$customerData.cpf' } }
             }
         }
     ]);
 
-    return result.length > 0 ? result[0].totalPurchased : 0;
+    const totalPurchased = result.length > 0 ? result[0].totalPurchased : 0;
+    
+    // Log detalhado para debug
+    if (result.length > 0 && result[0].orders) {
+        console.log('[countPurchasedTicketsByCPFOrEmail] ✅ Pedidos encontrados:', {
+            totalPurchased,
+            ordersCount: result[0].orders.length,
+            orders: result[0].orders.map((o: any) => ({
+                orderNumber: o.orderNumber,
+                paymentMethod: o.paymentMethod,
+                status: o.status,
+                ticketCount: o.ticketCount,
+                cpf: o.cpf || 'null'
+            }))
+        });
+    } else {
+        // CRÍTICO: Se não encontrou pedidos, verificar se há pedidos VIP no banco
+        // Isso ajuda a identificar se o problema é na busca ou se realmente não há pedidos
+        const debugQuery = await Order.find({
+            event: eventId,
+            status: 'paid',
+            deletedAt: null,
+        }).select('orderNumber paymentMethod status customerData.cpf customerData.email').limit(5).lean();
+        
+        console.log('[countPurchasedTicketsByCPFOrEmail] 📊 Nenhum pedido encontrado na busca:', {
+            totalPurchased: 0,
+            filters: {
+                eventId,
+                ticketTypeId,
+                hasCPF: !!normalizedCPF,
+                hasEmail: !!normalizedEmail,
+            },
+            debugInfo: {
+                totalPaidOrdersInEvent: debugQuery.length,
+                sampleOrders: debugQuery.map((o: any) => ({
+                    orderNumber: o.orderNumber,
+                    paymentMethod: o.paymentMethod,
+                    status: o.status,
+                    cpf: o.customerData?.cpf || 'null',
+                    cpfLength: o.customerData?.cpf?.length || 0,
+                    cpfFormatted: o.customerData?.cpf ? `${o.customerData.cpf.substring(0, 3)}.***.***-**` : 'null',
+                    email: o.customerData?.email ? `${o.customerData.email.substring(0, 3)}***@***` : 'null',
+                })),
+                searchingForCPF: normalizedCPF || 'null',
+                searchingForCPFFormatted: normalizedCPF ? normalizeCPF(normalizedCPF)?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'null',
+                searchingForCPFNormalized: normalizedCPF || 'null',
+            }
+        });
+    }
+
+    return totalPurchased;
 };
 
 interface CreateOrderRequest {
@@ -166,10 +307,24 @@ export const createOrder = async (req: Request, res: Response) => {
         const { event, ticketType, user } = relatedDataResult.data!;
 
         // Preparar CPF e Email para validação
+        // CRÍTICO: Para ingressos VIP com maxPerCPF, CPF é OBRIGATÓRIO
         const cpfToValidate = customerData?.cpf || user?.cpf;
         const emailToValidate = customerData?.email || user?.email;
         const normalizedCustomerEmail = normalizeEmail(customerData?.email);
         const normalizedUserEmail = normalizeEmail(user?.email);
+        
+        // Log para debug - verificar se CPF está sendo passado
+        console.log('[createOrder] 🔍 Dados do cliente para validação:', {
+            hasCustomerDataCPF: !!customerData?.cpf,
+            hasUserCPF: !!user?.cpf,
+            cpfToValidate: cpfToValidate ? `${cpfToValidate.substring(0, 3)}.***.***-**` : 'null',
+            hasCustomerDataEmail: !!customerData?.email,
+            hasUserEmail: !!user?.email,
+            emailToValidate: emailToValidate ? `${emailToValidate.substring(0, 3)}***@***` : 'null',
+            ticketTypeName: ticketType?.name,
+            ticketTypeIsVIP: ticketType?.isVIP,
+            ticketTypeMaxPerCPF: ticketType?.maxPerCPF,
+        });
 
         // REFATORADO: Validação de disponibilidade e limites usando serviço
         const availabilityValidation = await orderService.validateAvailabilityAndLimits(
@@ -196,6 +351,19 @@ export const createOrder = async (req: Request, res: Response) => {
             promoterCode
         );
         const { isVIP, ticketPrice, subtotal, discountAmount, platformFee, totalAmount, usedPromoterCode } = calculation;
+
+        // CRÍTICO: Validação rigorosa - APENAS ingressos VIP explícitos podem ser marcados como paid
+        // Garantir que isVIP seja boolean true E que ticketType.isVIP seja explicitamente true
+        const isReallyVIP = Boolean(isVIP) && Boolean(ticketType?.isVIP === true);
+        
+        if (isVIP && !isReallyVIP) {
+            console.error('[createOrder] ⚠️ ATENÇÃO: isVIP calculado como true mas ticketType.isVIP não é explicitamente true!', {
+                calculatedIsVIP: isVIP,
+                ticketTypeIsVIP: ticketType?.isVIP,
+                ticketTypeId: ticketType?._id,
+                ticketTypeName: ticketType?.name,
+            });
+        }
 
         // REFATORADO: Buscar pedido existente usando serviço
         const existingOrder = await orderService.findExistingOrder(
@@ -412,19 +580,26 @@ export const createOrder = async (req: Request, res: Response) => {
         }
 
         // Determinar status e método de pagamento
+        // CRÍTICO: APENAS ingressos VIP explícitos podem ser marcados como paid
+        // NUNCA marcar pedidos PIX ou outros como paid na criação
         let orderStatus: 'pending' | 'paid' = 'pending';
         let paymentMethod: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free' | undefined = undefined;
         let ticketStatus: 'pending' | 'confirmed' = 'pending';
 
-        if (isVIP) {
+        // CRÍTICO: Validação dupla - usar isReallyVIP ao invés de isVIP
+        if (isReallyVIP) {
             // VIP: pedido pago automaticamente, sem gateway
+            // CRÍTICO: Apenas VIP pode ser paid na criação
             orderStatus = 'paid';
             paymentMethod = 'vip_free';
             ticketStatus = 'confirmed';
+            console.log('[createOrder] ✅ Criando pedido VIP (status=paid, paymentMethod=vip_free)');
         } else {
             // Outros: aguarda pagamento (será integrado depois)
+            // CRÍTICO: PIX, cartão, etc. SEMPRE começam como pending
             orderStatus = 'pending';
             ticketStatus = 'pending';
+            console.log('[createOrder] ✅ Criando pedido normal (status=pending, aguardando pagamento)');
         }
 
         const finalCustomerEmail =
@@ -463,17 +638,22 @@ export const createOrder = async (req: Request, res: Response) => {
                 totalTickets: quantity,
                 status: orderStatus,
                 paymentMethod: paymentMethod,
-                paidAt: isVIP ? now : undefined,
+                paidAt: isReallyVIP ? now : undefined,
                 expiresAt, // Data de expiração para pedidos PENDING (reserva de ingressos)
                 orderNumber,
                 customerData: {
                     name: customerData?.name || user?.name || 'Não informado',
                     email: finalCustomerEmail,
                     phone: customerData?.phone || user?.phone,
-                    cpf: customerData?.cpf || user?.cpf,
+                    // CRÍTICO: Normalizar CPF antes de salvar para garantir consistência
+                    // Salvar no formato 000.000.000-00 para facilitar busca
+                    cpf: cpfToValidate ? (() => {
+                        const normalized = normalizeCPF(cpfToValidate);
+                        return normalized ? normalized.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : undefined;
+                    })() : undefined,
                 },
                 cardAttempts: 0,
-                isActive: Boolean(isVIP),
+                isActive: Boolean(isReallyVIP),
             });
 
             await order.save();
@@ -495,7 +675,7 @@ export const createOrder = async (req: Request, res: Response) => {
                 ticketPrice,
                 ticketStatus,
                 userId,
-                isVIP
+                isReallyVIP
             );
 
             // Atualizar pedido com os tickets
@@ -515,17 +695,18 @@ export const createOrder = async (req: Request, res: Response) => {
                 .lean();
 
             // REFATORADO: Enviar email VIP usando serviço
-            if (isVIP && populatedOrder) {
+            // CRÍTICO: Usar isReallyVIP para garantir que apenas VIPs reais recebam email
+            if (isReallyVIP && populatedOrder) {
                 await orderService.sendVIPOrderEmail(populatedOrder);
             }
 
             res.status(201).json({
                 success: true,
-                message: isVIP ? 'Pedido VIP criado com sucesso' : 'Pedido criado com sucesso. Aguardando pagamento.',
+                message: isReallyVIP ? 'Pedido VIP criado com sucesso' : 'Pedido criado com sucesso. Aguardando pagamento.',
                 data: {
                     order: populatedOrder,
-                    isVIP,
-                    requiresPayment: !isVIP,
+                    isVIP: isReallyVIP,
+                    requiresPayment: !isReallyVIP,
                 }
             });
 

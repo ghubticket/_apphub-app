@@ -24,6 +24,24 @@ export const CART_OPEN_EVENT = 'apphub:cart:open';
 
 const isBrowser = () => typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 
+// Função para detectar se um item é VIP (não deve estar no carrinho)
+const isVipTicket = (item: CartItem): boolean => {
+    // Detectar por nome (contém "VIP" ou "vip")
+    const nameLower = item.name?.toLowerCase() || '';
+    if (nameLower.includes('vip')) {
+        return true;
+    }
+    // Detectar por preço zero (VIP geralmente é gratuito)
+    if (item.price === 0) {
+        return true;
+    }
+    // Detectar por metadata
+    if (item.metadata?.isVip === true || item.metadata?.isVip === 'true') {
+        return true;
+    }
+    return false;
+};
+
 const sanitizeCartItem = (item: CartItem): CartItem => ({
     id: String(item.id),
     ticketTypeId: item.ticketTypeId ? String(item.ticketTypeId) : String(item.id),
@@ -55,7 +73,7 @@ export const loadCartItems = (): CartItem[] => {
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) return [];
-        return parsed
+        const items = parsed
             .map((entry) => {
                 try {
                     return sanitizeCartItem(entry);
@@ -64,6 +82,16 @@ export const loadCartItems = (): CartItem[] => {
                 }
             })
             .filter(Boolean) as CartItem[];
+        
+        // CRÍTICO: Filtrar e remover ingressos VIP do carrinho
+        const nonVipItems = items.filter((item) => !isVipTicket(item));
+        
+        // Se houver diferença, salvar o carrinho sem os VIPs
+        if (nonVipItems.length !== items.length) {
+            saveCartItems(nonVipItems);
+        }
+        
+        return nonVipItems;
     } catch {
         window.localStorage.removeItem(CART_STORAGE_KEY);
         return [];
@@ -89,6 +117,13 @@ type AddCartItemOptions = {
 
 export const addCartItem = (item: CartItem, options: AddCartItemOptions = {}) => {
     if (!isBrowser()) return;
+    
+    // CRÍTICO: Bloquear adição de ingressos VIP ao carrinho
+    if (isVipTicket(item)) {
+        console.warn('[cart] ⚠️ Tentativa de adicionar ingresso VIP ao carrinho bloqueada:', item.name);
+        return;
+    }
+    
     const { merge = true } = options;
     const current = loadCartItems();
     const sanitized = sanitizeCartItem(item);

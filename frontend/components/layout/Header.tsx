@@ -40,7 +40,7 @@ const formatDate = (isoDate: string) =>
 
 export default function Header() {
     const headerRef = useRef<HTMLElement>(null);
-    const { user, isAuthenticated, isReady } = useAuth();
+    const { user, isAuthenticated, isReady, logout } = useAuth();
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [isCartDrawerVisible, setIsCartDrawerVisible] = useState(false);
     const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
@@ -223,28 +223,6 @@ export default function Header() {
                     </nav>
 
                     <div className="flex items-center gap-4">
-                        {isAuthenticated && welcomeName ? (
-                            <div className="flex flex-col items-end gap-1 text-white">
-                                <Link
-                                    href="/dashboard"
-                                    className="inline-flex items-center rounded-full gap-2 bg-white text-black px-6 py-2 text-sm font-semibold uppercase  transition "
-                                >
-                                    <HiOutlineUserCircle className="text-lg" />
-                                    <span>
-                                        Olá, <strong className="font-bold">{welcomeName}</strong>
-                                    </span>
-                                </Link>
-                                
-                            </div>
-                        ) : (
-                            <Link
-                                href="/login"
-                                className="inline-flex items-center gap-1 rounded-full border border-white/40 px-7 py-3 text-sm font-semibold uppercase text-white transition hover:border-[#f97316] lg:inline-flex"
-                            >
-                                <HiOutlineUserCircle className="text-lg" />
-                                Entrar
-                            </Link>
-                        )}
 
                         <button
                             type="button"
@@ -259,15 +237,52 @@ export default function Header() {
                                 </span>
                             ) : null}
                         </button>
+
+                        {isAuthenticated && welcomeName ? (
+                            <div className="flex items-center gap-3 text-white">
+                                <Link
+                                    href="/dashboard"
+                                    className="inline-flex items-center rounded-full gap-2 bg-white text-black px-6 py-2 text-sm font-semibold uppercase  transition "
+                                >
+                                    <HiOutlineUserCircle className="text-lg" />
+                                    <span>
+                                        Olá, <strong className="font-bold">{welcomeName}</strong>
+                                    </span>
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        // Logout limpa apenas autenticação, mantém carrinho
+                                        logout();
+                                        // Redirecionar para home após logout
+                                        if (typeof window !== 'undefined') {
+                                            window.location.href = '/';
+                                        }
+                                    }}
+                                    className="font-medium text-white/70 hover:text-white transition underline"
+                                >
+                                    Sair
+                                </button>
+                            </div>
+                        ) : (
+                            <Link
+                                href="/login"
+                                className="inline-flex items-center gap-1 rounded-full border border-white/40 px-7 py-3 text-sm font-semibold uppercase text-white transition hover:border-[#f97316] lg:inline-flex"
+                            >
+                                <HiOutlineUserCircle className="text-lg" />
+                                Entrar
+                            </Link>
+                        )}
+
+
                     </div>
                 </Container>
             </div>
 
             {isCartDrawerVisible ? (
                 <div
-                    className={`fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
-                        isCartDrawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
-                    }`}
+                    className={`fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isCartDrawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+                        }`}
                     onMouseDown={(event) => {
                         if (event.target === event.currentTarget) {
                             closeCartDrawer();
@@ -275,9 +290,8 @@ export default function Header() {
                     }}
                 >
                     <aside
-                        className={`relative flex h-full w-full max-w-md flex-col bg-white text-[#1a1a1d] shadow-[0_30px_60px_-25px_rgba(20,20,32,0.45)] transition-transform duration-300 ${
-                            isCartDrawerOpen ? 'translate-x-0' : 'translate-x-full'
-                        }`}
+                        className={`relative flex h-full w-full max-w-md flex-col bg-white text-[#1a1a1d] shadow-[0_30px_60px_-25px_rgba(20,20,32,0.45)] transition-transform duration-300 ${isCartDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+                            }`}
                         onMouseDown={(event) => event.stopPropagation()}
                     >
                         <header className="flex items-start justify-between border-b border-[#e5dfd4] px-6 py-6">
@@ -365,20 +379,19 @@ export default function Header() {
                                 <span>Total</span>
                                 <span>{formatCurrency.format(cartSubtotal)}</span>
                             </div>
-                            <div className="mt-4 flex flex-col gap-3">
+                            <div className="mt-4">
                                 <Link
                                     href="/checkout"
-                                    className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] transition ${
-                                        cartItems.length && isReady && isAuthenticated
+                                    className={`inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-medium transition ${cartItems.length && isReady && isAuthenticated
                                             ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-[#1a1a1d]'
                                             : 'cursor-not-allowed border border-[#c9c3b8] bg-[#c9c3b8] text-white/70'
-                                    }`}
+                                        }`}
                                     onClick={(event) => {
                                         if (!cartItems.length) {
                                             event.preventDefault();
                                             return;
                                         }
-                                        
+
                                         // Verificar se está logado antes de ir para checkout
                                         if (isReady && !isAuthenticated) {
                                             event.preventDefault();
@@ -387,26 +400,12 @@ export default function Header() {
                                             window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
                                             return;
                                         }
-                                        
+
                                         closeCartDrawer();
                                     }}
                                 >
                                     Finalizar compra
                                 </Link>
-                                <Link
-                                    href="/ingressos"
-                                    className="inline-flex items-center justify-center rounded-full border border-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
-                                    onClick={closeCartDrawer}
-                                >
-                                    Ir para ingressos
-                                </Link>
-                                <button
-                                    type="button"
-                                    className="inline-flex items-center justify-center rounded-full border border-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
-                                    onClick={closeCartDrawer}
-                                >
-                                    Continuar navegando
-                                </button>
                             </div>
                         </footer>
                     </aside>

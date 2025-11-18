@@ -9,10 +9,10 @@ import {
     HiOutlineUser,
     HiOutlineLockClosed,
 } from 'react-icons/hi2';
-import AuthCard from '@/components/auth/AuthCard';
 import InputField from '@/components/forms/InputField';
 import PasswordField from '@/components/forms/PasswordField';
 import Button from '@/components/shared/Button';
+import Container from '@/components/shared/Container';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -256,24 +256,29 @@ export default function CadastroPage() {
     };
 
     return (
-        <main
-            className="flex w-full items-center justify-center bg-gradient-to-br from-primary to-primary-dark pt-10 pb-24"
-            style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
-        >
-            <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 text-white">
-                <div className="text-center">
-                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
-                        Crie sua conta
-                    </span>
+        <main className="min-h-screen bg-[#faf7f0] py-12">
+            <Container>
+                <div className="mb-12 text-center">
+                    <h1 className="text-4xl uppercase font-bold text-[#1a1a1d]">
+                        Criar Conta
+                    </h1>
+                    <p className="mt-2 text-sm text-[#6f6b63]">
+                        Preencha os dados abaixo para criar sua conta
+                    </p>
                 </div>
 
-                <AuthCard
-                    title="Nova Conta"
-                    description="Para liberar acessos, precisamos de algumas informações básicas. Seus dados são protegidos e usados apenas para sua experiência dentro da 5521."
-                    className="max-w-3xl p-10"
-                    bodyClassName="space-y-6"
-                >
-                    <form className="space-y-6" noValidate onSubmit={handleSubmit}>
+                <div className="mx-auto max-w-3xl">
+                    <div className="rounded-3xl border border-[#ded7ca] bg-white/80 p-8">
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-semibold text-[#1a1a1d]">
+                                Nova Conta
+                            </h2>
+                            <p className="mt-1 text-sm text-[#6f6b63]">
+                                Para liberar acessos, precisamos de algumas informações básicas. Seus dados são protegidos e usados apenas para sua experiência dentro da 5521.
+                            </p>
+                        </div>
+
+                        <form className="space-y-6" noValidate onSubmit={handleSubmit}>
                         <div className="grid gap-5 md:grid-cols-2">
                             <InputField
                                 label="Nome completo"
@@ -348,11 +353,17 @@ export default function CadastroPage() {
                             />
                         </div>
 
-                        <div className="rounded-xl border border-[#e1dbcf] bg-white/70 p-4 text-xs text-[#5b5866]">
+                        <div className="rounded-xl border border-[#ded7ca] bg-[#f5f1e8]/40 p-4 text-xs text-[#6f6b63]">
                             <p className="leading-relaxed">
-                                Ao criar a conta você concorda com os termos de uso e políticas de privacidade da 5521. <br />
-                                Usamos os dados para personalizar sua experiência, emitir comprovantes fiscais e garantir
-                                segurança nos acessos.
+                                Ao criar a conta você concorda com os{' '}
+                                <Link href="/termos" className="font-medium text-[#f97316] underline-offset-4 hover:underline">
+                                    Termos de Uso
+                                </Link>
+                                {' '}e{' '}
+                                <Link href="/privacidade" className="font-medium text-[#f97316] underline-offset-4 hover:underline">
+                                    Política de Privacidade
+                                </Link>
+                                {' '}da 5521. Usamos os dados para personalizar sua experiência, emitir comprovantes fiscais e garantir segurança nos acessos.
                             </p>
                         </div>
 
@@ -366,15 +377,16 @@ export default function CadastroPage() {
 
                         {formMessage && (
                             <div
-                                className={`rounded-xl border ${
+                                className={`rounded-xl border p-4 text-sm text-center ${
                                     formMessage.type === 'error'
-                                        ? 'border-[#f2c4c4] bg-[#fbecec] text-[#a22d2d]'
-                                        : 'border-[#c1f1ce] bg-[#e9fbef] text-[#256b3f]'
-                                } p-4 text-sm text-center`}
+                                        ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                }`}
                             >
                                 <div className="space-y-2">
+                                    <p>{formMessage.text}</p>
                                     {formMessage.type === 'error' && apiErrorsList.length > 0 && (
-                                        <ul className="list-inside list-disc text-left text-xs">
+                                        <ul className="list-inside list-disc text-left text-xs mt-2">
                                             {apiErrorsList.map(
                                                 (err: { field?: string; message: string }, index: number) => (
                                                     <li key={`${err.field ?? 'erro'}-${index}`}>{err.message}</li>
@@ -386,15 +398,16 @@ export default function CadastroPage() {
                             </div>
                         )}
 
-                        <p className="text-center text-xs text-[#5b5866]">
+                        <p className="text-center text-xs text-[#6f6b63]">
                             Já possui uma conta?{' '}
-                            <Link href="/login" className="font-semibold text-[#f97316] underline-offset-4 hover:underline">
+                            <Link href="/login" className="font-medium text-[#f97316] underline-offset-4 hover:underline">
                                 Acessar agora
                             </Link>
                         </p>
                     </form>
-                </AuthCard>
+                </div>
             </div>
+        </Container>
         </main>
     );
 }

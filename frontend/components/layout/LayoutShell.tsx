@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Header from './Header';
 import Footer from './Footer';
 import CheckoutHeader from './CheckoutHeader';
+import CookieBanner from './CookieBanner';
 
 const NO_CHROME_ROUTES = ['/checkout'];
 
@@ -21,6 +22,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
             {isCheckoutRoute ? <CheckoutHeader /> : <Header />}
             {children}
             {!isCheckoutRoute ? <Footer /> : null}
+            <CookieBanner />
         </>
     );
 }

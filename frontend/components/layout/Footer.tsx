@@ -267,10 +267,29 @@ export default function Footer() {
             </div>
 
             <div className="border-t border-white/10 bg-black/30 py-6">
-                <Container className="flex flex-col gap-4 text-xs text-white/60 md:flex-row md:items-center md:justify-between">
-                    <span>© {new Date().getFullYear()} 5521 © Todos os direitos reservados | CNPJ 45.380.558/0001-88</span>
-                    <div className="flex flex-wrap gap-4">
-                        <p>Feito com <span className="text-orange-400">❤️</span> por <Link href="https://www.instagram.com/5521/" target="_blank" className="text-orange-400">Vicente</Link></p>
+                <Container className="flex flex-col gap-4 text-xs text-white/60">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex flex-col gap-2">
+                            <span>© {new Date().getFullYear()} 5521 © Todos os direitos reservados</span>
+                            <span>CNPJ: 45.380.558/0001-88</span>
+                            <span className="text-white/50">
+                                Em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap gap-4">
+                            <p>Feito com <span className="text-orange-400">❤️</span> por <Link href="https://www.instagram.com/5521/" target="_blank" className="text-orange-400 hover:text-orange-300 transition-colors">Vicente</Link></p>
+                        </div>
+                    </div>
+                    <div className="pt-2 border-t border-white/5 flex flex-wrap gap-x-4 gap-y-2 text-white/50">
+                        <Link href="/privacidade" className="hover:text-white/70 transition-colors">
+                            Política de Privacidade
+                        </Link>
+                        <span>•</span>
+                        <Link href="/termos" className="hover:text-white/70 transition-colors">
+                            Termos de Uso
+                        </Link>
+                        <span>•</span>
+                        <span>Proteção de Dados Pessoais</span>
                     </div>
                 </Container>
             </div>
