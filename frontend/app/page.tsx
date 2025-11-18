@@ -61,7 +61,6 @@ export default function Home() {
             style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
         >
             {/* Seção Institucional Sobre a 5521 */}
-            <AboutSection />
 
             <Container className="py-16">
                 <div className="mb-12 space-y-3 text-center md:text-left">

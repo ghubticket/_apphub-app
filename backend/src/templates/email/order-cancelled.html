@@ -1,33 +1,33 @@
-    <h2>❌ Pedido Cancelado</h2>
-    
-    <p>Olá <strong>{{customerName}}</strong>,</p>
-    
-    <p>Infelizmente, seu pedido <strong>#{{orderNumber}}</strong> foi cancelado.</p>
-    
-    <div class="warning-box" style="background: #f8d7da; border-left-color: #dc3545;">
-        <h3>📋 Informações do Pedido</h3>
-        <ul>
-            <li><strong>Número do Pedido:</strong> {{orderNumber}}</li>
-            <li><strong>Evento:</strong> {{eventName}}</li>
-            <li><strong>Data do Cancelamento:</strong> {{cancelledAt}}</li>
-            {{#if cancellationReason}}
-            <li><strong>Motivo:</strong> {{cancellationReason}}</li>
-            {{/if}}
-        </ul>
-    </div>
-    
-    {{#if refundInfo}}
-    <div class="info-box">
-        <h3>💰 Reembolso</h3>
-        <p>{{refundInfo}}</p>
-    </div>
-    {{/if}}
-    
-    <p style="margin-top: 20px;">
-        Se você acredita que isso foi um erro ou tem alguma dúvida, entre em contato conosco.
-    </p>
-    
-    <p style="margin-top: 30px; color: #666; font-size: 14px;">
-        Esperamos vê-lo em nossos próximos eventos!
-    </p>
+<h2>Pedido Cancelado</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p>Infelizmente, seu pedido <strong>#{{orderNumber}}</strong> foi cancelado.</p>
+
+<div class="error-box">
+    <h3>Informações do Pedido</h3>
+    <ul>
+        <li><strong>Número do Pedido:</strong> {{orderNumber}}</li>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data do Cancelamento:</strong> {{cancelledAt}}</li>
+        {{#if cancellationReason}}
+        <li><strong>Motivo:</strong> {{cancellationReason}}</li>
+        {{/if}}
+    </ul>
+</div>
+
+{{#if refundInfo}}
+<div class="info-box">
+    <h3>Reembolso</h3>
+    <p>{{refundInfo}}</p>
+</div>
+{{/if}}
+
+<p style="margin-top: 24px;">
+    Se você acredita que isso foi um erro ou tem alguma dúvida, entre em contato conosco.
+</p>
+
+<p style="margin-top: 32px; color: #666666; font-size: 14px;">
+    Esperamos vê-lo em nossos próximos eventos!
+</p>
 

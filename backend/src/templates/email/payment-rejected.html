@@ -1,54 +1,52 @@
-<div class="content">
-    <h2>❌ Pagamento Recusado</h2>
-    
-    <p>Olá <strong>{{customerName}}</strong>,</p>
-    
-    <p>Infelizmente, o pagamento do seu pedido <strong>#{{orderNumber}}</strong> foi recusado.</p>
-    
-    <div class="warning-box" style="background: #f8d7da; border-left-color: #dc3545;">
-        <h3>💳 Informações do Pagamento</h3>
-        <ul>
-            <li><strong>Número do Pedido:</strong> {{orderNumber}}</li>
-            <li><strong>Valor:</strong> {{totalAmount}}</li>
-            <li><strong>Método:</strong> {{paymentMethod}}</li>
-            <li><strong>Status:</strong> Recusado</li>
-            {{#if rejectionReason}}
-            <li><strong>Motivo:</strong> {{rejectionReason}}</li>
-            {{/if}}
-        </ul>
-    </div>
-    
-    <div class="info-box">
-        <h3>📅 Informações do Evento</h3>
-        <ul>
-            <li><strong>Evento:</strong> {{eventName}}</li>
-            <li><strong>Data:</strong> {{eventDate}}</li>
-            <li><strong>Local:</strong> {{eventLocation}}</li>
-        </ul>
-    </div>
-    
-    <div class="success-box">
-        <h3>🔄 O que fazer agora?</h3>
-        <ul>
-            <li>✅ Verifique os dados do seu cartão ou conta</li>
-            <li>✅ Confirme se há saldo suficiente</li>
-            <li>✅ Tente novamente com outro método de pagamento</li>
-            <li>✅ Entre em contato com seu banco se necessário</li>
-        </ul>
-    </div>
-    
-    {{#if retryLink}}
-    <div style="text-align: center; margin: 30px 0;">
-        <a href="{{retryLink}}" class="button">🔄 Tentar Novamente</a>
-    </div>
-    {{/if}}
-    
-    <p style="margin-top: 20px;">
-        Se você acredita que isso foi um erro ou precisa de ajuda, entre em contato conosco.
-    </p>
-    
-    <p style="margin-top: 30px; color: #666; font-size: 14px;">
-        Seu pedido permanece reservado por alguns minutos. Você pode tentar pagar novamente durante esse período.
-    </p>
+<h2>Pagamento Recusado</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p>Infelizmente, o pagamento do seu pedido <strong>#{{orderNumber}}</strong> foi recusado.</p>
+
+<div class="error-box">
+    <h3>Informações do Pagamento</h3>
+    <ul>
+        <li><strong>Número do Pedido:</strong> {{orderNumber}}</li>
+        <li><strong>Valor:</strong> {{totalAmount}}</li>
+        <li><strong>Método:</strong> {{paymentMethod}}</li>
+        <li><strong>Status:</strong> Recusado</li>
+        {{#if rejectionReason}}
+        <li><strong>Motivo:</strong> {{rejectionReason}}</li>
+        {{/if}}
+    </ul>
 </div>
+
+<div class="info-box">
+    <h3>Informações do Evento</h3>
+    <ul>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data:</strong> {{eventDate}}</li>
+        <li><strong>Local:</strong> {{eventLocation}}</li>
+    </ul>
+</div>
+
+<div class="info-box">
+    <h3>O que fazer agora</h3>
+    <ul>
+        <li>Verifique os dados do seu cartão ou conta</li>
+        <li>Confirme se há saldo suficiente</li>
+        <li>Tente novamente com outro método de pagamento</li>
+        <li>Entre em contato com seu banco se necessário</li>
+    </ul>
+</div>
+
+{{#if retryLink}}
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{retryLink}}" class="button">Tentar Novamente</a>
+</div>
+{{/if}}
+
+<p style="margin-top: 24px;">
+    Se você acredita que isso foi um erro ou precisa de ajuda, entre em contato conosco.
+</p>
+
+<p style="margin-top: 32px; color: #666666; font-size: 14px;">
+    Seu pedido permanece reservado por alguns minutos. Você pode tentar pagar novamente durante esse período.
+</p>
 

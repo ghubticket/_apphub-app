@@ -1,34 +1,36 @@
-    <h2>✅ Pagamento Confirmado!</h2>
-    
-    <p>Olá <strong>{{customerName}}</strong>,</p>
-    
-    <p>Ótimas notícias! O pagamento do seu pedido <strong>#{{orderNumber}}</strong> foi confirmado.</p>
-    
-    <div class="success-box">
-        <h3>💳 Informações do Pagamento</h3>
-        <ul>
-            <li><strong>Valor Pago:</strong> {{totalAmount}}</li>
-            <li><strong>Método:</strong> {{paymentMethod}}</li>
-            <li><strong>Data:</strong> {{paymentDate}}</li>
-        </ul>
-    </div>
-    
-    <div class="info-box">
-        <h3>📅 Informações do Evento</h3>
-        <ul>
-            <li><strong>Evento:</strong> {{eventName}}</li>
-            <li><strong>Data:</strong> {{eventDate}}</li>
-            <li><strong>Local:</strong> {{eventLocation}}</li>
-        </ul>
-    </div>
-    
-    <p style="margin-top: 20px;">
-        <strong>Você receberá em breve um email com seus ingressos e QR Codes.</strong>
-    </p>
-    
-    <div style="text-align: center; margin: 30px 0;">
-        <a href="{{ticketsLink}}" class="button">🎫 Ver Meus Ingressos</a>
-    </div>
-    
-    <p>Obrigado pela sua compra! 🎉</p>
+<h2>Pagamento Confirmado</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p>Ótimas notícias! O pagamento do seu pedido <strong>#{{orderNumber}}</strong> foi confirmado.</p>
+
+<div class="success-box">
+    <h3>Informações do Pagamento</h3>
+    <ul>
+        <li><strong>Valor Pago:</strong> {{totalAmount}}</li>
+        <li><strong>Método:</strong> {{paymentMethod}}</li>
+        <li><strong>Data:</strong> {{paymentDate}}</li>
+    </ul>
+</div>
+
+<div class="info-box">
+    <h3>Informações do Evento</h3>
+    <ul>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data:</strong> {{eventDate}}</li>
+        <li><strong>Local:</strong> {{eventLocation}}</li>
+    </ul>
+</div>
+
+<p style="margin-top: 24px;">
+    <strong>Você receberá em breve um email com seus ingressos e QR Codes.</strong>
+</p>
+
+{{#if ticketsLink}}
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{ticketsLink}}" class="button">Ver Meus Ingressos</a>
+</div>
+{{/if}}
+
+<p>Obrigado pela sua compra!</p>
 
