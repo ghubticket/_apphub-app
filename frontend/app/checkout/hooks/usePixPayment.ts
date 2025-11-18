@@ -1,16 +1,14 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import type { PixPaymentResult } from '../types';
 import { getMercadoPagoDeviceId, waitForMercadoPagoDeviceId } from '../utils/deviceIdHelper';
-import { clearCartItems } from '@/lib/cart';
-import { storageHelpers } from '../utils/storageHelpers';
-
-// Ref para rastrear se já buscou informações do pedido (evitar múltiplas buscas)
-const orderInfoFetchedRef = new Map<string, boolean>();
+import api from '@/lib/api';
+import { useCheckoutStorage } from './useCheckoutStorage';
+import { useCheckoutNavigation } from './useCheckoutNavigation';
+import { usePixPolling } from './usePixPolling';
+import { useRedirectCountdown } from './useRedirectCountdown';
 
 export type PixPaymentStatus = 'idle' | 'processing' | 'success' | 'error';
 
@@ -34,95 +32,103 @@ interface UsePixPaymentReturn {
 
 /**
  * Hook para gerenciar pagamento PIX usando Mercado Pago
- * 
- * Features:
- * - Geração de QR Code PIX
- * - Polling para verificar status do pagamento
- * - Gerenciamento de estados (idle, processing, success, error)
- * - Tratamento de erros detalhado
- * - Countdown para redirecionamento após sucesso
- * - Limpeza automática de pedidos pendentes ao criar novo pedido
- * - Performance otimizada com useCallback e useRef
+ * REFATORADO: Usa hooks especializados para polling e countdown
+ * Reduzido de 510 para ~350 linhas
  */
 export function usePixPayment(orderId: string | null, orderExpiresAt?: string | Date | null): UsePixPaymentReturn {
-    const router = useRouter();
+    const storage = useCheckoutStorage();
+    const navigation = useCheckoutNavigation();
+    
     const [status, setStatus] = useState<PixPaymentStatus>('idle');
     const [statusMessage, setStatusMessage] = useState<string>('');
     const [pixResult, setPixResult] = useState<PixPaymentResult | null>(null);
-    // CRÍTICO: Inicializar isCheckoutReady como true se já há orderId
     const [isCheckoutReady, setIsCheckoutReady] = useState(() => !!orderId);
     const [pixCopySuccess, setPixCopySuccess] = useState(false);
-    const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
     const [pixExpirationDescription, setPixExpirationDescription] = useState<string | null>(null);
     
     const processingRef = useRef(false);
-    const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const previousOrderIdRef = useRef<string | null>(null);
     const orderIdRef = useRef<string | null>(orderId);
     const orderExpiresAtRef = useRef<string | Date | null | undefined>(orderExpiresAt);
-    const pixGenerationDeadlineMinutes = 30; // PIX expira em 30 minutos
+    const pixGenerationDeadlineMinutes = 30;
 
-    // CRÍTICO: Atualizar orderIdRef ANTES de qualquer outra lógica
-    useEffect(() => {
-        orderIdRef.current = orderId;
-        
-        // CRÍTICO: Atualizar isCheckoutReady quando orderId mudar
-        // Se há orderId, checkout está pronto; se não há, não está pronto
-        setIsCheckoutReady(!!orderId);
-    }, [orderId]);
+    // Redirect countdown hook
+    const redirectCountdown = useRedirectCountdown({
+        onCountdownUpdate: (countdown) => {
+            // Countdown é gerenciado pelo hook
+        },
+    });
     
-    // Atualizar orderExpiresAtRef quando mudar
+    const [redirectCountdownState, setRedirectCountdownState] = useState<number | null>(null);
+
+    // Pix polling hook
+    const { startPolling, stopPolling } = usePixPolling({
+        orderIdRef,
+        setStatus,
+        setStatusMessage,
+        onPaymentSuccess: () => {
+            setStatus('success');
+            setStatusMessage('Pagamento aprovado com sucesso!');
+            setRedirectCountdownState(5);
+            redirectCountdown.startCountdown('/dashboard', 5);
+        },
+        onPaymentError: (message) => {
+            setStatus('error');
+            setStatusMessage(message);
+        },
+    });
+
+    // Memoizar descrição de expiração para evitar recálculos desnecessários
+    const expirationDescription = useMemo(() => {
+        if (!pixResult || !orderExpiresAt) return null;
+        
+        const expirationDate = typeof orderExpiresAt === 'string' ? new Date(orderExpiresAt) : orderExpiresAt;
+        const formattedDate = expirationDate.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+        });
+        const formattedTime = expirationDate.toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+        
+        return `Você pode pagar até: ${formattedDate} às ${formattedTime}`;
+    }, [pixResult, orderExpiresAt]);
+    
+    // Sincronizar expirationDescription quando mudar
     useEffect(() => {
+        setPixExpirationDescription(expirationDescription);
+    }, [expirationDescription]);
+    
+    // OTIMIZADO: Consolidar atualização de refs e reset de estado quando orderId mudar
+    useEffect(() => {
+        const orderIdChanged = previousOrderIdRef.current !== orderId;
+        
+        // Atualizar refs
+        orderIdRef.current = orderId;
         orderExpiresAtRef.current = orderExpiresAt;
         
-        // Se há pixResult e orderExpiresAt mudou, atualizar descrição de expiração
-        if (pixResult && orderExpiresAt) {
-            const expirationDate = typeof orderExpiresAt === 'string' ? new Date(orderExpiresAt) : orderExpiresAt;
-            const formattedDate = expirationDate.toLocaleDateString('pt-BR', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-            });
-            const formattedTime = expirationDate.toLocaleTimeString('pt-BR', {
-                hour: '2-digit',
-                minute: '2-digit',
-            });
-            
-            setPixExpirationDescription(`Você pode pagar até: ${formattedDate} às ${formattedTime}`);
-        }
-    }, [orderExpiresAt, pixResult]);
-
-
-    
-    // Resetar estado quando orderId mudar ou quando não houver orderId
-    // CRÍTICO: Não incluir 'status' nas dependências para evitar loops e atualizações durante render
-    useEffect(() => {
-        if (previousOrderIdRef.current !== orderId) {
+        // Atualizar isCheckoutReady baseado em orderId
+        setIsCheckoutReady(!!orderId);
+        
+        // Resetar estado apenas se orderId mudou
+        if (orderIdChanged) {
             if (!orderId) {
-                // Sem orderId, resetar tudo
-                setIsCheckoutReady(false);
+                // Sem orderId: resetar tudo
                 setStatus('idle');
                 setStatusMessage('');
                 setPixResult(null);
                 setPixCopySuccess(false);
                 setPixExpirationDescription(null);
                 processingRef.current = false;
-                
-                // Limpar polling se existir
-                if (pollingIntervalRef.current) {
-                    clearInterval(pollingIntervalRef.current);
-                    pollingIntervalRef.current = null;
-                }
+                stopPolling();
             } else {
-                // OrderId mudou ou foi definido
-                // NOTA: Não resetar pixResult aqui se já foi restaurado pelo efeito acima
-                // Apenas resetar se não há pixResult restaurado
+                // Novo orderId: resetar apenas se não houver pixResult
                 if (!pixResult) {
                     setStatus((prevStatus) => {
-                        // Se há um erro ativo, manter o erro para exibição
                         if (prevStatus === 'error') {
-                            return prevStatus;
+                            return prevStatus; // Manter erro para exibição
                         }
                         return 'idle';
                     });
@@ -131,164 +137,34 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
                     setPixCopySuccess(false);
                     setPixExpirationDescription(null);
                     processingRef.current = false;
+                    // Só parar polling se não há pixResult ativo
+                    stopPolling();
                 }
+                // Se há pixResult ativo, não parar o polling - ele deve continuar verificando
                 
-                // Limpar polling se existir (será reiniciado se necessário)
-                if (pollingIntervalRef.current) {
-                    clearInterval(pollingIntervalRef.current);
-                    pollingIntervalRef.current = null;
-                }
-                
-                // Se há orderId, marcar checkout como pronto
                 setIsCheckoutReady(true);
             }
+            
+            previousOrderIdRef.current = orderId;
         }
-    }, [orderId, pixResult]); // CRÍTICO: Incluir pixResult para não resetar se já foi restaurado
+        // Se orderId não mudou mas pixResult mudou, não fazer nada - não parar polling
+    }, [orderId, orderExpiresAt, pixResult]);
 
-    // Resetar pagamento para estado inicial
+    // Resetar pagamento
     const resetPayment = useCallback(() => {
         setStatus('idle');
         setStatusMessage('');
         setPixResult(null);
         setPixCopySuccess(false);
         setPixExpirationDescription(null);
-        setRedirectCountdown(null);
+        setRedirectCountdownState(null);
         processingRef.current = false;
-        
-        // Limpar countdown e polling se existirem
-        if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-            countdownIntervalRef.current = null;
-        }
-        if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-        }
-    }, []);
-
-    // Countdown para redirecionamento (definido antes de startPolling para poder ser usado)
-    const startRedirectCountdown = useCallback(() => {
-        if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-        }
-
-        let countdown = 5;
-        
-        countdownIntervalRef.current = setInterval(() => {
-            countdown -= 1;
-            if (countdown > 0) {
-                setRedirectCountdown(countdown);
-            } else {
-                if (countdownIntervalRef.current) {
-                    clearInterval(countdownIntervalRef.current);
-                    countdownIntervalRef.current = null;
-                }
-                setRedirectCountdown(null);
-                
-                // CRÍTICO: Usar requestAnimationFrame para garantir que não navegue durante render
-                if (typeof window !== 'undefined') {
-                    storageHelpers.clearActiveOrderId();
-                    storageHelpers.clearTimerStartTime();
-                    clearCartItems();
-                    (window as any).__ALLOW_NAVIGATION__ = true;
-                    window.onbeforeunload = null;
-                    
-                    // Usar requestAnimationFrame para garantir que não navegue durante render
-                    requestAnimationFrame(() => {
-                        setTimeout(() => {
-                            window.location.replace('/dashboard');
-                        }, 0);
-                    });
-                } else {
-                    router.push('/dashboard');
-                }
-            }
-        }, 1000);
-    }, [router]);
-
-    // Polling para verificar status do pagamento
-    const startPolling = useCallback((orderId: string) => {
-        // Limpar polling anterior se existir
-        if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-        }
-
-        let attempts = 0;
-        const maxAttempts = 180; // 180 tentativas = 15 minutos (5s * 180 = 900s = 15min)
-        const pollingInterval = 5000; // 5 segundos
-
-        pollingIntervalRef.current = setInterval(async () => {
-            attempts++;
-            
-            // Verificar se ainda temos o mesmo orderId
-            if (orderIdRef.current !== orderId) {
-                console.log('[usePixPayment] ⚠️ OrderId mudou durante polling, parando');
-                if (pollingIntervalRef.current) {
-                    clearInterval(pollingIntervalRef.current);
-                    pollingIntervalRef.current = null;
-                }
-                return;
-            }
-
-            try {
-                const response = await api.get(`/orders/${orderId}`);
-                const order = response.data?.data || response.data?.data?.order;
-                
-                if (order) {
-                    // Se pedido foi pago, parar polling e mostrar sucesso
-                    if (order.status === 'paid') {
-                        console.log('[usePixPayment] ✅ Pagamento PIX aprovado!');
-                        
-                        if (pollingIntervalRef.current) {
-                            clearInterval(pollingIntervalRef.current);
-                            pollingIntervalRef.current = null;
-                        }
-                        
-                        setStatus('success');
-                        setStatusMessage('Pagamento aprovado com sucesso!');
-                        
-                        // Iniciar countdown para redirecionamento
-                        setRedirectCountdown(5);
-                        startRedirectCountdown();
-                    } else if (order.status === 'cancelled' || order.status === 'failed') {
-                        // Pedido cancelado ou falhou, parar polling
-                        console.log('[usePixPayment] ⚠️ Pedido cancelado ou falhou:', order.status);
-                        
-                        if (pollingIntervalRef.current) {
-                            clearInterval(pollingIntervalRef.current);
-                            pollingIntervalRef.current = null;
-                        }
-                        
-                        setStatus('error');
-                        setStatusMessage('Pagamento não foi concluído. Tente gerar um novo QR Code.');
-                    }
-                }
-            } catch (err: any) {
-                // Se pedido não encontrado (404), parar polling
-                if (err?.response?.status === 404) {
-                    console.log('[usePixPayment] ⚠️ Pedido não encontrado durante polling, parando');
-                    if (pollingIntervalRef.current) {
-                        clearInterval(pollingIntervalRef.current);
-                        pollingIntervalRef.current = null;
-                    }
-                }
-                // Outros erros: continuar tentando até maxAttempts
-            }
-
-            // Se excedeu tentativas, parar polling
-            if (attempts >= maxAttempts) {
-                console.log('[usePixPayment] ⏰ Polling excedeu tentativas máximas, parando');
-                if (pollingIntervalRef.current) {
-                    clearInterval(pollingIntervalRef.current);
-                    pollingIntervalRef.current = null;
-                }
-            }
-        }, pollingInterval);
-    }, [startRedirectCountdown]);
+        stopPolling();
+        redirectCountdown.stopCountdown();
+    }, [stopPolling, redirectCountdown]);
 
     // Gerar QR Code PIX
     const generatePix = useCallback(async (orderId: string) => {
-        // Prevenir múltiplas execuções simultâneas
         if (processingRef.current) {
             console.log('[usePixPayment] ⏸️ PIX já está sendo gerado');
             return;
@@ -307,7 +183,6 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
         setPixCopySuccess(false);
 
         try {
-            // Obter Device ID do Mercado Pago (obrigatório para processar pagamento)
             let deviceId: string;
             try {
                 deviceId = await waitForMercadoPagoDeviceId(1000);
@@ -321,7 +196,6 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
                 deviceIdPreview: deviceId?.substring(0, 20) + '...',
             });
 
-            // Criar pagamento PIX
             const response = await api.post(
                 `/payments/${orderId}/pix`,
                 { deviceId },
@@ -332,7 +206,6 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
                 }
             );
 
-            // Backend retorna { success: true, data: { ... } }
             const paymentResult = response.data?.data || response.data;
             
             console.log('[usePixPayment] 📡 Resposta do backend:', {
@@ -343,16 +216,12 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
             });
 
             if (paymentResult && response.data?.success) {
-                // IMPORTANTE: Usar expiresAt do pedido (não do QR code) para calcular tempo de pagamento
-                // O tempo de expiração do pedido é a fonte de verdade
                 const expiresAt = orderExpiresAtRef.current || orderExpiresAt || paymentResult.expiresAt;
                 let expirationDescription: string | null = null;
                 
                 if (expiresAt) {
                     const expirationDate = typeof expiresAt === 'string' ? new Date(expiresAt) : expiresAt;
-                    const now = new Date();
                     
-                    // Formatar data/hora para exibição
                     const formattedDate = expirationDate.toLocaleDateString('pt-BR', {
                         day: '2-digit',
                         month: '2-digit',
@@ -379,28 +248,22 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
                 });
                 
                 setPixExpirationDescription(expirationDescription);
-                setStatus('idle'); // Voltar para idle após gerar QR code
+                setStatus('idle');
                 setStatusMessage('');
                 
-                // IMPORTANTE: Manter orderId no storage quando QR code PIX é gerado
-                // Isso permite que ao recarregar a página (F5), o sistema detecte que há pedido PIX pendente
-                // e redirecione para /dashboard ao invés de criar novo pedido
-                // O storage só será limpo quando o usuário navegar para home normalmente (não F5)
                 console.log('[usePixPayment] ✅ QR code PIX gerado - mantendo orderId no storage para detecção ao recarregar');
                 
-                // Marcar que há um pedido PIX ativo (para detecção ao recarregar)
-                if (typeof window !== 'undefined') {
-                    sessionStorage.setItem('__PIX_ORDER_ACTIVE__', orderId);
-                }
+                // Garantir que orderIdRef.current está atualizado antes de iniciar polling
+                orderIdRef.current = orderId;
+                console.log('[usePixPayment] 🔧 orderIdRef atualizado antes de iniciar polling:', {
+                    orderId,
+                    orderIdRefCurrent: orderIdRef.current,
+                });
                 
-                // CRÍTICO: Liberar navegação quando QR code é gerado (sem modais)
-                // Definir flag global para permitir navegação sem alerta
-                if (typeof window !== 'undefined') {
-                    (window as any).__ALLOW_NAVIGATION__ = true;
-                    window.onbeforeunload = null;
-                }
+                storage.setPixOrderActive(orderId);
+                navigation.allowNavigation();
                 
-                // Iniciar polling para verificar status do pagamento
+                console.log('[usePixPayment] 🔄 Iniciando polling para verificar status do pagamento PIX');
                 startPolling(orderId);
             } else {
                 throw new Error('Resposta inválida do servidor');
@@ -418,8 +281,7 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
         } finally {
             processingRef.current = false;
         }
-    }, [pixGenerationDeadlineMinutes, startPolling]);
-
+    }, [pixGenerationDeadlineMinutes, startPolling, storage, navigation, orderExpiresAt]);
 
     // Handler para submit do formulário
     const handleFormSubmit = useCallback(async (event: FormEvent<HTMLFormElement>) => {
@@ -451,39 +313,35 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
 
     // Handler para navegar para pedidos
     const onNavigateToOrders = useCallback(() => {
-        // Limpar estado antes de navegar
-        if (typeof window !== 'undefined') {
-            storageHelpers.clearActiveOrderId();
-            storageHelpers.clearTimerStartTime();
-            clearCartItems();
-            (window as any).__ALLOW_NAVIGATION__ = true;
-            window.onbeforeunload = null;
-            
-            // CRÍTICO: Usar requestAnimationFrame para garantir que não navegue durante render
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    window.location.replace('/dashboard');
-                }, 0);
-            });
-        } else {
-            router.push('/dashboard');
-        }
-    }, [router]);
+        storage.clearOrderRelated();
+        navigation.allowNavigation();
+        navigation.navigateToDashboard({ useReplace: true });
+    }, [storage, navigation]);
 
-    // Dismiss status (fechar modal de erro)
+    // Dismiss status
     const dismissStatus = useCallback(() => {
         setStatus('idle');
         setStatusMessage('');
     }, []);
 
+    // Cleanup ao desmontar - usar refs para evitar dependências instáveis
+    const stopPollingRef = useRef(stopPolling);
+    const stopCountdownRef = useRef(() => redirectCountdown.stopCountdown());
+    
+    // Atualizar refs quando as funções mudarem
+    useEffect(() => {
+        stopPollingRef.current = stopPolling;
+        stopCountdownRef.current = () => redirectCountdown.stopCountdown();
+    }, [stopPolling, redirectCountdown]);
+    
     // Cleanup ao desmontar
     useEffect(() => {
         return () => {
-            if (countdownIntervalRef.current) {
-                clearInterval(countdownIntervalRef.current);
+            if (stopPollingRef.current) {
+                stopPollingRef.current();
             }
-            if (pollingIntervalRef.current) {
-                clearInterval(pollingIntervalRef.current);
+            if (stopCountdownRef.current) {
+                stopCountdownRef.current();
             }
         };
     }, []);
@@ -495,7 +353,7 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
         isProcessing: processingRef.current,
         isCheckoutReady,
         pixCopySuccess,
-        redirectCountdown,
+        redirectCountdown: redirectCountdownState,
         pixExpirationDescription,
         pixGenerationDeadlineMinutes,
         generatePix,
@@ -506,4 +364,3 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
         onNavigateToOrders,
     };
 }
-

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useReducer, useEffect, useCallback, useRef } from 'react';
 import api from '@/lib/api';
 import type { CheckoutCartItem } from '../types';
-import { storageHelpers } from '../utils/storageHelpers';
-import { isOrderExpired, getRemainingTime, parseExpiresAt } from '../utils/orderHelpers';
+import { useCheckoutStorage } from './useCheckoutStorage';
+import { useOrderCreation } from './useOrderCreation';
+import { useOrderRestoration } from './useOrderRestoration';
+import { useRateLimit } from './useRateLimit';
+import { useCheckoutNavigation } from './useCheckoutNavigation';
 
 export interface CheckoutOrder {
     _id: string;
@@ -24,87 +26,204 @@ interface UseCheckoutOrderReturn {
     error: string | null;
     createOrder: () => Promise<void>;
     refreshOrder: () => Promise<void>;
-    clearOrder: () => void; // Limpar pedido manualmente (quando cancelado externamente)
-    resetRateLimitBlock: () => void; // Resetar bloqueio de rate limit manualmente
-    rateLimitRemainingSeconds: number | null; // Tempo restante do bloqueio de rate limit em segundos
-    showRestoreModal: boolean; // Mostrar modal quando pedido é restaurado
-    closeRestoreModal: () => void; // Fechar modal manualmente
-    showExpiredModal: boolean; // Mostrar modal quando pedido expirou
-    closeExpiredModal: () => void; // Fechar modal de expiração
+    clearOrder: () => void;
+    resetRateLimitBlock: () => void;
+    rateLimitRemainingSeconds: number | null;
+    showRestoreModal: boolean;
+    closeRestoreModal: () => void;
+    showExpiredModal: boolean;
+    closeExpiredModal: () => void;
+}
+
+// Estado consolidado do pedido
+interface OrderState {
+    order: CheckoutOrder | null;
+    loading: boolean;
+    error: string | null;
+    showRestoreModal: boolean;
+    showExpiredModal: boolean;
+}
+
+// Ações do reducer
+type OrderAction =
+    | { type: 'SET_ORDER'; payload: CheckoutOrder | null }
+    | { type: 'SET_LOADING'; payload: boolean }
+    | { type: 'SET_ERROR'; payload: string | null }
+    | { type: 'SHOW_RESTORE_MODAL' }
+    | { type: 'HIDE_RESTORE_MODAL' }
+    | { type: 'SHOW_EXPIRED_MODAL' }
+    | { type: 'HIDE_EXPIRED_MODAL' }
+    | { type: 'CLEAR_ALL' };
+
+// Reducer para gerenciar estado do pedido
+function orderReducer(state: OrderState, action: OrderAction): OrderState {
+    switch (action.type) {
+        case 'SET_ORDER':
+            return { ...state, order: action.payload };
+        case 'SET_LOADING':
+            return { ...state, loading: action.payload };
+        case 'SET_ERROR':
+            return { ...state, error: action.payload };
+        case 'SHOW_RESTORE_MODAL':
+            return { ...state, showRestoreModal: true };
+        case 'HIDE_RESTORE_MODAL':
+            return { ...state, showRestoreModal: false };
+        case 'SHOW_EXPIRED_MODAL':
+            return { ...state, showExpiredModal: true };
+        case 'HIDE_EXPIRED_MODAL':
+            return { ...state, showExpiredModal: false };
+        case 'CLEAR_ALL':
+            return {
+                order: null,
+                loading: false,
+                error: null,
+                showRestoreModal: false,
+                showExpiredModal: false,
+            };
+        default:
+            return state;
+    }
 }
 
 /**
  * Hook para gerenciar pedido no checkout
- * REFATORADO: Cria pedido PENDING imediatamente ao entrar no checkout
- * O pedido funciona como reserva de ingressos
+ * REFATORADO: Usa hooks especializados para criação, restauração e rate limit
+ * OTIMIZADO: Usa useReducer para consolidar estados relacionados
+ * Reduzido de 943 para ~300 linhas
  */
 export function useCheckoutOrder(
     cartItems: CheckoutCartItem[],
     customerData: { name: string; email: string; cpf: string; phone: string }
 ): UseCheckoutOrderReturn {
-    const router = useRouter();
-    const [order, setOrder] = useState<CheckoutOrder | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [showRestoreModal, setShowRestoreModal] = useState(false);
-    const [showExpiredModal, setShowExpiredModal] = useState(false);
-    const [rateLimitRemainingSeconds, setRateLimitRemainingSeconds] = useState<number | null>(null);
+    const storage = useCheckoutStorage();
+    const navigation = useCheckoutNavigation();
+    
+    // Estado consolidado usando reducer
+    const [state, dispatch] = useReducer(orderReducer, {
+        order: null,
+        loading: false,
+        error: null,
+        showRestoreModal: false,
+        showExpiredModal: false,
+    });
+    
+    // Wrappers para setters (para compatibilidade com hooks que recebem setters)
+    const setOrder = useCallback((order: CheckoutOrder | null) => {
+        dispatch({ type: 'SET_ORDER', payload: order });
+    }, []);
+    
+    const setLoading = useCallback((loading: boolean) => {
+        dispatch({ type: 'SET_LOADING', payload: loading });
+    }, []);
+    
+    const setError = useCallback((error: string | null) => {
+        dispatch({ type: 'SET_ERROR', payload: error });
+    }, []);
+    
+    const setShowRestoreModal = useCallback((show: boolean) => {
+        dispatch(show ? { type: 'SHOW_RESTORE_MODAL' } : { type: 'HIDE_RESTORE_MODAL' });
+    }, []);
+    
+    const setShowExpiredModal = useCallback((show: boolean) => {
+        dispatch(show ? { type: 'SHOW_EXPIRED_MODAL' } : { type: 'HIDE_EXPIRED_MODAL' });
+    }, []);
+    
     const creatingRef = useRef(false);
     const orderIdRef = useRef<string | null>(null);
-    const hasShownModalRef = useRef(false); // Evitar mostrar modal múltiplas vezes
-    const hasShownExpiredModalRef = useRef(false); // Evitar mostrar modal de expiração múltiplas vezes
-    const lastCancelTimeRef = useRef<number>(0); // Timestamp do último cancelamento
-    const lastCreateTimeRef = useRef<number>(0); // CRÍTICO: Timestamp da última criação para evitar loop infinito
-    const fetchingOrderRef = useRef(false); // Evitar múltiplas buscas simultâneas do mesmo pedido
-    const cachedOrderIdFromStorageRef = useRef<string | null>(null); // OTIMIZADO: Cache do orderId do storage
-    const hasInitializedFromStorageRef = useRef(false); // OTIMIZADO: Flag para evitar múltiplas inicializações
-    const refreshOrderAbortControllerRef = useRef<AbortController | null>(null); // OTIMIZADO: AbortController para refreshOrder
-    const createOrderAbortControllerRef = useRef<AbortController | null>(null); // OTIMIZADO: AbortController para createOrder
-    
-    // Função para fechar modal (exposta via callback)
+    const hasShownModalRef = useRef(false);
+    const hasShownExpiredModalRef = useRef(false);
+    const lastCancelTimeRef = useRef<number>(0);
+    const lastCreateTimeRef = useRef<number>(0);
+    const fetchingOrderRef = useRef(false);
+    const cachedOrderIdFromStorageRef = useRef<string | null>(null);
+    const hasInitializedFromStorageRef = useRef(false);
+    const refreshOrderAbortControllerRef = useRef<AbortController | null>(null);
+    const createOrderAbortControllerRef = useRef<AbortController | null>(null);
+
+    // Rate limit hook
+    const rateLimit = useRateLimit({
+        lastCreateTimeRef,
+        setError,
+    });
+
+    // Order creation hook
+    const { createOrder: createOrderInternal } = useOrderCreation({
+        setOrder,
+        setLoading,
+        setError,
+        setShowExpiredModal,
+        orderIdRef,
+        cachedOrderIdFromStorageRef,
+        creatingRef,
+        lastCreateTimeRef,
+        hasShownExpiredModalRef,
+        createOrderAbortControllerRef,
+        order: state.order,
+    });
+
+    // Order restoration hook
+    const { refreshOrder: refreshOrderInternal } = useOrderRestoration({
+        setOrder,
+        setLoading,
+        setShowRestoreModal,
+        setShowExpiredModal,
+        setError,
+        orderIdRef,
+        cachedOrderIdFromStorageRef,
+        fetchingOrderRef,
+        refreshOrderAbortControllerRef,
+        hasShownModalRef,
+        lastCancelTimeRef,
+        order: state.order,
+    });
+
+    // Função para fechar modal
     const closeRestoreModal = useCallback(() => {
-        setShowRestoreModal(false);
+        dispatch({ type: 'HIDE_RESTORE_MODAL' });
     }, []);
 
     // Função para fechar modal de expiração
     const closeExpiredModal = useCallback(() => {
-        setShowExpiredModal(false);
+        dispatch({ type: 'HIDE_EXPIRED_MODAL' });
     }, []);
 
-    // Função para limpar pedido manualmente (quando cancelado externamente)
-    // CORRIGIDO: Removida dependência de 'order' - usa apenas orderIdRef
+    // Função para limpar pedido manualmente
     const clearOrder = useCallback(() => {
         const currentOrderId = orderIdRef.current;
         console.log('[useCheckoutOrder] 🧹 Limpando pedido manualmente:', {
             orderId: currentOrderId,
         });
         orderIdRef.current = null;
-        cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
-        storageHelpers.clearActiveOrderId();
-        storageHelpers.clearTimerStartTime(); // Limpar timer também
-        setOrder(null);
-        setError(null);
-        setShowRestoreModal(false);
-        setShowExpiredModal(false);
-        lastCancelTimeRef.current = Date.now(); // Registrar tempo do cancelamento
-        creatingRef.current = false; // Resetar flag de criação
-        hasShownModalRef.current = false; // Resetar flag do modal também
-        hasShownExpiredModalRef.current = false; // Resetar flag do modal de expiração
-    }, []); // Sem dependências - usa apenas refs e setters estáveis
+        cachedOrderIdFromStorageRef.current = null;
+        storage.clearOrderRelated();
+        dispatch({ type: 'CLEAR_ALL' });
+        lastCancelTimeRef.current = Date.now();
+        creatingRef.current = false;
+        hasShownModalRef.current = false;
+        hasShownExpiredModalRef.current = false;
+    }, [storage]);
 
-    // Função para resetar bloqueio de rate limit manualmente
+    // Função para resetar bloqueio de rate limit
     const resetRateLimitBlock = useCallback(() => {
-        console.log('[useCheckoutOrder] 🔓 Resetando bloqueio de rate limit manualmente');
-        lastCreateTimeRef.current = 0;
-        setError(null);
-    }, []);
+        rateLimit.resetBlock();
+    }, [rateLimit]);
 
-    // OTIMIZADO: Carregar orderId salvo do storage apenas uma vez ao montar
+    // Wrapper para createOrder que chama o hook interno
+    const createOrder = useCallback(async () => {
+        await createOrderInternal(cartItems, customerData);
+    }, [createOrderInternal, cartItems, customerData]);
+
+    // Wrapper para refreshOrder que chama o hook interno
+    const refreshOrder = useCallback(async () => {
+        await refreshOrderInternal();
+    }, [refreshOrderInternal]);
+
+    // Inicializar do storage e verificar PIX flag
     useEffect(() => {
-        if (hasInitializedFromStorageRef.current) return; // Evitar múltiplas inicializações
+        if (hasInitializedFromStorageRef.current) return;
         
-        const savedOrderId = storageHelpers.loadActiveOrderId();
-        cachedOrderIdFromStorageRef.current = savedOrderId; // Cache do valor
+        const savedOrderId = storage.loadOrderId();
+        cachedOrderIdFromStorageRef.current = savedOrderId;
         
         if (savedOrderId) {
             orderIdRef.current = savedOrderId;
@@ -112,807 +231,111 @@ export function useCheckoutOrder(
         } else {
             console.log('[useCheckoutOrder] ℹ️ Nenhum OrderId encontrado no storage');
             
-            // IMPORTANTE: Se não há orderId no storage mas há flag de PIX ativo no sessionStorage,
-            // significa que o usuário recarregou a página (F5) após gerar QR code PIX
-            // Nesse caso, verificar se há pedido PIX pendente e redirecionar para /dashboard
-            if (typeof window !== 'undefined') {
-                const pixOrderId = sessionStorage.getItem('__PIX_ORDER_ACTIVE__');
-                if (pixOrderId) {
-                    console.log('[useCheckoutOrder] 🔍 Detectado recarregamento após gerar QR code PIX, verificando pedido pendente...');
-                    
-                    // Verificar se há pedido PIX pendente
-                    const checkPixOrder = async () => {
-                        try {
-                            const ordersResponse = await api.get('/orders', {
-                                params: {
-                                    limit: 1,
-                                    status: 'pending',
-                                },
+            // Verificar se há flag de PIX ativo (recarregamento após gerar QR code)
+            const pixOrderId = storage.getPixOrderActive();
+            if (pixOrderId) {
+                console.log('[useCheckoutOrder] 🔍 Detectado recarregamento após gerar QR code PIX, verificando pedido pendente...');
+                
+                const checkPixOrder = async () => {
+                    try {
+                        const ordersResponse = await api.get('/orders', {
+                            params: {
+                                limit: 1,
+                                status: 'pending',
+                            },
+                        });
+                        
+                        const pendingOrders = ordersResponse.data?.data?.orders || [];
+                        const pendingPixOrder = pendingOrders.find((o: any) => o.paymentMethod === 'pix' && o.status === 'pending');
+                        
+                        if (pendingPixOrder) {
+                            console.log('[useCheckoutOrder] ⚠️ Pedido PIX pendente encontrado, redirecionando para /dashboard:', {
+                                orderId: pendingPixOrder._id,
+                                orderNumber: pendingPixOrder.orderNumber,
                             });
                             
-                            const pendingOrders = ordersResponse.data?.data?.orders || [];
-                            const pendingPixOrder = pendingOrders.find((o: any) => o.paymentMethod === 'pix' && o.status === 'pending');
+                            storage.clearPixOrderActive();
+                            navigation.allowNavigation();
                             
-                            if (pendingPixOrder) {
-                                console.log('[useCheckoutOrder] ⚠️ Pedido PIX pendente encontrado, redirecionando para /dashboard:', {
-                                    orderId: pendingPixOrder._id,
-                                    orderNumber: pendingPixOrder.orderNumber,
-                                });
-                                
-                                // Limpar flags
-                                sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
-                                
-                                // Definir flag para permitir navegação
-                                (window as any).__ALLOW_NAVIGATION__ = true;
-                                window.onbeforeunload = null;
-                                
-                                // Redirecionar para dashboard
-                                setTimeout(() => {
-                                    window.location.replace('/dashboard');
-                                }, 100);
-                            } else {
-                                // Se não houver pedido PIX pendente, limpar flag
-                                sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
-                            }
-                        } catch (err: any) {
-                            console.log('[useCheckoutOrder] ℹ️ Erro ao verificar pedido PIX pendente:', err?.message);
-                            // Limpar flag mesmo em caso de erro
-                            sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+                            setTimeout(() => {
+                                navigation.navigateToDashboard({ useReplace: true });
+                            }, 100);
+                        } else {
+                            storage.clearPixOrderActive();
                         }
-                    };
-                    
-                    // Pequeno delay para garantir que a página carregou
-                    setTimeout(checkPixOrder, 500);
-                }
+                    } catch (err: any) {
+                        console.log('[useCheckoutOrder] ℹ️ Erro ao verificar pedido PIX pendente:', err?.message);
+                        storage.clearPixOrderActive();
+                    }
+                };
+                
+                setTimeout(checkPixOrder, 500);
             }
         }
         
         hasInitializedFromStorageRef.current = true;
-    }, []);
+    }, [storage, navigation]);
 
-    // Buscar pedido existente
-    const refreshOrder = useCallback(async () => {
-        // OTIMIZADO: Usar cache primeiro, só buscar do storage se necessário
-        const orderId = orderIdRef.current || cachedOrderIdFromStorageRef.current || storageHelpers.loadActiveOrderId();
-        if (!orderId) {
-            console.log('[useCheckoutOrder] ⚠️ refreshOrder chamado mas não há orderId');
-            return;
-        }
-
-        // Evitar múltiplas buscas simultâneas do mesmo pedido
-        if (fetchingOrderRef.current) {
-            console.log('[useCheckoutOrder] ⏸️ Já está buscando pedido, ignorando chamada duplicada');
-            return;
-        }
-        
-        // OTIMIZADO: Cancelar requisição anterior se existir
-        if (refreshOrderAbortControllerRef.current) {
-            console.log('[useCheckoutOrder] 🛑 Cancelando requisição anterior de refreshOrder');
-            refreshOrderAbortControllerRef.current.abort();
-        }
-        
-        // Criar novo AbortController para esta requisição
-        const abortController = new AbortController();
-        refreshOrderAbortControllerRef.current = abortController;
-        
-        console.log('[useCheckoutOrder] 🔍 Buscando pedido:', orderId);
-        fetchingOrderRef.current = true;
-        setLoading(true);
-        try {
-            const response = await api.get(`/orders/${orderId}`, {
-                signal: abortController.signal,
-            });
-            console.log('[useCheckoutOrder] 📡 Resposta recebida do backend:', {
-                status: response.status,
-                hasData: !!response.data,
-                hasDataData: !!response.data?.data,
-                // O backend retorna { success: true, data: order } - o pedido está diretamente em data, não em data.order
-                responseStructure: {
-                    success: response.data?.success,
-                    hasData: !!response.data?.data,
-                    dataType: typeof response.data?.data,
-                },
-            });
-            // IMPORTANTE: O backend retorna { success: true, data: order }
-            // O pedido está diretamente em response.data.data, não em response.data.data.order
-            const orderData = response.data?.data;
-            if (orderData) {
-                const wasNull = order === null;
-                console.log('[useCheckoutOrder] ✅ Pedido encontrado:', {
-                    orderId: orderData._id,
-                    orderNumber: orderData.orderNumber,
-                    status: orderData.status,
-                    expiresAt: orderData.expiresAt,
-                    wasNull,
-                });
-                
-                // IMPORTANTE: Restaurar pedidos PIX pendentes ao recarregar (F5)
-                // O pedido PIX deve ser restaurado para que o usuário possa ver o QR code novamente
-                // O backend já garante que pedidos PIX não são reutilizados ao criar novo pedido
-                
-                // IMPORTANTE: Verificar se pedido PENDING expirou ao carregar a página (F5)
-                let hasExpired = false;
-                if (orderData.status === 'pending' && orderData.expiresAt) {
-                    hasExpired = isOrderExpired(orderData.expiresAt);
-                    
-                    if (hasExpired) {
-                        console.log('[useCheckoutOrder] ⏰ Pedido PENDING expirado ao carregar, cancelando:', {
-                            expiresAt: parseExpiresAt(orderData.expiresAt)?.toISOString(),
-                            now: new Date().toISOString(),
-                        });
-                        
-                        // Cancelar pedido expirado
-                        try {
-                            await api.post(`/orders/${orderData._id}/cancel`);
-                            console.log('[useCheckoutOrder] ✅ Pedido expirado cancelado com sucesso');
-                        } catch (cancelErr: any) {
-                            // Se já foi cancelado (404), tudo bem
-                            if (cancelErr?.response?.status !== 404) {
-                                console.error('[useCheckoutOrder] ❌ Erro ao cancelar pedido expirado:', cancelErr);
-                            }
-                        }
-                        
-                        // Limpar estado
-                        orderIdRef.current = null;
-                        cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
-                        storageHelpers.clearActiveOrderId();
-                        storageHelpers.clearTimerStartTime();
-                        setShowRestoreModal(false);
-                        setOrder(null);
-                        setError(null);
-                        lastCancelTimeRef.current = Date.now();
-                        return; // Não continuar processamento
-                    } else {
-                        const remainingMinutes = Math.floor(getRemainingTime(orderData.expiresAt) / 60000);
-                        console.log('[useCheckoutOrder] ✅ Pedido PENDING ainda válido, mantendo:', {
-                            expiresAt: parseExpiresAt(orderData.expiresAt)?.toISOString(),
-                            remainingMinutes,
-                        });
-                    }
-                }
-                
-                setOrder(orderData);
-                orderIdRef.current = orderData._id;
-                cachedOrderIdFromStorageRef.current = orderData._id; // OTIMIZADO: Atualizar cache
-                storageHelpers.saveActiveOrderId(orderData._id);
-                
-                // IMPORTANTE: Se o pedido tem expiresAt, salvar o timer no localStorage para usar como fallback
-                if (orderData.status === 'pending' && orderData.expiresAt) {
-                    const remaining = getRemainingTime(orderData.expiresAt);
-                    if (remaining > 0) {
-                        // Calcular startTime baseado no expiresAt para salvar no localStorage
-                        const now = Date.now();
-                        const startTime = now - (30 * 60 * 1000 - remaining); // 30 minutos
-                        storageHelpers.saveTimerStartTime(startTime);
-                        console.log('[useCheckoutOrder] 💾 Timer salvo no localStorage baseado no expiresAt do pedido:', {
-                            expiresAt: parseExpiresAt(orderData.expiresAt)?.toISOString(),
-                            startTime: new Date(startTime).toISOString(),
-                            remainingMinutes: Math.floor(remaining / 60000),
-                        });
-                    }
-                }
-                
-                // IMPORTANTE: Se pedido PIX pendente foi restaurado E há flag de PIX ativo,
-                // redirecionar para /dashboard (indica recarregamento após gerar QR code)
-                // Se não houver flag, significa que usuário voltou ao carrinho normalmente e pode criar novo pedido
-                if (wasNull && orderData.status === 'pending' && orderData.paymentMethod === 'pix' && !hasExpired) {
-                    const hasPixActiveFlag = typeof window !== 'undefined' && sessionStorage.getItem('__PIX_ORDER_ACTIVE__');
-                    
-                    if (hasPixActiveFlag) {
-                        console.log('[useCheckoutOrder] ⚠️ Pedido PIX pendente restaurado após recarregar, redirecionando para /dashboard:', {
-                            orderId: orderData._id,
-                            orderNumber: orderData.orderNumber,
-                        });
-                        
-                        // Limpar flags
-                        if (typeof window !== 'undefined') {
-                            sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
-                            
-                            // Definir flag para permitir navegação
-                            (window as any).__ALLOW_NAVIGATION__ = true;
-                            window.onbeforeunload = null;
-                            
-                            // Redirecionar para dashboard
-                            setTimeout(() => {
-                                window.location.replace('/dashboard');
-                            }, 100);
-                        }
-                        
-                        // Não mostrar modal e não continuar processamento
-                        setShowRestoreModal(false);
-                        hasShownModalRef.current = true;
-                        return;
-                    } else {
-                        // Usuário voltou ao carrinho normalmente, limpar pedido PIX para permitir novo pedido
-                        console.log('[useCheckoutOrder] 🧹 Pedido PIX pendente encontrado mas usuário voltou ao carrinho normalmente, limpando para permitir novo pedido');
-                        orderIdRef.current = null;
-                        cachedOrderIdFromStorageRef.current = null;
-                        storageHelpers.clearActiveOrderId();
-                        storageHelpers.clearTimerStartTime();
-                        setOrder(null);
-                        setShowRestoreModal(false);
-                        // Continuar para criar novo pedido
-                    }
-                }
-                
-                // Mostrar modal se pedido foi restaurado (estava null e agora tem pedido PENDING válido)
-                // Mas apenas se NÃO for PIX (pedidos PIX são redirecionados acima)
-                if (wasNull && orderData.status === 'pending' && !hasExpired && !hasShownModalRef.current && orderData.paymentMethod !== 'pix') {
-                    console.log('[useCheckoutOrder] 🔔 Mostrando modal de restauração');
-                    setShowRestoreModal(true);
-                    hasShownModalRef.current = true;
-                }
-                
-                // Se pedido foi cancelado ou pago, limpar
-                if (orderData.status === 'cancelled' || orderData.status === 'paid' || orderData.status === 'failed') {
-                    console.log('[useCheckoutOrder] 🗑️ Pedido finalizado, limpando estado:', orderData.status);
-                    orderIdRef.current = null;
-                    cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
-                    storageHelpers.clearActiveOrderId();
-                    setShowRestoreModal(false);
-                    setOrder(null);
-                    setError(null); // Limpar erro também
-                    if (orderData.status === 'cancelled') {
-                        lastCancelTimeRef.current = Date.now(); // Registrar tempo do cancelamento
-                    }
-                }
-            } else {
-                console.log('[useCheckoutOrder] ⚠️ Resposta do backend não contém dados do pedido:', {
-                    hasResponse: !!response,
-                    hasData: !!response?.data,
-                    hasDataData: !!response?.data?.data,
-                    success: response?.data?.success,
-                    responseData: response?.data,
-                });
-            }
-            setLoading(false);
-            fetchingOrderRef.current = false;
-            refreshOrderAbortControllerRef.current = null; // Limpar AbortController após sucesso
-        } catch (err: any) {
-            setLoading(false);
-            fetchingOrderRef.current = false;
-            
-            // OTIMIZADO: Ignorar erros de cancelamento intencional
-            if (err.name === 'AbortError' || err.name === 'CanceledError' || (err.code === 'ERR_CANCELED')) {
-                console.log('[useCheckoutOrder] ⏸️ Requisição cancelada intencionalmente');
-                return;
-            }
-            
-            const status = err?.response?.status;
-            const errorMessage = err?.response?.data?.message || err?.message;
-            
-            // Se pedido não encontrado, cancelado ou sem permissão
-            if (status === 404 || status === 400 || status === 403) {
-                // Logs específicos por tipo de erro
-                if (status === 403) {
-                    console.log('[useCheckoutOrder] 🔒 Erro 403 - Acesso negado ao pedido:', {
-                        orderId,
-                        message: errorMessage,
-                        reason: 'O usuário atual não é o dono do pedido ou não está autenticado corretamente',
-                        note: 'Pode ser erro temporário de autenticação ou pedido pertence a outro usuário',
-                    });
-                } else if (status === 404) {
-                    console.log('[useCheckoutOrder] ❌ Erro 404 - Pedido não encontrado:', {
-                        orderId,
-                        message: errorMessage,
-                        reason: 'O pedido não existe mais ou foi deletado',
-                    });
-                } else if (status === 400) {
-                    console.log('[useCheckoutOrder] ⚠️ Erro 400 - Requisição inválida:', {
-                        orderId,
-                        message: errorMessage,
-                        reason: 'Dados inválidos ou pedido em estado inválido',
-                    });
-                }
-                
-                // IMPORTANTE: Se for 403, verificar se o timer ainda está válido antes de limpar
-                // Se o timer ainda não expirou, pode ser erro temporário de permissão
-                // Nesse caso, manter o orderId no storage para tentar novamente depois
-                // Mas se for 404 ou 400, o pedido realmente não existe mais
-                if (status === 403) {
-                    // Verificar se o timer ainda está válido (usando localStorage)
-                    const savedStartTime = storageHelpers.loadTimerStartTime();
-                    let timerStillValid = false;
-                    
-                    if (savedStartTime) {
-                        const elapsed = Date.now() - savedStartTime;
-                        const remaining = Math.max(0, 30 * 60 * 1000 - elapsed); // 30 minutos
-                        timerStillValid = remaining > 0;
-                        
-                        console.log('[useCheckoutOrder] 🔍 Verificando timer do localStorage:', {
-                            savedStartTime: new Date(savedStartTime).toISOString(),
-                            elapsed: Math.floor(elapsed / 1000),
-                            remaining: Math.floor(remaining / 1000),
-                            remainingMinutes: Math.floor(remaining / 60000),
-                            timerStillValid,
-                        });
-                    } else {
-                        console.log('[useCheckoutOrder] ⚠️ Não há timer salvo no localStorage');
-                    }
-                    
-                    // Se o timer ainda está válido, pode ser erro temporário de permissão
-                    // Manter o orderId no storage para tentar novamente quando necessário
-                    if (timerStillValid) {
-                        console.log('[useCheckoutOrder] ⏸️ Erro 403 mas timer ainda válido, mantendo orderId para retry:', {
-                            orderId,
-                            remainingMinutes: Math.floor((30 * 60 * 1000 - (Date.now() - savedStartTime!)) / 60000),
-                        });
-                        // Não limpar o orderId nem o timer, apenas limpar o estado do pedido
-                        // O pedido será buscado novamente quando:
-                        // 1. O usuário adicionar itens ao carrinho (lógica já existe no useEffect de criação)
-                        // 2. O componente re-renderizar e detectar que há orderId mas não há pedido carregado
-                        // Não precisamos fazer retry automático aqui, pois pode causar loops desnecessários
-                        setOrder(null);
-                        setShowRestoreModal(false);
-                        setShowExpiredModal(false);
-                        setError(null);
-                        return; // Não limpar orderId nem timer
-                    } else {
-                        console.log('[useCheckoutOrder] ⏰ Timer expirado ou não encontrado, limpando pedido');
-                    }
-                }
-                
-                // Para 404, 400 ou 403 com timer expirado: limpar tudo
-                console.log('[useCheckoutOrder] 🗑️ Limpando pedido (não encontrado/inválido ou timer expirado)');
-                orderIdRef.current = null;
-                cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
-                storageHelpers.clearActiveOrderId();
-                storageHelpers.clearTimerStartTime(); // Limpar timer
-                setOrder(null);
-                setShowRestoreModal(false);
-                setShowExpiredModal(false);
-                setError(null);
-            } else {
-                console.error('[useCheckoutOrder] ❌ Erro ao buscar pedido:', err);
-            }
-        }
-    }, [order]);
-
-    // Criar pedido a partir do carrinho
-    const createOrder = useCallback(async () => {
-        // Validar dados mínimos
-        if (cartItems.length === 0) {
-            setError('Carrinho vazio');
-            return;
-        }
-
-        if (!customerData.name || !customerData.email) {
-            setError('Preencha nome e email antes de continuar');
-            return;
-        }
-
-        // Evitar múltiplas criações simultâneas
-        if (creatingRef.current) {
-            console.log('[useCheckoutOrder] ⏸️ Já está criando pedido, ignorando chamada duplicada');
-            return;
-        }
-        
-        // CRÍTICO: Proteção contra loop infinito - evitar criar pedidos muito rapidamente
-        const now = Date.now();
-        const lastCreateTime = lastCreateTimeRef.current;
-        
-        // Se lastCreateTime está no futuro, significa que há um bloqueio ativo (ex: após rate limit)
-        if (lastCreateTime > now) {
-            const remainingBlockTime = Math.ceil((lastCreateTime - now) / 1000); // segundos restantes
-            const remainingMinutes = Math.ceil(remainingBlockTime / 60);
-            const remainingSeconds = remainingBlockTime % 60;
-            
-            console.warn(`[useCheckoutOrder] ⚠️ Criação de pedido bloqueada. Aguarde ${remainingBlockTime} segundos.`);
-            
-            if (remainingMinutes > 0) {
-                setError(`Muitas tentativas de criar pedido. Aguarde ${remainingMinutes} minuto${remainingMinutes > 1 ? 's' : ''} antes de tentar novamente. Ou recarregue a página para resetar.`);
-            } else {
-                setError(`Muitas tentativas de criar pedido. Aguarde ${remainingSeconds} segundo${remainingSeconds > 1 ? 's' : ''} antes de tentar novamente.`);
-            }
-            return;
-        }
-        
-        // Verificar se passou tempo mínimo desde última criação
-        const timeSinceLastCreate = now - lastCreateTime;
-        if (timeSinceLastCreate < 2000 && lastCreateTime > 0) { // Mínimo de 2 segundos entre criações
-            console.warn('[useCheckoutOrder] ⚠️ Tentativa de criar pedido muito rapidamente após última criação, ignorando para evitar loop infinito');
-            return;
-        }
-        
-        // OTIMIZADO: Cancelar requisição anterior se existir
-        if (createOrderAbortControllerRef.current) {
-            console.log('[useCheckoutOrder] 🛑 Cancelando requisição anterior de createOrder');
-            createOrderAbortControllerRef.current.abort();
-        }
-        
-        // Criar novo AbortController para esta requisição
-        const abortController = new AbortController();
-        createOrderAbortControllerRef.current = abortController;
-        
-        creatingRef.current = true;
-        lastCreateTimeRef.current = now; // Registrar timestamp da criação
-
-        try {
-            setLoading(true);
-            setError(null);
-
-            // IMPORTANTE: Se há orderId no storage, primeiro verificar se o pedido ainda é válido
-            // OTIMIZADO: Usar cache primeiro
-            const existingOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current || storageHelpers.loadActiveOrderId();
-            if (existingOrderId && !order) {
-                console.log('[useCheckoutOrder] 🔍 Encontrado orderId no storage antes de criar, verificando se pedido ainda é válido:', existingOrderId);
-                try {
-                    const checkResponse = await api.get(`/orders/${existingOrderId}`, {
-                        signal: abortController.signal,
-                    });
-                    const existingOrder = checkResponse.data?.data?.order;
-                    
-                    if (existingOrder && existingOrder.status === 'pending' && existingOrder.expiresAt) {
-                        const hasExpired = isOrderExpired(existingOrder.expiresAt);
-                        
-                        if (!hasExpired) {
-                            // Pedido ainda válido, usar ele ao invés de criar novo
-                            const remainingMinutes = Math.floor(getRemainingTime(existingOrder.expiresAt) / 60000);
-                            console.log('[useCheckoutOrder] ✅ Pedido existente ainda válido, usando ao invés de criar novo:', {
-                                orderId: existingOrder._id,
-                                remainingMinutes,
-                            });
-                            setOrder(existingOrder);
-                            orderIdRef.current = existingOrder._id;
-                            cachedOrderIdFromStorageRef.current = existingOrder._id; // OTIMIZADO: Atualizar cache
-                            storageHelpers.saveActiveOrderId(existingOrder._id);
-                            setLoading(false);
-                            creatingRef.current = false;
-                            return; // Não criar novo pedido
-                        } else {
-                            // Pedido expirado, cancelar, limpar e mostrar modal
-                            console.log('[useCheckoutOrder] ⏰ Pedido existente expirado, cancelando e limpando:', existingOrderId);
-                            try {
-                                await api.post(`/orders/${existingOrderId}/cancel`, {}, {
-                                    signal: abortController.signal,
-                                });
-                                console.log('[useCheckoutOrder] ✅ Pedido expirado cancelado com sucesso');
-                            } catch (cancelErr: any) {
-                                // Ignorar erro 404 (já foi cancelado)
-                                if (cancelErr?.response?.status !== 404) {
-                                    console.error('[useCheckoutOrder] ❌ Erro ao cancelar pedido expirado:', cancelErr);
-                                }
-                            }
-                            
-                            // Limpar estado
-                            storageHelpers.clearActiveOrderId();
-                            storageHelpers.clearTimerStartTime();
-                            orderIdRef.current = null;
-                            cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
-                            setOrder(null);
-                            setLoading(false);
-                            creatingRef.current = false;
-                            
-                            // Mostrar modal de expiração
-                            // O carrinho será limpo no componente que usa o hook (CheckoutLayout)
-                            if (!hasShownExpiredModalRef.current) {
-                                console.log('[useCheckoutOrder] 🔔 Mostrando modal de pedido expirado');
-                                setShowExpiredModal(true);
-                                hasShownExpiredModalRef.current = true;
-                            }
-                            
-                            return; // Não criar novo pedido automaticamente
-                        }
-                    } else {
-                        // Pedido não é PENDING ou não tem expiresAt, limpar
-                        const orderStatus = existingOrder?.status || 'undefined';
-                        console.log('[useCheckoutOrder] 🗑️ Pedido existente não é válido (status:', orderStatus, '), limpando');
-                        storageHelpers.clearActiveOrderId();
-                        storageHelpers.clearTimerStartTime();
-                        orderIdRef.current = null;
-                        cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
-                        
-                        // CRÍTICO: Se o pedido tem status 'failed', não criar novo automaticamente
-                        // Isso evita loop infinito quando o backend retorna pedidos com status 'failed'
-                        if (orderStatus === 'failed' || orderStatus === 'cancelled') {
-                            console.warn('[useCheckoutOrder] ⚠️ Pedido com status inválido detectado, abortando criação de novo pedido para evitar loop infinito');
-                            setLoading(false);
-                            creatingRef.current = false;
-                            setError('Não foi possível criar um pedido válido. Por favor, tente novamente.');
-                            return; // CRÍTICO: Retornar para evitar criar novo pedido
-                        }
-                        
-                        // Para outros status inválidos, continuar e criar novo pedido
-                        // (mas apenas se não for 'failed' ou 'cancelled')
-                    }
-                } catch (checkErr: any) {
-                    // OTIMIZADO: Ignorar erros de cancelamento intencional
-                    if (checkErr.name === 'AbortError' || checkErr.name === 'CanceledError' || (checkErr.code === 'ERR_CANCELED')) {
-                        console.log('[useCheckoutOrder] ⏸️ Requisição de verificação cancelada intencionalmente');
-                        return;
-                    }
-                    
-                    // Se pedido não encontrado (404/403), limpar e criar novo
-                    if (checkErr?.response?.status === 404 || checkErr?.response?.status === 403) {
-                        console.log('[useCheckoutOrder] ⚠️ Pedido existente não encontrado ou sem acesso, limpando e criando novo');
-                        storageHelpers.clearActiveOrderId();
-                        storageHelpers.clearTimerStartTime();
-                        orderIdRef.current = null;
-                        cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
-                    } else {
-                        // Outro erro, logar mas continuar tentando criar
-                        console.error('[useCheckoutOrder] ❌ Erro ao verificar pedido existente:', checkErr);
-                    }
-                }
-            }
-
-            // O backend agrupa automaticamente itens do mesmo evento em um único pedido
-            // Criar pedido com o primeiro item - o backend vai adicionar outros itens ao mesmo pedido
-            // se forem do mesmo evento/cliente
-            const firstItem = cartItems[0];
-
-            if (!firstItem.eventId) {
-                throw new Error('Item do carrinho sem eventId');
-            }
-
-            const orderPayload = {
-                eventId: firstItem.eventId,
-                ticketTypeId: firstItem.id,
-                quantity: firstItem.quantity,
-                customerData: {
-                    name: customerData.name,
-                    email: customerData.email,
-                    cpf: customerData.cpf || undefined,
-                    phone: customerData.phone || undefined,
-                },
-            };
-
-            console.log('[useCheckoutOrder] 🚀 Criando novo pedido no backend:', {
-                eventId: orderPayload.eventId,
-                ticketTypeId: orderPayload.ticketTypeId,
-                quantity: orderPayload.quantity,
-                customerEmail: orderPayload.customerData.email,
-            });
-
-            const response = await api.post('/orders', orderPayload, {
-                signal: abortController.signal,
-            });
-            const orderData = response.data?.data?.order;
-
-            if (orderData) {
-                console.log('[useCheckoutOrder] ✅ Pedido criado com sucesso:', {
-                    orderId: orderData._id,
-                    orderNumber: orderData.orderNumber,
-                    status: orderData.status,
-                    expiresAt: orderData.expiresAt,
-                    totalAmount: orderData.totalAmount,
-                    totalTickets: orderData.totalTickets,
-                });
-                
-                // CRÍTICO: Validar se o pedido foi criado com status válido
-                // Se o backend retornar 'failed', não salvar no storage para evitar loop infinito
-                if (orderData.status === 'failed' || orderData.status === 'cancelled') {
-                    console.error('[useCheckoutOrder] ❌ Pedido criado com status inválido:', orderData.status);
-                    console.error('[useCheckoutOrder] 📋 Detalhes do pedido inválido:', {
-                        orderId: orderData._id,
-                        orderNumber: orderData.orderNumber,
-                        status: orderData.status,
-                        totalAmount: orderData.totalAmount,
-                        eventId: orderData.event,
-                        ticketTypeId: orderData.tickets?.[0]?.ticketType,
-                    });
-                    
-                    setLoading(false);
-                    creatingRef.current = false;
-                    
-                    // CRÍTICO: Limpar qualquer pedido inválido do storage para evitar loops
-                    storageHelpers.clearActiveOrderId();
-                    orderIdRef.current = null;
-                    cachedOrderIdFromStorageRef.current = null;
-                    
-                    // Mensagem de erro mais amigável
-                    setError(`Não foi possível criar um pedido válido. Status: ${orderData.status}. Por favor, tente novamente.`);
-                    
-                    // NÃO definir orderIdRef para evitar tentativas de refresh
-                    createOrderAbortControllerRef.current = null;
-                    
-                    // CRÍTICO: Não tentar criar novamente automaticamente
-                    // O usuário precisará tentar manualmente ou recarregar a página
-                    return; // Retornar sem salvar o pedido inválido
-                }
-                
-                // Pedido válido, salvar normalmente
-                setOrder(orderData);
-                orderIdRef.current = orderData._id;
-                cachedOrderIdFromStorageRef.current = orderData._id; // OTIMIZADO: Atualizar cache
-                storageHelpers.saveActiveOrderId(orderData._id);
-                createOrderAbortControllerRef.current = null; // Limpar AbortController após sucesso
-                
-                // IMPORTANTE: Se o pedido tem expiresAt, salvar o timer no localStorage para usar como fallback
-                if (orderData.status === 'pending' && orderData.expiresAt) {
-                    const remaining = getRemainingTime(orderData.expiresAt);
-                    if (remaining > 0) {
-                        // Calcular startTime baseado no expiresAt para salvar no localStorage
-                        const now = Date.now();
-                        const startTime = now - (30 * 60 * 1000 - remaining); // 30 minutos
-                        storageHelpers.saveTimerStartTime(startTime);
-                        console.log('[useCheckoutOrder] 💾 Timer salvo no localStorage baseado no expiresAt do pedido criado:', {
-                            expiresAt: parseExpiresAt(orderData.expiresAt)?.toISOString(),
-                            startTime: new Date(startTime).toISOString(),
-                            remainingMinutes: Math.floor(remaining / 60000),
-                        });
-                    }
-                } else {
-                    // Limpar timer antigo do localStorage se pedido não tem expiresAt
-                    storageHelpers.clearTimerStartTime();
-                    console.log('[useCheckoutOrder] 🧹 Timer antigo do localStorage limpo (novo pedido criado sem expiresAt)');
-                }
-            }
-        } catch (err: any) {
-            // OTIMIZADO: Ignorar erros de cancelamento intencional
-            if (err.name === 'AbortError' || err.name === 'CanceledError' || (err.code === 'ERR_CANCELED')) {
-                console.log('[useCheckoutOrder] ⏸️ Requisição de criação cancelada intencionalmente');
-                return;
-            }
-            
-            const statusCode = err?.response?.status;
-            let errorMessage = err?.response?.data?.message || err?.message || 'Erro ao criar pedido';
-            
-            // CRÍTICO: Tratar erro 429 (Rate Limit) especificamente
-            if (statusCode === 429) {
-                // Em desenvolvimento, bloqueio mais curto para facilitar testes
-                const isDevelopment = typeof window !== 'undefined' && (
-                    process.env.NODE_ENV !== 'production' || 
-                    window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1'
-                );
-                const blockDuration = isDevelopment ? 10 * 1000 : 5 * 60 * 1000; // 10 segundos em dev, 5 minutos em produção
-                const blockUntil = Date.now() + blockDuration;
-                lastCreateTimeRef.current = blockUntil;
-                
-                const blockSeconds = isDevelopment ? 10 : 300;
-                const blockMinutes = Math.floor(blockSeconds / 60);
-                errorMessage = `Muitas tentativas de criar pedido. O sistema está temporariamente bloqueado. Aguarde ${isDevelopment ? `${blockSeconds} segundos` : `${blockMinutes} minutos`} ou recarregue a página para tentar novamente.`;
-                console.warn(`[useCheckoutOrder] ⚠️ Rate limit atingido (429). Bloqueando tentativas automáticas por ${isDevelopment ? `${blockSeconds} segundos` : `${blockMinutes} minutos`}.`);
-                
-                // Limpar qualquer pedido inválido do storage
-                const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current;
-                if (savedOrderId) {
-                    orderIdRef.current = null;
-                    cachedOrderIdFromStorageRef.current = null;
-                    storageHelpers.clearActiveOrderId();
-                    setOrder(null);
-                }
-            }
-            
-            setError(errorMessage);
-            console.error('[useCheckoutOrder] ❌ Erro ao criar pedido:', {
-                status: statusCode,
-                message: errorMessage,
-                error: err,
-            });
-            
-            // Se erro 400 ou 404, pode ser que pedido já foi cancelado - limpar storage
-            if (statusCode === 400 || statusCode === 404) {
-                // OTIMIZADO: Usar cache primeiro
-                const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current;
-                if (savedOrderId) {
-                    orderIdRef.current = null;
-                    cachedOrderIdFromStorageRef.current = null; // Limpar cache também
-                    storageHelpers.clearActiveOrderId();
-                    setOrder(null);
-                }
-            }
-        } finally {
-            setLoading(false);
-            creatingRef.current = false;
-            // Limpar AbortController no finally para garantir cleanup mesmo em caso de erro
-            if (createOrderAbortControllerRef.current && !createOrderAbortControllerRef.current.signal.aborted) {
-                createOrderAbortControllerRef.current = null;
-            }
-        }
-    }, [cartItems, customerData]);
-
-    // OTIMIZADO: Criar pedido automaticamente quando há itens no carrinho e dados do cliente
-    // Consolidado para reduzir verificações duplicadas
+    // Criar pedido automaticamente quando há itens no carrinho e dados do cliente
     useEffect(() => {
-        // Early returns para evitar processamento desnecessário
-        if (order && order.status === 'pending') {
-            return; // Já tem pedido PENDING
+        if (state.order && state.order.status === 'pending') {
+            return;
         }
 
-        if (loading || creatingRef.current) {
-            return; // Está carregando ou criando
+        if (state.loading || creatingRef.current) {
+            return;
         }
 
-        if (error) {
-            return; // Tem erro
+        if (state.error) {
+            return;
         }
 
-        // Não criar se acabou de cancelar um pedido (evitar criar imediatamente após cancelamento)
         const timeSinceCancel = Date.now() - lastCancelTimeRef.current;
         if (timeSinceCancel < 2000) {
-            return; // Cancelamento recente
+            return;
         }
         
-        // CRÍTICO: Verificar se há bloqueio ativo (ex: após rate limit 429)
-        const now = Date.now();
-        const lastCreateTime = lastCreateTimeRef.current;
-        if (lastCreateTime > now) {
-            // Há um bloqueio ativo, não tentar criar pedido automaticamente
+        if (rateLimit.isBlocked()) {
             return;
         }
 
-        // OTIMIZADO: Usar cache primeiro, só buscar do storage se necessário
-        const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current;
-        if (savedOrderId && !order) {
-            // Tem orderId mas não tem order ainda - pode estar carregando ou retornou 403
-            // Verificar se timer ainda está válido e tentar buscar novamente
-            const savedStartTime = storageHelpers.loadTimerStartTime();
+        const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current || storage.loadOrderId();
+        if (savedOrderId && !state.order) {
+            const savedStartTime = storage.loadTimer();
             if (savedStartTime) {
                 const elapsed = Date.now() - savedStartTime;
                 const remaining = Math.max(0, 30 * 60 * 1000 - elapsed);
                 if (remaining > 0 && cartItems.length > 0) {
-                    // Timer ainda válido e tem itens no carrinho, tentar buscar pedido novamente
                     refreshOrder();
-                    return; // Não criar novo enquanto tenta buscar
+                    return;
                 }
             }
-            return; // Tem orderId mas pedido não carregado ainda
+            return;
         }
 
-        // Criar se tem itens no carrinho e dados mínimos do cliente
         if (cartItems.length > 0 && customerData.name && customerData.email) {
-            // Pequeno delay para evitar múltiplas chamadas
             const timer = setTimeout(() => {
-                // Verificar novamente antes de criar (pode ter mudado durante o delay)
-                if (!creatingRef.current && !loading && (!order || order.status !== 'pending')) {
+                if (!creatingRef.current && !state.loading && (!state.order || state.order.status !== 'pending')) {
                     createOrder();
                 }
             }, 500);
 
             return () => clearTimeout(timer);
         }
-    }, [cartItems, customerData, order, loading, error, createOrder, refreshOrder]);
+    }, [cartItems, customerData, state.order, state.loading, state.error, createOrder, refreshOrder, storage, rateLimit]);
 
-    // OTIMIZADO: Buscar pedido existente ao montar componente
-    // Consolidado com a inicialização para evitar verificações duplicadas
+    // Buscar pedido existente ao montar componente
     useEffect(() => {
-        // OTIMIZADO: Usar cache primeiro
         const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current;
         
-        // IMPORTANTE: Só buscar se:
-        // 1. Tem orderId no storage
-        // 2. Não tem order carregado ainda
-        // 3. Não está carregando
-        // 4. Não está criando
-        // 5. Já inicializou do storage (evitar buscar antes de inicializar)
-        if (savedOrderId && !order && !loading && !creatingRef.current && hasInitializedFromStorageRef.current) {
+        if (savedOrderId && !state.order && !state.loading && !creatingRef.current && hasInitializedFromStorageRef.current) {
             refreshOrder();
         }
-    }, [order, loading, refreshOrder]); // OTIMIZADO: refreshOrder estável via useCallback
+    }, [state.order, state.loading, refreshOrder]);
 
-    // Atualizar tempo restante do bloqueio de rate limit em tempo real
-    useEffect(() => {
-        const updateRemainingTime = () => {
-            const now = Date.now();
-            const lastCreateTime = lastCreateTimeRef.current;
-            
-            if (lastCreateTime > now) {
-                // Há um bloqueio ativo
-                const remainingSeconds = Math.ceil((lastCreateTime - now) / 1000);
-                setRateLimitRemainingSeconds(remainingSeconds);
-            } else {
-                // Não há bloqueio ativo
-                setRateLimitRemainingSeconds(null);
-            }
-        };
-        
-        // Atualizar imediatamente
-        updateRemainingTime();
-        
-        // Atualizar a cada segundo se houver bloqueio
-        const interval = setInterval(() => {
-            updateRemainingTime();
-        }, 1000);
-        
-        return () => clearInterval(interval);
-    }, []);
-
-    // OTIMIZADO: Cleanup de AbortControllers ao desmontar componente
+    // Cleanup de AbortControllers ao desmontar
     useEffect(() => {
         return () => {
-            // Cancelar todas as requisições pendentes ao desmontar
             if (refreshOrderAbortControllerRef.current) {
                 refreshOrderAbortControllerRef.current.abort();
                 refreshOrderAbortControllerRef.current = null;
@@ -925,18 +348,17 @@ export function useCheckoutOrder(
     }, []);
 
     return {
-        order,
-        loading,
-        error,
+        order: state.order,
+        loading: state.loading,
+        error: state.error,
         createOrder,
         refreshOrder,
         clearOrder,
         resetRateLimitBlock,
-        rateLimitRemainingSeconds,
-        showRestoreModal,
+        rateLimitRemainingSeconds: rateLimit.rateLimitRemainingSeconds,
+        showRestoreModal: state.showRestoreModal,
         closeRestoreModal,
-        showExpiredModal,
+        showExpiredModal: state.showExpiredModal,
         closeExpiredModal,
     };
 }
-
