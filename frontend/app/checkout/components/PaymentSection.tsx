@@ -166,6 +166,16 @@ export function PaymentSection({
                 </div>
             )}
 
+            {/* Total a pagar - clean e flat */}
+            <div className="mt-6 border-t border-[#ede5d8] pt-6">
+                <div className="flex items-baseline justify-between">
+                    <span className="text-sm font-medium uppercase tracking-normal text-[#7d796c]">Total a pagar</span>
+                    <p className="text-2xl font-bold text-[#1a1a1d]">
+                        R$ {totalAmount.toFixed(2).replace('.', ',')}
+                    </p>
+                </div>
+            </div>
+
             <div className="mt-6 rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
                 <div className="flex items-center gap-3">
                     <span className="mt-0.5 text-[#a38f78]">

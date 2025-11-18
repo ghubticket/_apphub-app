@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import { HiOutlineTicket, HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlineTicket, HiOutlineTrash, HiSparkles } from 'react-icons/hi2';
 import type { CheckoutCartItem } from '../types';
 import { usePromoterCode } from '../hooks/usePromoterCode';
 import { usePromoterCodeState } from '../hooks/usePromoterCodeState';
@@ -192,12 +192,26 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                 onRemoveCode={handleRemoveCode}
             />
 
-            <footer className="mt-6 rounded-2xl border border-[#ede5d8] bg-white px-5 py-4">
-                <span className="text-xs font-semibold uppercase tracking-normal text-[#7d796c]">Total a pagar</span>
-                <p className="mt-0 text-2xl font-bold text-[#1a1a1d]">
-                    {useMemo(() => `R$ ${totalAmount.toFixed(2).replace('.', ',')}`, [totalAmount])}
-                </p>
-            </footer>
+            {/* Mensagem de desconto aplicado */}
+            {orderDiscountAmount && orderDiscountAmount > 0 && orderPromoterCode ? (
+                <div className="mt-6 rounded-xl border border-[#10b981] bg-[#f1fff6] p-3">
+                    <div className="flex items-start gap-2">
+                        <HiSparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#10b981]" />
+                        <div className="flex-1 space-y-1">
+                            <p className="text-xs font-semibold text-[#1f5d3d]">
+                                Desconto aplicado!
+                            </p>
+                            <p className="text-xs leading-relaxed text-[#059669]">
+                                O código <span className="font-semibold">{orderPromoterCode}</span> foi aplicado com sucesso. O promoter disponibilizou este desconto de{' '}
+                                <span className="font-semibold">
+                                    R$ {orderDiscountAmount.toFixed(2).replace('.', ',')}
+                                </span>
+                                .
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 });
