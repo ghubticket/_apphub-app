@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Container from '@/components/shared/Container';
 import TicketCatalog from '@/components/tickets/TicketCatalog';
+import AboutSection from '@/components/home/AboutSection';
 import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
 import type { TicketProduct } from '@/types/ticket';
 
@@ -59,6 +60,9 @@ export default function Home() {
             className="bg-[#f5f1e8]"
             style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
         >
+            {/* Seção Institucional Sobre a 5521 */}
+            <AboutSection />
+
             <Container className="py-16">
                 <div className="mb-12 space-y-3 text-center md:text-left">
                     <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">

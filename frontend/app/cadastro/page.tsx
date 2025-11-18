@@ -66,6 +66,7 @@ const validators: Record<SignupField, (value: string, data?: Record<SignupField,
 
 export default function CadastroPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { login: authLogin, updateUser } = useAuth();
     const [formData, setFormData] = useState<Record<SignupField, string>>({
         name: '',
@@ -88,6 +89,18 @@ export default function CadastroPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formMessage, setFormMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
     const [apiErrorsList, setApiErrorsList] = useState<Array<{ field?: string; message: string }>>([]);
+
+    // Preencher CPF da query string quando a página carregar
+    useEffect(() => {
+        const cpfParam = searchParams.get('cpf');
+        if (cpfParam) {
+            const cpfDigits = cpfParam.replace(/\D/g, '');
+            if (cpfDigits.length === 11) {
+                const formattedCpf = formatCpfDisplay(cpfDigits);
+                setFormData((prev) => ({ ...prev, cpf: formattedCpf }));
+            }
+        }
+    }, [searchParams]);
 
     const handleChange = (field: SignupField) => (event: ChangeEvent<HTMLInputElement>) => {
         let value = event.target.value;
