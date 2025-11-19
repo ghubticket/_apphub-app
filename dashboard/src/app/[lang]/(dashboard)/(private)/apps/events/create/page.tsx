@@ -28,6 +28,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import { TextAlign } from '@tiptap/extension-text-align'
 import type { Editor } from '@tiptap/core'
 import classnames from 'classnames'
+import { sanitizeEditorContent } from '@/utils/sanitize'
 import CustomIconButton from '@core/components/mui/IconButton'
 import MenuItem from '@mui/material/MenuItem'
 
@@ -179,29 +180,13 @@ const CreateEventPage = () => {
 
             // Descrição é obrigatória no backend (máximo 2000 caracteres)
             if (editor) {
-                const description = editor.getHTML()
-                // Remove tags vazias e espaços
-                let cleanDescription = description.replace(/<p><\/p>/g, '').trim()
-                
-                if (!cleanDescription) {
-                    throw new Error('Descrição do evento é obrigatória')
+                try {
+                    // Sanitiza e valida o conteúdo do editor (protege contra XSS)
+                    const cleanDescription = sanitizeEditorContent(editor.getHTML(), 2000)
+                    form.append('description', cleanDescription)
+                } catch (error) {
+                    throw new Error(error instanceof Error ? error.message : 'Descrição do evento é inválida')
                 }
-                
-                // Limitar a 2000 caracteres (contando HTML)
-                if (cleanDescription.length > 2000) {
-                    // Se exceder, tentar extrair apenas o texto e limitar
-                    const tempDiv = document.createElement('div')
-                    tempDiv.innerHTML = cleanDescription
-                    const textContent = tempDiv.textContent || tempDiv.innerText || ''
-                    
-                    if (textContent.length > 2000) {
-                        throw new Error('Descrição deve ter no máximo 2000 caracteres')
-                    }
-                    // Se o texto puro cabe, usar ele (pode perder formatação)
-                    cleanDescription = textContent.substring(0, 2000)
-                }
-                
-                form.append('description', cleanDescription)
             } else {
                 throw new Error('Descrição do evento é obrigatória')
             }
