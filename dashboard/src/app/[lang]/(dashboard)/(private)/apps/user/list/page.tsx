@@ -1,20 +1,14 @@
 'use client'
 
-// React Imports
-import type { ReactElement } from 'react'
-
 // MUI Imports
 import Grid from '@mui/material/Grid2'
-
-// Type Imports
-import type { UsersType } from '@/types/apps/userTypes'
 
 // Component Imports
 import { AdminOnly } from '@/components/RoleGuard'
 import UserListTable from './UserListTable'
 import UserListCards from './UserListCards'
 
-const UserList = ({ userData }: { userData?: UsersType[] }) => {
+const UserList = () => {
   return (
     <AdminOnly>
       <Grid container spacing={6}>
@@ -22,7 +16,7 @@ const UserList = ({ userData }: { userData?: UsersType[] }) => {
           <UserListCards />
         </Grid>
         <Grid size={{ xs: 12 }}>
-          <UserListTable tableData={userData} />
+          <UserListTable />
         </Grid>
       </Grid>
     </AdminOnly>
