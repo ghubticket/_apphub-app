@@ -7,46 +7,43 @@ import dotenv from 'dotenv';
 // Carregar variáveis de ambiente (garantir que está carregado antes de usar)
 dotenv.config();
 
-// Validar se o Access Token está configurado
-const accessToken = process.env.MP_ACCESS_TOKEN?.trim();
-if (!accessToken || accessToken === '') {
-    console.error('❌ ERRO CRÍTICO: MP_ACCESS_TOKEN não está configurado no .env');
-    console.error('   Por favor, adicione MP_ACCESS_TOKEN=SEU_TOKEN no arquivo backend/.env');
-    console.error('   Para obter o token, consulte: backend/COMO_CONFIGURAR_CREDENCIAIS.md');
-    throw new Error(
-        'MP_ACCESS_TOKEN não está configurado. Por favor, configure no arquivo .env antes de iniciar o servidor.'
-    );
-}
-
-// Log de debug (apenas início do token para segurança)
-if (process.env.NODE_ENV !== 'production') {
-    console.log('✅ MP_ACCESS_TOKEN carregado:', accessToken.substring(0, 20) + '...');
-    console.log('✅ Tamanho do token:', accessToken.length, 'caracteres');
-}
-
-// Configuração do Mercado Pago
-const client = new MercadoPagoConfig({
-    accessToken: accessToken,
-    options: {
-        timeout: 10000, // 10 segundos para operações críticas
-    },
-});
-
-// Verificar se o cliente foi criado corretamente
-if (process.env.NODE_ENV !== 'production') {
-    try {
-        // Tentar acessar o token do cliente (se o SDK permitir)
-        console.log('✅ Cliente Mercado Pago configurado');
-    } catch (e) {
-        console.warn('⚠️ Aviso ao verificar cliente:', e);
+/**
+ * Obtém e valida o token do Mercado Pago
+ * Validação lazy - só valida quando realmente necessário
+ */
+function getAccessToken(): string {
+    const accessToken = process.env.MP_ACCESS_TOKEN?.trim();
+    if (!accessToken || accessToken === '') {
+        console.error('❌ ERRO CRÍTICO: MP_ACCESS_TOKEN não está configurado no .env');
+        console.error('   Por favor, adicione MP_ACCESS_TOKEN=SEU_TOKEN no arquivo backend/.env');
+        console.error('   Para obter o token, consulte: backend/COMO_CONFIGURAR_CREDENCIAIS.md');
+        throw new Error(
+            'MP_ACCESS_TOKEN não está configurado. Por favor, configure no arquivo .env antes de usar o serviço de pagamento.'
+        );
     }
+    return accessToken;
 }
 
-// Usar Orders API (modelo mais recente) - Modo automático
-const order = new Order(client);
+/**
+ * Cria um cliente Mercado Pago configurado
+ * Usado internamente pelas funções de pagamento
+ */
+function createMercadoPagoClient(): MercadoPagoConfig {
+    const accessToken = getAccessToken();
+    
+    // Log de debug (apenas início do token para segurança)
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ MP_ACCESS_TOKEN carregado:', accessToken.substring(0, 20) + '...');
+        console.log('✅ Tamanho do token:', accessToken.length, 'caracteres');
+    }
 
-// Mantém Payment para compatibilidade com getPaymentById e webhooks
-const payment = new Payment(client);
+    return new MercadoPagoConfig({
+        accessToken: accessToken,
+        options: {
+            timeout: 10000, // 10 segundos para operações críticas
+        },
+    });
+}
 
 // Tempo de expiração do PIX (30 minutos em milissegundos)
 const PIX_EXPIRATION_MINUTES = 30;
@@ -193,15 +190,9 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
  */
 export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?: string) => {
     try {
-        // Re-validar token (pode ter mudado após inicialização)
-        const currentToken = process.env.MP_ACCESS_TOKEN?.trim() || accessToken;
-
-        // Validar se o Access Token está configurado
-        if (!currentToken || currentToken === '') {
-            throw new Error(
-                'MP_ACCESS_TOKEN não está configurado. Por favor, adicione MP_ACCESS_TOKEN no arquivo .env'
-            );
-        }
+        // Criar cliente Mercado Pago (validação lazy do token)
+        const currentClient = createMercadoPagoClient();
+        const currentToken = getAccessToken();
 
         // Log de debug
         if (process.env.NODE_ENV !== 'production') {
@@ -209,32 +200,14 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 '🔍 Criando pagamento PIX com token:',
                 currentToken.substring(0, 20) + '...'
             );
-        }
-
-        // Recriar cliente com token atualizado (garantir que o token está sendo usado)
-        const currentClient = new MercadoPagoConfig({
-            accessToken: currentToken,
-            options: {
-                timeout: 10000,
-            },
-        });
-
-        // Verificar se o cliente foi criado corretamente
-        if (process.env.NODE_ENV !== 'production') {
             console.log(
                 '🔍 DEBUG - Token passado para cliente:',
                 currentToken.substring(0, 30) + '...'
             );
-            console.log(
-                '🔍 DEBUG - Token no cliente após criação:',
-                currentClient.accessToken
-                    ? currentClient.accessToken.substring(0, 30) + '...'
-                    : 'NÃO TEM TOKEN'
-            );
             console.log('🔍 DEBUG - Token completo tem', currentToken.length, 'caracteres');
         }
 
-        // Criar instância de Order com cliente atualizado
+        // Criar instância de Order com cliente
         const currentOrder = new Order(currentClient);
 
         // Validar dados
@@ -368,10 +341,11 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
 
         // Log detalhado para debug
         if (process.env.NODE_ENV !== 'production') {
-            console.error('🔍 DEBUG - Token configurado:', accessToken ? 'SIM' : 'NÃO');
+            const token = process.env.MP_ACCESS_TOKEN?.trim();
+            console.error('🔍 DEBUG - Token configurado:', token ? 'SIM' : 'NÃO');
             console.error(
                 '🔍 DEBUG - Token (primeiros 20 chars):',
-                accessToken?.substring(0, 20) || 'N/A'
+                token?.substring(0, 20) || 'N/A'
             );
             console.error('🔍 DEBUG - Erro completo:', JSON.stringify(error, null, 2));
         }
@@ -467,25 +441,11 @@ const mapMpRejection = (statusDetail?: string) => {
  */
 export const createCardPayment = async (params: CreateCardPaymentParams, deviceId?: string) => {
     try {
-        // Re-validar token (pode ter mudado após inicialização)
-        const currentToken = process.env.MP_ACCESS_TOKEN?.trim() || accessToken;
+        // Criar cliente Mercado Pago (validação lazy do token)
+        const currentClient = createMercadoPagoClient();
+        const currentToken = getAccessToken();
 
-        // Validar se o Access Token está configurado
-        if (!currentToken || currentToken === '') {
-            throw new Error(
-                'MP_ACCESS_TOKEN não está configurado. Por favor, adicione MP_ACCESS_TOKEN no arquivo .env'
-            );
-        }
-
-        // Recriar cliente com token atualizado (garantir que o token está sendo usado)
-        const currentClient = new MercadoPagoConfig({
-            accessToken: currentToken,
-            options: {
-                timeout: 10000,
-            },
-        });
-
-        // Criar instância de Order com cliente atualizado
+        // Criar instância de Order com cliente
         const currentOrder = new Order(currentClient);
 
         // Validar dados
@@ -805,15 +765,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
 // Cancela um pagamento no Mercado Pago (quando ainda não aprovado)
 export const cancelPaymentById = async (paymentId: string) => {
     try {
-        const currentToken = process.env.MP_ACCESS_TOKEN?.trim();
-        if (!currentToken || currentToken === '') {
-            throw new Error('MP_ACCESS_TOKEN não está configurado.');
-        }
-
-        const currentClient = new MercadoPagoConfig({
-            accessToken: currentToken,
-            options: { timeout: 10000 },
-        });
+        const currentClient = createMercadoPagoClient();
         const paymentApi = new Payment(currentClient);
 
         // SDK v2: cancel
@@ -822,10 +774,7 @@ export const cancelPaymentById = async (paymentId: string) => {
     } catch (error) {
         // Tentar fallback usando status update (alguns SDKs usam update -> status: 'cancelled')
         try {
-            const currentClient = new MercadoPagoConfig({
-                accessToken: process.env.MP_ACCESS_TOKEN!.trim(),
-                options: { timeout: 10000 },
-            });
+            const currentClient = createMercadoPagoClient();
             const paymentApi = new Payment(currentClient);
             const resp = await (paymentApi as any).update({ id: paymentId, status: 'cancelled' });
             return resp;
@@ -840,7 +789,9 @@ export const cancelPaymentById = async (paymentId: string) => {
  */
 export const getOrderById = async (orderId: string) => {
     try {
-        const response = await order.get({ id: orderId });
+        const client = createMercadoPagoClient();
+        const orderApi = new Order(client);
+        const response = await orderApi.get({ id: orderId });
         return response as any;
     } catch (error: any) {
         console.error('Erro ao buscar order:', error);
@@ -853,7 +804,9 @@ export const getOrderById = async (orderId: string) => {
  */
 export const cancelOrderById = async (orderId: string) => {
     try {
-        const response = await order.cancel({ id: orderId });
+        const client = createMercadoPagoClient();
+        const orderApi = new Order(client);
+        const response = await orderApi.cancel({ id: orderId });
         return response as any;
     } catch (error: any) {
         console.error('Erro ao cancelar order:', error);
@@ -866,7 +819,9 @@ export const cancelOrderById = async (orderId: string) => {
  */
 export const getPaymentById = async (paymentId: string) => {
     try {
-        const response = await payment.get({ id: paymentId });
+        const client = createMercadoPagoClient();
+        const paymentApi = new Payment(client);
+        const response = await paymentApi.get({ id: paymentId });
         return response as any;
     } catch (error: any) {
         const mpError = error?.response?.data;
