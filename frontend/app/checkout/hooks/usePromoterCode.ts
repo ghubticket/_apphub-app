@@ -101,7 +101,9 @@ export function usePromoterCode(): UsePromoterCodeReturn {
                         // Limpar cache antigo (manter apenas últimos 10)
                         if (cacheRef.current.size > 10) {
                             const firstKey = cacheRef.current.keys().next().value;
-                            cacheRef.current.delete(firstKey);
+                            if (firstKey) {
+                                cacheRef.current.delete(firstKey);
+                            }
                         }
 
                         resolve(result);

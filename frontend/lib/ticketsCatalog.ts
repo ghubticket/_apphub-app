@@ -181,14 +181,14 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
 
                 console.log(`[fetchTicketCatalog] 🎫 Tickets encontrados para ${event.name}:`, ticketTypes.length);
                 ticketTypes.forEach((ticket, idx) => {
-                    console.log(`   ${idx + 1}. ${ticket.name} - isActive: ${ticket.isActive} - soldQuantity: ${ticket.soldQuantity} - maxQuantity: ${ticket.maxQuantity} - availableQuantity: ${ticket.availableQuantity ?? (ticket.maxQuantity - ticket.soldQuantity)}`);
+                    console.log(`   ${idx + 1}. ${ticket.name} - isActive: ${ticket.isActive} - soldQuantity: ${ticket.soldQuantity} - maxQuantity: ${ticket.maxQuantity} - availableQuantity: ${ticket.availableQuantity ?? ((ticket.maxQuantity || 0) - (ticket.soldQuantity || 0))}`);
                 });
 
                 const normalizedTickets = ticketTypes
                     .map((ticket) => {
                         const normalized = normalizeTicketType(ticket, event, { onlyWithAvailability });
                         if (!normalized) {
-                            console.log(`[fetchTicketCatalog] ⚠️ Ticket ${ticket.name} foi filtrado (isActive: ${ticket.isActive}, isSoldOut: ${(ticket.maxQuantity - ticket.soldQuantity) <= 0}, onlyWithAvailability: ${onlyWithAvailability})`);
+                            console.log(`[fetchTicketCatalog] ⚠️ Ticket ${ticket.name} foi filtrado (isActive: ${ticket.isActive}, isSoldOut: ${((ticket.maxQuantity || 0) - (ticket.soldQuantity || 0)) <= 0}, onlyWithAvailability: ${onlyWithAvailability})`);
                         }
                         return normalized;
                     })

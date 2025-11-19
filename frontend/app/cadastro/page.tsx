@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useState, useEffect } from 'react';
+import { ChangeEvent, FormEvent, useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -64,7 +64,7 @@ const validators: Record<SignupField, (value: string, data?: Record<SignupField,
     },
 };
 
-export default function CadastroPage() {
+function CadastroPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { login: authLogin, updateUser } = useAuth();
@@ -423,5 +423,19 @@ export default function CadastroPage() {
             </div>
         </Container>
         </main>
+    );
+}
+
+export default function CadastroPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex min-h-screen items-center justify-center">
+                <div className="text-center">
+                    <p className="text-lg text-gray-600">Carregando...</p>
+                </div>
+            </div>
+        }>
+            <CadastroPageContent />
+        </Suspense>
     );
 }

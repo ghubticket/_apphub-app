@@ -106,13 +106,10 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
 
             <div className="mt-6 space-y-4">
                 {items.map((item) => {
-                    // OTIMIZADO: Memoizar valores formatados para evitar recálculos
-                    const formattedSubtotal = useMemo(() => `R$ ${item.subtotal.toFixed(2).replace('.', ',')}`, [item.subtotal]);
-                    const formattedTotal = useMemo(() => `R$ ${item.total.toFixed(2).replace('.', ',')}`, [item.total]);
-                    const formattedFees = useMemo(
-                        () => `R$ ${(item.platformFeeValue + item.fixedFeeValue).toFixed(2).replace('.', ',')}`,
-                        [item.platformFeeValue, item.fixedFeeValue]
-                    );
+                    // Valores formatados (sem memo pois já está dentro do map)
+                    const formattedSubtotal = `R$ ${item.subtotal.toFixed(2).replace('.', ',')}`;
+                    const formattedTotal = `R$ ${item.total.toFixed(2).replace('.', ',')}`;
+                    const formattedFees = `R$ ${(item.platformFeeValue + item.fixedFeeValue).toFixed(2).replace('.', ',')}`;
 
                     return (
                         <div

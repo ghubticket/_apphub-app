@@ -61,7 +61,7 @@ export const processMercadoPagoError = (error: any): string => {
         if (errorMessage) return errorMessage;
 
         const errorCode = CARD_ERROR_CODE_MAP[error.type];
-        if (errorCode) return CARD_ERROR_MESSAGES[errorCode] || error.message || 'Erro ao processar pagamento';
+        if (errorCode) return errorCode.message || error.message || 'Erro ao processar pagamento';
     }
 
     // Erros de conexão SSL

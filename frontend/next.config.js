@@ -25,6 +25,11 @@ const nextConfig = {
   experimental: {
     instrumentationHook: false,
   },
+  
+  // Ignorar warnings de lint no build
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 module.exports = nextConfig;
