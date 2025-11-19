@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+
 import { useParams, useRouter } from 'next/navigation'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
@@ -29,7 +31,9 @@ import type { CreateTicketTypeData } from '@/services/ticketTypeService'
 // Função para formatar número para moeda brasileira
 const formatCurrency = (value: number | string): string => {
     const numValue = typeof value === 'string' ? parseFloat(value.replace(/[^\d,]/g, '').replace(',', '.')) || 0 : value
-    return new Intl.NumberFormat('pt-BR', {
+
+    
+return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL',
         minimumFractionDigits: 2,
@@ -41,9 +45,12 @@ const formatCurrency = (value: number | string): string => {
 const parseCurrency = (value: string): number => {
     // Remove tudo exceto números e vírgula
     const cleaned = value.replace(/[^\d,]/g, '')
+
     // Substitui vírgula por ponto e converte para número
     const numValue = parseFloat(cleaned.replace(',', '.')) || 0
-    return numValue
+
+    
+return numValue
 }
 
 // Função para aplicar máscara enquanto digita
@@ -113,6 +120,7 @@ const CreateTicketTypePage = () => {
 
     // Sincronizar display do preço com o valor do formulário
     const price = watch('price')
+
     useEffect(() => {
         if (!isVIP && price !== undefined) {
             setPriceDisplay(formatCurrency(price))
@@ -145,6 +153,7 @@ const CreateTicketTypePage = () => {
                 Object.keys(err.validationErrors).forEach((field) => {
                     const fieldName = field as keyof FormData
                     const errorMessage = err.validationErrors[field]
+
                     setError(fieldName, {
                         type: 'server',
                         message: errorMessage,
@@ -257,8 +266,10 @@ const CreateTicketTypePage = () => {
                                                     value={priceDisplay}
                                                     onChange={(e) => {
                                                         const masked = applyCurrencyMask(e.target.value)
+
                                                         setPriceDisplay(masked)
                                                         const numValue = parseCurrency(masked)
+
                                                         field.onChange(numValue)
                                                     }}
                                                     onBlur={field.onBlur}

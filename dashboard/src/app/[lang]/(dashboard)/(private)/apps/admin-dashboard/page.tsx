@@ -2,7 +2,7 @@ import { AdminOnly } from '@/components/RoleGuard'
 import { useUserRole } from '@/hooks/useUserRole'
 
 const AdminDashboardPage = () => {
-  const { roleConfig, user } = useUserRole()
+  const { user } = useUserRole()
 
   return (
     <AdminOnly fallback={

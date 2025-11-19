@@ -1,13 +1,17 @@
-import { useSession } from 'next-auth/react'
 import { useMemo } from 'react'
-import { UserRole, ROLE_CONFIGS, User } from '@/types/roles'
+
+import { useSession } from 'next-auth/react'
+
+import type { UserRole, User } from '@/types/roles';
+import { ROLE_CONFIGS } from '@/types/roles'
 
 export const useUserRole = () => {
   const { data: session, status } = useSession()
 
   const user = useMemo(() => {
     if (!session?.user) return null
-    return session.user as User
+    
+return session.user as User
   }, [session])
 
   const userRole = useMemo(() => {
@@ -16,13 +20,15 @@ export const useUserRole = () => {
 
   const roleConfig = useMemo(() => {
     if (!userRole) return null
-    return ROLE_CONFIGS[userRole]
+    
+return ROLE_CONFIGS[userRole]
   }, [userRole])
 
   const hasPermission = (resource: string, action: string) => {
     if (!roleConfig) return false
     
     const permission = roleConfig.permissions.find(p => p.resource === resource)
+
     if (!permission) return false
     
     return permission.actions.includes(action)

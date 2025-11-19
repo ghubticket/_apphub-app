@@ -1,7 +1,7 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { useOrder } from '@/hooks/useOrders'
+
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
@@ -11,6 +11,8 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+
+import { useOrder } from '@/hooks/useOrders'
 
 const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <Grid container spacing={2} className='mb-3'>
@@ -46,18 +48,24 @@ export default function OrderDetailPage() {
     const eventObj: any = typeof order.event === 'object' ? order.event : {}
     const customerObj: any = typeof order.customer === 'object' ? order.customer : {}
     const customerPhone: string | undefined = (order as any)?.customerData?.phone
+
     const formatPhoneForWhatsApp = (phone?: string) => {
         if (!phone) return null
         const digits = phone.replace(/\D/g, '')
         const withCountry = digits.length <= 11 ? `55${digits}` : digits
-        return withCountry
+
+        
+return withCountry
     }
+
     const waNumber = formatPhoneForWhatsApp(customerPhone)
+
     const waText = encodeURIComponent(
         `Olá ${(customerObj?.name || '').trim() || 'cliente'}, tudo bem?\n\n` +
         `Seu pedido ${order.orderNumber} para o evento "${eventObj?.name || 'Evento'}" está com status: ${order.status}.\n` +
         `Total: R$ ${(order.totalAmount || 0).toFixed(2)}.`
     )
+
     const waLink = waNumber ? `https://wa.me/${waNumber}?text=${waText}` : null
 
     const statusColors: Record<string, 'success' | 'warning' | 'error' | 'info'> = {
@@ -66,6 +74,7 @@ export default function OrderDetailPage() {
         cancelled: 'error',
         refunded: 'info'
     }
+
     const isVip = order.paymentMethod === 'vip_free'
 
     return (
@@ -90,13 +99,17 @@ export default function OrderDetailPage() {
                         <InfoRow label='Pagamento - Método' value={(() => {
                             const map: any = { pix: 'PIX', credit_card: 'Cartão de Crédito', debit_card: 'Cartão de Débito', bank_slip: 'Boleto', vip_free: 'VIP (Gratuito)' }
                             const label = map[order.paymentMethod as any] || order.paymentMethod
+
                             if (!label) return '—'
+
                             const iconClass = order.paymentMethod === 'pix'
                                 ? 'tabler-qrcode'
                                 : (order.paymentMethod === 'credit_card' || order.paymentMethod === 'debit_card')
                                     ? 'tabler-credit-card'
                                     : 'tabler-wallet'
-                            return (
+
+                            
+return (
                                 <span className='inline-flex items-center gap-2'>
                                     <i className={`${iconClass}`} /> {label}
                                 </span>
@@ -105,21 +118,27 @@ export default function OrderDetailPage() {
                         <InfoRow label='Pagamento - Status' value={(
                             (() => {
                                 const status = (order.paymentStatus || order.status || '').toLowerCase()
+
                                 const labelMap: Record<string, string> = {
                                     paid: 'CONFIRMADO',
                                     pending: 'PENDENTE',
                                     cancelled: 'CANCELADO',
                                     refunded: 'REEMBOLSADO'
                                 }
+
                                 const label = labelMap[status] || (status || '').toUpperCase()
+
                                 const colorMap: Record<string, 'success' | 'warning' | 'error' | 'info'> = {
                                     paid: 'success',
                                     pending: 'warning',
                                     cancelled: 'error',
                                     refunded: 'info'
                                 }
+
                                 const color = colorMap[status] || 'default'
-                                return <Chip size='small' label={label} color={color as any} variant='tonal' />
+
+                                
+return <Chip size='small' label={label} color={color as any} variant='tonal' />
                             })()
                         )} />
                         <InfoRow label='Payment ID' value={order.paymentId || '—'} />
@@ -155,6 +174,7 @@ export default function OrderDetailPage() {
                                                 </div>
                                                 {(() => {
                                                     const status = String(t.status || '').toLowerCase()
+
                                                     const labelMap: Record<string, string> = {
                                                         confirmed: 'CONFIRMADO',
                                                         pending: 'PENDENTE',
@@ -162,8 +182,11 @@ export default function OrderDetailPage() {
                                                         refunded: 'REEMBOLSADO',
                                                         used: 'USADO'
                                                     }
+
                                                     const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
-                                                    return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
+
+                                                    
+return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
                                                 })()}
                                             </Box>
                                         ))}
@@ -215,6 +238,7 @@ export default function OrderDetailPage() {
                                 </div>
                                 {(() => {
                                     const status = String(t.status || '').toLowerCase()
+
                                     const labelMap: Record<string, string> = {
                                         confirmed: 'CONFIRMADO',
                                         pending: 'PENDENTE',
@@ -222,8 +246,11 @@ export default function OrderDetailPage() {
                                         refunded: 'REEMBOLSADO',
                                         used: 'USADO'
                                     }
+
                                     const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
-                                    return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
+
+                                    
+return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
                                 })()}
                             </Box>
                         ))}

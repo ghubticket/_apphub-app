@@ -1,6 +1,7 @@
 'use client'
 
 import { Chip, Box, Typography } from '@mui/material'
+
 import { useUserRole } from '@/hooks/useUserRole'
 
 export const UserRoleBadge = () => {

@@ -1,4 +1,4 @@
-import { UserRole } from '@/types/roles'
+import type { UserRole } from '@/types/roles'
 
 // Configuração centralizada de permissões de rotas
 export const ROUTE_PERMISSIONS = {
@@ -66,13 +66,16 @@ export const canAccessRoute = (route: string, userRole: UserRole): boolean => {
 
   // Verificar se está nas rotas bloqueadas
   const blockedRoutes = ROUTE_PERMISSIONS.blocked[userRole] || []
+
   if (blockedRoutes.some(blockedRoute => route.startsWith(blockedRoute))) {
     return false
   }
 
   // Verificar se está nas rotas específicas do role
   const roleRoutes = ROUTE_PERMISSIONS.roleBased[userRole] || []
-  return roleRoutes.some(allowedRoute => route.startsWith(allowedRoute))
+
+  
+return roleRoutes.some(allowedRoute => route.startsWith(allowedRoute))
 }
 
 // Função para obter todas as rotas permitidas para um role

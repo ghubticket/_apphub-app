@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+
 import { useParams, useRouter } from 'next/navigation'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
@@ -43,7 +45,9 @@ const schema = object({
 // Função para formatar número para moeda brasileira
 const formatCurrency = (value: number | string): string => {
     const numValue = typeof value === 'string' ? parseFloat(value.replace(/[^\d,]/g, '').replace(',', '.')) || 0 : value
-    return new Intl.NumberFormat('pt-BR', {
+
+    
+return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL',
         minimumFractionDigits: 2,
@@ -55,7 +59,9 @@ const formatCurrency = (value: number | string): string => {
 const parseCurrency = (value: string): number => {
     const cleaned = value.replace(/[^\d,]/g, '')
     const numValue = parseFloat(cleaned.replace(',', '.')) || 0
-    return numValue
+
+    
+return numValue
 }
 
 // Função para aplicar máscara enquanto digita
@@ -65,7 +71,9 @@ const applyCurrencyMask = (value: string): string => {
     if (numbers === '') return ''
     
     const numValue = parseFloat(numbers) / 100
-    return formatCurrency(numValue)
+
+    
+return formatCurrency(numValue)
 }
 
 const EditTicketTypePage = () => {
@@ -104,6 +112,7 @@ const EditTicketTypePage = () => {
 
             try {
                 const data = await ticketTypeService.getTicketType(ticketTypeId as string)
+
                 setTicketType(data)
                 setIsVIP(data.isVIP)
 
@@ -121,6 +130,7 @@ const EditTicketTypePage = () => {
                 if (data.salesStart) {
                     setSalesStart(new Date(data.salesStart))
                 }
+
                 if (data.salesEnd) {
                     setSalesEnd(new Date(data.salesEnd))
                 }
@@ -150,6 +160,7 @@ const EditTicketTypePage = () => {
 
     // Sincronizar display do preço com o valor do formulário
     const price = watch('price')
+
     useEffect(() => {
         if (!isVIP && price !== undefined) {
             setPriceDisplay(formatCurrency(price))
@@ -182,6 +193,7 @@ const EditTicketTypePage = () => {
                 Object.keys(err.validationErrors).forEach((field) => {
                     const fieldName = field as keyof FormData
                     const errorMessage = err.validationErrors[field]
+
                     setError(fieldName, {
                         type: 'server',
                         message: errorMessage,
@@ -327,8 +339,10 @@ const EditTicketTypePage = () => {
                                                     value={priceDisplay}
                                                     onChange={(e) => {
                                                         const masked = applyCurrencyMask(e.target.value)
+
                                                         setPriceDisplay(masked)
                                                         const numValue = parseCurrency(masked)
+
                                                         field.onChange(numValue)
                                                     }}
                                                     onBlur={field.onBlur}

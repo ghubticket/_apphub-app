@@ -1,6 +1,7 @@
 'use client'
 
 import Grid from '@mui/material/Grid2'
+
 import { AdminOnly } from '@/components/RoleGuard'
 import EventListTable from './EventListTable'
 import EventListCards from './EventListCards'

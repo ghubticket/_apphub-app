@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -8,6 +9,7 @@ import CardHeader from '@mui/material/CardHeader'
 import Typography from '@mui/material/Typography'
 import CircularProgress from '@mui/material/CircularProgress'
 import Box from '@mui/material/Box'
+
 import CustomAvatar from '@core/components/mui/Avatar'
 import { financialService, type FinancialStats } from '@/services/financialService'
 
@@ -31,6 +33,7 @@ const FinancialPage = () => {
                 setLoading(true)
                 setError(null)
                 const response = await financialService.getStats()
+
                 setStats(response.data)
             } catch (e: any) {
                 console.error('Erro ao buscar estatísticas financeiras:', e)

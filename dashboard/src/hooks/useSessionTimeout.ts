@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
+
 import { useRouter } from 'next/navigation'
+
 import { signOut } from 'next-auth/react'
 
 interface SessionTimeoutConfig {
@@ -33,9 +35,11 @@ export const useSessionTimeout = () => {
   // Verificar inatividade
   const checkInactivity = useCallback(() => {
     const lastActivity = localStorage.getItem('lastActivity')
+
     if (!lastActivity) {
       updateActivity()
-      return
+      
+return
     }
 
     const now = Date.now()
@@ -44,13 +48,15 @@ export const useSessionTimeout = () => {
     // Se passou do tempo máximo, fazer logout
     if (timeSinceActivity >= SESSION_CONFIG.maxInactiveTime) {
       handleLogout()
-      return
+      
+return
     }
 
     // Se está próximo do timeout, mostrar aviso
     if (timeSinceActivity >= SESSION_CONFIG.warningTime) {
       setIsWarning(true)
       const remainingTime = SESSION_CONFIG.maxInactiveTime - timeSinceActivity
+
       setTimeLeft(Math.ceil(remainingTime / 1000))
     } else {
       setIsWarning(false)
@@ -75,6 +81,7 @@ export const useSessionTimeout = () => {
       router.push('/login')
     } catch (error) {
       console.error('Erro ao fazer logout:', error)
+
       // Forçar redirect mesmo com erro
       router.push('/login')
     }
@@ -127,7 +134,9 @@ export const useSessionTimeout = () => {
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+
+    
+return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
   return {

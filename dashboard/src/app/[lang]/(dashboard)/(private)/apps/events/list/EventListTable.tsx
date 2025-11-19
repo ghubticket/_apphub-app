@@ -1,6 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+
+import Link from 'next/link'
+
+import { useRouter, useParams } from 'next/navigation'
+
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
@@ -8,8 +13,7 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
-import Link from 'next/link'
-import { useRouter, useParams } from 'next/navigation'
+
 import Box from '@mui/material/Box'
 import classnames from 'classnames'
 
@@ -18,12 +22,17 @@ import type { ColumnDef, FilterFn } from '@tanstack/react-table'
 import { rankItem } from '@tanstack/match-sorter-utils'
 import type { RankingInfo } from '@tanstack/match-sorter-utils'
 
+import TablePagination from '@mui/material/TablePagination'
+
+import Pagination from '@mui/material/Pagination'
+
+import Switch from '@mui/material/Switch'
+
 import CustomTextField from '@core/components/mui/TextField'
 import CustomAvatar from '@core/components/mui/Avatar'
-import TablePagination from '@mui/material/TablePagination'
-import Pagination from '@mui/material/Pagination'
+
 import OptionMenu from '@core/components/option-menu'
-import Switch from '@mui/material/Switch'
+
 
 import tableStyles from '@core/styles/table.module.css'
 
@@ -42,8 +51,10 @@ declare module '@tanstack/table-core' {
 
 const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
     const itemRank = rankItem(row.getValue(columnId), value)
+
     addMeta({ itemRank })
-    return itemRank.passed
+    
+return itemRank.passed
 }
 
 const EventListTable = () => {
@@ -54,6 +65,7 @@ const EventListTable = () => {
 
     const router = useRouter()
     const { lang } = useParams()
+
     const { events, loading, error, pagination, updateEventStatus } = useEvents({
         page: currentPage,
         limit: pageSize,
@@ -332,6 +344,7 @@ const EventListTable = () => {
                                             value={pageSize}
                                             onChange={(e) => {
                                                 const newPageSize = Number(e.target.value)
+
                                                 setPageSize(newPageSize)
                                                 setCurrentPage(1)
                                             }}
@@ -363,6 +376,7 @@ const EventListTable = () => {
                             onPageChange={(_: any, page: number) => setCurrentPage(page + 1)}
                             onRowsPerPageChange={(e: any) => {
                                 const newPageSize = Number(e.target.value)
+
                                 setPageSize(newPageSize)
                                 setCurrentPage(1)
                             }}

@@ -1,17 +1,22 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+
+import Link from 'next/link'
+
+import { useParams } from 'next/navigation'
+
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Button from '@mui/material/Button'
-import Link from 'next/link'
 import IconButton from '@mui/material/IconButton'
 import Menu from '@mui/material/Menu'
 import Box from '@mui/material/Box'
-import { useParams } from 'next/navigation'
+
+
 import classnames from 'classnames'
 
 import { createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel, useReactTable } from '@tanstack/react-table'
@@ -19,11 +24,16 @@ import type { ColumnDef, FilterFn } from '@tanstack/react-table'
 import { rankItem } from '@tanstack/match-sorter-utils'
 import type { RankingInfo } from '@tanstack/match-sorter-utils'
 
-import CustomTextField from '@core/components/mui/TextField'
 import Select from '@mui/material/Select'
+
 import MenuItem from '@mui/material/MenuItem'
+
 import TablePagination from '@mui/material/TablePagination'
 import Pagination from '@mui/material/Pagination'
+
+import CustomTextField from '@core/components/mui/TextField'
+
+
 // MenuItem já importado
 import { useOrders } from '@/hooks/useOrders'
 import type { OrderItem } from '@/services/orderService'
@@ -31,6 +41,41 @@ import type { OrderItem } from '@/services/orderService'
 import tableStyles from '@core/styles/table.module.css'
 
 const columnHelper = createColumnHelper<OrderItem>()
+
+// Componente para o menu de ações
+const OrderActionsMenu = ({ orderId }: { orderId: string }) => {
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+    const open = Boolean(anchorEl)
+    const handleOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)
+    const handleClose = () => setAnchorEl(null)
+    const { lang: locale } = useParams()
+
+    return (
+        <>
+            <IconButton size='small' onClick={handleOpen}>
+                <i className='tabler-dots-vertical' />
+            </IconButton>
+            <Menu
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <MenuItem onClick={handleClose}>
+                    <Link
+                        href={`/${locale}/apps/orders/detail/${orderId}`}
+                        className='flex items-center gap-2'
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                    >
+                        <i className='tabler-eye text-[22px]' />
+                        Ver detalhes
+                    </Link>
+                </MenuItem>
+            </Menu>
+        </>
+    )
+}
 
 declare module '@tanstack/table-core' {
     interface FilterFns {
@@ -43,8 +88,10 @@ declare module '@tanstack/table-core' {
 
 const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
     const itemRank = rankItem(row.getValue(columnId), value)
+
     addMeta({ itemRank })
-    return itemRank.passed
+    
+return itemRank.passed
 }
 
 // Função para formatar moeda brasileira
@@ -60,7 +107,9 @@ const formatCurrency = (value: number): string => {
 // Função para formatar data
 const formatDate = (dateString: string): string => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('pt-BR', {
+
+    
+return date.toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -77,6 +126,7 @@ const OrderListTable = () => {
     const [typeFilter, setTypeFilter] = useState<'all' | 'vip' | 'normal'>('all')
 
     const { lang } = useParams()
+
     const { orders, loading, error, pagination } = useOrders({
         page: currentPage,
         limit: pageSize,
@@ -88,7 +138,8 @@ const OrderListTable = () => {
     const data = (orders || []).filter(o => {
         if (typeFilter === 'vip') return o.paymentMethod === 'vip_free'
         if (typeFilter === 'normal') return o.paymentMethod !== 'vip_free'
-        return true
+        
+return true
     })
 
     // Resetar página quando busca mudar
@@ -114,7 +165,9 @@ const OrderListTable = () => {
                     const customer = typeof row.original.customer === 'object'
                         ? row.original.customer
                         : null
-                    return (
+
+                    
+return (
                         <div className='flex flex-col'>
                             <Typography color='text.primary' className='font-medium'>
                                 {customer?.name || 'N/A'}
@@ -133,7 +186,9 @@ const OrderListTable = () => {
                     const event = typeof row.original.event === 'object'
                         ? row.original.event
                         : null
-                    return (
+
+                    
+return (
                         <Typography color='text.primary'>
                             {event?.name || 'N/A'}
                         </Typography>
@@ -155,43 +210,22 @@ const OrderListTable = () => {
                 cell: ({ row }) => {
                     const isVipFree = row.original.paymentMethod === 'vip_free'
                     const value = isVipFree ? 0 : row.original.totalAmount
-                    return (
+
+                    
+return (
                         <Typography color='text.primary' className='font-medium'>
                             {formatCurrency(value)}
                         </Typography>
                     )
                 }
             },
+
             // coluna Tipo removida (exibiremos no detalhe)
             {
                 id: 'actions',
                 header: 'Ações',
-                cell: ({ row }) => {
-                    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-                    const open = Boolean(anchorEl)
-                    const handleOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)
-                    const handleClose = () => setAnchorEl(null)
-                    return (
-                        <>
-                            <IconButton size='small' onClick={handleOpen}>
-                                <i className='tabler-dots-vertical' />
-                            </IconButton>
-                            <Menu
-                                anchorEl={anchorEl}
-                                open={open}
-                                onClose={handleClose}
-                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                            >
-                                <MenuItem onClick={handleClose}>
-                                    <Link href={`/${String(lang)}/apps/orders/detail/${row.original._id}`} className='flex items-center gap-2'>
-                                        <i className='tabler-eye text-base' /> Ver detalhes
-                                    </Link>
-                                </MenuItem>
-                            </Menu>
-                        </>
-                    )
-                }
+                cell: ({ row }) => <OrderActionsMenu orderId={row.original._id} />,
+                enableSorting: false
             },
             {
                 accessorKey: 'status',
@@ -203,15 +237,19 @@ const OrderListTable = () => {
                         cancelled: 'error',
                         refunded: 'info'
                     }
+
                     const statusLabels: Record<string, string> = {
                         paid: 'Pago',
                         pending: 'Pendente',
                         cancelled: 'Cancelado',
                         refunded: 'Reembolsado'
                     }
+
                     const label = row.original.paymentMethod === 'vip_free' ? 'VIP' : (statusLabels[row.original.status] || row.original.status)
                     const color = row.original.paymentMethod === 'vip_free' ? 'success' : (statusColors[row.original.status] || 'default')
-                    return (
+
+                    
+return (
                         <Chip
                             label={label}
                             color={color as any}
@@ -221,6 +259,7 @@ const OrderListTable = () => {
                     )
                 }
             },
+
             // coluna de Data removida para ganhar espaço
         ],
         []
@@ -410,6 +449,7 @@ const OrderListTable = () => {
                                                 value={pageSize}
                                                 onChange={(e) => {
                                                     const newPageSize = Number(e.target.value)
+
                                                     setPageSize(newPageSize)
                                                     setCurrentPage(1)
                                                 }}
@@ -441,6 +481,7 @@ const OrderListTable = () => {
                                 onPageChange={(_, page) => setCurrentPage(page + 1)}
                                 onRowsPerPageChange={(e) => {
                                     const newPageSize = Number(e.target.value)
+
                                     setPageSize(newPageSize)
                                     setCurrentPage(1)
                                 }}

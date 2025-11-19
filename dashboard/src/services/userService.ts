@@ -1,4 +1,4 @@
-import { UserRole } from '@/types/roles'
+import type { UserRole } from '@/types/roles'
 
 // Tipos para a API
 export interface User {
@@ -9,6 +9,7 @@ export interface User {
     isActive: boolean
     phone?: string
     cpf?: string
+
     // Flags de segurança
     suspiciousActivityCount?: number
     isSuspicious?: boolean
@@ -54,9 +55,12 @@ const getAuthToken = async (): Promise<string | null> => {
     try {
         // Buscar token do NextAuth.js
         const response = await fetch('/api/auth/session')
+
         if (response.ok) {
             const session = await response.json()
-            return session?.accessToken || null
+
+            
+return session?.accessToken || null
         }
     } catch (error) {
         console.error('Erro ao obter token:', error)
@@ -80,6 +84,7 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+
         throw new Error(errorData.message || `HTTP ${response.status}`)
     }
 

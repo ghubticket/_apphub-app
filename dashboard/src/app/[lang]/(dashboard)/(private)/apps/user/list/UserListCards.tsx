@@ -1,8 +1,10 @@
 'use client'
 
 import React from 'react'
+
 import { Card, CardContent, Typography, Box, Chip } from '@mui/material'
 import Grid from '@mui/material/Grid2'
+
 import { useUsers } from '@/hooks/useUsers'
 
 const UserListCards = () => {

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+
 import * as ticketTypeService from '@/services/ticketTypeService';
 import type { TicketTypeItem, CreateTicketTypeData, UpdateTicketTypeData } from '@/services/ticketTypeService';
 
@@ -15,6 +16,7 @@ export const useTicketTypes = (eventId: string | null) => {
 
         try {
             const data = await ticketTypeService.listTicketTypes(eventId);
+
             setTicketTypes(data);
         } catch (err: any) {
             setError(err.message || 'Erro ao carregar tipos de ingresso');
@@ -38,10 +40,13 @@ export const useTicketTypes = (eventId: string | null) => {
 
             try {
                 const newTicketType = await ticketTypeService.createTicketType(eventId, data);
+
                 setTicketTypes((prev) => [...prev, newTicketType].sort((a, b) => a.lotNumber - b.lotNumber));
-                return newTicketType;
+                
+return newTicketType;
             } catch (err: any) {
                 const errorMessage = err.message || 'Erro ao criar tipo de ingresso';
+
                 setError(errorMessage);
                 throw err;
             } finally {
@@ -57,12 +62,15 @@ export const useTicketTypes = (eventId: string | null) => {
 
         try {
             const updated = await ticketTypeService.updateTicketType(id, data);
+
             setTicketTypes((prev) =>
                 prev.map((tt) => (tt._id === id ? updated : tt)).sort((a, b) => a.lotNumber - b.lotNumber)
             );
-            return updated;
+            
+return updated;
         } catch (err: any) {
             const errorMessage = err.message || 'Erro ao atualizar tipo de ingresso';
+
             setError(errorMessage);
             throw err;
         } finally {
@@ -79,6 +87,7 @@ export const useTicketTypes = (eventId: string | null) => {
             setTicketTypes((prev) => prev.filter((tt) => tt._id !== id));
         } catch (err: any) {
             const errorMessage = err.message || 'Erro ao deletar tipo de ingresso';
+
             setError(errorMessage);
             throw err;
         } finally {
@@ -92,12 +101,15 @@ export const useTicketTypes = (eventId: string | null) => {
 
         try {
             const updated = await ticketTypeService.updateTicketTypeStatus(id, isActive);
+
             setTicketTypes((prev) =>
                 prev.map((tt) => (tt._id === id ? updated : tt))
             );
-            return updated;
+            
+return updated;
         } catch (err: any) {
             const errorMessage = err.message || 'Erro ao atualizar status';
+
             setError(errorMessage);
             throw err;
         } finally {

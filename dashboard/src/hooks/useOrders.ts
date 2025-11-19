@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { orderService, OrderItem } from '@/services/orderService';
+
+import type { OrderItem } from '@/services/orderService';
+import { orderService } from '@/services/orderService';
 
 interface UseOrdersOptions {
     autoFetch?: boolean;
@@ -33,6 +35,7 @@ export const useOrders = (options: UseOrdersOptions = { autoFetch: true }): UseO
         try {
             setLoading(true);
             setError(null);
+
             const response = await orderService.list({
                 page: options.page,
                 limit: options.limit,
@@ -89,13 +92,15 @@ export const useOrder = (id: string | null) => {
     const fetchOrder = useCallback(async () => {
         if (!id) {
             setOrder(null);
-            return;
+            
+return;
         }
 
         try {
             setLoading(true);
             setError(null);
             const response = await orderService.getById(id);
+
             setOrder(response.data);
         } catch (err: any) {
             setError(err.message || 'Erro ao carregar pedido');

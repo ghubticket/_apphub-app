@@ -15,7 +15,7 @@ import { useForm, Controller } from 'react-hook-form'
 
 // Component Imports
 import CustomTextField from '@core/components/mui/TextField'
-import { UserRole } from '@/types/roles'
+import type { UserRole } from '@/types/roles'
 
 type Props = {
   open: boolean

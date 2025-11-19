@@ -3,12 +3,7 @@
 // React Imports
 import { useState } from 'react'
 
-// Custom Imports
-import { useRateLimit } from '@/hooks/useRateLimit'
-import { RateLimitAlert } from '@/components/RateLimitAlert'
-
 // Next Imports
-import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 
 // MUI Imports
@@ -17,11 +12,7 @@ import { styled, useTheme } from '@mui/material/styles'
 import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
-import Checkbox from '@mui/material/Checkbox'
 import Button from '@mui/material/Button'
-import FormControlLabel from '@mui/material/FormControlLabel'
-import Divider from '@mui/material/Divider'
-import Alert from '@mui/material/Alert'
 
 // Third-party Imports
 import { signIn } from 'next-auth/react'
@@ -31,6 +22,9 @@ import { email, object, minLength, string, pipe, nonEmpty } from 'valibot'
 import type { SubmitHandler } from 'react-hook-form'
 import type { InferInput } from 'valibot'
 import classnames from 'classnames'
+
+import { RateLimitAlert } from '@/components/RateLimitAlert'
+import { useRateLimit } from '@/hooks/useRateLimit'
 
 // Type Imports
 import type { SystemMode } from '@core/types'
@@ -142,7 +136,8 @@ const Login = ({ mode }: { mode: SystemMode }) => {
             setErrorState({
                 message: ['Conta temporariamente bloqueada. Tente novamente mais tarde.']
             })
-            return
+            
+return
         }
 
         const res = await signIn('credentials', {
@@ -157,6 +152,7 @@ const Login = ({ mode }: { mode: SystemMode }) => {
 
             // Vars
             const redirectURL = searchParams.get('redirectTo') ?? '/'
+
             router.replace(getLocalizedUrl(redirectURL, locale as Locale))
         } else {
             // Login falhou - usar erro do NextAuth (já processado pelo auth.ts)

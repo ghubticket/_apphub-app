@@ -1,8 +1,12 @@
+import { useParams } from 'next/navigation'
+
+import { useTheme } from '@mui/material/styles'
+
 import { useUserRole } from '@/hooks/useUserRole'
 import { Menu, MenuSection, MenuItem } from '@menu/vertical-menu'
-import { useParams } from 'next/navigation'
-import { getDictionary } from '@/utils/getDictionary'
-import { useTheme } from '@mui/material/styles'
+import type { getDictionary } from '@/utils/getDictionary'
+
+
 import useVerticalNav from '@menu/hooks/useVerticalNav'
 import menuItemStyles from '@core/styles/vertical/menuItemStyles'
 import menuSectionStyles from '@core/styles/vertical/menuSectionStyles'

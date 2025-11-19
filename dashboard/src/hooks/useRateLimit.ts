@@ -30,6 +30,7 @@ export const useRateLimit = () => {
   // Carregar estado do localStorage
   useEffect(() => {
     const saved = localStorage.getItem('loginRateLimit')
+
     if (saved) {
       const parsed = JSON.parse(saved)
       const now = Date.now()
@@ -63,14 +64,17 @@ export const useRateLimit = () => {
           if (prev.remainingTime <= 1) {
             // Lockout expirado
             localStorage.removeItem('loginRateLimit')
-            return {
+            
+return {
               ...prev,
               isLocked: false,
               attempts: 0,
               remainingTime: 0
             }
           }
-          return {
+
+          
+return {
             ...prev,
             remainingTime: prev.remainingTime - 1
           }
@@ -93,7 +97,8 @@ export const useRateLimit = () => {
         lastError: null,
         apiErrors: []
       }))
-      return
+      
+return
     }
 
     // Login falhou - incrementar tentativas
@@ -146,7 +151,9 @@ export const useRateLimit = () => {
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+
+    
+return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
   return {

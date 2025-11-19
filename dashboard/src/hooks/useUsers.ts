@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { userService, User, UserListResponse, UserUpdateStatusRequest } from '@/services/userService'
-import { UserRole } from '@/types/roles'
+
+import type { User, UserListResponse, UserUpdateStatusRequest } from '@/services/userService';
+import { userService } from '@/services/userService'
+import type { UserRole } from '@/types/roles'
 
 interface UseUsersParams {
   page?: number
@@ -55,6 +57,7 @@ export const useUsers = (params: UseUsersParams = {}): UseUsersReturn => {
       setError(null)
       
       const statusData: UserUpdateStatusRequest = { isActive }
+
       await userService.updateUserStatus(userId, statusData)
       
       // Atualizar a lista local

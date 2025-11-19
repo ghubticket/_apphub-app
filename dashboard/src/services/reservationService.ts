@@ -12,14 +12,18 @@ export const getAvailableQuantity = async (
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
+
             throw new Error(errorData.message || `Erro ao obter quantidade disponível: ${response.statusText}`);
         }
 
         const data = await response.json();
-        return data.data?.availableQuantity || 0;
+
+        
+return data.data?.availableQuantity || 0;
     } catch (error: any) {
         console.error('Erro ao obter quantidade disponível:', error);
-        return 0;
+        
+return 0;
     }
 };
 
@@ -37,13 +41,17 @@ export const getAvailableQuantities = async (
         );
 
         const results = await Promise.all(promises);
-        return results.reduce((acc, { ticketTypeId, quantity }) => {
+
+        
+return results.reduce((acc, { ticketTypeId, quantity }) => {
             acc[ticketTypeId] = quantity;
-            return acc;
+            
+return acc;
         }, {} as Record<string, number>);
     } catch (error: any) {
         console.error('Erro ao obter quantidades disponíveis:', error);
-        return {};
+        
+return {};
     }
 };
 

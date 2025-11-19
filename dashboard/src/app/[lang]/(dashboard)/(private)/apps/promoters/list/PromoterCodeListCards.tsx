@@ -1,11 +1,13 @@
 'use client'
 
 import { useMemo } from 'react'
+
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CardHeader from '@mui/material/CardHeader'
 import Typography from '@mui/material/Typography'
 import Grid from '@mui/material/Grid2'
+
 import CustomAvatar from '@core/components/mui/Avatar'
 import { promoterCodeService, type PromoterCodeItem } from '@/services/promoterCodeService'
 import { usePromoterCodes } from '@/hooks/usePromoterCodes'
@@ -63,13 +65,17 @@ const PromoterCodeListCards = () => {
         // Calcular valor total vendido (subtotal antes dos descontos)
         const totalSales = ordersWithPromoterCode.reduce((sum, order) => {
             const subtotal = Number(order.subtotal) || 0
-            return sum + subtotal
+
+            
+return sum + subtotal
         }, 0)
 
         // Calcular total de descontos aplicados
         const totalDiscount = ordersWithPromoterCode.reduce((sum, order) => {
             const discount = Number(order.discountAmount) || 0
-            return sum + discount
+
+            
+return sum + discount
         }, 0)
 
         return {

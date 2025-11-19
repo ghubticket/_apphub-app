@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+
 import { useRouter, useParams } from 'next/navigation'
+
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
@@ -64,7 +66,9 @@ const schema = object({
         transform((val) => {
             if (val === '' || val === null || val === undefined) return 0
             const num = Number(val)
-            return isNaN(num) ? 0 : num
+
+            
+return isNaN(num) ? 0 : num
         }),
         number(),
         minValue(0, 'Valor do desconto não pode ser negativo')
@@ -75,21 +79,29 @@ const schema = object({
 
 const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, '')
+
     if (numbers.length <= 11) {
         return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
     }
-    return value
+
+    
+return value
 }
 
 const formatWhatsApp = (value: string) => {
     const numbers = value.replace(/\D/g, '')
+
     if (numbers.length <= 11) {
         if (numbers.length <= 10) {
             return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
         }
-        return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+
+        
+return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
     }
-    return value
+
+    
+return value
 }
 
 const PromoterCodeEditPage = () => {
@@ -119,6 +131,7 @@ const PromoterCodeEditPage = () => {
                 setLoading(true)
                 const response = await promoterCodeService.getById(id as string)
                 const data = response.data
+
                 setCodeData(data)
                 reset({
                     code: data.code,
@@ -139,6 +152,7 @@ const PromoterCodeEditPage = () => {
                 setLoading(false)
             }
         }
+
         if (id) {
             fetchCode()
         }
@@ -154,14 +168,18 @@ const PromoterCodeEditPage = () => {
             // Validar desconto
             if (discountType === 'percentage' && (discountValueNum < 0 || discountValueNum > 100)) {
                 alert('Desconto percentual deve estar entre 0 e 100')
-                return
+                
+return
             }
+
             if (discountType === 'fixed' && discountValueNum < 0) {
                 alert('Desconto fixo não pode ser negativo')
-                return
+                
+return
             }
 
             const selectedEvents = (data as any).events || []
+
             await promoterCodeService.update(id as string, {
                 code: data.code.toUpperCase(),
                 name: data.name,
@@ -255,6 +273,7 @@ const PromoterCodeEditPage = () => {
                                             helperText={fieldState.error?.message}
                                             onChange={(e) => {
                                                 const formatted = formatCPF(e.target.value)
+
                                                 field.onChange(formatted)
                                             }}
                                             inputProps={{
@@ -295,6 +314,7 @@ const PromoterCodeEditPage = () => {
                                             helperText={fieldState.error?.message}
                                             onChange={(e) => {
                                                 const formatted = formatWhatsApp(e.target.value)
+
                                                 field.onChange(formatted)
                                             }}
                                             inputProps={{

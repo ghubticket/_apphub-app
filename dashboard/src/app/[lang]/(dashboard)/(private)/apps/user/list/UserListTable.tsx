@@ -46,7 +46,7 @@ import type { RankingInfo } from '@tanstack/match-sorter-utils'
 // Type Imports
 import type { ThemeColor } from '@core/types'
 import type { Locale } from '@configs/i18n'
-import { UserRole } from '@/types/roles'
+import type { UserRole } from '@/types/roles'
 
 // Component Imports
 import OptionMenu from '@core/components/option-menu'
@@ -86,10 +86,12 @@ const Icon = styled('i')(({ theme }) => ({
 // Vars
 const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
     const itemRank = rankItem(row.getValue(columnId), value)
+
     addMeta({
         itemRank
     })
-    return itemRank.passed
+    
+return itemRank.passed
 }
 
 const DebouncedInput = ({
@@ -221,7 +223,9 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                 cell: ({ row }) => {
                     const role = row.original.role as UserRole
                     const roleConfig = userRoleObj[role]
-                    return (
+
+                    
+return (
                         <div className='flex items-center gap-2'>
                             <Icon
                                 className={roleConfig?.icon}
@@ -422,6 +426,7 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                             value={statusFilter}
                             onChange={(e: any) => {
                                 const value = e.target.value
+
                                 if (value === 'all' || value === 'true' || value === 'false') {
                                     setStatusFilter(value)
                                 }
@@ -436,6 +441,7 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                             value={suspiciousFilter}
                             onChange={(e: any) => {
                                 const value = e.target.value
+
                                 if (value === 'all' || value === 'true' || value === 'false') {
                                     setSuspiciousFilter(value)
                                 }
@@ -450,6 +456,7 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                             value={blacklistedFilter}
                             onChange={(e: any) => {
                                 const value = e.target.value
+
                                 if (value === 'all' || value === 'true' || value === 'false') {
                                     setBlacklistedFilter(value)
                                 }
@@ -556,6 +563,7 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                                                 value={pageSize}
                                                 onChange={(e) => {
                                                     const newPageSize = Number(e.target.value)
+
                                                     setPageSize(newPageSize)
                                                     setCurrentPage(1)
                                                 }}
@@ -587,6 +595,7 @@ const UserListTable = ({ tableData }: { tableData?: any[] }) => {
                                 onPageChange={(_: any, page: number) => setCurrentPage(page + 1)}
                                 onRowsPerPageChange={(e: any) => {
                                     const newPageSize = Number(e.target.value)
+
                                     setPageSize(newPageSize)
                                     setCurrentPage(1)
                                 }}

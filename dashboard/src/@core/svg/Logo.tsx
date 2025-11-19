@@ -1,7 +1,7 @@
 // React Imports
 import type { SVGAttributes } from 'react'
 
-const Logo = (props: SVGAttributes<SVGElement>) => {
+const Logo = (_props: SVGAttributes<SVGElement>) => {
     return (
         <svg
             version="1.1"

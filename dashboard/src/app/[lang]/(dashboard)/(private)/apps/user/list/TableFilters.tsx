@@ -8,7 +8,7 @@ import MenuItem from '@mui/material/MenuItem'
 
 // Component Imports
 import CustomTextField from '@core/components/mui/TextField'
-import { UserRole } from '@/types/roles'
+import type { UserRole } from '@/types/roles'
 
 const TableFilters = ({ setData, tableData }: { setData: (data: any[]) => void; tableData?: any[] }) => {
   // States

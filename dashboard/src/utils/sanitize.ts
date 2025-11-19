@@ -81,6 +81,7 @@ export function sanitizeEditorContent(editorHtml: string, maxLength: number = 20
 
   // Verificar tamanho
   const textContent = stripHtml(clean)
+
   if (textContent.length > maxLength) {
     throw new Error(`Conteúdo deve ter no máximo ${maxLength} caracteres`)
   }

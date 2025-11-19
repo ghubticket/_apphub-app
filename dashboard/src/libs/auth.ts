@@ -45,11 +45,13 @@ export const authOptions: NextAuthOptions = {
                     if (res.status === 401) {
                         // Extrair mensagem específica da API
                         let errorMessage = 'Credenciais inválidas'
+
                         if (data.message) {
                             errorMessage = Array.isArray(data.message) ? data.message[0] : data.message
                         } else if (data.errors && Array.isArray(data.errors)) {
                             errorMessage = data.errors[0]
                         }
+
                         throw new Error(errorMessage)
                     }
 

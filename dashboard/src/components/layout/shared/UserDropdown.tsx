@@ -24,9 +24,6 @@ import Button from '@mui/material/Button'
 // Third-party Imports
 import { signOut, useSession } from 'next-auth/react'
 
-// Component Imports
-import { UserRoleBadge } from '@/components/UserRoleBadge'
-
 // Type Imports
 import type { Locale } from '@configs/i18n'
 

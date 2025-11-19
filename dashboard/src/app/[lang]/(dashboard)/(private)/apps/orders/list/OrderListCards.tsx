@@ -1,6 +1,9 @@
 'use client'
 
 import React, { useMemo } from 'react'
+
+import dynamic from 'next/dynamic'
+
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CardHeader from '@mui/material/CardHeader'
@@ -8,8 +11,8 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Grid from '@mui/material/Grid2'
 import { useTheme } from '@mui/material/styles'
-import dynamic from 'next/dynamic'
 import type { ApexOptions } from 'apexcharts'
+
 import { useOrders } from '@/hooks/useOrders'
 import CustomAvatar from '@core/components/mui/Avatar'
 
@@ -28,7 +31,8 @@ const formatCurrency = (value: number): string => {
 // Função para calcular porcentagem de mudança
 const calculatePercentageChange = (current: number, previous: number): number => {
     if (previous === 0) return current > 0 ? 100 : 0
-    return ((current - previous) / previous) * 100
+    
+return ((current - previous) / previous) * 100
 }
 
 const OrderListCards = () => {
@@ -39,6 +43,7 @@ const OrderListCards = () => {
         limit: 99999, // Limite muito alto para buscar todos os pedidos
         search: undefined
     })
+
     const theme = useTheme()
 
     // Calcular estatísticas da última semana
@@ -79,46 +84,62 @@ const OrderListCards = () => {
         // Pedidos da última semana (últimos 7 dias)
         const ordersLastWeek = orders.filter(order => {
             const orderDate = new Date(order.createdAt)
-            return orderDate >= lastWeek && orderDate <= now
+
+            
+return orderDate >= lastWeek && orderDate <= now
         })
 
         // Pedidos da semana anterior (8-14 dias atrás)
         const ordersPreviousWeek = orders.filter(order => {
             const orderDate = new Date(order.createdAt)
-            return orderDate >= twoWeeksAgo && orderDate < lastWeek
+
+            
+return orderDate >= twoWeeksAgo && orderDate < lastWeek
         })
 
         // Calcular pedidos por dia da semana (últimos 7 dias)
         // Criar array com os últimos 7 dias
         const ordersByDay = Array(7).fill(0)
+
         for (let i = 0; i < 7; i++) {
             const targetDate = new Date(lastWeek)
+
             targetDate.setDate(targetDate.getDate() + i)
             const dayStart = new Date(targetDate)
+
             dayStart.setHours(0, 0, 0, 0)
             const dayEnd = new Date(targetDate)
+
             dayEnd.setHours(23, 59, 59, 999)
 
             ordersByDay[i] = ordersLastWeek.filter(order => {
                 const orderDate = new Date(order.createdAt)
-                return orderDate >= dayStart && orderDate <= dayEnd
+
+                
+return orderDate >= dayStart && orderDate <= dayEnd
             }).length
         }
 
         // Calcular receita por dia
         const revenueByDay = Array(7).fill(0)
+
         for (let i = 0; i < 7; i++) {
             const targetDate = new Date(lastWeek)
+
             targetDate.setDate(targetDate.getDate() + i)
             const dayStart = new Date(targetDate)
+
             dayStart.setHours(0, 0, 0, 0)
             const dayEnd = new Date(targetDate)
+
             dayEnd.setHours(23, 59, 59, 999)
 
             revenueByDay[i] = ordersLastWeek
                 .filter(order => {
                     const orderDate = new Date(order.createdAt)
-                    return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'paid'
+
+                    
+return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'paid'
                 })
                 .reduce((sum, o) => sum + o.totalAmount, 0)
         }
@@ -191,33 +212,45 @@ const OrderListCards = () => {
 
         // Calcular pedidos pendentes por dia
         const pendingByDay = Array(7).fill(0)
+
         for (let i = 0; i < 7; i++) {
             const targetDate = new Date(lastWeek)
+
             targetDate.setDate(targetDate.getDate() + i)
             const dayStart = new Date(targetDate)
+
             dayStart.setHours(0, 0, 0, 0)
             const dayEnd = new Date(targetDate)
+
             dayEnd.setHours(23, 59, 59, 999)
 
             pendingByDay[i] = ordersLastWeek.filter(order => {
                 const orderDate = new Date(order.createdAt)
-                return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'pending'
+
+                
+return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'pending'
             }).length
         }
 
         // Calcular pedidos cancelados por dia
         const cancelledByDay = Array(7).fill(0)
+
         for (let i = 0; i < 7; i++) {
             const targetDate = new Date(lastWeek)
+
             targetDate.setDate(targetDate.getDate() + i)
             const dayStart = new Date(targetDate)
+
             dayStart.setHours(0, 0, 0, 0)
             const dayEnd = new Date(targetDate)
+
             dayEnd.setHours(23, 59, 59, 999)
 
             cancelledByDay[i] = ordersLastWeek.filter(order => {
                 const orderDate = new Date(order.createdAt)
-                return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'cancelled'
+
+                
+return orderDate >= dayStart && orderDate <= dayEnd && order.status === 'cancelled'
             }).length
         }
 

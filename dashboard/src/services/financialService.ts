@@ -2,16 +2,22 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/a
 
 const getAuthToken = async (): Promise<string | null> => {
     if (typeof window === 'undefined') return null
+
     try {
         const res = await fetch('/api/auth/session')
+
         if (res.ok) {
             const session = await res.json()
-            return session?.accessToken || null
+
+            
+return session?.accessToken || null
         }
     } catch (e) {
         console.error('Erro ao obter token:', e)
     }
-    return null
+
+    
+return null
 }
 
 export interface FinancialStats {
@@ -23,6 +29,7 @@ export interface FinancialStats {
 export const financialService = {
     async getStats(): Promise<{ success: boolean; data: FinancialStats }> {
         const token = await getAuthToken()
+
         const response = await fetch(`${API_BASE_URL}/orders/financial/stats`, {
             headers: {
                 'Content-Type': 'application/json',
@@ -30,11 +37,15 @@ export const financialService = {
             },
             credentials: 'include'
         })
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}))
+
             throw new Error(errorData.message || 'Falha ao buscar estatísticas financeiras')
         }
-        return response.json()
+
+        
+return response.json()
     }
 }
 

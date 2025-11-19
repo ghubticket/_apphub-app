@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+
 import { useParams, useRouter } from 'next/navigation'
+
 import Grid from '@mui/material/Grid2'
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
@@ -46,6 +48,7 @@ import { getAvailableQuantities } from '@/services/reservationService'
 
 import '@/libs/styles/tiptapEditor.css'
 import dynamic from 'next/dynamic'
+
 import { useTheme } from '@mui/material/styles'
 import type { ApexOptions } from 'apexcharts'
 
@@ -64,8 +67,10 @@ const schema = object({
         transform((val) => {
             if (!val || val === '') return undefined
             const num = Number(val)
+
             if (isNaN(num)) return undefined
-            return num
+            
+return num
         }),
         number(),
         minValue(0, 'Taxa não pode ser negativa'),
@@ -75,7 +80,8 @@ const schema = object({
 
 const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
     if (!editor) return null
-    return (
+    
+return (
         <div className='flex flex-wrap gap-x-3 gap-y-1 pbs-6 pbe-4 pli-6'>
             <CustomIconButton {...(editor.isActive('bold') && { color: 'primary' })} variant='tonal' size='small' onClick={() => editor.chain().focus().toggleBold().run()}>
                 <i className={classnames('tabler-bold', { 'text-textSecondary': !editor.isActive('bold') })} />
@@ -114,6 +120,7 @@ const EventViewPage = () => {
     const [error, setError] = useState<string | null>(null)
     const [isEditing, setIsEditing] = useState(false)
     const { ticketTypes, fetchTicketTypes } = useTicketTypes(id as string)
+
     // Modal de distribuição de VIP
     const [vipOpen, setVipOpen] = useState(false)
     const [vipEmail, setVipEmail] = useState('')
@@ -126,10 +133,14 @@ const EventViewPage = () => {
     const [vipError, setVipError] = useState<string | null>(null)
 
     const checkEmail = async (email: string) => {
-        if (!email) { setVipUserName(''); return }
+        if (!email) { setVipUserName(''); 
+
+return }
+
         try {
             const res = await userService.getAllUsers({ page: 1, limit: 1, search: email })
             const u = res.data.users?.[0]
+
             setVipUserName(u ? u.name : '')
         } catch {
             setVipUserName('')
@@ -138,12 +149,16 @@ const EventViewPage = () => {
 
     const refetchStats = async () => {
         if (!id) return
+
         try {
             const res = await getEventTicketStats(id as string)
+
             setApiStats(res.data)
         } catch { }
+
         await fetchTicketTypes()
     }
+
     const [availableQuantities, setAvailableQuantities] = useState<Record<string, number>>({})
     const [loadingReservations, setLoadingReservations] = useState(false)
     const [apiStats, setApiStats] = useState<{ capacityTotal: number; soldTotal: number; availableTotal: number; pendingCount: number; cancelledCount: number; vipsDistributed: number; totalRevenue?: number; revenueByDay?: number[] } | null>(null)
@@ -153,25 +168,31 @@ const EventViewPage = () => {
         const fetchAvailableQuantities = async () => {
             if (!id) {
                 setAvailableQuantities({})
-                return
+                
+return
             }
 
             // Se não houver tipos de ingressos, definir como vazio
             if (ticketTypes.length === 0) {
                 setAvailableQuantities({})
                 setLoadingReservations(false)
-                return
+                
+return
             }
 
             setLoadingReservations(true)
+
             try {
                 const ticketTypeIds = ticketTypes.map((tt) => tt._id)
                 const quantities = await getAvailableQuantities(id as string, ticketTypeIds)
+
                 setAvailableQuantities(quantities)
             } catch (error) {
                 console.error('Erro ao buscar quantidades disponíveis:', error)
+
                 // Em caso de erro, usar fallback: maxQuantity - soldQuantity
                 const fallback: Record<string, number> = {}
+
                 ticketTypes.forEach((tt) => {
                     fallback[tt._id] = Math.max(0, (tt.maxQuantity || 0) - (tt.soldQuantity || 0))
                 })
@@ -188,13 +209,16 @@ const EventViewPage = () => {
     useEffect(() => {
         const run = async () => {
             if (!id) return
+
             try {
                 const res = await getEventTicketStats(id as string)
+
                 setApiStats(res.data)
             } catch (e) {
                 console.error('Erro ao buscar stats do evento:', e)
             }
         }
+
         run()
     }, [id])
 
@@ -218,7 +242,9 @@ const EventViewPage = () => {
         // Capacidade Total: Soma de TODAS as quantidades máximas de TODOS os tipos de ingressos cadastrados
         const totalCapacity = ticketTypes.reduce((sum, tt) => {
             const qty = Number(tt.maxQuantity) || 0
-            return sum + qty
+
+            
+return sum + qty
         }, 0)
 
         // Ingressos Vendidos: Soma de todos os ingressos vendidos de todos os tipos
@@ -229,16 +255,20 @@ const EventViewPage = () => {
         // Ingressos Disponíveis: Usar SEMPRE a API que considera reservas ativas
         // Se ainda está carregando, mostrar 0 temporariamente
         let totalAvailable = 0
+
         if (isLoading) {
             totalAvailable = 0 // Mostrar 0 enquanto carrega
         } else {
             // Somar apenas os valores que vieram da API
             totalAvailable = ticketTypes.reduce((sum, tt) => {
                 const available = availableQuantities[tt._id]
+
                 if (available !== undefined) {
                     return sum + Math.max(0, available)
                 }
-                return sum
+
+                
+return sum
             }, 0)
         }
 
@@ -331,6 +361,7 @@ const EventViewPage = () => {
                 const containerHeight = chartContainerRef.current.offsetHeight || chartContainerRef.current.clientHeight
                 const padding = 48 // 24px top + 24px bottom
                 const calculatedHeight = Math.max(300, containerHeight - padding)
+
                 setChartHeight(calculatedHeight)
             }
         }
@@ -350,7 +381,9 @@ const EventViewPage = () => {
         }
 
         window.addEventListener('resize', updateChartHeight)
-        return () => {
+
+        
+return () => {
             clearTimeout(timer)
             window.removeEventListener('resize', updateChartHeight)
             resizeObserver.disconnect()
@@ -362,6 +395,7 @@ const EventViewPage = () => {
             try {
                 setLoading(true)
                 const response = await eventService.getById(id as string)
+
                 setEvent(response.data)
 
                 // Preencher formulário quando entrar em modo de edição
@@ -377,12 +411,14 @@ const EventViewPage = () => {
 
                     if (response.data.date) {
                         const eventDate = new Date(response.data.date)
+
                         setDate(eventDate)
                     }
 
                     if (response.data.time) {
                         const [hours, minutes] = response.data.time.split(':')
                         const timeDate = new Date()
+
                         timeDate.setHours(parseInt(hours), parseInt(minutes), 0, 0)
                         setTime(timeDate)
                     }
@@ -407,10 +443,13 @@ const EventViewPage = () => {
         if (file && file.type !== 'image/png') {
             return 'Apenas arquivos PNG são permitidos'
         }
+
         if (file && file.size > 10 * 1024 * 1024) {
             return 'Arquivo deve ter no máximo 10MB'
         }
-        return null
+
+        
+return null
     }
 
     const onSubmit: SubmitHandler<FormData> = async (data) => {
@@ -420,16 +459,21 @@ const EventViewPage = () => {
             // Validar arquivos apenas se novos arquivos foram selecionados
             if (coverFile) {
                 const coverError = validateFile(coverFile, 'cover')
+
                 if (coverError) {
                     setCoverFileError(coverError)
-                    return
+                    
+return
                 }
             }
+
             if (squareFile) {
                 const squareError = validateFile(squareFile, 'square')
+
                 if (squareError) {
                     setSquareFileError(squareError)
-                    return
+                    
+return
                 }
             }
 
@@ -437,6 +481,7 @@ const EventViewPage = () => {
             setSquareFileError(null)
 
             const form = new FormData()
+
             form.append('name', data.name)
 
             // Descrição é obrigatória no backend (máximo 2000 caracteres)
@@ -450,12 +495,14 @@ const EventViewPage = () => {
 
                 if (cleanDescription.length > 2000) {
                     const tempDiv = document.createElement('div')
+
                     tempDiv.innerHTML = cleanDescription
                     const textContent = tempDiv.textContent || tempDiv.innerText || ''
 
                     if (textContent.length > 2000) {
                         throw new Error('Descrição deve ter no máximo 2000 caracteres')
                     }
+
                     cleanDescription = textContent.substring(0, 2000)
                 }
 
@@ -467,15 +514,19 @@ const EventViewPage = () => {
             if (!date) {
                 throw new Error('Data do evento é obrigatória')
             }
+
             if (!data.location) {
                 throw new Error('Localização é obrigatória')
             }
+
             if (!data.address) {
                 throw new Error('Endereço é obrigatório')
             }
+
             if (!data.city) {
                 throw new Error('Cidade é obrigatória')
             }
+
             if (!data.state) {
                 throw new Error('Estado é obrigatório')
             }
@@ -484,11 +535,13 @@ const EventViewPage = () => {
             const month = String(date.getMonth() + 1).padStart(2, '0')
             const day = String(date.getDate()).padStart(2, '0')
             const dateStr = `${year}-${month}-${day}`
+
             form.append('date', dateStr)
 
             if (time) {
                 const hours = String(time.getHours()).padStart(2, '0')
                 const minutes = String(time.getMinutes()).padStart(2, '0')
+
                 form.append('time', `${hours}:${minutes}`)
             }
 
@@ -496,6 +549,7 @@ const EventViewPage = () => {
             form.append('address', data.address.trim())
             form.append('city', data.city.trim())
             form.append('state', data.state.toUpperCase().trim())
+
             if (data.platformFeePercentage !== undefined && data.platformFeePercentage !== null && data.platformFeePercentage !== '') {
                 form.append('platformFeePercentage', String(data.platformFeePercentage))
             }
@@ -504,6 +558,7 @@ const EventViewPage = () => {
             if (coverFile) {
                 form.append('cover', coverFile)
             }
+
             if (squareFile) {
                 form.append('square', squareFile)
             }
@@ -512,6 +567,7 @@ const EventViewPage = () => {
 
             // Recarregar evento após atualização
             const updatedResponse = await eventService.getById(id as string)
+
             setEvent(updatedResponse.data)
             setIsEditing(false)
             setCoverFile(null)
@@ -698,12 +754,17 @@ const EventViewPage = () => {
                                                 }}
                                                 onChange={(e) => {
                                                     const value = e.target.value
+
+
                                                     // Limitar a entrada: não permitir valores maiores que 100
                                                     if (value === '' || value === null || value === undefined) {
                                                         field.onChange('')
-                                                        return
+                                                        
+return
                                                     }
+
                                                     const num = Number(value)
+
                                                     if (!isNaN(num)) {
                                                         if (num > 100) {
                                                             field.onChange('100')
@@ -750,10 +811,13 @@ const EventViewPage = () => {
                                             accept='image/png'
                                             onChange={e => {
                                                 const file = e.target.files?.[0] || null
+
                                                 setCoverFile(file)
                                                 setCoverFileError(null)
+
                                                 if (file) {
                                                     const error = validateFile(file, 'cover')
+
                                                     setCoverFileError(error)
                                                 }
                                             }}
@@ -777,10 +841,13 @@ const EventViewPage = () => {
                                             accept='image/png'
                                             onChange={e => {
                                                 const file = e.target.files?.[0] || null
+
                                                 setSquareFile(file)
                                                 setSquareFileError(null)
+
                                                 if (file) {
                                                     const error = validateFile(file, 'square')
+
                                                     setSquareFileError(error)
                                                 }
                                             }}
@@ -1227,8 +1294,10 @@ const EventViewPage = () => {
                                 value={vipQuantity}
                                 onChange={(e) => {
                                     const val = e.target.value
+
                                     if (val.length <= 2) {
                                         const num = Number(val) || 0
+
                                         if (num >= 1 && num <= 99) {
                                             setVipQuantity(num)
                                         } else if (num > 99) {
@@ -1297,6 +1366,7 @@ const EventViewPage = () => {
                                 disabled={vipSubmitting}
                                 onClick={async () => {
                                     if (!id) return
+
                                     try {
                                         setVipSubmitting(true)
                                         setVipError(null)

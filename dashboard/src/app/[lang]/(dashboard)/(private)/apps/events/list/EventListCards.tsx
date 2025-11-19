@@ -2,6 +2,7 @@
 
 import Grid from '@mui/material/Grid2'
 import { Card, CardContent, Typography, Box } from '@mui/material'
+
 import { useEvents } from '@/hooks/useEvents'
 
 const EventListCards = () => {

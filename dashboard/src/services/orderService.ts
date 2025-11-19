@@ -69,16 +69,22 @@ export interface OrderDetailResponse {
 
 const getAuthToken = async (): Promise<string | null> => {
     if (typeof window === 'undefined') return null;
+
     try {
         const res = await fetch('/api/auth/session');
+
         if (res.ok) {
             const session = await res.json();
-            return session?.accessToken || null;
+
+            
+return session?.accessToken || null;
         }
     } catch (e) {
         console.error('Erro ao obter token:', e);
     }
-    return null;
+
+    
+return null;
 };
 
 const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
@@ -102,16 +108,20 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
+
             throw new Error(error.message || `Erro ${response.status}: ${response.statusText}`);
         }
 
         const data = await response.json();
-        return data;
+
+        
+return data;
     } catch (error: any) {
         // Se for erro de rede (Failed to fetch)
         if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
             throw new Error(`Erro de conexão: Não foi possível conectar ao servidor em ${API_BASE_URL}. Verifique se o backend está rodando.`);
         }
+
         throw error;
     }
 };
@@ -124,6 +134,7 @@ export const orderService = {
         status?: 'pending' | 'paid' | 'cancelled' | 'refunded';
     }): Promise<OrderListResponse & { pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
         const searchParams = new URLSearchParams();
+
         if (params?.page) searchParams.append('page', params.page.toString());
         if (params?.limit) searchParams.append('limit', params.limit.toString());
         if (params?.search) searchParams.append('search', params.search);

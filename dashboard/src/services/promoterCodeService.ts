@@ -2,20 +2,27 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/a
 
 const getAuthToken = async (): Promise<string | null> => {
     if (typeof window === 'undefined') return null
+
     try {
         const res = await fetch('/api/auth/session')
+
         if (res.ok) {
             const session = await res.json()
-            return session?.accessToken || null
+
+            
+return session?.accessToken || null
         }
     } catch (e) {
         console.error('Erro ao obter token:', e)
     }
-    return null
+
+    
+return null
 }
 
 const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
     const token = await getAuthToken()
+
     const response = await fetch(`${API_BASE_URL}${url}`, {
         ...options,
         headers: {
@@ -25,11 +32,15 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
         },
         credentials: 'include'
     })
+
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+
         throw new Error(errorData.message || `HTTP ${response.status}`)
     }
-    return response.json()
+
+    
+return response.json()
 }
 
 export interface PromoterCodeItem {
@@ -82,6 +93,7 @@ export const promoterCodeService = {
         isActive?: boolean
     }): Promise<PromoterCodeListResponse> {
         const searchParams = new URLSearchParams()
+
         if (params?.page) searchParams.append('page', params.page.toString())
         if (params?.limit) searchParams.append('limit', params.limit.toString())
         if (params?.search) searchParams.append('search', params.search)
@@ -89,7 +101,9 @@ export const promoterCodeService = {
         if (params?.isActive !== undefined) searchParams.append('isActive', params.isActive.toString())
         const queryString = searchParams.toString()
         const url = `/promoters${queryString ? `?${queryString}` : ''}`
-        return authenticatedRequest(url)
+
+        
+return authenticatedRequest(url)
     },
 
     async getById(id: string): Promise<{ success: boolean; data: PromoterCodeItem }> {
@@ -163,11 +177,15 @@ export const promoterCodeService = {
                 'Content-Type': 'application/json'
             }
         })
+
         const data = await response.json().catch(() => ({}))
+
         if (!response.ok) {
             throw new Error(data.message || 'Erro ao validar código')
         }
-        return data
+
+        
+return data
     }
 }
 

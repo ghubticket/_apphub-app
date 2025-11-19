@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { promoterCodeService, type PromoterCodeItem, type PromoterCodeListResponse } from '@/services/promoterCodeService'
+
+import { promoterCodeService, type PromoterCodeItem } from '@/services/promoterCodeService'
 
 export interface UsePromoterCodesOptions {
     autoFetch?: boolean
@@ -34,6 +35,7 @@ export const usePromoterCodes = (options: UsePromoterCodesOptions = { autoFetch:
         try {
             setLoading(true)
             setError(null)
+
             const response = await promoterCodeService.list({
                 page: options.page,
                 limit: options.limit,

@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+
 import { useParams, useRouter } from 'next/navigation'
+
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
@@ -11,9 +13,12 @@ import Grid from '@mui/material/Grid2'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import Divider from '@mui/material/Divider'
+
 import CustomTextField from '@core/components/mui/TextField'
 import CustomAvatar from '@core/components/mui/Avatar'
 import { userService } from '@/services/userService'
+
+
 // Função para formatar moeda brasileira
 const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', {
@@ -23,9 +28,11 @@ const formatCurrency = (value: number): string => {
         maximumFractionDigits: 2,
     }).format(value)
 }
+
 import { AdminOnly } from '@/components/RoleGuard'
 import { getInitials } from '@/utils/getInitials'
 import tableStyles from '@core/styles/table.module.css'
+
 import classnames from 'classnames'
 
 const orderStatusColors: { [key: string]: 'primary' | 'success' | 'warning' | 'error' | 'secondary' } = {
@@ -43,6 +50,7 @@ const UserEditPage = () => {
     const [user, setUser] = useState<any>(null)
     const [orders, setOrders] = useState<any[]>([])
     const [isEditing, setIsEditing] = useState(false)
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -151,6 +159,7 @@ const UserEditPage = () => {
                                                 size='small'
                                                 onClick={() => {
                                                     setIsEditing(false)
+
                                                     // Restaurar dados originais
                                                     setFormData({
                                                         name: user.name || '',

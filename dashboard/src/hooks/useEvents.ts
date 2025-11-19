@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+
 import { eventService, type EventItem, type EventListResponse } from '@/services/eventService'
 
 interface UseEventsParams {
@@ -33,6 +34,8 @@ export const useEvents = (params: UseEventsParams = {}): UseEventsReturn => {
       setError(null)
 
       const response: EventListResponse = await eventService.list(params)
+
+
       // Backend may or may not send pagination; guard for both
       setEvents(response.data.events)
       setPagination(response.data.pagination ?? null)

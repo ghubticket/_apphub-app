@@ -1,23 +1,22 @@
 'use client'
 
-import Grid from '@mui/material/Grid2'
-import Card from '@mui/material/Card'
-import CardHeader from '@mui/material/CardHeader'
-import CardContent from '@mui/material/CardContent'
-import Button from '@mui/material/Button'
-import Typography from '@mui/material/Typography'
-import Divider from '@mui/material/Divider'
-import Box from '@mui/material/Box'
 
-import CustomTextField from '@core/components/mui/TextField'
-import CustomAutocomplete from '@core/components/mui/Autocomplete'
-import AppReactDatepicker from '@/libs/styles/AppReactDatepicker'
 
 import { useEffect, useState } from 'react'
+
 import { useRouter, useParams } from 'next/navigation'
+
+import Box from '@mui/material/Box'
+import Divider from '@mui/material/Divider'
+import Typography from '@mui/material/Typography'
+import Button from '@mui/material/Button'
+import CardContent from '@mui/material/CardContent'
+import CardHeader from '@mui/material/CardHeader'
+import Card from '@mui/material/Card'
+import Grid from '@mui/material/Grid2'
 import { Controller, useForm } from 'react-hook-form'
 import { valibotResolver } from '@hookform/resolvers/valibot'
-import { object, string, pipe, nonEmpty, minLength, optional, nullable } from 'valibot'
+import { object, string, pipe, nonEmpty, minLength, optional } from 'valibot'
 import type { SubmitHandler } from 'react-hook-form'
 import type { InferInput } from 'valibot'
 
@@ -28,9 +27,15 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import { TextAlign } from '@tiptap/extension-text-align'
 import type { Editor } from '@tiptap/core'
 import classnames from 'classnames'
-import { sanitizeEditorContent } from '@/utils/sanitize'
-import CustomIconButton from '@core/components/mui/IconButton'
+
 import MenuItem from '@mui/material/MenuItem'
+
+import AppReactDatepicker from '@/libs/styles/AppReactDatepicker'
+import CustomAutocomplete from '@core/components/mui/Autocomplete'
+import CustomTextField from '@core/components/mui/TextField'
+
+import CustomIconButton from '@core/components/mui/IconButton'
+import { sanitizeEditorContent } from '@/utils/sanitize'
 
 import { AdminOnly } from '@/components/RoleGuard'
 import { eventService } from '@/services/eventService'
@@ -40,7 +45,8 @@ import '@/libs/styles/tiptapEditor.css'
 
 const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
     if (!editor) return null
-    return (
+    
+return (
         <div className='flex flex-wrap gap-x-3 gap-y-1 pbs-6 pbe-4 pli-6'>
             <CustomIconButton {...(editor.isActive('bold') && { color: 'primary' })} variant='tonal' size='small' onClick={() => editor.chain().focus().toggleBold().run()}>
                 <i className={classnames('tabler-bold', { 'text-textSecondary': !editor.isActive('bold') })} />
@@ -122,6 +128,7 @@ const CreateEventPage = () => {
     useEffect(() => {
         if (watchedState) {
             locationService.getCitiesByUF(watchedState).then(setCities).catch(() => setCities([]))
+
             // Clear city when state changes
             setValue('city', '')
         } else {
@@ -144,13 +151,17 @@ const CreateEventPage = () => {
         if (!file) {
             return fieldName === 'cover' ? 'Imagem de capa é obrigatória' : 'Imagem quadrada é obrigatória'
         }
+
         if (file.type !== 'image/png') {
             return 'Apenas arquivos PNG são permitidos'
         }
+
         if (file.size > 10 * 1024 * 1024) {
             return 'Arquivo deve ter no máximo 10MB'
         }
-        return null
+
+        
+return null
     }
 
     const onSubmit: SubmitHandler<FormData> = async (data) => {
@@ -163,11 +174,14 @@ const CreateEventPage = () => {
 
             if (coverError) {
                 setCoverFileError(coverError)
-                return
+                
+return
             }
+
             if (squareError) {
                 setSquareFileError(squareError)
-                return
+                
+return
             }
 
             setCoverFileError(null)
@@ -176,6 +190,7 @@ const CreateEventPage = () => {
             if (!coverFile || !squareFile) return
 
             const form = new FormData()
+
             form.append('name', data.name)
 
             // Descrição é obrigatória no backend (máximo 2000 caracteres)
@@ -183,6 +198,7 @@ const CreateEventPage = () => {
                 try {
                     // Sanitiza e valida o conteúdo do editor (protege contra XSS)
                     const cleanDescription = sanitizeEditorContent(editor.getHTML(), 2000)
+
                     form.append('description', cleanDescription)
                 } catch (error) {
                     throw new Error(error instanceof Error ? error.message : 'Descrição do evento é inválida')
@@ -190,19 +206,25 @@ const CreateEventPage = () => {
             } else {
                 throw new Error('Descrição do evento é obrigatória')
             }
+
+
             // Validar campos obrigatórios
             if (!date) {
                 throw new Error('Data do evento é obrigatória')
             }
+
             if (!data.location) {
                 throw new Error('Localização é obrigatória')
             }
+
             if (!data.address) {
                 throw new Error('Endereço é obrigatório')
             }
+
             if (!data.city) {
                 throw new Error('Cidade é obrigatória')
             }
+
             if (!data.state) {
                 throw new Error('Estado é obrigatório')
             }
@@ -212,12 +234,14 @@ const CreateEventPage = () => {
             const month = String(date.getMonth() + 1).padStart(2, '0')
             const day = String(date.getDate()).padStart(2, '0')
             const dateStr = `${year}-${month}-${day}`
+
             form.append('date', dateStr)
 
             // Enviar horário se fornecido
             if (time) {
                 const hours = String(time.getHours()).padStart(2, '0')
                 const minutes = String(time.getMinutes()).padStart(2, '0')
+
                 form.append('time', `${hours}:${minutes}`)
             }
 
@@ -234,6 +258,7 @@ const CreateEventPage = () => {
             form.append('square', squareFile)
 
             await eventService.create(form)
+
             // Usar replace para evitar problemas de navegação
             router.replace(`/${lang}/apps/events/list`)
         } catch (e: any) {
@@ -330,6 +355,7 @@ const CreateEventPage = () => {
                                             placeholder='UF'
                                             onChange={e => {
                                                 field.onChange(e)
+
                                                 // City will be cleared automatically when state changes via watch effect
                                             }}
                                         >
@@ -389,10 +415,13 @@ const CreateEventPage = () => {
                                         accept='image/png'
                                         onChange={e => {
                                             const file = e.target.files?.[0] || null
+
                                             setCoverFile(file)
                                             setCoverFileError(null)
+
                                             if (file) {
                                                 const error = validateFile(file, 'cover')
+
                                                 setCoverFileError(error)
                                             }
                                         }}
@@ -413,10 +442,13 @@ const CreateEventPage = () => {
                                         accept='image/png'
                                         onChange={e => {
                                             const file = e.target.files?.[0] || null
+
                                             setSquareFile(file)
                                             setSquareFileError(null)
+
                                             if (file) {
                                                 const error = validateFile(file, 'square')
+
                                                 setSquareFileError(error)
                                             }
                                         }}

@@ -1,20 +1,20 @@
 'use client'
 
 import React from 'react'
-import { useRoutePermissions } from '@/hooks/useRoutePermissions'
+
 import { Alert, AlertTitle, Typography, Box } from '@mui/material'
+
+import { useRoutePermissions } from '@/hooks/useRoutePermissions'
 
 interface RouteGuardProps {
     children: React.ReactNode
     requiredRole?: string
-    fallbackRoute?: string
     fallbackComponent?: React.ReactNode
 }
 
 export const RouteGuard: React.FC<RouteGuardProps> = ({
     children,
     requiredRole,
-    fallbackRoute = '/dashboards/crm',
     fallbackComponent
 }) => {
     const { canAccessCurrentRoute, userRole, status } = useRoutePermissions()

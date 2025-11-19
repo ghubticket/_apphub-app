@@ -1,7 +1,10 @@
 import React, { useEffect } from 'react'
-import { useUserRole } from '@/hooks/useUserRole'
+
 import { useRouter } from 'next/navigation'
+
 import { Box, Typography, Alert, AlertTitle } from '@mui/material'
+
+import { useUserRole } from '@/hooks/useUserRole'
 
 interface ClientRedirectProps {
   frontendUrl?: string
