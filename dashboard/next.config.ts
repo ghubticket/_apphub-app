@@ -16,6 +16,16 @@ if (process.env.NODE_ENV === 'development') {
 const nextConfig: NextConfig = {
   basePath: process.env.BASEPATH,
   
+  // Ignorar lint no build (performance)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
+  // TypeScript: permitir erros no build (temporário)
+  typescript: {
+    ignoreBuildErrors: false, // Manter validação TypeScript
+  },
+  
   // Security Headers
   async headers() {
     return [

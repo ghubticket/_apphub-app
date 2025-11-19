@@ -1,0 +1,25 @@
+# Ignorar dashboards do template (não usados)
+src/app/[lang]/(dashboard)/(private)/dashboards/analytics
+src/app/[lang]/(dashboard)/(private)/dashboards/academy
+src/app/[lang]/(dashboard)/(private)/dashboards/ecommerce  
+src/app/[lang]/(dashboard)/(private)/dashboards/logistics
+
+# Ignorar apps do template (não usados)
+src/app/[lang]/(dashboard)/(private)/apps/academy
+src/app/[lang]/(dashboard)/(private)/apps/calendar
+src/app/[lang]/(dashboard)/(private)/apps/chat
+src/app/[lang]/(dashboard)/(private)/apps/email
+src/app/[lang]/(dashboard)/(private)/apps/ecommerce
+src/app/[lang]/(dashboard)/(private)/apps/invoice
+src/app/[lang]/(dashboard)/(private)/apps/kanban
+src/app/[lang]/(dashboard)/(private)/apps/logistics
+
+# Ignorar páginas de exemplo
+src/views/charts
+src/views/forms
+src/views/react-table
+src/views/pages/widget-examples
+
+# Fake DB (dados de exemplo)
+src/fake-db
+
