@@ -41,7 +41,7 @@ export interface UpdateTicketTypeData extends Partial<CreateTicketTypeData> {
 
 // Helper para obter token de autenticação
 const getAuthToken = async (): Promise<string> => {
-    const session = await getSession();
+    const session = await getSession() as any;
 
     if (!session?.accessToken) {
         throw new Error('Token de acesso não fornecido');
