@@ -11,6 +11,14 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/eventh
  */
 export const connectDatabase = async (): Promise<void> => {
     try {
+        // Validar se MONGODB_URI está configurado
+        if (!process.env.MONGODB_URI || process.env.MONGODB_URI.trim() === '') {
+            console.error('❌ MONGODB_URI não está configurado!');
+            console.error('   Por favor, configure MONGODB_URI nas variáveis de ambiente.');
+            console.error('   Valor atual:', process.env.MONGODB_URI || '(não definido)');
+            throw new Error('MONGODB_URI não está configurado');
+        }
+
         // Configurações de conexão
         const options = {
             // Configurações para desenvolvimento
