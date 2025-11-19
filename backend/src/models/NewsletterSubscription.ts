@@ -55,5 +55,7 @@ const NewsletterSubscriptionSchema = new Schema<INewsletterSubscription>(
 NewsletterSubscriptionSchema.index({ email: 1 }, { unique: true });
 NewsletterSubscriptionSchema.index({ createdAt: -1 });
 
-export default model<INewsletterSubscription>('NewsletterSubscription', NewsletterSubscriptionSchema);
-
+export default model<INewsletterSubscription>(
+    'NewsletterSubscription',
+    NewsletterSubscriptionSchema
+);

@@ -1,27 +1,27 @@
 import { Router, Request, Response } from 'express';
 import {
-  register,
-  login,
-  logout,
-  getMe,
-  updateProfile,
-  changePassword,
-  refreshToken,
-  checkSession,
-  getActiveSessions,
-  invalidateSession,
-  invalidateAllSessions,
-  getSessionStats,
-  getAllUsers,
-  updateUserStatus
+    register,
+    login,
+    logout,
+    getMe,
+    updateProfile,
+    changePassword,
+    refreshToken,
+    checkSession,
+    getActiveSessions,
+    invalidateSession,
+    invalidateAllSessions,
+    getSessionStats,
+    getAllUsers,
+    updateUserStatus,
 } from '../controllers/authController';
 import { authenticate, authorize, isAdmin } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import {
-  registerSchema,
-  loginSchema,
-  updateProfileSchema,
-  changePasswordSchema
+    registerSchema,
+    loginSchema,
+    updateProfileSchema,
+    changePasswordSchema,
 } from '../middleware/schemas';
 import { authRateLimit, refreshRateLimit, sensitiveRateLimit } from '../middleware/rateLimiting';
 
@@ -355,7 +355,13 @@ router.post('/logout', authenticate, logout);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/change-password', sensitiveRateLimit, authenticate, validate(changePasswordSchema), changePassword);
+router.put(
+    '/change-password',
+    sensitiveRateLimit,
+    authenticate,
+    validate(changePasswordSchema),
+    changePassword
+);
 
 /**
  * @swagger

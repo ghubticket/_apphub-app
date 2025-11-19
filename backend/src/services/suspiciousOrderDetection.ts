@@ -33,7 +33,8 @@ export async function detectMultipleOrdersSameIP(
             _id: { $ne: context.orderId },
         });
 
-        if (recentOrders >= threshold - 1) { // -1 porque não contamos o pedido atual ainda
+        if (recentOrders >= threshold - 1) {
+            // -1 porque não contamos o pedido atual ainda
             await SuspiciousOrderAlert.create({
                 orderId: context.orderId,
                 alertType: 'multiple_orders_same_ip',
@@ -46,7 +47,9 @@ export async function detectMultipleOrdersSameIP(
                 },
             });
 
-            console.warn(`⚠️ Alerta: ${recentOrders + 1} pedidos do mesmo IP em ${timeWindowMinutes} minutos`);
+            console.warn(
+                `⚠️ Alerta: ${recentOrders + 1} pedidos do mesmo IP em ${timeWindowMinutes} minutos`
+            );
         }
     } catch (error) {
         console.error('Erro ao detectar múltiplas compras do mesmo IP:', error);
@@ -56,9 +59,7 @@ export async function detectMultipleOrdersSameIP(
 /**
  * Detecta múltiplos pedidos com mesmo CPF mas diferentes emails
  */
-export async function detectSameCPFDifferentEmails(
-    context: DetectionContext
-): Promise<void> {
+export async function detectSameCPFDifferentEmails(context: DetectionContext): Promise<void> {
     try {
         if (!context.cpf) return;
 
@@ -68,12 +69,14 @@ export async function detectSameCPFDifferentEmails(
         // Buscar todos os pedidos pagos com o mesmo CPF usando hash (CPF está criptografado)
         const { hashCPFForSearch } = await import('../utils/encryption');
         const cpfHash = hashCPFForSearch(normalizedCPF);
-        
+
         const ordersWithSameCPF = await Order.find({
             'customerData.cpfHash': cpfHash,
             status: { $in: ['paid', 'pending'] },
             _id: { $ne: context.orderId },
-        }).select('customerData.email').lean();
+        })
+            .select('customerData.email')
+            .lean();
 
         // Coletar emails únicos
         const uniqueEmails = new Set<string>();
@@ -90,7 +93,8 @@ export async function detectSameCPFDifferentEmails(
 
         // Se há mais de 1 email diferente para o mesmo CPF, é suspeito
         if (uniqueEmails.size > 1) {
-            const severity = uniqueEmails.size >= 3 ? 'high' : uniqueEmails.size === 2 ? 'medium' : 'low';
+            const severity =
+                uniqueEmails.size >= 3 ? 'high' : uniqueEmails.size === 2 ? 'medium' : 'low';
 
             await SuspiciousOrderAlert.create({
                 orderId: context.orderId,
@@ -104,7 +108,9 @@ export async function detectSameCPFDifferentEmails(
                 },
             });
 
-            console.warn(`⚠️ Alerta: CPF ${normalizedCPF} usado com ${uniqueEmails.size} emails diferentes`);
+            console.warn(
+                `⚠️ Alerta: CPF ${normalizedCPF} usado com ${uniqueEmails.size} emails diferentes`
+            );
         }
     } catch (error) {
         console.error('Erro ao detectar CPF com emails diferentes:', error);
@@ -143,7 +149,9 @@ export async function detectMultipleOrdersShortTime(
                 },
             });
 
-            console.warn(`⚠️ Alerta: ${recentOrders + 1} pedidos criados em ${timeWindowSeconds} segundos`);
+            console.warn(
+                `⚠️ Alerta: ${recentOrders + 1} pedidos criados em ${timeWindowSeconds} segundos`
+            );
         }
     } catch (error) {
         console.error('Erro ao detectar múltiplos pedidos em tempo curto:', error);
@@ -161,4 +169,3 @@ export async function detectSuspiciousPatterns(context: DetectionContext): Promi
         detectMultipleOrdersShortTime(context, 60, 2),
     ]);
 }
-

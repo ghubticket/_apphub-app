@@ -6,11 +6,11 @@ import * as paymentService from '../services/paymentService';
 // REFATORADO: Removido import de reservationService - pedidos não usam mais reservas separadas
 import { mapPaymentMethod } from '../services/paymentService';
 import { getPaymentStatusInfo, mapPaymentStatus } from '../utils/paymentStatusMapper';
-import { 
-    sendTicketConfirmationEmail, 
+import {
+    sendTicketConfirmationEmail,
     sendPaymentRejectedEmail,
     sendPaymentConfirmedEmail,
-    sendPaymentPendingEmail
+    sendPaymentPendingEmail,
 } from '../services/emailTemplates';
 import { generateTicketPDF } from '../services/pdfService';
 
@@ -44,7 +44,9 @@ const validateAndGetOrder = async (orderId: string, userId: string, req: Request
     const requestUserEmail = (req as any).user?.email;
     const isOwner =
         (customerId && customerId === String(userId)) ||
-        (customerEmail && requestUserEmail && customerEmail.toLowerCase() === requestUserEmail.toLowerCase());
+        (customerEmail &&
+            requestUserEmail &&
+            customerEmail.toLowerCase() === requestUserEmail.toLowerCase());
 
     if (!isAdmin && !isOwner) {
         throw new Error('Você não tem permissão para acessar este pedido');
@@ -63,9 +65,11 @@ const validateAndGetOrder = async (orderId: string, userId: string, req: Request
     if (order.paymentId && order.status === 'pending') {
         // Verificar se o pagamento PIX expirou
         try {
-            const existingPayment = await paymentService.getPaymentById(order.paymentId) as any;
+            const existingPayment = (await paymentService.getPaymentById(order.paymentId)) as any;
             if (existingPayment.payment_method_id === 'pix' && existingPayment.date_of_expiration) {
-                const isExpired = paymentService.isPixPaymentExpired(existingPayment.date_of_expiration);
+                const isExpired = paymentService.isPixPaymentExpired(
+                    existingPayment.date_of_expiration
+                );
                 if (isExpired && existingPayment.status !== 'approved') {
                     // Permitir criar novo pagamento se o anterior expirou
                     order.paymentId = undefined;
@@ -94,20 +98,26 @@ export const createPixPayment = async (req: Request, res: Response) => {
         const order = await validateAndGetOrder(orderId, userId, req);
 
         // Buscar tickets para descrição e items
-        const tickets = await Ticket.find({ _id: { $in: order.tickets } })
-            .populate('ticketType', 'name price');
+        const tickets = await Ticket.find({ _id: { $in: order.tickets } }).populate(
+            'ticketType',
+            'name price'
+        );
 
-        const description = tickets
-            .map(t => `${(t as any).ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`)
-            .join(', ') || `Pedido ${order.orderNumber}`;
+        const description =
+            tickets
+                .map(
+                    (t) =>
+                        `${(t as any).ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`
+                )
+                .join(', ') || `Pedido ${order.orderNumber}`;
 
         // Preparar items para additional_info (melhora taxa de aprovação)
-        const items = tickets.map(ticket => ({
+        const items = tickets.map((ticket) => ({
             title: `${(ticket as any).ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`,
             description: `Ingresso para ${(order as any).event?.name || 'Evento'}`,
             quantity: 1,
             unit_price: (ticket as any).ticketType?.price || 0,
-            category: 'tickets' // Categoria para eventos/ingressos
+            category: 'tickets', // Categoria para eventos/ingressos
         }));
 
         // Obter Device ID do header (X-meli-session-id) ou do body
@@ -116,7 +126,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'DeviceId é obrigatório para criar pagamento',
-                errors: ['Envie X-meli-session-id no header ou deviceId no body']
+                errors: ['Envie X-meli-session-id no header ou deviceId no body'],
             });
         }
 
@@ -127,24 +137,29 @@ export const createPixPayment = async (req: Request, res: Response) => {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = customerEmail.split('@')[0] || 'test';
             customerEmail = `${emailName}@testuser.com`;
-            console.log(`🔧 MOCK: Email alterado de "${order.customerData.email}" para "${customerEmail}" (sandbox)`);
+            console.log(
+                `🔧 MOCK: Email alterado de "${order.customerData.email}" para "${customerEmail}" (sandbox)`
+            );
         }
 
         // Criar pagamento PIX
-        const pixPayment = await paymentService.createPixPayment({
-            orderId: String(order._id),
-            orderNumber: order.orderNumber,
-            totalAmount: order.totalAmount,
-            customerData: {
-                name: order.customerData.name,
-                email: customerEmail, // Email mockado para sandbox
-                cpf: order.customerData.cpf || '',
-                phone: order.customerData.phone
-                // Endereço pode ser adicionado se disponível no Order
+        const pixPayment = await paymentService.createPixPayment(
+            {
+                orderId: String(order._id),
+                orderNumber: order.orderNumber,
+                totalAmount: order.totalAmount,
+                customerData: {
+                    name: order.customerData.name,
+                    email: customerEmail, // Email mockado para sandbox
+                    cpf: order.customerData.cpf || '',
+                    phone: order.customerData.phone,
+                    // Endereço pode ser adicionado se disponível no Order
+                },
+                description,
+                items,
             },
-            description,
-            items
-        }, deviceId);
+            deviceId
+        );
 
         // Obter informações completas do status
         const statusInfo = getPaymentStatusInfo(pixPayment.status, pixPayment.statusDetail || '');
@@ -178,18 +193,20 @@ export const createPixPayment = async (req: Request, res: Response) => {
         const PIX_TIMEOUT_MINUTES = 30;
         const PIX_TIMEOUT_MS = PIX_TIMEOUT_MINUTES * 60 * 1000;
         const now = new Date();
-        
+
         if (order.status === 'pending' && pixPayment.expiresAt) {
             const pixExpiresAt = new Date(pixPayment.expiresAt);
             const orderExpiresAt = (order as any).expiresAt as Date | undefined;
-            
+
             // Se o pedido tem expiresAt e falta menos de 30min, estender para +30min a partir de agora
             if (orderExpiresAt) {
                 const timeRemaining = orderExpiresAt.getTime() - now.getTime();
                 if (timeRemaining < PIX_TIMEOUT_MS) {
                     // Estender expiresAt do pedido para +30min a partir de agora
                     order.expiresAt = new Date(now.getTime() + PIX_TIMEOUT_MS);
-                    console.log(`[createPixPayment] ⏰ Estendendo expiresAt do pedido ${order.orderNumber}: ${orderExpiresAt.toISOString()} → ${order.expiresAt.toISOString()} (faltavam ${Math.round(timeRemaining / 60000)}min)`);
+                    console.log(
+                        `[createPixPayment] ⏰ Estendendo expiresAt do pedido ${order.orderNumber}: ${orderExpiresAt.toISOString()} → ${order.expiresAt.toISOString()} (faltavam ${Math.round(timeRemaining / 60000)}min)`
+                    );
                 } else {
                     // Usar o expiresAt do PIX (que pode ser maior que o do pedido)
                     order.expiresAt = pixExpiresAt > orderExpiresAt ? pixExpiresAt : orderExpiresAt;
@@ -228,28 +245,29 @@ export const createPixPayment = async (req: Request, res: Response) => {
                         month: 'long',
                         day: 'numeric',
                         hour: '2-digit',
-                        minute: '2-digit'
+                        minute: '2-digit',
                     });
 
                     const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
-                    await sendPaymentPendingEmail(
-                        customerEmail,
-                        {
-                            customerName: customerName || 'Cliente',
-                            orderNumber: order.orderNumber,
-                            eventName: event.name,
-                            eventDate,
-                            eventLocation: event.location,
-                            totalAmount: `R$ ${order.totalAmount.toFixed(2).replace('.', ',')}`,
-                            paymentMethod: 'PIX',
-                            expirationMinutes: pixPayment.expirationMinutes || 15,
-                            pixQrCode: pixPayment.qrCodeBase64 ? `data:image/png;base64,${pixPayment.qrCodeBase64}` : pixPayment.qrCode,
-                            pixCode: pixPayment.ticketUrl, // Código PIX para copiar e colar
-                            paymentLink: `${dashboardUrl}/orders/${order._id}`
-                        }
-                    );
+                    await sendPaymentPendingEmail(customerEmail, {
+                        customerName: customerName || 'Cliente',
+                        orderNumber: order.orderNumber,
+                        eventName: event.name,
+                        eventDate,
+                        eventLocation: event.location,
+                        totalAmount: `R$ ${order.totalAmount.toFixed(2).replace('.', ',')}`,
+                        paymentMethod: 'PIX',
+                        expirationMinutes: pixPayment.expirationMinutes || 15,
+                        pixQrCode: pixPayment.qrCodeBase64
+                            ? `data:image/png;base64,${pixPayment.qrCodeBase64}`
+                            : pixPayment.qrCode,
+                        pixCode: pixPayment.ticketUrl, // Código PIX para copiar e colar
+                        paymentLink: `${dashboardUrl}/orders/${order._id}`,
+                    });
 
-                    console.log(`✅ Email de pagamento pendente (PIX) enviado para ${customerEmail}`);
+                    console.log(
+                        `✅ Email de pagamento pendente (PIX) enviado para ${customerEmail}`
+                    );
                 }
             }
         } catch (emailError) {
@@ -263,7 +281,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
             status: pixPayment.status,
             statusDetail: pixPayment.statusDetail,
             userMessage: statusInfo.userMessage,
-            expiresAt: pixPayment.expiresAt
+            expiresAt: pixPayment.expiresAt,
         });
 
         // Buscar pedido atualizado para retornar na resposta
@@ -272,7 +290,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
             .populate({
                 path: 'tickets',
                 select: 'code qrCode status price',
-                match: { deletedAt: null }
+                match: { deletedAt: null },
             })
             .lean();
 
@@ -294,48 +312,53 @@ export const createPixPayment = async (req: Request, res: Response) => {
                     color: statusInfo.color,
                     requiresAction: statusInfo.requiresAction,
                     canRetry: statusInfo.canRetry,
-                    internalStatus: statusInfo.internalStatus
+                    internalStatus: statusInfo.internalStatus,
                 },
                 // CRÍTICO: Retornar pedido atualizado para que apareça na lista de pedidos
-                order: updatedOrder ? {
-                    ...updatedOrder,
-                    tickets: (updatedOrder.tickets || []).map((ticket: any) => ({
-                        ...ticket,
-                        qrCode: updatedOrder.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
-                    }))
-                } : null
+                order: updatedOrder
+                    ? {
+                          ...updatedOrder,
+                          tickets: (updatedOrder.tickets || []).map((ticket: any) => ({
+                              ...ticket,
+                              qrCode: updatedOrder.status === 'paid' ? ticket.qrCode : null, // Só retorna QR code se pedido estiver pago
+                          })),
+                      }
+                    : null,
                 // REFATORADO: Não retornar reserva - o pedido já contém todas as informações necessárias (expiresAt)
-            }
+            },
         });
     } catch (error: any) {
         console.error('Erro ao criar pagamento PIX:', error);
-        
+
         // Extrair informações detalhadas do erro do Mercado Pago
         let errorDetails: any = null;
         let errorMessage = error.message || 'Erro ao criar pagamento PIX';
-        
+
         // Se o erro tem informações estruturadas do Mercado Pago
         if (error.errors && Array.isArray(error.errors)) {
             errorDetails = {
                 code: error.errors[0]?.code,
                 message: error.errors[0]?.message,
-                details: error.errors[0]?.details || error.errors.map((e: any) => e.message || e.code)
+                details:
+                    error.errors[0]?.details || error.errors.map((e: any) => e.message || e.code),
             };
             errorMessage = error.errors[0]?.message || errorMessage;
         } else if (error.response?.data?.errors) {
             errorDetails = {
                 code: error.response.data.errors[0]?.code,
                 message: error.response.data.errors[0]?.message,
-                details: error.response.data.errors[0]?.details || error.response.data.errors.map((e: any) => e.message || e.code)
+                details:
+                    error.response.data.errors[0]?.details ||
+                    error.response.data.errors.map((e: any) => e.message || e.code),
             };
             errorMessage = error.response.data.errors[0]?.message || errorMessage;
         }
-        
+
         return res.status(400).json({
             success: false,
             message: errorMessage,
             errors: errorDetails ? [errorDetails.message] : [errorMessage],
-            errorDetails: errorDetails // Incluir detalhes completos do erro
+            errorDetails: errorDetails, // Incluir detalhes completos do erro
         });
     }
 };
@@ -343,7 +366,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
 /**
  * Cria um pagamento com cartão de crédito/débito (Checkout Transparente)
  * POST /api/payments/:orderId/card
- * 
+ *
  * Body esperado:
  * {
  *   "token": "abc123...", // Token gerado pelo MercadoPago.js no frontend
@@ -366,7 +389,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Token do cartão é obrigatório',
-                errors: ['Token é obrigatório']
+                errors: ['Token é obrigatório'],
             });
         }
 
@@ -374,7 +397,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Método de pagamento é obrigatório',
-                errors: ['paymentMethodId é obrigatório']
+                errors: ['paymentMethodId é obrigatório'],
             });
         }
 
@@ -382,20 +405,26 @@ export const createCardPayment = async (req: Request, res: Response) => {
         order = await validateAndGetOrder(orderId, userId, req);
 
         // Buscar tickets para descrição e items
-        const tickets = await Ticket.find({ _id: { $in: order.tickets } })
-            .populate('ticketType', 'name price');
+        const tickets = await Ticket.find({ _id: { $in: order.tickets } }).populate(
+            'ticketType',
+            'name price'
+        );
 
-        const description = tickets
-            .map(t => `${(t as any).ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`)
-            .join(', ') || `Pedido ${order.orderNumber}`;
+        const description =
+            tickets
+                .map(
+                    (t) =>
+                        `${(t as any).ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`
+                )
+                .join(', ') || `Pedido ${order.orderNumber}`;
 
         // Preparar items para additional_info (melhora taxa de aprovação)
-        const items = tickets.map(ticket => ({
+        const items = tickets.map((ticket) => ({
             title: `${(ticket as any).ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`,
             description: `Ingresso para ${(order as any).event?.name || 'Evento'}`,
             quantity: 1,
             unit_price: (ticket as any).ticketType?.price || 0,
-            category: 'tickets' // Categoria para eventos/ingressos
+            category: 'tickets', // Categoria para eventos/ingressos
         }));
 
         // Obter Device ID do header (X-meli-session-id) ou do body
@@ -404,7 +433,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'DeviceId é obrigatório para criar pagamento',
-                errors: ['Envie X-meli-session-id no header ou deviceId no body']
+                errors: ['Envie X-meli-session-id no header ou deviceId no body'],
             });
         }
 
@@ -415,7 +444,9 @@ export const createCardPayment = async (req: Request, res: Response) => {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = customerEmail.split('@')[0] || 'test';
             customerEmail = `${emailName}@testuser.com`;
-            console.log(`🔧 MOCK: Email alterado de "${order.customerData.email}" para "${customerEmail}" (sandbox)`);
+            console.log(
+                `🔧 MOCK: Email alterado de "${order.customerData.email}" para "${customerEmail}" (sandbox)`
+            );
         }
 
         // Normalizar cardholder para sandbox
@@ -426,18 +457,21 @@ export const createCardPayment = async (req: Request, res: Response) => {
                   identification: cardholder.identification
                       ? {
                             type: cardholder.identification.type,
-                            number: cardholder.identification.number
+                            number: cardholder.identification.number,
                         }
-                      : undefined
+                      : undefined,
               }
             : undefined;
 
         if (process.env.NODE_ENV !== 'production') {
-            if (normalizedCardholder?.email && !normalizedCardholder.email.endsWith('@testuser.com')) {
+            if (
+                normalizedCardholder?.email &&
+                !normalizedCardholder.email.endsWith('@testuser.com')
+            ) {
                 const emailName = normalizedCardholder.email.split('@')[0] || 'cardholder';
                 normalizedCardholder = {
                     ...normalizedCardholder,
-                    email: `${emailName}@testuser.com`
+                    email: `${emailName}@testuser.com`,
                 };
                 console.log(
                     `🔧 MOCK: Email do titular alterado de "${cardholder?.email}" para "${normalizedCardholder.email}" (sandbox)`
@@ -448,10 +482,14 @@ export const createCardPayment = async (req: Request, res: Response) => {
         // Verificar limite de tentativas de cartão
         // IMPORTANTE: Verificar ANTES de processar para evitar processar quando já excedeu
         currentAttempts = order.cardAttempts || 0;
-        console.log(`🔍 [createCardPayment] Verificando tentativas: cardAttempts=${currentAttempts}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}, orderNumber=${order.orderNumber}`);
-        
+        console.log(
+            `🔍 [createCardPayment] Verificando tentativas: cardAttempts=${currentAttempts}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}, orderNumber=${order.orderNumber}`
+        );
+
         if (currentAttempts >= MAX_CARD_PAYMENT_ATTEMPTS) {
-            console.warn(`⚠️ [createCardPayment] Limite de tentativas excedido: cardAttempts=${currentAttempts}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}, orderNumber=${order.orderNumber}`);
+            console.warn(
+                `⚠️ [createCardPayment] Limite de tentativas excedido: cardAttempts=${currentAttempts}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}, orderNumber=${order.orderNumber}`
+            );
             order.status = 'failed';
             order.paymentStatus = 'failed';
             order.paymentStatusDetail = 'max_attempts';
@@ -459,47 +497,58 @@ export const createCardPayment = async (req: Request, res: Response) => {
             order.paymentAdminMessage = 'Limite de tentativas excedido (cartão).';
             order.isActive = false;
             await order.save();
-            
+
             // Devolver ingressos ao estoque quando limite de tentativas é excedido
             if (order.ticketType && order.totalTickets > 0) {
                 const TicketType = require('../models/TicketType').default;
                 const ticketType = await TicketType.findById(order.ticketType);
                 if (ticketType) {
-                    ticketType.soldQuantity = Math.max(0, (ticketType.soldQuantity || 0) - order.totalTickets);
+                    ticketType.soldQuantity = Math.max(
+                        0,
+                        (ticketType.soldQuantity || 0) - order.totalTickets
+                    );
                     await ticketType.save();
-                    console.log(`🔄 [createCardPayment] Ingressos devolvidos ao estoque (limite excedido): ${order.totalTickets} tickets`);
+                    console.log(
+                        `🔄 [createCardPayment] Ingressos devolvidos ao estoque (limite excedido): ${order.totalTickets} tickets`
+                    );
                 }
             }
 
             return res.status(429).json({
                 success: false,
-                message: 'Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido para tentar novamente.',
-                errors: ['Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido.'],
+                message:
+                    'Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido para tentar novamente.',
+                errors: [
+                    'Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido.',
+                ],
                 cardAttempts: order.cardAttempts,
                 maxCardAttempts: MAX_CARD_PAYMENT_ATTEMPTS,
             });
         }
 
         // Criar pagamento com cartão
-        const cardPayment = await paymentService.createCardPayment({
-            orderId: String(order._id),
-            orderNumber: order.orderNumber,
-            totalAmount: order.totalAmount,
-            token,
-            description,
-            installments: installments || 1,
-            paymentMethodId,
-            issuerId,
-            customerData: {
-                name: order.customerData.name,
-                email: customerEmail, // Email mockado para sandbox
-                cpf: order.customerData.cpf || '',
-                phone: order.customerData.phone
-                // Endereço pode ser adicionado se disponível no Order
+        const cardPayment = await paymentService.createCardPayment(
+            {
+                orderId: String(order._id),
+                orderNumber: order.orderNumber,
+                totalAmount: order.totalAmount,
+                token,
+                description,
+                installments: installments || 1,
+                paymentMethodId,
+                issuerId,
+                customerData: {
+                    name: order.customerData.name,
+                    email: customerEmail, // Email mockado para sandbox
+                    cpf: order.customerData.cpf || '',
+                    phone: order.customerData.phone,
+                    // Endereço pode ser adicionado se disponível no Order
+                },
+                cardholder: normalizedCardholder,
+                items,
             },
-            cardholder: normalizedCardholder,
-            items
-        }, deviceId);
+            deviceId
+        );
 
         // Obter informações completas do status
         const statusInfo = getPaymentStatusInfo(cardPayment.status, cardPayment.statusDetail || '');
@@ -521,27 +570,33 @@ export const createCardPayment = async (req: Request, res: Response) => {
         // Seguir o status do MP imediatamente (100% alinhamento)
         if (paymentStatus === 'paid') {
             order.status = 'paid';
-            order.paidAt = cardPayment.dateApproved ? new Date(cardPayment.dateApproved) : new Date();
+            order.paidAt = cardPayment.dateApproved
+                ? new Date(cardPayment.dateApproved)
+                : new Date();
             order.isActive = true;
             order.cardAttempts = 0;
 
             // CRÍTICO: Confirmar APENAS tickets deste pedido específico
             // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
-            const tickets = await Ticket.find({ 
-                _id: { $in: order.tickets }, 
+            const tickets = await Ticket.find({
+                _id: { $in: order.tickets },
                 order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
-                deletedAt: null 
+                deletedAt: null,
             });
-            
-            console.log(`💳 [createCardPayment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`);
-            
+
+            console.log(
+                `💳 [createCardPayment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
+            );
+
             for (const ticket of tickets) {
                 // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
                 if (String(ticket.order) !== String(order._id)) {
-                    console.error(`⚠️ [createCardPayment] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`);
+                    console.error(
+                        `⚠️ [createCardPayment] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`
+                    );
                     continue;
                 }
-                
+
                 if (ticket.status === 'pending') {
                     ticket.status = 'confirmed';
                     // Gerar QR code se ainda não tiver
@@ -550,7 +605,9 @@ export const createCardPayment = async (req: Request, res: Response) => {
                         ticket.qrCode = await generateQRCode(ticket.code);
                     }
                     await ticket.save();
-                    console.log(`✅ [createCardPayment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
+                    console.log(
+                        `✅ [createCardPayment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`
+                    );
                 }
             }
         } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
@@ -561,7 +618,9 @@ export const createCardPayment = async (req: Request, res: Response) => {
             if (paymentStatus === 'failed') {
                 const previousAttempts = order.cardAttempts || 0;
                 order.cardAttempts = previousAttempts + 1;
-                console.log(`📊 [createCardPayment] Tentativa falhou: cardAttempts ${previousAttempts} → ${order.cardAttempts}, orderNumber=${order.orderNumber}`);
+                console.log(
+                    `📊 [createCardPayment] Tentativa falhou: cardAttempts ${previousAttempts} → ${order.cardAttempts}, orderNumber=${order.orderNumber}`
+                );
             }
         } else {
             // processing, pending, etc - manter como pending
@@ -577,7 +636,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
             statusDetail: cardPayment.statusDetail,
             userMessage: statusInfo.userMessage,
             requiresAction: statusInfo.requiresAction,
-            canRetry: statusInfo.canRetry
+            canRetry: statusInfo.canRetry,
         });
 
         return res.json({
@@ -597,20 +656,20 @@ export const createCardPayment = async (req: Request, res: Response) => {
                     color: statusInfo.color,
                     requiresAction: statusInfo.requiresAction,
                     canRetry: statusInfo.canRetry,
-                    internalStatus: statusInfo.internalStatus
+                    internalStatus: statusInfo.internalStatus,
                 },
                 // Se precisar de 3D Secure, retornar informações
-                threeDSInfo: cardPayment.threeDSInfo
-            }
+                threeDSInfo: cardPayment.threeDSInfo,
+            },
         });
     } catch (error: any) {
         console.error('Erro ao criar pagamento com cartão:', error);
-        
+
         // Extrair informações detalhadas do erro do Mercado Pago
         let errorDetails: any = null;
         let errorMessage = error.message || 'Erro ao processar pagamento com cartão';
         let messages: string[] = [];
- 
+
         if (Array.isArray(error.mpErrors) && error.mpErrors.length > 0) {
             messages = error.mpErrors.map((msg: any) => String(msg));
             errorMessage = messages[0];
@@ -624,13 +683,14 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 errorMessage = messages[0];
             }
         }
- 
+
         // Se o erro tem informações estruturadas do Mercado Pago
         if (error.errors && Array.isArray(error.errors)) {
             errorDetails = {
                 code: error.errors[0]?.code,
                 message: error.errors[0]?.message,
-                details: error.errors[0]?.details || error.errors.map((e: any) => e.message || e.code)
+                details:
+                    error.errors[0]?.details || error.errors.map((e: any) => e.message || e.code),
             };
             if (!messages.length) {
                 errorMessage = error.errors[0]?.message || errorMessage;
@@ -640,7 +700,9 @@ export const createCardPayment = async (req: Request, res: Response) => {
             errorDetails = {
                 code: responseData.errors[0]?.code,
                 message: responseData.errors[0]?.message,
-                details: responseData.errors[0]?.details || responseData.errors.map((e: any) => e.message || e.code)
+                details:
+                    responseData.errors[0]?.details ||
+                    responseData.errors.map((e: any) => e.message || e.code),
             };
             if (!messages.length) {
                 errorMessage = responseData.errors[0]?.message || errorMessage;
@@ -649,35 +711,39 @@ export const createCardPayment = async (req: Request, res: Response) => {
         } else if (responseData) {
             errorDetails = responseData;
         }
- 
+
         const friendlyMessages: string[] = [];
         const appendFriendly = (msg: string) => {
             if (!msg) return;
             friendlyMessages.push(msg);
         };
- 
+
         const interpretMessage = (msg: string) => {
             const normalized = msg.toLowerCase();
             if (normalized.includes('rejected_by_issuer')) {
-                appendFriendly('Transação recusada pelo emissor do cartão. Entre em contato com o banco ou utilize outro cartão.');
+                appendFriendly(
+                    'Transação recusada pelo emissor do cartão. Entre em contato com o banco ou utilize outro cartão.'
+                );
                 return true;
             }
             if (normalized.includes('invalid_email_for_sandbox')) {
-                appendFriendly('Em sandbox, utilize um e-mail terminando em @testuser.com para o titular do cartão.');
+                appendFriendly(
+                    'Em sandbox, utilize um e-mail terminando em @testuser.com para o titular do cartão.'
+                );
                 return true;
             }
             return false;
         };
- 
+
         messages.forEach((msg) => {
             if (!interpretMessage(msg)) {
                 appendFriendly(msg);
             }
         });
- 
+
         const uniqueFriendly = Array.from(new Set(friendlyMessages));
         errorMessage = uniqueFriendly[0];
-         
+
         if (!messages.length) {
             messages = uniqueFriendly;
         }
@@ -687,46 +753,60 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 const previousAttempts = order.cardAttempts || 0;
                 const newAttempts = previousAttempts + 1;
                 const maxAttempts = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
-                
+
                 // Marcar como failed apenas se esgotou tentativas, senão manter pending para reutilização
                 if (newAttempts >= maxAttempts) {
                     order.status = 'failed';
                     order.isActive = false;
-                    console.log(`📊 [createCardPayment] Tentativas esgotadas: cardAttempts ${previousAttempts} → ${newAttempts}/${maxAttempts}, orderNumber=${order.orderNumber}`);
+                    console.log(
+                        `📊 [createCardPayment] Tentativas esgotadas: cardAttempts ${previousAttempts} → ${newAttempts}/${maxAttempts}, orderNumber=${order.orderNumber}`
+                    );
                 } else {
                     // Manter pending para permitir nova tentativa
                     order.status = 'pending';
                     order.isActive = true;
                     // CRÍTICO: Manter expiresAt original, não renovar o tempo
                     // O tempo original deve ser preservado mesmo após falhas de pagamento
-                    console.log(`📊 [createCardPayment] Tentativa ${newAttempts}/${maxAttempts} falhou, mantendo pedido pending (expiresAt original: ${order.expiresAt}), orderNumber=${order.orderNumber}`);
+                    console.log(
+                        `📊 [createCardPayment] Tentativa ${newAttempts}/${maxAttempts} falhou, mantendo pedido pending (expiresAt original: ${order.expiresAt}), orderNumber=${order.orderNumber}`
+                    );
                 }
-                
+
                 order.paymentStatus = 'failed';
                 order.paymentStatusDetail = 'rejected';
                 order.paymentMessage = errorMessage;
                 order.paymentAdminMessage = messages.join(', ');
                 order.cardAttempts = newAttempts;
                 await order.save();
-                
+
                 // CRÍTICO: Devolver ingressos ao estoque APENAS quando esgotou tentativas
                 // Se ainda há tentativas disponíveis, manter estoque reservado
                 if (newAttempts >= maxAttempts && order.ticketType && order.totalTickets > 0) {
                     const TicketType = require('../models/TicketType').default;
                     const ticketType = await TicketType.findById(order.ticketType);
                     if (ticketType) {
-                        ticketType.soldQuantity = Math.max(0, (ticketType.soldQuantity || 0) - order.totalTickets);
+                        ticketType.soldQuantity = Math.max(
+                            0,
+                            (ticketType.soldQuantity || 0) - order.totalTickets
+                        );
                         await ticketType.save();
-                        console.log(`🔄 [createCardPayment] Tentativas esgotadas - ingressos devolvidos ao estoque: ${order.totalTickets} tickets, soldQuantity: ${ticketType.soldQuantity}`);
+                        console.log(
+                            `🔄 [createCardPayment] Tentativas esgotadas - ingressos devolvidos ao estoque: ${order.totalTickets} tickets, soldQuantity: ${ticketType.soldQuantity}`
+                        );
                     }
                 } else if (newAttempts < maxAttempts) {
-                    console.log(`📦 [createCardPayment] Mantendo estoque reservado (${newAttempts}/${maxAttempts} tentativas)`);
+                    console.log(
+                        `📦 [createCardPayment] Mantendo estoque reservado (${newAttempts}/${maxAttempts} tentativas)`
+                    );
                 }
             } catch (persistError) {
-                console.error('Não foi possível atualizar o pedido após falha no cartão:', persistError);
+                console.error(
+                    'Não foi possível atualizar o pedido após falha no cartão:',
+                    persistError
+                );
             }
         }
- 
+
         return res.status(400).json({
             success: false,
             message: errorMessage,
@@ -761,7 +841,7 @@ async function sendPaymentApprovedEmail(order: any) {
         const tickets = populatedOrder.tickets as any[];
 
         // Filtrar apenas tickets com QR code (confirmados)
-        const ticketsWithQR = tickets.filter(t => t.qrCode);
+        const ticketsWithQR = tickets.filter((t) => t.qrCode);
 
         if (ticketsWithQR.length === 0) {
             console.warn('Nenhum ticket com QR code encontrado para envio');
@@ -774,16 +854,16 @@ async function sendPaymentApprovedEmail(order: any) {
                 name: event.name,
                 date: event.date,
                 location: event.location,
-                address: event.address
+                address: event.address,
             },
             orderNumber: populatedOrder.orderNumber,
             customerName: customer.name,
-            tickets: ticketsWithQR.map(t => ({
+            tickets: ticketsWithQR.map((t) => ({
                 code: t.code,
                 qrCode: t.qrCode,
                 ticketType: (t.ticketType as any)?.name || 'Ingresso',
-                holderName: (t.holder as any)?.name || customer.name
-            }))
+                holderName: (t.holder as any)?.name || customer.name,
+            })),
         });
 
         // Formatar data do evento
@@ -793,14 +873,14 @@ async function sendPaymentApprovedEmail(order: any) {
             month: 'long',
             day: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
         });
 
         // Preparar QR codes para exibição no email
-        const qrCodesForEmail = ticketsWithQR.map(t => ({
+        const qrCodesForEmail = ticketsWithQR.map((t) => ({
             code: t.code,
             qrCode: t.qrCode, // Já está em base64 data URL
-            holderName: (t.holder as any)?.name || customer.name
+            holderName: (t.holder as any)?.name || customer.name,
         }));
 
         // Enviar email com PDF anexo e QR codes inline
@@ -817,13 +897,15 @@ async function sendPaymentApprovedEmail(order: any) {
                 totalTickets: ticketsWithQR.length,
                 ticketType: ticketsWithQR[0]?.ticketType?.name || 'Ingresso',
                 downloadLink: `${dashboardUrl}/orders/${populatedOrder._id}`,
-                qrCodes: qrCodesForEmail
+                qrCodes: qrCodesForEmail,
             },
-            [{
-                filename: `ingressos-${populatedOrder.orderNumber}.pdf`,
-                content: pdfBuffer,
-                contentType: 'application/pdf'
-            }]
+            [
+                {
+                    filename: `ingressos-${populatedOrder.orderNumber}.pdf`,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf',
+                },
+            ]
         );
 
         console.log(`✅ Email de confirmação com PDF enviado para ${customer.email}`);
@@ -857,24 +939,22 @@ async function sendPaymentRejectedEmailHelper(order: any, rejectionReason?: stri
             month: 'long',
             day: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
         });
 
         const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
-        await sendPaymentRejectedEmail(
-            customer.email,
-            {
-                customerName: customer.name,
-                orderNumber: populatedOrder.orderNumber,
-                eventName: event.name,
-                eventDate,
-                eventLocation: event.location,
-                totalAmount: `R$ ${populatedOrder.totalAmount.toFixed(2).replace('.', ',')}`,
-                paymentMethod: populatedOrder.paymentMethod || 'Não informado',
-                rejectionReason: rejectionReason || populatedOrder.paymentMessage || 'Pagamento recusado',
-                retryLink: `${dashboardUrl}/orders/${populatedOrder._id}`
-            }
-        );
+        await sendPaymentRejectedEmail(customer.email, {
+            customerName: customer.name,
+            orderNumber: populatedOrder.orderNumber,
+            eventName: event.name,
+            eventDate,
+            eventLocation: event.location,
+            totalAmount: `R$ ${populatedOrder.totalAmount.toFixed(2).replace('.', ',')}`,
+            paymentMethod: populatedOrder.paymentMethod || 'Não informado',
+            rejectionReason:
+                rejectionReason || populatedOrder.paymentMessage || 'Pagamento recusado',
+            retryLink: `${dashboardUrl}/orders/${populatedOrder._id}`,
+        });
 
         console.log(`✅ Email de pagamento recusado enviado para ${customer.email}`);
     } catch (error) {
@@ -892,7 +972,9 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
         // Assinatura obrigatória em produção
         const secret = process.env.MP_WEBHOOK_SECRET?.trim();
-        const sigHeader = (req.headers['x-signature'] as string) || (req.headers['x-hub-signature-256'] as string);
+        const sigHeader =
+            (req.headers['x-signature'] as string) ||
+            (req.headers['x-hub-signature-256'] as string);
         if ((process.env.NODE_ENV || 'development') === 'production') {
             if (!secret) return res.status(500).send('Webhook secret not configured');
             if (!sigHeader) return res.status(401).send('Missing signature');
@@ -905,7 +987,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 .digest('hex');
             const provided = sigHeader.replace(/^sha256=/i, '').trim();
             try {
-                signatureValid = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
+                signatureValid = crypto.timingSafeEqual(
+                    Buffer.from(expected),
+                    Buffer.from(provided)
+                );
             } catch {
                 signatureValid = false;
             }
@@ -916,7 +1001,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
         // Idempotência persistente (DB) + enfileiramento
         const eventId = `${type}:${data?.id || 'unknown'}`;
-        const queued = await enqueueOrGet(eventId, type, req.body, req.headers as any, sigHeader, !!signatureValid);
+        const queued = await enqueueOrGet(
+            eventId,
+            type,
+            req.body,
+            req.headers as any,
+            sigHeader,
+            !!signatureValid
+        );
         if (queued.status === 'processed') {
             return res.status(200).send('OK');
         }
@@ -929,10 +1021,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
         if (type === 'order') {
             // Notificação de Order (Orders API)
             const mpOrderId = data.id;
-            
+
             try {
-                const orderInfo = await paymentService.getOrderById(mpOrderId) as any;
-                
+                const orderInfo = (await paymentService.getOrderById(mpOrderId)) as any;
+
                 if (!orderInfo) {
                     console.error('Order não encontrada:', mpOrderId);
                     return;
@@ -940,7 +1032,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                 // Buscar pedido pelo external_reference
                 const orderId = orderInfo.external_reference || orderInfo.metadata?.order_id;
-                
+
                 if (!orderId) {
                     console.error('Order ID não encontrado na order do MP:', mpOrderId);
                     return;
@@ -979,15 +1071,15 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 order.paymentStatusDetail = paymentInfo.status_detail;
                 order.paymentMessage = statusInfo.userMessage;
                 order.paymentAdminMessage = statusInfo.adminMessage;
-                
+
                 // Mapear status interno para status do Order
                 // REGRA: Se o MP cancelou (via webhook), SEMPRE seguir o MP (100% alinhamento)
                 // A data de expiração é apenas para cancelamento automático quando expirar
                 const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
-                
+
                 if (paymentStatus === 'paid') {
                     order.status = 'paid';
-                    
+
                     // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
                     // O pedido PENDING já funciona como reserva e quando pago, o estoque já está bloqueado corretamente
                 } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
@@ -995,12 +1087,18 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     // O MP pode cancelar por vários motivos (expiração, erro interno, cancelamento manual, etc)
                     order.status = 'cancelled';
                     if (isPixOrder && process.env.NODE_ENV !== 'production') {
-                        const mpExpiration = paymentInfo.date_of_expiration ? new Date(paymentInfo.date_of_expiration) : null;
+                        const mpExpiration = paymentInfo.date_of_expiration
+                            ? new Date(paymentInfo.date_of_expiration)
+                            : null;
                         const now = new Date();
                         if (mpExpiration && now < mpExpiration) {
-                            console.log(`[webhook-order] PIX pedido ${order.orderNumber}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`);
+                            console.log(
+                                `[webhook-order] PIX pedido ${order.orderNumber}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`
+                            );
                         } else {
-                            console.log(`[webhook-order] PIX pedido ${order.orderNumber}: MP cancelou (status: ${paymentInfo.status}). Seguindo MP e cancelando.`);
+                            console.log(
+                                `[webhook-order] PIX pedido ${order.orderNumber}: MP cancelou (status: ${paymentInfo.status}). Seguindo MP e cancelando.`
+                            );
                         }
                     }
                 } else if (paymentStatus === 'refunded') {
@@ -1008,7 +1106,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 } else {
                     order.status = 'pending';
                 }
-                
+
                 order.paymentMethod = paymentMethod;
 
                 // Salvar informações de erro se houver
@@ -1020,35 +1118,45 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 }
 
                 if (paymentStatus === 'paid') {
-                    order.paidAt = paymentInfo.date_approved ? new Date(paymentInfo.date_approved) : new Date();
+                    order.paidAt = paymentInfo.date_approved
+                        ? new Date(paymentInfo.date_approved)
+                        : new Date();
 
                     // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                     // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
-                    const tickets = await Ticket.find({ 
-                        _id: { $in: order.tickets }, 
+                    const tickets = await Ticket.find({
+                        _id: { $in: order.tickets },
                         order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
-                        deletedAt: null 
+                        deletedAt: null,
                     });
-                    
-                    console.log(`🔔 [handleWebhook] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`);
-                    
+
+                    console.log(
+                        `🔔 [handleWebhook] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
+                    );
+
                     for (const ticket of tickets) {
                         // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
                         if (String(ticket.order) !== String(order._id)) {
-                            console.error(`⚠️ [handleWebhook] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`);
+                            console.error(
+                                `⚠️ [handleWebhook] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`
+                            );
                             continue;
                         }
-                        
+
                         if (ticket.status === 'pending' && !ticket.qrCode) {
                             const { generateQRCode } = await import('../services/qrCodeService');
                             ticket.status = 'confirmed';
                             ticket.qrCode = await generateQRCode(ticket.code);
                             await ticket.save();
-                            console.log(`✅ [handleWebhook] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
+                            console.log(
+                                `✅ [handleWebhook] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`
+                            );
                         } else if (ticket.status === 'pending') {
                             ticket.status = 'confirmed';
                             await ticket.save();
-                            console.log(`✅ [handleWebhook] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
+                            console.log(
+                                `✅ [handleWebhook] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`
+                            );
                         }
                     }
 
@@ -1070,7 +1178,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     internalStatus: paymentStatus,
                     userMessage: statusInfo.userMessage,
                     requiresAction: statusInfo.requiresAction,
-                    canRetry: statusInfo.canRetry
+                    canRetry: statusInfo.canRetry,
                 });
             } catch (error: any) {
                 console.error('Erro ao processar notificação de Order:', error);
@@ -1083,7 +1191,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             const paymentId = data.id;
 
             // Buscar informações do pagamento
-            const paymentInfo = await paymentService.getPaymentById(paymentId) as any;
+            const paymentInfo = (await paymentService.getPaymentById(paymentId)) as any;
 
             if (!paymentInfo) {
                 console.error('Pagamento não encontrado:', paymentId);
@@ -1122,15 +1230,15 @@ export const handleWebhook = async (req: Request, res: Response) => {
             order.paymentStatusDetail = paymentInfo.status_detail;
             order.paymentMessage = statusInfo.userMessage;
             order.paymentAdminMessage = statusInfo.adminMessage;
-            
+
             // Mapear status interno para status do Order (que só aceita pending, paid, cancelled, refunded)
             // REGRA: Se o MP cancelou (via webhook), SEMPRE seguir o MP (100% alinhamento)
             // A data de expiração é apenas para cancelamento automático quando expirar
             const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
-            
+
             if (paymentStatus === 'paid') {
                 order.status = 'paid';
-                
+
                 // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
                 // O pedido PENDING já funciona como reserva e quando pago, o estoque já está bloqueado corretamente
             } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
@@ -1138,12 +1246,18 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 // O MP pode cancelar por vários motivos (expiração, erro interno, cancelamento manual, etc)
                 order.status = 'cancelled';
                 if (isPixOrder && process.env.NODE_ENV !== 'production') {
-                    const mpExpiration = paymentInfo.date_of_expiration ? new Date(paymentInfo.date_of_expiration) : null;
+                    const mpExpiration = paymentInfo.date_of_expiration
+                        ? new Date(paymentInfo.date_of_expiration)
+                        : null;
                     const now = new Date();
                     if (mpExpiration && now < mpExpiration) {
-                        console.log(`[webhook-payment] PIX pedido ${order.orderNumber}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`);
+                        console.log(
+                            `[webhook-payment] PIX pedido ${order.orderNumber}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`
+                        );
                     } else {
-                        console.log(`[webhook-payment] PIX pedido ${order.orderNumber}: MP cancelou (status: ${paymentInfo.status}). Seguindo MP e cancelando.`);
+                        console.log(
+                            `[webhook-payment] PIX pedido ${order.orderNumber}: MP cancelou (status: ${paymentInfo.status}). Seguindo MP e cancelando.`
+                        );
                     }
                 }
             } else if (paymentStatus === 'refunded') {
@@ -1152,7 +1266,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 // processing ou pending mantém como pending
                 order.status = 'pending';
             }
-            
+
             order.paymentMethod = paymentMethod;
 
             // Salvar informações de erro se houver
@@ -1164,35 +1278,45 @@ export const handleWebhook = async (req: Request, res: Response) => {
             }
 
             if (paymentStatus === 'paid') {
-                order.paidAt = paymentInfo.date_approved ? new Date(paymentInfo.date_approved) : new Date();
+                order.paidAt = paymentInfo.date_approved
+                    ? new Date(paymentInfo.date_approved)
+                    : new Date();
 
                 // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                 // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
-                const tickets = await Ticket.find({ 
-                    _id: { $in: order.tickets }, 
+                const tickets = await Ticket.find({
+                    _id: { $in: order.tickets },
                     order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
-                    deletedAt: null 
+                    deletedAt: null,
                 });
-                
-                console.log(`🔔 [handleWebhook-payment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`);
-                
+
+                console.log(
+                    `🔔 [handleWebhook-payment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
+                );
+
                 for (const ticket of tickets) {
                     // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
                     if (String(ticket.order) !== String(order._id)) {
-                        console.error(`⚠️ [handleWebhook-payment] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`);
+                        console.error(
+                            `⚠️ [handleWebhook-payment] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`
+                        );
                         continue;
                     }
-                    
+
                     if (ticket.status === 'pending' && !ticket.qrCode) {
                         const { generateQRCode } = await import('../services/qrCodeService');
                         ticket.status = 'confirmed';
                         ticket.qrCode = await generateQRCode(ticket.code);
                         await ticket.save();
-                        console.log(`✅ [handleWebhook-payment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
+                        console.log(
+                            `✅ [handleWebhook-payment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`
+                        );
                     } else if (ticket.status === 'pending') {
                         ticket.status = 'confirmed';
                         await ticket.save();
-                        console.log(`✅ [handleWebhook-payment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
+                        console.log(
+                            `✅ [handleWebhook-payment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`
+                        );
                     }
                 }
 
@@ -1215,10 +1339,13 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 requiresAction: statusInfo.requiresAction,
                 canRetry: statusInfo.canRetry,
                 errorCode: paymentInfo.error_code,
-                errorDescription: paymentInfo.error_description
+                errorDescription: paymentInfo.error_description,
             });
             // Marcar como processado
-            await WebhookEvent.updateOne({ eventId }, { status: 'processed', processedAt: new Date(), attempts: (queued.attempts || 0) });
+            await WebhookEvent.updateOne(
+                { eventId },
+                { status: 'processed', processedAt: new Date(), attempts: queued.attempts || 0 }
+            );
         }
     } catch (error: any) {
         console.error('Erro ao processar webhook:', error);
@@ -1228,7 +1355,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
             const eventId = `${type}:${data?.id || 'unknown'}`;
             await WebhookEvent.updateOne(
                 { eventId },
-                { $set: { status: 'failed', lastError: error?.message || 'unknown' }, $inc: { attempts: 1 } },
+                {
+                    $set: { status: 'failed', lastError: error?.message || 'unknown' },
+                    $inc: { attempts: 1 },
+                },
                 { upsert: false }
             );
         } catch {}
@@ -1244,12 +1374,12 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
     try {
         const { paymentId } = req.params;
 
-        const paymentInfo = await paymentService.getPaymentById(paymentId) as any;
+        const paymentInfo = (await paymentService.getPaymentById(paymentId)) as any;
 
         if (!paymentInfo) {
             return res.status(404).json({
                 success: false,
-                message: 'Pagamento não encontrado'
+                message: 'Pagamento não encontrado',
             });
         }
 
@@ -1272,9 +1402,10 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
                 transactionAmount: paymentInfo.transaction_amount,
                 dateApproved: paymentInfo.date_approved,
                 // Para PIX, verificar expiração
-                isExpired: paymentInfo.payment_method_id === 'pix' && paymentInfo.date_of_expiration
-                    ? paymentService.isPixPaymentExpired(paymentInfo.date_of_expiration)
-                    : false,
+                isExpired:
+                    paymentInfo.payment_method_id === 'pix' && paymentInfo.date_of_expiration
+                        ? paymentService.isPixPaymentExpired(paymentInfo.date_of_expiration)
+                        : false,
                 expiresAt: paymentInfo.date_of_expiration,
                 // Informações completas do status
                 statusInfo: {
@@ -1283,22 +1414,24 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
                     color: statusInfo.color,
                     requiresAction: statusInfo.requiresAction,
                     canRetry: statusInfo.canRetry,
-                    internalStatus: statusInfo.internalStatus
+                    internalStatus: statusInfo.internalStatus,
                 },
                 // Informações de erro se houver
-                error: paymentInfo.error_code ? {
-                    code: paymentInfo.error_code,
-                    description: paymentInfo.error_description,
-                    message: paymentInfo.message
-                } : null
-            }
+                error: paymentInfo.error_code
+                    ? {
+                          code: paymentInfo.error_code,
+                          description: paymentInfo.error_description,
+                          message: paymentInfo.message,
+                      }
+                    : null,
+            },
         });
     } catch (error: any) {
         console.error('Erro ao buscar status do pagamento:', error);
         return res.status(500).json({
             success: false,
             message: 'Erro ao buscar status do pagamento',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -1317,7 +1450,7 @@ export const getOrderPaymentStatus = async (req: Request, res: Response) => {
         if (!order) {
             return res.status(404).json({
                 success: false,
-                message: 'Pedido não encontrado'
+                message: 'Pedido não encontrado',
             });
         }
 
@@ -1328,7 +1461,7 @@ export const getOrderPaymentStatus = async (req: Request, res: Response) => {
         if (!isAdmin && !isOwner) {
             return res.status(403).json({
                 success: false,
-                message: 'Você não tem permissão para acessar este pedido'
+                message: 'Você não tem permissão para acessar este pedido',
             });
         }
 
@@ -1339,14 +1472,14 @@ export const getOrderPaymentStatus = async (req: Request, res: Response) => {
                 data: {
                     orderStatus: order.status,
                     paymentStatus: null,
-                    paymentId: null
-                }
+                    paymentId: null,
+                },
             });
         }
 
         // Buscar status do pagamento no Mercado Pago
         try {
-            const paymentInfo = await paymentService.getPaymentById(order.paymentId) as any;
+            const paymentInfo = (await paymentService.getPaymentById(order.paymentId)) as any;
 
             // Obter informações completas do status
             const statusInfo = getPaymentStatusInfo(
@@ -1355,19 +1488,22 @@ export const getOrderPaymentStatus = async (req: Request, res: Response) => {
             );
 
             // Atualizar pedido com informações mais recentes se necessário
-            if (order.paymentStatus !== paymentInfo.status || order.paymentStatusDetail !== paymentInfo.status_detail) {
+            if (
+                order.paymentStatus !== paymentInfo.status ||
+                order.paymentStatusDetail !== paymentInfo.status_detail
+            ) {
                 order.paymentStatus = paymentInfo.status;
                 order.paymentStatusDetail = paymentInfo.status_detail;
                 order.paymentMessage = statusInfo.userMessage;
                 order.paymentAdminMessage = statusInfo.adminMessage;
-                
+
                 if (paymentInfo.error_code) {
                     order.paymentErrorCode = paymentInfo.error_code;
                 }
                 if (paymentInfo.error_description) {
                     order.paymentErrorDescription = paymentInfo.error_description;
                 }
-                
+
                 await order.save();
             }
 
@@ -1384,9 +1520,10 @@ export const getOrderPaymentStatus = async (req: Request, res: Response) => {
                     transactionAmount: paymentInfo.transaction_amount,
                     dateApproved: paymentInfo.date_approved,
                     // Para PIX, verificar expiração
-                    isExpired: paymentInfo.payment_method_id === 'pix' && paymentInfo.date_of_expiration
-                        ? paymentService.isPixPaymentExpired(paymentInfo.date_of_expiration)
-                        : false,
+                    isExpired:
+                        paymentInfo.payment_method_id === 'pix' && paymentInfo.date_of_expiration
+                            ? paymentService.isPixPaymentExpired(paymentInfo.date_of_expiration)
+                            : false,
                     expiresAt: paymentInfo.date_of_expiration,
                     // Informações completas do status (do banco ou atualizadas)
                     statusInfo: {
@@ -1395,21 +1532,27 @@ export const getOrderPaymentStatus = async (req: Request, res: Response) => {
                         color: statusInfo.color,
                         requiresAction: statusInfo.requiresAction,
                         canRetry: statusInfo.canRetry,
-                        internalStatus: statusInfo.internalStatus
+                        internalStatus: statusInfo.internalStatus,
                     },
                     // Informações de erro se houver
-                    error: paymentInfo.error_code || order.paymentErrorCode ? {
-                        code: paymentInfo.error_code || order.paymentErrorCode,
-                        description: paymentInfo.error_description || order.paymentErrorDescription,
-                        message: paymentInfo.message
-                    } : null
-                }
+                    error:
+                        paymentInfo.error_code || order.paymentErrorCode
+                            ? {
+                                  code: paymentInfo.error_code || order.paymentErrorCode,
+                                  description:
+                                      paymentInfo.error_description ||
+                                      order.paymentErrorDescription,
+                                  message: paymentInfo.message,
+                              }
+                            : null,
+                },
             });
         } catch (error: any) {
             // Se não conseguir buscar no MP, retornar status do pedido (com informações salvas)
-            const savedStatusInfo = order.paymentStatus && order.paymentStatusDetail
-                ? getPaymentStatusInfo(order.paymentStatus, order.paymentStatusDetail)
-                : null;
+            const savedStatusInfo =
+                order.paymentStatus && order.paymentStatusDetail
+                    ? getPaymentStatusInfo(order.paymentStatus, order.paymentStatusDetail)
+                    : null;
 
             return res.json({
                 success: true,
@@ -1419,21 +1562,26 @@ export const getOrderPaymentStatus = async (req: Request, res: Response) => {
                     statusDetail: order.paymentStatusDetail,
                     paymentId: order.paymentId,
                     // Informações salvas do status
-                    statusInfo: savedStatusInfo ? {
-                        userMessage: order.paymentMessage || savedStatusInfo.userMessage,
-                        adminMessage: order.paymentAdminMessage || savedStatusInfo.adminMessage,
-                        color: savedStatusInfo.color,
-                        requiresAction: savedStatusInfo.requiresAction,
-                        canRetry: savedStatusInfo.canRetry,
-                        internalStatus: savedStatusInfo.internalStatus
-                    } : null,
+                    statusInfo: savedStatusInfo
+                        ? {
+                              userMessage: order.paymentMessage || savedStatusInfo.userMessage,
+                              adminMessage:
+                                  order.paymentAdminMessage || savedStatusInfo.adminMessage,
+                              color: savedStatusInfo.color,
+                              requiresAction: savedStatusInfo.requiresAction,
+                              canRetry: savedStatusInfo.canRetry,
+                              internalStatus: savedStatusInfo.internalStatus,
+                          }
+                        : null,
                     // Informações de erro se houver
-                    error: order.paymentErrorCode ? {
-                        code: order.paymentErrorCode,
-                        description: order.paymentErrorDescription
-                    } : null,
-                    note: 'Não foi possível buscar status atualizado do Mercado Pago. Exibindo informações salvas.'
-                }
+                    error: order.paymentErrorCode
+                        ? {
+                              code: order.paymentErrorCode,
+                              description: order.paymentErrorDescription,
+                          }
+                        : null,
+                    note: 'Não foi possível buscar status atualizado do Mercado Pago. Exibindo informações salvas.',
+                },
             });
         }
     } catch (error: any) {
@@ -1441,7 +1589,7 @@ export const getOrderPaymentStatus = async (req: Request, res: Response) => {
         return res.status(500).json({
             success: false,
             message: 'Erro ao buscar status do pagamento',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };

@@ -25,56 +25,56 @@ const sessionSchema = new Schema<ISession>(
             type: Schema.Types.ObjectId,
             ref: 'User',
             required: true,
-            index: true
+            index: true,
         },
         refreshToken: {
             type: String,
             required: true,
             unique: true,
-            index: true
+            index: true,
         },
         deviceInfo: {
             userAgent: {
                 type: String,
-                required: true
+                required: true,
             },
             ip: {
                 type: String,
-                required: true
+                required: true,
             },
             device: {
                 type: String,
-                default: 'Unknown'
+                default: 'Unknown',
             },
             browser: {
                 type: String,
-                default: 'Unknown'
+                default: 'Unknown',
             },
             os: {
                 type: String,
-                default: 'Unknown'
-            }
+                default: 'Unknown',
+            },
         },
         isActive: {
             type: Boolean,
             default: true,
-            index: true
+            index: true,
         },
         lastActivity: {
             type: Date,
             default: Date.now,
-            index: true
+            index: true,
         },
         expiresAt: {
             type: Date,
             required: true,
-            index: { expireAfterSeconds: 0 } // TTL index
-        }
+            index: { expireAfterSeconds: 0 }, // TTL index
+        },
     },
     {
         timestamps: true,
         toJSON: { virtuals: true },
-        toObject: { virtuals: true }
+        toObject: { virtuals: true },
     }
 );
 
@@ -96,33 +96,24 @@ sessionSchema.statics.findActiveByUserId = function (userId: string) {
     return this.find({
         userId,
         isActive: true,
-        expiresAt: { $gt: new Date() }
+        expiresAt: { $gt: new Date() },
     }).sort({ lastActivity: -1 });
 };
 
 // Static method para invalidar todas as sessões de um usuário
 sessionSchema.statics.invalidateAllByUserId = function (userId: string) {
-    return this.updateMany(
-        { userId, isActive: true },
-        { isActive: false }
-    );
+    return this.updateMany({ userId, isActive: true }, { isActive: false });
 };
 
 // Static method para invalidar uma sessão específica
 sessionSchema.statics.invalidateByRefreshToken = function (refreshToken: string) {
-    return this.updateOne(
-        { refreshToken, isActive: true },
-        { isActive: false }
-    );
+    return this.updateOne({ refreshToken, isActive: true }, { isActive: false });
 };
 
 // Static method para limpar sessões expiradas
 sessionSchema.statics.cleanupExpired = function () {
     return this.deleteMany({
-        $or: [
-            { expiresAt: { $lt: new Date() } },
-            { isActive: false }
-        ]
+        $or: [{ expiresAt: { $lt: new Date() } }, { isActive: false }],
     });
 };
 

@@ -29,7 +29,6 @@ export const connectDatabase = async (): Promise<void> => {
         console.log(`📊 Database: ${mongoose.connection.db?.databaseName}`);
         console.log(`🌍 Host: ${mongoose.connection.host}`);
         console.log(`🔌 Port: ${mongoose.connection.port}`);
-
     } catch (error) {
         console.error('❌ Erro ao conectar ao MongoDB:', error);
         process.exit(1); // Encerra o processo se não conseguir conectar

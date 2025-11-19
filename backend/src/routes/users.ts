@@ -207,5 +207,3 @@ router.patch('/:userId/suspicious', authenticate, isAdmin, toggleSuspicious);
 router.patch('/:userId/blacklist', authenticate, isAdmin, toggleBlacklist);
 
 export default router;
-
-

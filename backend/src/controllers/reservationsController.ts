@@ -7,7 +7,8 @@ export const createReservation = async (req: Request, res: Response) => {
     try {
         const { eventId, ticketTypeId, quantity } = req.body;
         // Obter sessionId do header ou gerar um novo
-        const sessionId = (req.headers['x-session-id'] as string) || `session_${Date.now()}_${Math.random()}`;
+        const sessionId =
+            (req.headers['x-session-id'] as string) || `session_${Date.now()}_${Math.random()}`;
 
         console.log('[createReservation] 📥 Requisição recebida:', {
             eventId,
@@ -36,9 +37,10 @@ export const createReservation = async (req: Request, res: Response) => {
         });
 
         // Verificar se é nova reserva ou atualização
-        const isNewReservation = result.reservation && 
+        const isNewReservation =
+            result.reservation &&
             new Date(result.reservation.createdAt).getTime() > Date.now() - 5000; // Criada nos últimos 5 segundos
-        
+
         console.log('[createReservation] 📤 Resultado:', {
             success: result.success,
             reservationId: result.reservation?._id,
@@ -142,7 +144,7 @@ export const releaseReservation = async (req: Request, res: Response) => {
 // Liberar todas as reservas da sessão
 export const releaseSessionReservations = async (req: Request, res: Response) => {
     try {
-        const sessionId = (req.headers['x-session-id'] as string);
+        const sessionId = req.headers['x-session-id'] as string;
 
         if (!sessionId) {
             return res.status(400).json({
@@ -206,7 +208,7 @@ export const getAvailableQuantity = async (req: Request, res: Response) => {
 // Listar reservas ativas do usuário/sessão
 export const listMyReservations = async (req: Request, res: Response) => {
     try {
-        const sessionId = (req.headers['x-session-id'] as string);
+        const sessionId = req.headers['x-session-id'] as string;
         const userId = req.user?._id?.toString();
 
         const filter: any = {
@@ -218,10 +220,7 @@ export const listMyReservations = async (req: Request, res: Response) => {
         // Se não há userId mas há sessionId, buscar apenas por sessionId
         if (userId && sessionId) {
             // Buscar reservas do usuário OU da sessão (permite restaurar após F5 mesmo com sessionId diferente)
-            filter.$or = [
-                { reservedBy: userId },
-                { sessionId },
-            ];
+            filter.$or = [{ reservedBy: userId }, { sessionId }];
         } else if (userId) {
             // Apenas userId (sem sessionId)
             filter.reservedBy = userId;
@@ -252,4 +251,3 @@ export const listMyReservations = async (req: Request, res: Response) => {
         });
     }
 };
-

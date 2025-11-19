@@ -1,11 +1,11 @@
 /**
  * Utilitário para gerenciamento de secrets em produção
- * 
+ *
  * Suporta múltiplos provedores:
  * - AWS Secrets Manager
  * - Azure Key Vault
  * - Variáveis de ambiente (fallback)
- * 
+ *
  * Uso:
  *   import { getSecret } from './utils/secretsManager';
  *   const secret = await getSecret('ENCRYPTION_KEY');
@@ -28,7 +28,7 @@ class AWSSecretsProvider implements SecretsProvider {
 
     constructor(region: string = process.env.AWS_REGION || 'us-east-1') {
         this.region = region;
-        
+
         // Carregar AWS SDK dinamicamente (opcional)
         try {
             if (!AWSSecretsManagerClient) {
@@ -38,8 +38,12 @@ class AWSSecretsProvider implements SecretsProvider {
             }
             this.client = new AWSSecretsManagerClient({ region: this.region });
         } catch (error) {
-            console.warn('⚠️ @aws-sdk/client-secrets-manager não instalado. Instale com: npm install @aws-sdk/client-secrets-manager');
-            throw new Error('AWS SDK não disponível. Instale @aws-sdk/client-secrets-manager para usar AWS Secrets Manager.');
+            console.warn(
+                '⚠️ @aws-sdk/client-secrets-manager não instalado. Instale com: npm install @aws-sdk/client-secrets-manager'
+            );
+            throw new Error(
+                'AWS SDK não disponível. Instale @aws-sdk/client-secrets-manager para usar AWS Secrets Manager.'
+            );
         }
     }
 
@@ -48,13 +52,13 @@ class AWSSecretsProvider implements SecretsProvider {
             if (!GetSecretValueCommand) {
                 throw new Error('AWS SDK não disponível');
             }
-            
+
             const command = new GetSecretValueCommand({
                 SecretId: name,
             });
 
             const response = await this.client.send(command);
-            
+
             if (response.SecretString) {
                 // Se for JSON, parsear
                 try {
@@ -100,11 +104,13 @@ function createSecretsProvider(): SecretsProvider {
         case 'aws':
         case 'aws-secrets-manager':
             if (!process.env.AWS_REGION) {
-                console.warn('⚠️ SECRETS_PROVIDER=aws mas AWS_REGION não configurado. Usando variáveis de ambiente.');
+                console.warn(
+                    '⚠️ SECRETS_PROVIDER=aws mas AWS_REGION não configurado. Usando variáveis de ambiente.'
+                );
                 return new EnvSecretsProvider();
             }
             return new AWSSecretsProvider();
-        
+
         case 'env':
         case 'environment':
         default:
@@ -117,7 +123,7 @@ let secretsProvider: SecretsProvider | null = null;
 
 /**
  * Obtém um secret do provedor configurado
- * 
+ *
  * @param name - Nome do secret (ex: 'ENCRYPTION_KEY')
  * @param required - Se true, lança erro se secret não for encontrado
  * @returns Valor do secret ou null se não encontrado
@@ -130,7 +136,9 @@ export async function getSecret(name: string, required: boolean = false): Promis
     const value = await secretsProvider.getSecret(name);
 
     if (required && !value) {
-        throw new Error(`Secret obrigatório ${name} não encontrado. Configure SECRETS_PROVIDER e o secret correspondente.`);
+        throw new Error(
+            `Secret obrigatório ${name} não encontrado. Configure SECRETS_PROVIDER e o secret correspondente.`
+        );
     }
 
     return value;
@@ -138,13 +146,13 @@ export async function getSecret(name: string, required: boolean = false): Promis
 
 /**
  * Obtém múltiplos secrets de uma vez
- * 
+ *
  * @param names - Array de nomes de secrets
  * @returns Objeto com os valores dos secrets
  */
 export async function getSecrets(names: string[]): Promise<Record<string, string | null>> {
     const results: Record<string, string | null> = {};
-    
+
     await Promise.all(
         names.map(async (name) => {
             results[name] = await getSecret(name);
@@ -156,7 +164,7 @@ export async function getSecrets(names: string[]): Promise<Record<string, string
 
 /**
  * Verifica se um secret está configurado
- * 
+ *
  * @param name - Nome do secret
  * @returns true se o secret existe e tem valor
  */
@@ -167,12 +175,12 @@ export async function hasSecret(name: string): Promise<boolean> {
 
 /**
  * Inicializa secrets críticos na inicialização do servidor
- * 
+ *
  * @param requiredSecrets - Array de nomes de secrets obrigatórios
  */
 export async function initializeSecrets(requiredSecrets: string[] = []): Promise<void> {
     const isProd = (process.env.NODE_ENV || 'development') === 'production';
-    
+
     if (!isProd) {
         console.log('🔍 Ambiente de desenvolvimento - usando variáveis de ambiente');
         return;
@@ -189,4 +197,3 @@ export async function initializeSecrets(requiredSecrets: string[] = []): Promise
         }
     }
 }
-

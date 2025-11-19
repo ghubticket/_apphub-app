@@ -219,4 +219,3 @@ router.patch('/ticket-types/:id/status', authenticate, isAdmin, updateTicketType
 router.delete('/ticket-types/:id', authenticate, isAdmin, deleteTicketType);
 
 export default router;
-

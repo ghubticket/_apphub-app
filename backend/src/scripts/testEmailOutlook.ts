@@ -8,7 +8,7 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 /**
  * Script para testar envio de email para Outlook
- * 
+ *
  * Uso: npm run test-email-outlook
  * ou: ts-node src/scripts/testEmailOutlook.ts --to=seu-email@outlook.com
  */
@@ -26,12 +26,9 @@ async function main() {
     }
 
     // Se não informado, usar emails padrão
-    const emailsToTest = testEmail 
+    const emailsToTest = testEmail
         ? [testEmail]
-        : [
-            'luizh.benicio@outlook.com',
-            'guilherme.pessoal@live.com'
-        ];
+        : ['luizh.benicio@outlook.com', 'guilherme.pessoal@live.com'];
 
     console.log('📧 Testando envio de emails para Outlook...\n');
 
@@ -43,7 +40,9 @@ async function main() {
     }
 
     console.log('✅ Configuração do Resend:');
-    console.log(`   API Key: ${emailConfig.apiKey.configured ? '✅ Configurada' : '❌ Não configurada'}`);
+    console.log(
+        `   API Key: ${emailConfig.apiKey.configured ? '✅ Configurada' : '❌ Não configurada'}`
+    );
     console.log(`   From Email: ${emailConfig.fromEmail.value}\n`);
 
     // Testar cada email
@@ -148,4 +147,3 @@ main().catch((error) => {
     console.error('❌ Erro fatal:', error);
     process.exit(1);
 });
-

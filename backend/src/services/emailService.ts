@@ -16,7 +16,7 @@ const getResendClient = (): Resend | null => {
     }
 
     const apiKey = process.env.RESEND_API_KEY?.trim();
-    
+
     if (!apiKey) {
         console.warn('⚠️ RESEND_API_KEY não configurada. Emails não serão enviados.');
         return null;
@@ -56,17 +56,19 @@ export interface EmailData {
 
 /**
  * Envia um email usando Resend
- * 
+ *
  * @param emailData Dados do email
  * @returns Promise com resultado do envio
  */
-export const sendEmail = async (emailData: EmailData): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+export const sendEmail = async (
+    emailData: EmailData
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
     const client = getResendClient();
-    
+
     if (!client) {
         return {
             success: false,
-            error: 'Resend não configurado. Verifique RESEND_API_KEY no .env'
+            error: 'Resend não configurado. Verifique RESEND_API_KEY no .env',
         };
     }
 
@@ -83,41 +85,44 @@ export const sendEmail = async (emailData: EmailData): Promise<{ success: boolea
             html: emailData.html,
             text: emailData.text,
             replyTo: emailData.replyTo,
-            attachments: emailData.attachments?.map(att => ({
+            attachments: emailData.attachments?.map((att) => ({
                 filename: att.filename,
-                content: att.content instanceof Buffer ? att.content.toString('base64') : att.content,
-                contentType: att.contentType
-            }))
+                content:
+                    att.content instanceof Buffer ? att.content.toString('base64') : att.content,
+                contentType: att.contentType,
+            })),
         });
 
         if (result.error) {
             console.error('❌ Erro ao enviar email:', result.error);
             return {
                 success: false,
-                error: result.error.message || 'Erro desconhecido ao enviar email'
+                error: result.error.message || 'Erro desconhecido ao enviar email',
             };
         }
 
         const messageId = result.data?.id;
         console.log(`✅ Email enviado com sucesso. ID: ${messageId}`);
-        
+
         // Log detalhado para debug (apenas em dev)
         if (process.env.NODE_ENV !== 'production') {
-            console.log(`   📧 Para: ${Array.isArray(emailData.to) ? emailData.to.join(', ') : emailData.to}`);
+            console.log(
+                `   📧 Para: ${Array.isArray(emailData.to) ? emailData.to.join(', ') : emailData.to}`
+            );
             console.log(`   📨 De: ${from}`);
             console.log(`   📋 Assunto: ${emailData.subject}`);
             console.log(`   🔗 Ver logs: https://resend.com/emails/${messageId}`);
         }
-        
+
         return {
             success: true,
-            messageId: messageId
+            messageId: messageId,
         };
     } catch (error: any) {
         console.error('❌ Erro ao enviar email:', error);
         return {
             success: false,
-            error: error?.message || 'Erro desconhecido ao enviar email'
+            error: error?.message || 'Erro desconhecido ao enviar email',
         };
     }
 };
@@ -136,4 +141,3 @@ export const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 };
-

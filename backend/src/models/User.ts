@@ -1,6 +1,12 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { encryptSensitiveData, decryptSensitiveData, hashCPFForSearch, hashPhoneForSearch, isEncrypted } from '../utils/encryption';
+import {
+    encryptSensitiveData,
+    decryptSensitiveData,
+    hashCPFForSearch,
+    hashPhoneForSearch,
+    isEncrypted,
+} from '../utils/encryption';
 
 // Interface para o documento User
 export interface IUser extends Document {
@@ -48,10 +54,7 @@ const userSchema = new Schema<IUser>(
             unique: true,
             lowercase: true,
             trim: true,
-            match: [
-                /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                'Email deve ter um formato válido',
-            ],
+            match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email deve ter um formato válido'],
         },
         password: {
             type: String,
@@ -70,10 +73,7 @@ const userSchema = new Schema<IUser>(
         phone: {
             type: String,
             trim: true,
-            match: [
-                /^\(\d{2}\)\s\d{4,5}-\d{4}$/,
-                'Telefone deve estar no formato (11) 99999-9999',
-            ],
+            match: [/^\(\d{2}\)\s\d{4,5}-\d{4}$/, 'Telefone deve estar no formato (11) 99999-9999'],
             select: false, // Não incluir por padrão (dados sensíveis)
         },
         phoneHash: {
@@ -84,10 +84,7 @@ const userSchema = new Schema<IUser>(
         cpf: {
             type: String,
             trim: true,
-            match: [
-                /^\d{3}\.\d{3}\.\d{3}-\d{2}$/,
-                'CPF deve estar no formato 000.000.000-00',
-            ],
+            match: [/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, 'CPF deve estar no formato 000.000.000-00'],
             select: false, // Não incluir por padrão (dados sensíveis)
         },
         cpfHash: {
@@ -204,9 +201,7 @@ userSchema.pre('save', async function (next) {
 });
 
 // Método para comparar senhas
-userSchema.methods.comparePassword = async function (
-    candidatePassword: string
-): Promise<boolean> {
+userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
     try {
         return await bcrypt.compare(candidatePassword, this.password);
     } catch (error) {
@@ -217,7 +212,7 @@ userSchema.methods.comparePassword = async function (
 // Middleware para descriptografar dados sensíveis ao buscar
 userSchema.post(['find', 'findOne', 'findOneAndUpdate'], function (docs: any) {
     if (!docs) return;
-    
+
     const documents = Array.isArray(docs) ? docs : [docs];
     documents.forEach((doc: any) => {
         if (doc && doc.cpf && isEncrypted(doc.cpf)) {
@@ -245,7 +240,7 @@ userSchema.methods.toJSON = function () {
     delete userObject.publicData; // Remove o virtual para evitar duplicação
     delete userObject.cpfHash; // Não expor hash
     delete userObject.phoneHash; // Não expor hash
-    
+
     // Descriptografar dados sensíveis se estiverem criptografados
     if (userObject.cpf && isEncrypted(userObject.cpf)) {
         try {
@@ -261,7 +256,7 @@ userSchema.methods.toJSON = function () {
             console.error('Erro ao descriptografar telefone no toJSON:', error);
         }
     }
-    
+
     return userObject;
 };
 

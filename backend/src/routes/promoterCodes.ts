@@ -7,7 +7,7 @@ import {
     togglePromoterCode,
     deletePromoterCode,
     validatePromoterCode,
-    getPromoterCodeStats
+    getPromoterCodeStats,
 } from '../controllers/promoterCodesController';
 import { authenticate, isAdmin } from '../middleware/auth';
 
@@ -154,4 +154,3 @@ router.delete('/:id', authenticate, isAdmin, deletePromoterCode);
 router.get('/:id/stats', authenticate, isAdmin, getPromoterCodeStats);
 
 export default router;
-

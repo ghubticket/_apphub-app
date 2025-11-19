@@ -201,4 +201,3 @@ ticketTypeSchema.statics.findAvailable = function (eventId: string) {
 
 // Exportar o modelo
 export default mongoose.model<ITicketType>('TicketType', ticketTypeSchema);
-

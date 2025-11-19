@@ -13,7 +13,7 @@ export const register = async (req: Request, res: Response) => {
         const { name, email, password, phone, cpf } = req.body;
 
         // Verificar se o email já existe (apenas usuários não deletados)
-        const existingUser = await User.findOne({ 
+        const existingUser = await User.findOne({
             email: email.toLowerCase(),
             deletedAt: null,
         });
@@ -43,7 +43,7 @@ export const register = async (req: Request, res: Response) => {
             {
                 userId: String(user._id),
                 email: user.email,
-                role: user.role
+                role: user.role,
             },
             process.env.JWT_SECRET!,
             { expiresIn: '7d' }
@@ -56,7 +56,7 @@ export const register = async (req: Request, res: Response) => {
                 customerName: user.name,
                 customerEmail: user.email,
                 customerRole: user.role,
-                loginLink: `${dashboardUrl}/login`
+                loginLink: `${dashboardUrl}/login`,
             });
         } catch (emailError) {
             console.error('Erro ao enviar email de boas-vindas:', emailError);
@@ -72,7 +72,6 @@ export const register = async (req: Request, res: Response) => {
                 token,
             },
         });
-
     } catch (error: any) {
         console.error('Erro no registro:', error);
 
@@ -130,7 +129,10 @@ export const login = async (req: Request, res: Response) => {
                 // Estrutura: { [key]: { count: number, until?: number, last: number } }
                 (global as any).__FAILED_LOGIN__ = Object.create(null);
             }
-            store = (global as any).__FAILED_LOGIN__ as Record<string, { count: number; until?: number; last: number }>;
+            store = (global as any).__FAILED_LOGIN__ as Record<
+                string,
+                { count: number; until?: number; last: number }
+            >;
 
             const entry = store[key];
             if (entry?.until && entry.until > now) {
@@ -144,7 +146,7 @@ export const login = async (req: Request, res: Response) => {
         }
 
         // Buscar usuário por email (incluindo senha para comparação, apenas não deletados)
-        const user = await User.findOne({ 
+        const user = await User.findOne({
             email: email.toLowerCase(),
             deletedAt: null,
         }).select('+password');
@@ -198,7 +200,7 @@ export const login = async (req: Request, res: Response) => {
                 userId: String(user._id),
                 email: user.email,
                 role: user.role,
-                type: 'access'
+                type: 'access',
             },
             process.env.JWT_SECRET!,
             { expiresIn: '4h' }
@@ -210,7 +212,7 @@ export const login = async (req: Request, res: Response) => {
                 userId: String(user._id),
                 email: user.email,
                 role: user.role,
-                type: 'refresh'
+                type: 'refresh',
             },
             process.env.JWT_REFRESH_SECRET!,
             { expiresIn: '7d' }
@@ -225,9 +227,9 @@ export const login = async (req: Request, res: Response) => {
                 ip: req.ip || req.connection.remoteAddress || 'Unknown',
                 device: req.get('User-Agent')?.includes('Mobile') ? 'Mobile' : 'Desktop',
                 browser: req.get('User-Agent')?.includes('Chrome') ? 'Chrome' : 'Other',
-                os: req.get('User-Agent')?.includes('Windows') ? 'Windows' : 'Other'
+                os: req.get('User-Agent')?.includes('Windows') ? 'Windows' : 'Other',
             },
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 dias
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dias
         });
 
         await session.save();
@@ -241,10 +243,9 @@ export const login = async (req: Request, res: Response) => {
                 accessToken,
                 refreshToken,
                 expiresIn: 900, // 15 minutos em segundos
-                sessionId: session._id
+                sessionId: session._id,
             },
         });
-
     } catch (error: any) {
         console.error('Erro no login:', error);
         res.status(500).json({
@@ -272,7 +273,7 @@ export const refreshToken = async (req: Request, res: Response) => {
 
         // Verificar refresh token
         const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any;
-        
+
         if (decoded.type !== 'refresh') {
             return res.status(401).json({
                 success: false,
@@ -282,10 +283,10 @@ export const refreshToken = async (req: Request, res: Response) => {
         }
 
         // Buscar sessão ativa
-        const session = await Session.findOne({ 
-            refreshToken, 
+        const session = await Session.findOne({
+            refreshToken,
             isActive: true,
-            expiresAt: { $gt: new Date() }
+            expiresAt: { $gt: new Date() },
         }).populate('userId');
 
         if (!session) {
@@ -317,7 +318,7 @@ export const refreshToken = async (req: Request, res: Response) => {
                 userId: String(user._id),
                 email: user.email,
                 role: user.role,
-                type: 'access'
+                type: 'access',
             },
             process.env.JWT_SECRET!,
             { expiresIn: '15m' }
@@ -328,13 +329,12 @@ export const refreshToken = async (req: Request, res: Response) => {
             message: 'Token renovado com sucesso',
             data: {
                 accessToken: newAccessToken,
-                expiresIn: 900 // 15 minutos em segundos
+                expiresIn: 900, // 15 minutos em segundos
             },
         });
-
     } catch (error: any) {
         console.error('Erro no refresh token:', error);
-        
+
         if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
             return res.status(401).json({
                 success: false,
@@ -359,7 +359,7 @@ export const checkSession = async (req: Request, res: Response) => {
         // Verificar access token primeiro
         const authHeader = req.headers.authorization;
         let accessToken: string | null = null;
-        
+
         if (authHeader && authHeader.startsWith('Bearer ')) {
             accessToken = authHeader.substring(7);
         } else if (req.cookies?.apphub_access_token) {
@@ -375,7 +375,7 @@ export const checkSession = async (req: Request, res: Response) => {
                 if (decoded.exp) {
                     expiresAt = new Date(decoded.exp * 1000);
                     timeRemaining = Math.max(0, expiresAt.getTime() - Date.now());
-                    
+
                     if (process.env.NODE_ENV !== 'production') {
                         console.log('[checkSession] Access token válido:', {
                             expiresAt: expiresAt.toISOString(),
@@ -387,7 +387,9 @@ export const checkSession = async (req: Request, res: Response) => {
             } catch (error: any) {
                 // Token expirado ou inválido, tentar refresh token
                 if (process.env.NODE_ENV !== 'production') {
-                    console.log('[checkSession] Access token inválido/expirado, tentando refresh token');
+                    console.log(
+                        '[checkSession] Access token inválido/expirado, tentando refresh token'
+                    );
                 }
             }
         }
@@ -399,21 +401,24 @@ export const checkSession = async (req: Request, res: Response) => {
 
             if (refreshToken && sessionId) {
                 try {
-                    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any;
-                    
+                    const decoded = jwt.verify(
+                        refreshToken,
+                        process.env.JWT_REFRESH_SECRET!
+                    ) as any;
+
                     if (decoded.type === 'refresh') {
                         const session = await Session.findOne({
                             _id: sessionId,
                             refreshToken,
                             isActive: true,
-                            expiresAt: { $gt: new Date() }
+                            expiresAt: { $gt: new Date() },
                         });
 
                         if (session) {
                             // Retornar tempo restante do refresh token (sessão)
                             expiresAt = session.expiresAt;
                             timeRemaining = Math.max(0, expiresAt.getTime() - Date.now());
-                            
+
                             if (process.env.NODE_ENV !== 'production') {
                                 console.log('[checkSession] Refresh token válido:', {
                                     expiresAt: expiresAt.toISOString(),
@@ -430,7 +435,10 @@ export const checkSession = async (req: Request, res: Response) => {
                 } catch (error: any) {
                     // Refresh token inválido
                     if (process.env.NODE_ENV !== 'production') {
-                        console.log('[checkSession] Refresh token inválido/expirado:', error.message);
+                        console.log(
+                            '[checkSession] Refresh token inválido/expirado:',
+                            error.message
+                        );
                     }
                 }
             } else {
@@ -475,10 +483,7 @@ export const logout = async (req: Request, res: Response) => {
                 await Session.findByIdAndUpdate(sessionId, { isActive: false });
             } else {
                 // Invalidar todas as sessões do usuário
-                await Session.updateMany(
-                    { userId, isActive: true },
-                    { isActive: false }
-                );
+                await Session.updateMany({ userId, isActive: true }, { isActive: false });
             }
         }
 
@@ -486,7 +491,6 @@ export const logout = async (req: Request, res: Response) => {
             success: true,
             message: 'Logout realizado com sucesso',
         });
-
     } catch (error: any) {
         console.error('Erro no logout:', error);
         res.status(500).json({
@@ -509,7 +513,6 @@ export const getMe = async (req: Request, res: Response) => {
             success: true,
             data: user,
         });
-
     } catch (error: any) {
         console.error('Erro ao obter dados do usuário:', error);
         res.status(500).json({
@@ -529,7 +532,7 @@ export const updateProfile = async (req: Request, res: Response) => {
         const userId = req.user._id;
 
         // Buscar usuário
-        const user = await User.findOne({ 
+        const user = await User.findOne({
             _id: userId,
             deletedAt: null, // Não atualizar usuários deletados
         });
@@ -554,7 +557,6 @@ export const updateProfile = async (req: Request, res: Response) => {
             message: 'Perfil atualizado com sucesso',
             data: user.toJSON(),
         });
-
     } catch (error: any) {
         console.error('Erro ao atualizar perfil:', error);
 
@@ -588,7 +590,7 @@ export const changePassword = async (req: Request, res: Response) => {
         const userId = req.user._id;
 
         // Buscar usuário com senha
-        const user = await User.findOne({ 
+        const user = await User.findOne({
             _id: userId,
             deletedAt: null, // Não atualizar usuários deletados
         }).select('+password');
@@ -618,7 +620,6 @@ export const changePassword = async (req: Request, res: Response) => {
             success: true,
             message: 'Senha alterada com sucesso',
         });
-
     } catch (error: any) {
         console.error('Erro ao alterar senha:', error);
 
@@ -656,7 +657,6 @@ export const getActiveSessions = async (req: Request, res: Response) => {
             success: true,
             data: sessions,
         });
-
     } catch (error: any) {
         console.error('Erro ao obter sessões:', error);
         res.status(500).json({
@@ -678,7 +678,7 @@ export const invalidateSession = async (req: Request, res: Response) => {
         const session = await Session.findOne({
             _id: sessionId,
             userId,
-            isActive: true
+            isActive: true,
         });
 
         if (!session) {
@@ -696,7 +696,6 @@ export const invalidateSession = async (req: Request, res: Response) => {
             success: true,
             message: 'Sessão invalidada com sucesso',
         });
-
     } catch (error: any) {
         console.error('Erro ao invalidar sessão:', error);
         res.status(500).json({
@@ -720,7 +719,6 @@ export const invalidateAllSessions = async (req: Request, res: Response) => {
             success: true,
             message: 'Todas as sessões foram invalidadas com sucesso',
         });
-
     } catch (error: any) {
         console.error('Erro ao invalidar todas as sessões:', error);
         res.status(500).json({
@@ -741,15 +739,15 @@ export const getSessionStats = async (req: Request, res: Response) => {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: ['Apenas administradores podem acessar esta funcionalidade']
+                errors: ['Apenas administradores podem acessar esta funcionalidade'],
             });
         }
 
         // Estatísticas de sessões
         const totalSessions = await Session.countDocuments();
-        const activeSessions = await Session.countDocuments({ 
-            isActive: true, 
-            expiresAt: { $gt: new Date() } 
+        const activeSessions = await Session.countDocuments({
+            isActive: true,
+            expiresAt: { $gt: new Date() },
         });
 
         // Estatísticas de usuários
@@ -759,7 +757,7 @@ export const getSessionStats = async (req: Request, res: Response) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayLogins = await Session.countDocuments({
-            createdAt: { $gte: today }
+            createdAt: { $gte: today },
         });
 
         res.json({
@@ -768,15 +766,15 @@ export const getSessionStats = async (req: Request, res: Response) => {
                 totalSessions,
                 activeSessions,
                 totalUsers,
-                todayLogins
-            }
+                todayLogins,
+            },
         });
     } catch (error: any) {
         console.error('Error getting session stats:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
-            errors: [error.message]
+            errors: [error.message],
         });
     }
 };
@@ -792,28 +790,30 @@ export const getUserById = async (req: Request, res: Response) => {
         const { userId } = req.params;
 
         // Buscar usuário
-        const user = await User.findOne({ 
+        const user = await User.findOne({
             _id: userId,
-            deletedAt: null 
-        }).select('-password').lean();
+            deletedAt: null,
+        })
+            .select('-password')
+            .lean();
 
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'Usuário não encontrado',
             });
         }
 
         // Buscar pedidos do usuário (sem QR codes - apenas visualização)
-        const orders = await Order.find({ 
+        const orders = await Order.find({
             customer: userId,
-            deletedAt: null 
+            deletedAt: null,
         })
             .populate('event', 'name date location coverImage')
             .populate({
                 path: 'tickets',
                 select: 'code status price ticketType', // Não incluir qrCode
-                match: { deletedAt: null }
+                match: { deletedAt: null },
             })
             .sort({ createdAt: -1 })
             .lean();
@@ -822,38 +822,45 @@ export const getUserById = async (req: Request, res: Response) => {
             success: true,
             data: {
                 user,
-                orders
-            }
+                orders,
+            },
         });
-
     } catch (error: any) {
         console.error('Erro ao buscar usuário:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar usuário',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
 
 export const getAllUsers = async (req: Request, res: Response) => {
     try {
-        const { page = 1, limit = 10, search = '', role = '', status = '', suspicious = '', blacklisted = '' } = req.query;
-        
+        const {
+            page = 1,
+            limit = 10,
+            search = '',
+            role = '',
+            status = '',
+            suspicious = '',
+            blacklisted = '',
+        } = req.query;
+
         // Construir filtros
         const filters: any = {};
-        
+
         if (search) {
             filters.$or = [
                 { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } }
+                { email: { $regex: search, $options: 'i' } },
             ];
         }
-        
+
         if (role) {
             filters.role = role;
         }
-        
+
         if (status !== '' && status !== 'all') {
             filters.isActive = status === 'true';
         }
@@ -873,7 +880,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
         // Calcular paginação
         const skip = (Number(page) - 1) * Number(limit);
-        
+
         // Buscar usuários com paginação
         const users = await User.find(filters)
             .select('-password -refreshToken') // Excluir campos sensíveis
@@ -892,11 +899,10 @@ export const getAllUsers = async (req: Request, res: Response) => {
                     page: Number(page),
                     limit: Number(limit),
                     total,
-                    totalPages: Math.ceil(total / Number(limit))
-                }
-            }
+                    totalPages: Math.ceil(total / Number(limit)),
+                },
+            },
         });
-
     } catch (error: any) {
         console.error('Erro ao listar usuários:', error);
         res.status(500).json({
@@ -916,7 +922,7 @@ export const updateUserStatus = async (req: Request, res: Response) => {
         const { isActive } = req.body;
 
         const user = await User.findOneAndUpdate(
-            { 
+            {
                 _id: userId,
                 deletedAt: null, // Não atualizar usuários deletados
             },
@@ -935,9 +941,8 @@ export const updateUserStatus = async (req: Request, res: Response) => {
         res.json({
             success: true,
             message: `Usuário ${isActive ? 'ativado' : 'desativado'} com sucesso`,
-            data: user
+            data: user,
         });
-
     } catch (error: any) {
         console.error('Erro ao atualizar status do usuário:', error);
         res.status(500).json({

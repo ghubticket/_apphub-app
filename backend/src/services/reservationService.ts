@@ -38,7 +38,7 @@ export const createReservation = async (
         } = params;
 
         // Verificar se o evento existe (não deletado)
-        const event = await Event.findOne({ 
+        const event = await Event.findOne({
             _id: eventId,
             deletedAt: null,
         });
@@ -52,7 +52,7 @@ export const createReservation = async (
         }
 
         // Verificar se o tipo de ingresso existe (não deletado)
-        const ticketType = await TicketType.findOne({ 
+        const ticketType = await TicketType.findOne({
             _id: ticketTypeId,
             deletedAt: null,
         });
@@ -116,7 +116,7 @@ export const createReservation = async (
         // IMPORTANTE: Se há orderId nos parâmetros (vinculando a pedido PIX), SEMPRE criar nova reserva
         // IMPORTANTE: Se NÃO há orderId, NÃO considerar reservas vinculadas a PIX pendentes
         let existingReservation = null;
-        
+
         // Se está vinculando a um pedido (ex: PIX), SEMPRE criar nova reserva (permite múltiplas reservas para mesmo pedido)
         if (!params.orderId) {
             // Buscar por sessionId PRIMEIRO (mais específico), mas EXCLUIR reservas vinculadas a PIX pendentes
@@ -128,10 +128,7 @@ export const createReservation = async (
                 expiresAt: { $gt: new Date() },
                 // CRÍTICO: NÃO considerar reservas vinculadas a pedidos PIX pendentes
                 // Se o usuário adicionar novo item ao carrinho, deve criar NOVA reserva
-                $or: [
-                    { orderId: { $exists: false } },
-                    { orderId: null },
-                ],
+                $or: [{ orderId: { $exists: false } }, { orderId: null }],
             });
         }
         // Se params.orderId existe, não buscar reserva existente - sempre criar nova (permite múltiplas reservas para mesmo pedido)
@@ -149,10 +146,7 @@ export const createReservation = async (
                 // CRÍTICO: NÃO pegar reservas vinculadas a pedidos PIX pendentes
                 // Essas devem ser mantidas até o PIX expirar
                 // Se o usuário adicionar novo item ao carrinho, deve criar NOVA reserva
-                $or: [
-                    { orderId: { $exists: false } },
-                    { orderId: null },
-                ],
+                $or: [{ orderId: { $exists: false } }, { orderId: null }],
             });
 
             if (reservationByUserId) {
@@ -164,16 +158,22 @@ export const createReservation = async (
                     reservationByUserId.sessionId = sessionId;
                     await reservationByUserId.save();
                     existingReservation = reservationByUserId;
-                    console.log('[reservationService.createReservation] 🔄 Atualizado sessionId da reserva existente:', {
-                        reservationId: existingReservation._id,
-                        oldSessionId: reservationByUserId.sessionId,
-                        newSessionId: sessionId,
-                    });
+                    console.log(
+                        '[reservationService.createReservation] 🔄 Atualizado sessionId da reserva existente:',
+                        {
+                            reservationId: existingReservation._id,
+                            oldSessionId: reservationByUserId.sessionId,
+                            newSessionId: sessionId,
+                        }
+                    );
                 } else {
-                    console.log('[reservationService.createReservation] ⚠️ Reserva encontrada por userId está vinculada a pedido, ignorando:', {
-                        reservationId: reservationByUserId._id,
-                        orderId: reservationByUserId.orderId,
-                    });
+                    console.log(
+                        '[reservationService.createReservation] ⚠️ Reserva encontrada por userId está vinculada a pedido, ignorando:',
+                        {
+                            reservationId: reservationByUserId._id,
+                            orderId: reservationByUserId.orderId,
+                        }
+                    );
                 }
             }
         }
@@ -191,45 +191,59 @@ export const createReservation = async (
         });
 
         if (existingReservation) {
-            console.log('[reservationService.createReservation] ♻️ Atualizando reserva existente:', {
-                reservationId: existingReservation._id,
-                currentExpiresAt: existingReservation.expiresAt,
-                currentQuantity: existingReservation.quantity,
-                newQuantity: quantity,
-                hasOrderId: !!params.orderId,
-                hasExpiresAt: !!params.expiresAt,
-            });
-            
+            console.log(
+                '[reservationService.createReservation] ♻️ Atualizando reserva existente:',
+                {
+                    reservationId: existingReservation._id,
+                    currentExpiresAt: existingReservation.expiresAt,
+                    currentQuantity: existingReservation.quantity,
+                    newQuantity: quantity,
+                    hasOrderId: !!params.orderId,
+                    hasExpiresAt: !!params.expiresAt,
+                }
+            );
+
             existingReservation.quantity = quantity;
-            
+
             // CRÍTICO: Se há orderId nos parâmetros (ex: reserva vinculada a pedido PIX), atualizar
             // Isso permite que uma reserva existente seja vinculada a um pedido PIX
             if (params.orderId) {
                 existingReservation.orderId = params.orderId as any;
-                console.log('[reservationService.createReservation] 🔗 Vinculando reserva existente ao pedido:', params.orderId);
+                console.log(
+                    '[reservationService.createReservation] 🔗 Vinculando reserva existente ao pedido:',
+                    params.orderId
+                );
             }
-            
+
             // CRÍTICO: Se há expiresAt nos parâmetros (ex: para PIX), atualizar expiresAt
             // Isso permite que uma reserva existente seja atualizada com o tempo de expiração do PIX
             if (params.expiresAt) {
                 existingReservation.expiresAt = params.expiresAt;
-                console.log('[reservationService.createReservation] ⏰ Atualizando expiresAt da reserva existente para:', params.expiresAt);
+                console.log(
+                    '[reservationService.createReservation] ⏰ Atualizando expiresAt da reserva existente para:',
+                    params.expiresAt
+                );
             } else {
                 // Se não há expiresAt nos parâmetros, manter o expiresAt original (preservar tempo restante após F5)
                 // Só atualizar expiresAt se a reserva já expirou (caso raro de race condition)
                 const now = new Date();
                 const shouldUpdateExpiresAt = existingReservation.expiresAt <= now;
-                
+
                 if (shouldUpdateExpiresAt) {
-                    console.log('[reservationService.createReservation] ⚠️ Reserva expirada, atualizando expiresAt');
+                    console.log(
+                        '[reservationService.createReservation] ⚠️ Reserva expirada, atualizando expiresAt'
+                    );
                     existingReservation.expiresAt = new Date(
                         Date.now() + reservationDurationMinutes * 60 * 1000
                     );
                 } else {
-                    console.log('[reservationService.createReservation] ✅ Mantendo expiresAt original:', existingReservation.expiresAt);
+                    console.log(
+                        '[reservationService.createReservation] ✅ Mantendo expiresAt original:',
+                        existingReservation.expiresAt
+                    );
                 }
             }
-            
+
             if (userId) {
                 existingReservation.reservedBy = userId as any;
             }
@@ -244,13 +258,13 @@ export const createReservation = async (
         }
 
         console.log('[reservationService.createReservation] 🆕 Criando NOVA reserva');
-        
+
         // CRÍTICO: Antes de criar nova reserva, cancelar outras reservas ativas do mesmo evento/ticketType/sessionId
         // REGRA IMPORTANTE: NUNCA cancelar reservas vinculadas a pedidos PIX pendentes
         // Reservas vinculadas a pedidos PIX pendentes só devem ser canceladas quando o pedido expirar ou for cancelado explicitamente
         // Isso evita criar múltiplas reservas quando o usuário adiciona itens ao carrinho
         // E garante que pedidos PIX pendentes não sejam afetados por novas reservas
-        
+
         // Buscar todas as reservas ativas do mesmo evento/ticketType/sessionId
         // Usar populate para buscar dados do pedido vinculado
         const otherActiveReservations = await TicketReservation.find({
@@ -259,11 +273,13 @@ export const createReservation = async (
             sessionId,
             isActive: true,
             expiresAt: { $gt: new Date() },
-        }).populate({
-            path: 'orderId',
-            select: 'status paymentMethod',
-            model: 'Order',
-        }).lean();
+        })
+            .populate({
+                path: 'orderId',
+                select: 'status paymentMethod',
+                model: 'Order',
+            })
+            .lean();
 
         // Importar Order para buscar dados quando populate não funcionar
         const Order = (await import('../models/Order')).default;
@@ -274,56 +290,84 @@ export const createReservation = async (
             const reservationsToCancel = await Promise.all(
                 otherActiveReservations.map(async (oldReservation: any) => {
                     const oldOrderId = oldReservation.orderId;
-                    
+
                     // Se a nova reserva tem orderId e é o mesmo da reserva antiga, não cancelar
                     if (params.orderId && oldOrderId) {
-                        const oldOrderIdStr = typeof oldOrderId === 'object' && oldOrderId._id 
-                            ? String(oldOrderId._id) 
-                            : String(oldOrderId);
+                        const oldOrderIdStr =
+                            typeof oldOrderId === 'object' && oldOrderId._id
+                                ? String(oldOrderId._id)
+                                : String(oldOrderId);
                         if (oldOrderIdStr === String(params.orderId)) {
                             return { reservation: oldReservation, shouldCancel: false }; // Mesmo pedido, não cancelar
                         }
                     }
-                    
+
                     // CRÍTICO: Verificar se a reserva antiga está vinculada a um pedido PIX pendente
                     // Se estiver, NUNCA cancelar - deixar o pedido PIX pendente quieto
                     let isLinkedToPixPending = false;
                     if (oldOrderId) {
                         // Se o populate funcionou, oldOrderId será um objeto
                         if (typeof oldOrderId === 'object' && oldOrderId._id) {
-                            isLinkedToPixPending = oldOrderId.status === 'pending' && oldOrderId.paymentMethod === 'pix';
+                            isLinkedToPixPending =
+                                oldOrderId.status === 'pending' &&
+                                oldOrderId.paymentMethod === 'pix';
                         } else {
                             // Se populate não funcionou, buscar o pedido manualmente
                             try {
-                                const order = await Order.findById(oldOrderId).select('status paymentMethod').lean();
-                                isLinkedToPixPending = !!(order && order.status === 'pending' && order.paymentMethod === 'pix');
+                                const order = await Order.findById(oldOrderId)
+                                    .select('status paymentMethod')
+                                    .lean();
+                                isLinkedToPixPending = !!(
+                                    order &&
+                                    order.status === 'pending' &&
+                                    order.paymentMethod === 'pix'
+                                );
                             } catch (error) {
                                 // Se não conseguir buscar, assumir que não é PIX pendente por segurança
-                                console.warn('[reservationService.createReservation] ⚠️ Erro ao buscar pedido vinculado:', error);
+                                console.warn(
+                                    '[reservationService.createReservation] ⚠️ Erro ao buscar pedido vinculado:',
+                                    error
+                                );
                                 isLinkedToPixPending = false;
                             }
                         }
                     }
-                    
+
                     // REGRA: NUNCA cancelar reservas vinculadas a pedidos PIX pendentes
                     // O pedido PIX pendente deve ficar intacto, independente de novas reservas
                     if (isLinkedToPixPending) {
-                        console.log('[reservationService.createReservation] ✅ Mantendo reserva vinculada a PIX pendente (pedido não deve ser alterado):', {
-                            reservationId: oldReservation._id,
-                            orderId: typeof oldOrderId === 'object' && oldOrderId._id 
-                                ? String(oldOrderId._id) 
-                                : String(oldOrderId),
-                        });
-                        return { reservation: oldReservation, shouldCancel: false, wasLinkedToPix: true }; // NÃO cancelar
+                        console.log(
+                            '[reservationService.createReservation] ✅ Mantendo reserva vinculada a PIX pendente (pedido não deve ser alterado):',
+                            {
+                                reservationId: oldReservation._id,
+                                orderId:
+                                    typeof oldOrderId === 'object' && oldOrderId._id
+                                        ? String(oldOrderId._id)
+                                        : String(oldOrderId),
+                            }
+                        );
+                        return {
+                            reservation: oldReservation,
+                            shouldCancel: false,
+                            wasLinkedToPix: true,
+                        }; // NÃO cancelar
                     }
-                    
+
                     // Cancelar reservas não vinculadas a pedidos (reservas temporárias normais)
                     if (!oldOrderId) {
-                        return { reservation: oldReservation, shouldCancel: true, wasLinkedToPix: false }; // Cancelar reservas temporárias normais
+                        return {
+                            reservation: oldReservation,
+                            shouldCancel: true,
+                            wasLinkedToPix: false,
+                        }; // Cancelar reservas temporárias normais
                     }
-                    
+
                     // Cancelar outras reservas vinculadas a pedidos não-PIX ou pedidos não-pendentes
-                    return { reservation: oldReservation, shouldCancel: true, wasLinkedToPix: false };
+                    return {
+                        reservation: oldReservation,
+                        shouldCancel: true,
+                        wasLinkedToPix: false,
+                    };
                 })
             );
 
@@ -332,11 +376,16 @@ export const createReservation = async (
                 .map((item: any) => item.reservation);
 
             if (reservationsToCancelFiltered.length > 0) {
-                console.log('[reservationService.createReservation] 🗑️ Cancelando reservas antigas antes de criar nova:', {
-                    count: reservationsToCancelFiltered.length,
-                    reservationIds: reservationsToCancelFiltered.map((r: any) => r._id),
-                    preservedPixReservations: reservationsToCancel.filter((item: any) => item.wasLinkedToPix && !item.shouldCancel).length,
-                });
+                console.log(
+                    '[reservationService.createReservation] 🗑️ Cancelando reservas antigas antes de criar nova:',
+                    {
+                        count: reservationsToCancelFiltered.length,
+                        reservationIds: reservationsToCancelFiltered.map((r: any) => r._id),
+                        preservedPixReservations: reservationsToCancel.filter(
+                            (item: any) => item.wasLinkedToPix && !item.shouldCancel
+                        ).length,
+                    }
+                );
 
                 // Cancelar reservas antigas (liberar estoque bloqueado)
                 // CRÍTICO: Reservas não alteram soldQuantity, apenas bloqueiam estoque
@@ -346,24 +395,33 @@ export const createReservation = async (
                         { _id: oldReservation._id },
                         { isActive: false }
                     );
-                    console.log('[reservationService.createReservation] ✅ Reserva antiga cancelada:', {
-                        reservationId: oldReservation._id,
-                        quantity: oldReservation.quantity,
-                    });
+                    console.log(
+                        '[reservationService.createReservation] ✅ Reserva antiga cancelada:',
+                        {
+                            reservationId: oldReservation._id,
+                            quantity: oldReservation.quantity,
+                        }
+                    );
                 }
             } else {
-                const preservedPixReservations = reservationsToCancel.filter((item: any) => item.wasLinkedToPix && !item.shouldCancel);
+                const preservedPixReservations = reservationsToCancel.filter(
+                    (item: any) => item.wasLinkedToPix && !item.shouldCancel
+                );
                 if (preservedPixReservations.length > 0) {
-                    console.log('[reservationService.createReservation] ✅ Nenhuma reserva cancelada - todas estão vinculadas a pedidos PIX pendentes:', {
-                        preservedCount: preservedPixReservations.length,
-                    });
+                    console.log(
+                        '[reservationService.createReservation] ✅ Nenhuma reserva cancelada - todas estão vinculadas a pedidos PIX pendentes:',
+                        {
+                            preservedCount: preservedPixReservations.length,
+                        }
+                    );
                 }
             }
         }
 
         // Criar nova reserva
         // Se expiresAt foi fornecido (ex: para PIX), usar ele; caso contrário, calcular baseado em reservationDurationMinutes
-        const expiresAt = params.expiresAt || new Date(Date.now() + reservationDurationMinutes * 60 * 1000);
+        const expiresAt =
+            params.expiresAt || new Date(Date.now() + reservationDurationMinutes * 60 * 1000);
         const reservation = new TicketReservation({
             event: eventId,
             ticketType: ticketTypeId,
@@ -415,9 +473,11 @@ export const releaseReservation = async (
         if (reservation.orderId) {
             const { Order } = await import('../models');
             const order = await Order.findById(reservation.orderId);
-            
+
             if (order && order.status === 'pending' && order.paymentMethod === 'pix') {
-                console.log(`[releaseReservation] ⚠️ Tentativa de cancelar reserva ${reservationId} vinculada a pedido PIX pendente ${order.orderNumber}, bloqueando cancelamento`);
+                console.log(
+                    `[releaseReservation] ⚠️ Tentativa de cancelar reserva ${reservationId} vinculada a pedido PIX pendente ${order.orderNumber}, bloqueando cancelamento`
+                );
                 return {
                     success: false,
                     message: 'Não é possível cancelar reserva vinculada a pedido PIX pendente',
@@ -450,7 +510,7 @@ export const releaseSessionReservations = async (
 ): Promise<{ success: boolean; releasedCount: number }> => {
     try {
         const { Order } = await import('../models');
-        
+
         // Buscar todas as reservas ativas da sessão
         const sessionReservations = await TicketReservation.find({
             sessionId,
@@ -466,16 +526,18 @@ export const releaseSessionReservations = async (
             // Se a reserva está vinculada a um pedido, verificar se é PIX pendente
             if (reservation.orderId) {
                 const order = await Order.findById(reservation.orderId);
-                
+
                 if (order && order.status === 'pending' && order.paymentMethod === 'pix') {
                     // CRÍTICO: Não cancelar reserva vinculada a pedido PIX pendente
                     const reservationId = String(reservation._id);
                     reservationsToKeep.push(reservationId);
-                    console.log(`[releaseSessionReservations] ⚠️ Mantendo reserva ${reservationId} da sessão ${sessionId} vinculada a pedido PIX pendente ${order.orderNumber}`);
+                    console.log(
+                        `[releaseSessionReservations] ⚠️ Mantendo reserva ${reservationId} da sessão ${sessionId} vinculada a pedido PIX pendente ${order.orderNumber}`
+                    );
                     continue;
                 }
             }
-            
+
             // Reserva pode ser cancelada
             reservationsToCancel.push(String(reservation._id));
         }
@@ -494,11 +556,15 @@ export const releaseSessionReservations = async (
             );
 
             releasedCount = result.modifiedCount || 0;
-            console.log(`[releaseSessionReservations] ✅ ${releasedCount} reserva(s) da sessão ${sessionId} cancelada(s)`);
+            console.log(
+                `[releaseSessionReservations] ✅ ${releasedCount} reserva(s) da sessão ${sessionId} cancelada(s)`
+            );
         }
 
         if (reservationsToKeep.length > 0) {
-            console.log(`[releaseSessionReservations] ⚠️ ${reservationsToKeep.length} reserva(s) da sessão ${sessionId} mantida(s) por estarem vinculadas a pedidos PIX pendentes`);
+            console.log(
+                `[releaseSessionReservations] ⚠️ ${reservationsToKeep.length} reserva(s) da sessão ${sessionId} mantida(s) por estarem vinculadas a pedidos PIX pendentes`
+            );
         }
 
         return {
@@ -567,7 +633,7 @@ export const getAvailableQuantity = async (
     ticketTypeId: string
 ): Promise<number> => {
     try {
-        const ticketType = await TicketType.findOne({ 
+        const ticketType = await TicketType.findOne({
             _id: ticketTypeId,
             deletedAt: null, // Não considerar tipos de ingresso deletados
         });
@@ -603,7 +669,7 @@ export const cleanExpiredReservations = async (): Promise<{
 }> => {
     try {
         const { Order } = await import('../models');
-        
+
         // Buscar reservas expiradas que estão ativas
         const expiredReservations = await TicketReservation.find({
             expiresAt: { $lt: new Date() },
@@ -619,7 +685,7 @@ export const cleanExpiredReservations = async (): Promise<{
             // Se a reserva está vinculada a um pedido, verificar se é PIX pendente
             if (reservation.orderId) {
                 const order = await Order.findById(reservation.orderId);
-                
+
                 if (order && order.status === 'pending' && order.paymentMethod === 'pix') {
                     // CRÍTICO: A reserva vinculada a pedido PIX tem expiresAt igual ao expiresAt do PIX
                     // Se a reserva expirou (expiresAt < now), significa que o PIX também expirou
@@ -630,11 +696,13 @@ export const cleanExpiredReservations = async (): Promise<{
                     // Portanto, não devemos cancelar a reserva aqui, apenas manter ativa até o webhook processar
                     const reservationId = String(reservation._id);
                     reservationsToKeep.push(reservationId);
-                    console.log(`[cleanExpiredReservations] ✅ Mantendo reserva ${reservationId} vinculada a pedido PIX pendente ${order.orderNumber} - aguardando cancelamento via webhook`);
+                    console.log(
+                        `[cleanExpiredReservations] ✅ Mantendo reserva ${reservationId} vinculada a pedido PIX pendente ${order.orderNumber} - aguardando cancelamento via webhook`
+                    );
                     continue;
                 }
             }
-            
+
             // Reserva pode ser cancelada
             reservationsToCancel.push(String(reservation._id));
         }
@@ -652,11 +720,15 @@ export const cleanExpiredReservations = async (): Promise<{
             );
 
             cleanedCount = result.modifiedCount || 0;
-            console.log(`[cleanExpiredReservations] ✅ ${cleanedCount} reserva(s) expirada(s) cancelada(s) automaticamente`);
+            console.log(
+                `[cleanExpiredReservations] ✅ ${cleanedCount} reserva(s) expirada(s) cancelada(s) automaticamente`
+            );
         }
 
         if (reservationsToKeep.length > 0) {
-            console.log(`[cleanExpiredReservations] ⚠️ ${reservationsToKeep.length} reserva(s) expirada(s) mantida(s) por estarem vinculadas a pedidos PIX pendentes`);
+            console.log(
+                `[cleanExpiredReservations] ⚠️ ${reservationsToKeep.length} reserva(s) expirada(s) mantida(s) por estarem vinculadas a pedidos PIX pendentes`
+            );
         }
 
         return {
@@ -671,4 +743,3 @@ export const cleanExpiredReservations = async (): Promise<{
         };
     }
 };
-

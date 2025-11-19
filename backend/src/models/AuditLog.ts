@@ -3,7 +3,14 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IAuditLog extends Document {
     entityType: 'Order' | 'Ticket' | 'Event' | 'User' | 'TicketType';
     entityId: mongoose.Types.ObjectId;
-    action: 'create' | 'update' | 'delete' | 'status_change' | 'payment_update' | 'cancel' | 'refund';
+    action:
+        | 'create'
+        | 'update'
+        | 'delete'
+        | 'status_change'
+        | 'payment_update'
+        | 'cancel'
+        | 'refund';
     performedBy?: mongoose.Types.ObjectId; // Usuário que fez a ação (null = sistema)
     performedByRole?: 'ADMIN' | 'CLIENTE' | 'QRCODE' | 'SYSTEM';
     changes?: {
@@ -37,7 +44,15 @@ const auditLogSchema = new Schema<IAuditLog>(
         },
         action: {
             type: String,
-            enum: ['create', 'update', 'delete', 'status_change', 'payment_update', 'cancel', 'refund'],
+            enum: [
+                'create',
+                'update',
+                'delete',
+                'status_change',
+                'payment_update',
+                'cancel',
+                'refund',
+            ],
             required: true,
             index: true,
         },
@@ -50,11 +65,13 @@ const auditLogSchema = new Schema<IAuditLog>(
             type: String,
             enum: ['ADMIN', 'CLIENTE', 'QRCODE', 'SYSTEM'],
         },
-        changes: [{
-            field: String,
-            oldValue: Schema.Types.Mixed,
-            newValue: Schema.Types.Mixed,
-        }],
+        changes: [
+            {
+                field: String,
+                oldValue: Schema.Types.Mixed,
+                newValue: Schema.Types.Mixed,
+            },
+        ],
         metadata: {
             type: Schema.Types.Mixed,
             default: {},
@@ -71,6 +88,4 @@ auditLogSchema.index({ performedBy: 1, createdAt: -1 });
 auditLogSchema.index({ action: 1, createdAt: -1 });
 auditLogSchema.index({ createdAt: -1 });
 
-export default mongoose.models.AuditLog ||
-    mongoose.model<IAuditLog>('AuditLog', auditLogSchema);
-
+export default mongoose.models.AuditLog || mongoose.model<IAuditLog>('AuditLog', auditLogSchema);

@@ -79,7 +79,9 @@ async function createTestEventWithTickets() {
         });
 
         console.log(`✅ Ingresso Normal criado: ${normalTicket.name} (ID: ${normalTicket._id})`);
-        console.log(`   Preço: R$ ${normalTicket.price},00 + 5% taxa = R$ ${(normalTicket.price * 1.05).toFixed(2)}`);
+        console.log(
+            `   Preço: R$ ${normalTicket.price},00 + 5% taxa = R$ ${(normalTicket.price * 1.05).toFixed(2)}`
+        );
 
         // 2. Ingresso VIP (gratuito - apenas para convidados)
         const vipTicket = await TicketType.create({
@@ -124,7 +126,9 @@ async function createTestEventWithTickets() {
         });
 
         console.log(`✅ Ingresso Promocional criado: ${promoTicket.name} (ID: ${promoTicket._id})`);
-        console.log(`   Preço: R$ ${promoTicket.price},00 + 3% taxa = R$ ${(promoTicket.price * 1.03).toFixed(2)}`);
+        console.log(
+            `   Preço: R$ ${promoTicket.price},00 + 3% taxa = R$ ${(promoTicket.price * 1.03).toFixed(2)}`
+        );
         console.log(`   Desconto: 20%`);
 
         console.log('\n📊 Resumo:');
@@ -134,9 +138,10 @@ async function createTestEventWithTickets() {
         console.log(`\nIngressos criados:`);
         console.log(`1. Normal: R$ 100,00 + 5% taxa = R$ 105,00 (200 disponíveis)`);
         console.log(`2. VIP: Gratuito - Cortesia (50 disponíveis, max 2 por CPF)`);
-        console.log(`3. Promocional: R$ 80,00 + 3% taxa = R$ 82,40 com 20% desconto (100 disponíveis, max 3 por CPF)`);
+        console.log(
+            `3. Promocional: R$ 80,00 + 3% taxa = R$ 82,40 com 20% desconto (100 disponíveis, max 3 por CPF)`
+        );
         console.log(`\n✅ Banco de dados populado com sucesso!`);
-
     } catch (error) {
         console.error('❌ Erro ao criar evento e ingressos:', error);
     } finally {
@@ -146,4 +151,3 @@ async function createTestEventWithTickets() {
 }
 
 createTestEventWithTickets();
-

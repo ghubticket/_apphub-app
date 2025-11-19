@@ -32,14 +32,14 @@ export const sendTicketConfirmationEmail = async (
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
     const html = renderTemplate('ticket-confirmation', {
         ...data,
-        subject: `Seus ingressos - ${data.eventName}`
+        subject: `Seus ingressos - ${data.eventName}`,
     });
 
     return sendEmail({
         to,
         subject: `✅ Seus ingressos - ${data.eventName}`,
         html,
-        attachments
+        attachments,
     });
 };
 
@@ -69,13 +69,13 @@ export const sendPaymentPendingEmail = async (
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
     const html = renderTemplate('payment-pending', {
         ...data,
-        subject: `Pagamento pendente - Pedido #${data.orderNumber}`
+        subject: `Pagamento pendente - Pedido #${data.orderNumber}`,
     });
 
     return sendEmail({
         to,
         subject: `⏳ Pagamento pendente - Pedido #${data.orderNumber}`,
-        html
+        html,
     });
 };
 
@@ -103,13 +103,13 @@ export const sendPaymentConfirmedEmail = async (
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
     const html = renderTemplate('payment-confirmed', {
         ...data,
-        subject: `Pagamento confirmado - Pedido #${data.orderNumber}`
+        subject: `Pagamento confirmado - Pedido #${data.orderNumber}`,
     });
 
     return sendEmail({
         to,
         subject: `✅ Pagamento confirmado - Pedido #${data.orderNumber}`,
-        html
+        html,
     });
 };
 
@@ -134,13 +134,13 @@ export const sendOrderCancelledEmail = async (
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
     const html = renderTemplate('order-cancelled', {
         ...data,
-        subject: `Pedido cancelado - #${data.orderNumber}`
+        subject: `Pedido cancelado - #${data.orderNumber}`,
     });
 
     return sendEmail({
         to,
         subject: `❌ Pedido cancelado - #${data.orderNumber}`,
-        html
+        html,
     });
 };
 
@@ -163,13 +163,13 @@ export const sendWelcomeEmail = async (
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
     const html = renderTemplate('welcome', {
         ...data,
-        subject: 'Bem-vindo ao EventHub!'
+        subject: 'Bem-vindo ao EventHub!',
     });
 
     return sendEmail({
         to,
         subject: '🎉 Bem-vindo ao EventHub!',
-        html
+        html,
     });
 };
 
@@ -193,13 +193,13 @@ export const sendPasswordResetEmail = async (
     const html = renderTemplate('password-reset', {
         ...data,
         expirationMinutes: data.expirationMinutes || 30,
-        subject: 'Redefinição de senha'
+        subject: 'Redefinição de senha',
     });
 
     return sendEmail({
         to,
         subject: '🔐 Redefinição de senha - EventHub',
-        html
+        html,
     });
 };
 
@@ -227,13 +227,13 @@ export const sendPaymentRejectedEmail = async (
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
     const html = renderTemplate('payment-rejected', {
         ...data,
-        subject: `Pagamento recusado - Pedido #${data.orderNumber}`
+        subject: `Pagamento recusado - Pedido #${data.orderNumber}`,
     });
 
     return sendEmail({
         to,
         subject: `❌ Pagamento recusado - Pedido #${data.orderNumber}`,
-        html
+        html,
     });
 };
 
@@ -267,14 +267,13 @@ export const sendCourtesyTicketEmail = async (
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
     const html = renderTemplate('courtesy-ticket', {
         ...data,
-        subject: `🎁 Cortesia - ${data.eventName}`
+        subject: `🎁 Cortesia - ${data.eventName}`,
     });
 
     return sendEmail({
         to,
         subject: `🎁 Você recebeu uma cortesia para ${data.eventName}!`,
         html,
-        attachments
+        attachments,
     });
 };
-

@@ -14,7 +14,7 @@ export const authRateLimit = rateLimit({
     message: {
         success: false,
         message: 'Muitas tentativas de login. Tente novamente em 15 minutos.',
-        errors: ['Rate limit excedido para autenticação']
+        errors: ['Rate limit excedido para autenticação'],
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -31,7 +31,7 @@ export const generalRateLimit = rateLimit({
     message: {
         success: false,
         message: 'Muitas requisições. Tente novamente em 15 minutos.',
-        errors: ['Rate limit excedido']
+        errors: ['Rate limit excedido'],
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -47,7 +47,7 @@ export const refreshRateLimit = rateLimit({
     message: {
         success: false,
         message: 'Muitas tentativas de refresh. Tente novamente em 5 minutos.',
-        errors: ['Rate limit excedido para refresh token']
+        errors: ['Rate limit excedido para refresh token'],
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -63,7 +63,7 @@ export const sensitiveRateLimit = rateLimit({
     message: {
         success: false,
         message: 'Muitas requisições para endpoint sensível. Tente novamente em 1 minuto.',
-        errors: ['Rate limit excedido para endpoint sensível']
+        errors: ['Rate limit excedido para endpoint sensível'],
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -86,14 +86,14 @@ export const userRateLimit = (windowMs: number, max: number, message?: string) =
         message: {
             success: false,
             message: message || 'Muitas requisições. Tente novamente mais tarde.',
-            errors: ['Rate limit excedido por usuário']
+            errors: ['Rate limit excedido por usuário'],
         },
         standardHeaders: true,
         legacyHeaders: false,
         skip: (req: Request) => {
             // Pular rate limit para usuários não autenticados (já tem rate limit por IP)
             return !(req as any).user;
-        }
+        },
     });
 };
 

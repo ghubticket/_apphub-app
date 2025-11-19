@@ -7,15 +7,26 @@ import mongoose from 'mongoose';
  */
 export const createPromoterCode = async (req: Request, res: Response) => {
     try {
-        const { code, name, cpf, email, whatsapp, discountType, discountValue, events, isActive } = req.body;
+        const { code, name, cpf, email, whatsapp, discountType, discountValue, events, isActive } =
+            req.body;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
 
         // Validações básicas
-        if (!code || !name || !cpf || !email || !whatsapp || !discountType || discountValue === undefined) {
+        if (
+            !code ||
+            !name ||
+            !cpf ||
+            !email ||
+            !whatsapp ||
+            !discountType ||
+            discountValue === undefined
+        ) {
             return res.status(400).json({
                 success: false,
                 message: 'Dados incompletos',
-                errors: ['Código, nome, CPF, email, WhatsApp, tipo e valor de desconto são obrigatórios']
+                errors: [
+                    'Código, nome, CPF, email, WhatsApp, tipo e valor de desconto são obrigatórios',
+                ],
             });
         }
 
@@ -24,7 +35,7 @@ export const createPromoterCode = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Tipo de desconto inválido',
-                errors: ['Tipo deve ser "percentage" ou "fixed"']
+                errors: ['Tipo deve ser "percentage" ou "fixed"'],
             });
         }
 
@@ -33,7 +44,7 @@ export const createPromoterCode = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Valor de desconto inválido',
-                errors: ['Desconto percentual deve estar entre 0 e 100']
+                errors: ['Desconto percentual deve estar entre 0 e 100'],
             });
         }
 
@@ -41,21 +52,21 @@ export const createPromoterCode = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Valor de desconto inválido',
-                errors: ['Desconto fixo não pode ser negativo']
+                errors: ['Desconto fixo não pode ser negativo'],
             });
         }
 
         // Verificar se código já existe
         const existingCode = await PromoterCode.findOne({
             code: code.toUpperCase().trim(),
-            deletedAt: null
+            deletedAt: null,
         });
 
         if (existingCode) {
             return res.status(400).json({
                 success: false,
                 message: 'Código já existe',
-                errors: ['Este código já está cadastrado']
+                errors: ['Este código já está cadastrado'],
             });
         }
 
@@ -70,7 +81,9 @@ export const createPromoterCode = async (req: Request, res: Response) => {
             discountValue: Number(discountValue),
             currentUses: 0,
             isActive: isActive !== undefined ? Boolean(isActive) : true,
-            events: Array.isArray(events) ? events.map((id: string) => new mongoose.Types.ObjectId(id)) : [],
+            events: Array.isArray(events)
+                ? events.map((id: string) => new mongoose.Types.ObjectId(id))
+                : [],
             createdBy: userId,
         });
 
@@ -85,15 +98,19 @@ export const createPromoterCode = async (req: Request, res: Response) => {
         res.status(201).json({
             success: true,
             message: 'Código de promotor criado com sucesso',
-            data: populated
+            data: populated,
         });
     } catch (error: any) {
         console.error('Erro ao criar código de promotor:', error);
-        const errorMessage = error.errors ? Object.values(error.errors).map((e: any) => e.message).join(', ') : error.message;
+        const errorMessage = error.errors
+            ? Object.values(error.errors)
+                  .map((e: any) => e.message)
+                  .join(', ')
+            : error.message;
         res.status(400).json({
             success: false,
             message: 'Erro ao criar código de promotor',
-            errors: [errorMessage]
+            errors: [errorMessage],
         });
     }
 };
@@ -112,7 +129,7 @@ export const listPromoterCodes = async (req: Request, res: Response) => {
             filters.$or = [
                 { code: { $regex: String(search), $options: 'i' } },
                 { name: { $regex: String(search), $options: 'i' } },
-                { email: { $regex: String(search), $options: 'i' } }
+                { email: { $regex: String(search), $options: 'i' } },
             ];
         }
 
@@ -136,7 +153,7 @@ export const listPromoterCodes = async (req: Request, res: Response) => {
                 .skip(skip)
                 .limit(Number(limit))
                 .lean(),
-            PromoterCode.countDocuments(filters)
+            PromoterCode.countDocuments(filters),
         ]);
 
         res.json({
@@ -147,16 +164,16 @@ export const listPromoterCodes = async (req: Request, res: Response) => {
                     page: Number(page),
                     limit: Number(limit),
                     total,
-                    totalPages: Math.ceil(total / Number(limit))
-                }
-            }
+                    totalPages: Math.ceil(total / Number(limit)),
+                },
+            },
         });
     } catch (error: any) {
         console.error('Erro ao listar códigos de promotor:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao listar códigos de promotor',
-            errors: [error.message]
+            errors: [error.message],
         });
     }
 };
@@ -170,7 +187,7 @@ export const getPromoterCodeById = async (req: Request, res: Response) => {
 
         const code = await PromoterCode.findOne({
             _id: id,
-            deletedAt: null
+            deletedAt: null,
         })
             .populate('events', 'name date location')
             .populate('createdBy', 'name email')
@@ -179,20 +196,20 @@ export const getPromoterCodeById = async (req: Request, res: Response) => {
         if (!code) {
             return res.status(404).json({
                 success: false,
-                message: 'Código de promotor não encontrado'
+                message: 'Código de promotor não encontrado',
             });
         }
 
         res.json({
             success: true,
-            data: code
+            data: code,
         });
     } catch (error: any) {
         console.error('Erro ao buscar código de promotor:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar código de promotor',
-            errors: [error.message]
+            errors: [error.message],
         });
     }
 };
@@ -211,24 +228,27 @@ export const updatePromoterCode = async (req: Request, res: Response) => {
             const existing = await PromoterCode.findOne({
                 code: updates.code,
                 deletedAt: null,
-                _id: { $ne: id }
+                _id: { $ne: id },
             });
             if (existing) {
                 return res.status(400).json({
                     success: false,
                     message: 'Código já existe',
-                    errors: ['Este código já está cadastrado']
+                    errors: ['Este código já está cadastrado'],
                 });
             }
         }
 
         // Validar desconto se fornecido
         if (updates.discountType && updates.discountValue !== undefined) {
-            if (updates.discountType === 'percentage' && (updates.discountValue < 0 || updates.discountValue > 100)) {
+            if (
+                updates.discountType === 'percentage' &&
+                (updates.discountValue < 0 || updates.discountValue > 100)
+            ) {
                 return res.status(400).json({
                     success: false,
                     message: 'Valor de desconto inválido',
-                    errors: ['Desconto percentual deve estar entre 0 e 100']
+                    errors: ['Desconto percentual deve estar entre 0 e 100'],
                 });
             }
         }
@@ -238,11 +258,10 @@ export const updatePromoterCode = async (req: Request, res: Response) => {
             updates.events = updates.events.map((id: string) => new mongoose.Types.ObjectId(id));
         }
 
-        const code = await PromoterCode.findOneAndUpdate(
-            { _id: id, deletedAt: null },
-            updates,
-            { new: true, runValidators: true }
-        )
+        const code = await PromoterCode.findOneAndUpdate({ _id: id, deletedAt: null }, updates, {
+            new: true,
+            runValidators: true,
+        })
             .populate('events', 'name date')
             .populate('createdBy', 'name email')
             .lean();
@@ -250,22 +269,26 @@ export const updatePromoterCode = async (req: Request, res: Response) => {
         if (!code) {
             return res.status(404).json({
                 success: false,
-                message: 'Código de promotor não encontrado'
+                message: 'Código de promotor não encontrado',
             });
         }
 
         res.json({
             success: true,
             message: 'Código de promotor atualizado com sucesso',
-            data: code
+            data: code,
         });
     } catch (error: any) {
         console.error('Erro ao atualizar código de promotor:', error);
-        const errorMessage = error.errors ? Object.values(error.errors).map((e: any) => e.message).join(', ') : error.message;
+        const errorMessage = error.errors
+            ? Object.values(error.errors)
+                  .map((e: any) => e.message)
+                  .join(', ')
+            : error.message;
         res.status(400).json({
             success: false,
             message: 'Erro ao atualizar código de promotor',
-            errors: [errorMessage]
+            errors: [errorMessage],
         });
     }
 };
@@ -281,7 +304,7 @@ export const togglePromoterCode = async (req: Request, res: Response) => {
         if (!code) {
             return res.status(404).json({
                 success: false,
-                message: 'Código de promotor não encontrado'
+                message: 'Código de promotor não encontrado',
             });
         }
 
@@ -291,14 +314,14 @@ export const togglePromoterCode = async (req: Request, res: Response) => {
         res.json({
             success: true,
             message: `Código ${code.isActive ? 'ativado' : 'desativado'} com sucesso`,
-            data: code
+            data: code,
         });
     } catch (error: any) {
         console.error('Erro ao alterar status do código:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao alterar status do código',
-            errors: [error.message]
+            errors: [error.message],
         });
     }
 };
@@ -314,7 +337,7 @@ export const deletePromoterCode = async (req: Request, res: Response) => {
         if (!code) {
             return res.status(404).json({
                 success: false,
-                message: 'Código de promotor não encontrado'
+                message: 'Código de promotor não encontrado',
             });
         }
 
@@ -323,14 +346,14 @@ export const deletePromoterCode = async (req: Request, res: Response) => {
 
         res.json({
             success: true,
-            message: 'Código de promotor removido com sucesso'
+            message: 'Código de promotor removido com sucesso',
         });
     } catch (error: any) {
         console.error('Erro ao deletar código de promotor:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao deletar código de promotor',
-            errors: [error.message]
+            errors: [error.message],
         });
     }
 };
@@ -345,7 +368,7 @@ export const validatePromoterCode = async (req: Request, res: Response) => {
         if (!code || !eventId) {
             return res.status(400).json({
                 success: false,
-                message: 'Código e ID do evento são obrigatórios'
+                message: 'Código e ID do evento são obrigatórios',
             });
         }
 
@@ -353,14 +376,14 @@ export const validatePromoterCode = async (req: Request, res: Response) => {
             code: String(code).toUpperCase().trim(),
             isActive: true,
             deletedAt: null,
-            events: new mongoose.Types.ObjectId(String(eventId))
+            events: new mongoose.Types.ObjectId(String(eventId)),
         }).lean();
 
         if (!promoterCode) {
             return res.json({
                 success: false,
                 valid: false,
-                message: 'Código inválido ou não válido para este evento'
+                message: 'Código inválido ou não válido para este evento',
             });
         }
 
@@ -374,7 +397,7 @@ export const validatePromoterCode = async (req: Request, res: Response) => {
                 discountType: promoterCode.discountType,
                 discountValue: promoterCode.discountValue,
                 // O cálculo do desconto será feito no backend quando criar o pedido
-            }
+            },
         });
     } catch (error: any) {
         console.error('Erro ao validar código:', error);
@@ -382,7 +405,7 @@ export const validatePromoterCode = async (req: Request, res: Response) => {
             success: false,
             valid: false,
             message: 'Erro ao validar código',
-            errors: [error.message]
+            errors: [error.message],
         });
     }
 };
@@ -398,7 +421,7 @@ export const getPromoterCodeStats = async (req: Request, res: Response) => {
         if (!code) {
             return res.status(404).json({
                 success: false,
-                message: 'Código de promotor não encontrado'
+                message: 'Código de promotor não encontrado',
             });
         }
 
@@ -406,11 +429,11 @@ export const getPromoterCodeStats = async (req: Request, res: Response) => {
         const orders = await Order.find({
             promoterCode: code.code,
             deletedAt: null,
-            status: 'paid' // Apenas pedidos pagos
+            status: 'paid', // Apenas pedidos pagos
         }).lean();
 
         // Calcular estatísticas
-        let totalOrders = orders.length;
+        const totalOrders = orders.length;
         let totalSales = 0; // Vendas brutas (subtotal original)
         let totalDiscount = 0; // Total de desconto aplicado
         let totalRevenue = 0; // Receita líquida (totalAmount)
@@ -438,15 +461,14 @@ export const getPromoterCodeStats = async (req: Request, res: Response) => {
                 totalDiscount,
                 totalRevenue, // Receita líquida
                 commission, // Comissão (futuro)
-            }
+            },
         });
     } catch (error: any) {
         console.error('Erro ao buscar estatísticas:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar estatísticas',
-            errors: [error.message]
+            errors: [error.message],
         });
     }
 };
-

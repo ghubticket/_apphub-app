@@ -164,4 +164,3 @@ export default mongoose.model<ITicketReservation, ITicketReservationModel>(
     'TicketReservation',
     ticketReservationSchema
 );
-

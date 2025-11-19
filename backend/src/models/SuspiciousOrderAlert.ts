@@ -2,7 +2,10 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ISuspiciousOrderAlert extends Document {
     orderId: mongoose.Types.ObjectId;
-    alertType: 'multiple_orders_same_ip' | 'same_cpf_different_emails' | 'multiple_orders_short_time';
+    alertType:
+        | 'multiple_orders_same_ip'
+        | 'same_cpf_different_emails'
+        | 'multiple_orders_short_time';
     severity: 'low' | 'medium' | 'high';
     description: string;
     metadata: {
@@ -31,7 +34,11 @@ const suspiciousOrderAlertSchema = new Schema<ISuspiciousOrderAlert>(
         },
         alertType: {
             type: String,
-            enum: ['multiple_orders_same_ip', 'same_cpf_different_emails', 'multiple_orders_short_time'],
+            enum: [
+                'multiple_orders_same_ip',
+                'same_cpf_different_emails',
+                'multiple_orders_short_time',
+            ],
             required: true,
             index: true,
         },
@@ -78,4 +85,3 @@ suspiciousOrderAlertSchema.index({ orderId: 1 });
 
 export default mongoose.models.SuspiciousOrderAlert ||
     mongoose.model<ISuspiciousOrderAlert>('SuspiciousOrderAlert', suspiciousOrderAlertSchema);
-

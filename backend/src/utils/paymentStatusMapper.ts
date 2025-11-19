@@ -19,7 +19,10 @@ export interface PaymentStatusInfo {
 /**
  * Mapeamento completo de status de transação do Mercado Pago
  */
-const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 'status' | 'statusDetail'>>> = {
+const TRANSACTION_STATUS_MAP: Record<
+    string,
+    Record<string, Omit<PaymentStatusInfo, 'status' | 'statusDetail'>>
+> = {
     // Status: created
     created: {
         created: {
@@ -28,8 +31,8 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'info',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'pending'
-        }
+            internalStatus: 'pending',
+        },
     },
 
     // Status: processed
@@ -40,7 +43,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'success',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'paid'
+            internalStatus: 'paid',
         },
         partially_refunded: {
             userMessage: 'Pagamento aprovado com reembolso parcial.',
@@ -48,8 +51,8 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'warning',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'paid'
-        }
+            internalStatus: 'paid',
+        },
     },
 
     // Status: processing
@@ -60,7 +63,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'warning',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'processing'
+            internalStatus: 'processing',
         },
         pending_review_manual: {
             userMessage: 'Pagamento em análise. Aguarde a confirmação...',
@@ -68,8 +71,8 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'warning',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'processing'
-        }
+            internalStatus: 'processing',
+        },
     },
 
     // Status: action_required
@@ -80,7 +83,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'warning',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'pending'
+            internalStatus: 'pending',
         },
         waiting_capture: {
             userMessage: 'Pagamento autorizado. Aguardando confirmação...',
@@ -88,7 +91,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'warning',
             requiresAction: true,
             canRetry: false,
-            internalStatus: 'processing'
+            internalStatus: 'processing',
         },
         waiting_transfer: {
             userMessage: 'Pagamento iniciado. Aguardando transferência...',
@@ -96,8 +99,8 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'warning',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'processing'
-        }
+            internalStatus: 'processing',
+        },
     },
 
     // Status: charged_back
@@ -108,7 +111,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'refunded'
+            internalStatus: 'refunded',
         },
         settled: {
             userMessage: 'Pagamento contestado e liquidado.',
@@ -116,7 +119,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'refunded'
+            internalStatus: 'refunded',
         },
         reimbursed: {
             userMessage: 'Pagamento contestado. Valor foi reembolsado.',
@@ -124,8 +127,8 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'refunded'
-        }
+            internalStatus: 'refunded',
+        },
     },
 
     // Status: expired
@@ -136,8 +139,8 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'cancelled'
-        }
+            internalStatus: 'cancelled',
+        },
     },
 
     // Status: refunded
@@ -148,19 +151,20 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'secondary',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'refunded'
-        }
+            internalStatus: 'refunded',
+        },
     },
 
     // Status: failed
     failed: {
         bad_filled_card_data: {
             userMessage: 'Dados do cartão incorretos. Verifique e tente novamente.',
-            adminMessage: 'Transação falhou devido a dados do cartão preenchidos incorretamente (número, CVV, validade, etc.).',
+            adminMessage:
+                'Transação falhou devido a dados do cartão preenchidos incorretamente (número, CVV, validade, etc.).',
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         invalid_card_token: {
             userMessage: 'Token do cartão inválido. Tente novamente.',
@@ -168,7 +172,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         high_risk: {
             userMessage: 'Pagamento recusado por segurança. Entre em contato com o suporte.',
@@ -176,23 +180,25 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: true,
             canRetry: false,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         rejected_by_issuer: {
-            userMessage: 'Pagamento recusado pelo banco. Verifique com seu banco ou tente outro cartão.',
+            userMessage:
+                'Pagamento recusado pelo banco. Verifique com seu banco ou tente outro cartão.',
             adminMessage: 'Transação falhou devido à rejeição pelo emissor do cartão.',
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         required_call_for_authorize: {
             userMessage: 'Autorização necessária. Entre em contato com seu banco.',
-            adminMessage: 'Transação falhou porque é necessária uma chamada para autorização pelo emissor.',
+            adminMessage:
+                'Transação falhou porque é necessária uma chamada para autorização pelo emissor.',
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         max_attempts_exceeded: {
             userMessage: 'Número máximo de tentativas excedido. Tente novamente mais tarde.',
@@ -200,7 +206,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: true,
             canRetry: false,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         card_disabled: {
             userMessage: 'Cartão desativado. Use outro cartão ou entre em contato com seu banco.',
@@ -208,7 +214,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         insufficient_amount: {
             userMessage: 'Saldo insuficiente. Verifique seu saldo ou use outro cartão.',
@@ -216,23 +222,26 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         amount_limit_exceeded: {
             userMessage: 'Limite de valor excedido. Tente um valor menor ou use outro cartão.',
-            adminMessage: 'Transação falhou devido ao limite de valor excedido pelo emissor ou sistema.',
+            adminMessage:
+                'Transação falhou devido ao limite de valor excedido pelo emissor ou sistema.',
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         processing_error: {
-            userMessage: 'Erro ao processar pagamento. Tente novamente ou entre em contato com o suporte.',
-            adminMessage: 'Transação falhou devido a erro de processamento no sistema. Verifique logs e x-request-id.',
+            userMessage:
+                'Erro ao processar pagamento. Tente novamente ou entre em contato com o suporte.',
+            adminMessage:
+                'Transação falhou devido a erro de processamento no sistema. Verifique logs e x-request-id.',
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         invalid_installments: {
             userMessage: 'Número de parcelas inválido. Escolha outra opção de parcelamento.',
@@ -240,15 +249,16 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         pending_challenge: {
             userMessage: 'Autenticação 3D Secure pendente. Complete a verificação.',
-            adminMessage: 'Transação falhou devido a desafio 3DS pendente (autenticação não concluída).',
+            adminMessage:
+                'Transação falhou devido a desafio 3DS pendente (autenticação não concluída).',
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         '3ds_challenge_expired': {
             userMessage: 'Tempo de autenticação 3D Secure expirado. Tente novamente.',
@@ -256,7 +266,7 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
+            internalStatus: 'failed',
         },
         '3ds_challenge_failed': {
             userMessage: 'Autenticação 3D Secure falhou. Tente novamente.',
@@ -264,15 +274,18 @@ const TRANSACTION_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusIn
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
-        }
-    }
+            internalStatus: 'failed',
+        },
+    },
 };
 
 /**
  * Mapeamento de status de Order (quando usar Orders API)
  */
-const ORDER_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 'status' | 'statusDetail'>>> = {
+const ORDER_STATUS_MAP: Record<
+    string,
+    Record<string, Omit<PaymentStatusInfo, 'status' | 'statusDetail'>>
+> = {
     opened: {
         opened: {
             userMessage: 'Pedido criado. Aguardando pagamento...',
@@ -280,8 +293,8 @@ const ORDER_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 's
             color: 'info',
             requiresAction: true,
             canRetry: false,
-            internalStatus: 'pending'
-        }
+            internalStatus: 'pending',
+        },
     },
     closed: {
         closed: {
@@ -290,8 +303,8 @@ const ORDER_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 's
             color: 'success',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'paid'
-        }
+            internalStatus: 'paid',
+        },
     },
     charged_back: {
         in_process: {
@@ -300,7 +313,7 @@ const ORDER_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 's
             color: 'error',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'refunded'
+            internalStatus: 'refunded',
         },
         settled: {
             userMessage: 'Pagamento contestado e liquidado.',
@@ -308,7 +321,7 @@ const ORDER_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 's
             color: 'error',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'refunded'
+            internalStatus: 'refunded',
         },
         reimbursed: {
             userMessage: 'Pagamento contestado. Valor foi reembolsado.',
@@ -316,8 +329,8 @@ const ORDER_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 's
             color: 'error',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'refunded'
-        }
+            internalStatus: 'refunded',
+        },
     },
     expired: {
         expired: {
@@ -326,8 +339,8 @@ const ORDER_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 's
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'cancelled'
-        }
+            internalStatus: 'cancelled',
+        },
     },
     failed: {
         failed: {
@@ -336,8 +349,8 @@ const ORDER_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 's
             color: 'error',
             requiresAction: true,
             canRetry: true,
-            internalStatus: 'failed'
-        }
+            internalStatus: 'failed',
+        },
     },
     refunded: {
         refunded: {
@@ -346,9 +359,9 @@ const ORDER_STATUS_MAP: Record<string, Record<string, Omit<PaymentStatusInfo, 's
             color: 'secondary',
             requiresAction: false,
             canRetry: false,
-            internalStatus: 'refunded'
-        }
-    }
+            internalStatus: 'refunded',
+        },
+    },
 };
 
 /**
@@ -366,7 +379,7 @@ export const getPaymentStatusInfo = (status: string, statusDetail: string): Paym
         return {
             status: normalizedStatus,
             statusDetail: normalizedDetail,
-            ...transactionInfo
+            ...transactionInfo,
         };
     }
 
@@ -377,7 +390,7 @@ export const getPaymentStatusInfo = (status: string, statusDetail: string): Paym
         return {
             status: normalizedStatus,
             statusDetail: normalizedDetail,
-            ...orderInfo
+            ...orderInfo,
         };
     }
 
@@ -390,14 +403,17 @@ export const getPaymentStatusInfo = (status: string, statusDetail: string): Paym
         color: 'warning',
         requiresAction: true,
         canRetry: true,
-        internalStatus: 'pending'
+        internalStatus: 'pending',
     };
 };
 
 /**
  * Mapeia status do Mercado Pago para status interno do sistema
  */
-export const mapPaymentStatus = (mpStatus: string, statusDetail?: string): 'pending' | 'paid' | 'cancelled' | 'refunded' | 'processing' | 'failed' => {
+export const mapPaymentStatus = (
+    mpStatus: string,
+    statusDetail?: string
+): 'pending' | 'paid' | 'cancelled' | 'refunded' | 'processing' | 'failed' => {
     const info = getPaymentStatusInfo(mpStatus, statusDetail || '');
     return info.internalStatus;
 };
@@ -417,4 +433,3 @@ export const canRetryPayment = (status: string, statusDetail: string): boolean =
     const info = getPaymentStatusInfo(status, statusDetail);
     return info.canRetry;
 };
-

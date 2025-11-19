@@ -137,4 +137,3 @@ router.delete('/:id', optionalAuth, releaseReservation);
 router.delete('/session/release', optionalAuth, releaseSessionReservations);
 
 export default router;
-

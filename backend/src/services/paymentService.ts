@@ -13,7 +13,9 @@ if (!accessToken || accessToken === '') {
     console.error('❌ ERRO CRÍTICO: MP_ACCESS_TOKEN não está configurado no .env');
     console.error('   Por favor, adicione MP_ACCESS_TOKEN=SEU_TOKEN no arquivo backend/.env');
     console.error('   Para obter o token, consulte: backend/COMO_CONFIGURAR_CREDENCIAIS.md');
-    throw new Error('MP_ACCESS_TOKEN não está configurado. Por favor, configure no arquivo .env antes de iniciar o servidor.');
+    throw new Error(
+        'MP_ACCESS_TOKEN não está configurado. Por favor, configure no arquivo .env antes de iniciar o servidor.'
+    );
 }
 
 // Log de debug (apenas início do token para segurança)
@@ -26,8 +28,8 @@ if (process.env.NODE_ENV !== 'production') {
 const client = new MercadoPagoConfig({
     accessToken: accessToken,
     options: {
-        timeout: 10000 // 10 segundos para operações críticas
-    }
+        timeout: 10000, // 10 segundos para operações críticas
+    },
 });
 
 // Verificar se o cliente foi criado corretamente
@@ -129,7 +131,8 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
     if (params.totalAmount <= 0) {
         errors.push('Valor do pagamento deve ser maior que zero');
     }
-    if (params.totalAmount > 100000) { // Limite de segurança
+    if (params.totalAmount > 100000) {
+        // Limite de segurança
         errors.push('Valor do pagamento excede o limite permitido');
     }
 
@@ -140,12 +143,14 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
     }
 
     // Validar CPF (11 dígitos)
-    const identificationType = 'cardholder' in params && params.cardholder?.identification?.type
-        ? String(params.cardholder.identification.type).toUpperCase()
-        : 'CPF';
-    const docNumberRaw = 'cardholder' in params && params.cardholder?.identification?.number
-        ? params.cardholder.identification.number
-        : params.customerData.cpf;
+    const identificationType =
+        'cardholder' in params && params.cardholder?.identification?.type
+            ? String(params.cardholder.identification.type).toUpperCase()
+            : 'CPF';
+    const docNumberRaw =
+        'cardholder' in params && params.cardholder?.identification?.number
+            ? params.cardholder.identification.number
+            : params.customerData.cpf;
     if (identificationType === 'CPF') {
         const docNumber = normalizeCpfBackend(docNumberRaw || '');
         if (!isValidCpfBackend(docNumber)) {
@@ -179,9 +184,9 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
 /**
  * Cria um pagamento PIX no Mercado Pago usando Orders API (Checkout Transparente)
  * Retorna QR Code e informações de expiração
- * 
+ *
  * Modo: AUTOMÁTICO (processing_mode: 'automatic')
- * 
+ *
  * Implementa recomendações do Mercado Pago para melhorar taxa de aprovação:
  * - Additional info completo (comprador, produtos, indústria)
  * - Device ID para rastreamento de segurança
@@ -193,26 +198,39 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
 
         // Validar se o Access Token está configurado
         if (!currentToken || currentToken === '') {
-            throw new Error('MP_ACCESS_TOKEN não está configurado. Por favor, adicione MP_ACCESS_TOKEN no arquivo .env');
+            throw new Error(
+                'MP_ACCESS_TOKEN não está configurado. Por favor, adicione MP_ACCESS_TOKEN no arquivo .env'
+            );
         }
 
         // Log de debug
         if (process.env.NODE_ENV !== 'production') {
-            console.log('🔍 Criando pagamento PIX com token:', currentToken.substring(0, 20) + '...');
+            console.log(
+                '🔍 Criando pagamento PIX com token:',
+                currentToken.substring(0, 20) + '...'
+            );
         }
 
         // Recriar cliente com token atualizado (garantir que o token está sendo usado)
         const currentClient = new MercadoPagoConfig({
             accessToken: currentToken,
             options: {
-                timeout: 10000
-            }
+                timeout: 10000,
+            },
         });
 
         // Verificar se o cliente foi criado corretamente
         if (process.env.NODE_ENV !== 'production') {
-            console.log('🔍 DEBUG - Token passado para cliente:', currentToken.substring(0, 30) + '...');
-            console.log('🔍 DEBUG - Token no cliente após criação:', currentClient.accessToken ? currentClient.accessToken.substring(0, 30) + '...' : 'NÃO TEM TOKEN');
+            console.log(
+                '🔍 DEBUG - Token passado para cliente:',
+                currentToken.substring(0, 30) + '...'
+            );
+            console.log(
+                '🔍 DEBUG - Token no cliente após criação:',
+                currentClient.accessToken
+                    ? currentClient.accessToken.substring(0, 30) + '...'
+                    : 'NÃO TEM TOKEN'
+            );
             console.log('🔍 DEBUG - Token completo tem', currentToken.length, 'caracteres');
         }
 
@@ -245,12 +263,14 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 last_name: lastName,
                 identification: {
                     type: 'CPF',
-                    number: normalizeCpfBackend(customerData.cpf)
+                    number: normalizeCpfBackend(customerData.cpf),
                 },
-                phone: customerData.phone ? {
-                    area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
-                    number: customerData.phone.replace(/\D/g, '').substring(2)
-                } : undefined
+                phone: customerData.phone
+                    ? {
+                          area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
+                          number: customerData.phone.replace(/\D/g, '').substring(2),
+                      }
+                    : undefined,
             },
             transactions: {
                 payments: [
@@ -258,14 +278,14 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                         amount: String(totalAmount),
                         payment_method: {
                             id: 'pix',
-                            type: 'bank_transfer'
+                            type: 'bank_transfer',
                         },
                         // Orders API aceita expiration_time (ISO-8601 duration)
                         // Aqui fixamos em 30 minutos para alinhar com o comportamento oficial do MP
-                        expiration_time: MP_PIX_EXPIRATION_ISO
-                    }
-                ]
-            }
+                        expiration_time: MP_PIX_EXPIRATION_ISO,
+                    },
+                ],
+            },
         };
 
         // Criar opções com Device ID e Idempotency Key
@@ -278,9 +298,9 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 headers: {
                     'X-Idempotency-Key': idempotencyKey,
                     // Garantir que o token está no header (o SDK deveria fazer isso, mas vamos forçar)
-                    'Authorization': `Bearer ${currentToken}`
-                }
-            }
+                    Authorization: `Bearer ${currentToken}`,
+                },
+            },
         };
 
         if (deviceId) {
@@ -291,8 +311,8 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         if (process.env.NODE_ENV !== 'production') {
             console.log('🔍 DEBUG - Headers da requisição:', {
                 'X-Idempotency-Key': idempotencyKey.substring(0, 20) + '...',
-                'Authorization': 'Bearer ' + currentToken.substring(0, 20) + '...',
-                'X-meli-session-id': deviceId || 'não fornecido'
+                Authorization: 'Bearer ' + currentToken.substring(0, 20) + '...',
+                'X-meli-session-id': deviceId || 'não fornecido',
             });
         }
 
@@ -303,7 +323,10 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
 
         // Log para debug
         if (process.env.NODE_ENV !== 'production') {
-            console.log('🔍 DEBUG - Resposta completa do Mercado Pago:', JSON.stringify(orderResponse, null, 2));
+            console.log(
+                '🔍 DEBUG - Resposta completa do Mercado Pago:',
+                JSON.stringify(orderResponse, null, 2)
+            );
         }
 
         // Extrair informações da primeira transação (PIX)
@@ -317,7 +340,10 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         // Log detalhado do paymentInfo para debug
         if (process.env.NODE_ENV !== 'production') {
             console.log('🔍 DEBUG - Payment Info:', JSON.stringify(paymentInfo, null, 2));
-            console.log('🔍 DEBUG - payment_method:', JSON.stringify(paymentInfo.payment_method, null, 2));
+            console.log(
+                '🔍 DEBUG - payment_method:',
+                JSON.stringify(paymentInfo.payment_method, null, 2)
+            );
         }
 
         // Extrair QR Code - na Orders API, está em payment_method
@@ -335,7 +361,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             ticketUrl: ticketUrl,
             expiresAt: paymentInfo.date_of_expiration,
             expirationMinutes: PIX_EXPIRATION_MINUTES,
-            orderStatus: orderResponse.status // Status da Order
+            orderStatus: orderResponse.status, // Status da Order
         };
     } catch (error: any) {
         console.error('Erro ao criar pagamento PIX (Orders API):', error);
@@ -343,28 +369,38 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         // Log detalhado para debug
         if (process.env.NODE_ENV !== 'production') {
             console.error('🔍 DEBUG - Token configurado:', accessToken ? 'SIM' : 'NÃO');
-            console.error('🔍 DEBUG - Token (primeiros 20 chars):', accessToken?.substring(0, 20) || 'N/A');
+            console.error(
+                '🔍 DEBUG - Token (primeiros 20 chars):',
+                accessToken?.substring(0, 20) || 'N/A'
+            );
             console.error('🔍 DEBUG - Erro completo:', JSON.stringify(error, null, 2));
         }
 
         // Tratamento específico para erro de autenticação
-        if (error.message?.includes('authorization') ||
+        if (
+            error.message?.includes('authorization') ||
             error.message?.includes('not present') ||
             error.code === 'unauthorized' ||
-            (error.response?.data && error.response.data.code === 'unauthorized')) {
-
+            (error.response?.data && error.response.data.code === 'unauthorized')
+        ) {
             console.error('❌ Erro de autenticação com Mercado Pago');
             console.error('   Verifique se o MP_ACCESS_TOKEN está correto no arquivo .env');
             console.error('   Certifique-se de que o servidor foi reiniciado após editar o .env');
 
-            throw new Error('MP_ACCESS_TOKEN não está configurado ou é inválido. Verifique o arquivo backend/.env e adicione: MP_ACCESS_TOKEN=SEU_TOKEN. Certifique-se de reiniciar o servidor após editar o .env');
+            throw new Error(
+                'MP_ACCESS_TOKEN não está configurado ou é inválido. Verifique o arquivo backend/.env e adicione: MP_ACCESS_TOKEN=SEU_TOKEN. Certifique-se de reiniciar o servidor após editar o .env'
+            );
         }
 
         // Tratamento específico para erro de email em sandbox
         if (error.errors && Array.isArray(error.errors)) {
-            const sandboxEmailError = error.errors.find((e: any) => e.code === 'invalid_email_for_sandbox');
+            const sandboxEmailError = error.errors.find(
+                (e: any) => e.code === 'invalid_email_for_sandbox'
+            );
             if (sandboxEmailError) {
-                throw new Error(`Email inválido para ambiente de teste. Em sandbox, o email deve terminar com '@testuser.com'. Email usado: ${params.customerData.email}`);
+                throw new Error(
+                    `Email inválido para ambiente de teste. Em sandbox, o email deve terminar com '@testuser.com'. Email usado: ${params.customerData.email}`
+                );
             }
 
             // Tratamento para outros erros específicos
@@ -376,7 +412,9 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         if (error.response?.data) {
             const mpError = error.response.data;
             if (mpError.errors && Array.isArray(mpError.errors)) {
-                const errorMessages = mpError.errors.map((e: any) => e.message || e.code).join(', ');
+                const errorMessages = mpError.errors
+                    .map((e: any) => e.message || e.code)
+                    .join(', ');
                 throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
             }
             throw new Error(`Erro do Mercado Pago: ${mpError.message || JSON.stringify(mpError)}`);
@@ -390,18 +428,25 @@ const mapMpRejection = (statusDetail?: string) => {
     const code = (statusDetail || '').toLowerCase();
     const table: Record<string, string> = {
         cc_rejected_insufficient_amount: 'Pagamento recusado por saldo ou limite insuficiente.',
-        cc_rejected_bad_filled_security_code: 'Código de segurança incorreto. Confira os três dígitos no verso do cartão.',
+        cc_rejected_bad_filled_security_code:
+            'Código de segurança incorreto. Confira os três dígitos no verso do cartão.',
         cc_rejected_bad_filled_date: 'Data de validade incorreta.',
         cc_rejected_bad_filled_other: 'Dados do cartão incorretos. Confira número, data e código.',
-        cc_rejected_issuer_unavailable: 'Emissor indisponível no momento. Tente novamente em alguns minutos.',
-        cc_rejected_call_for_authorize: 'Transação necessita autorização do banco emissor. Entre em contato com o banco.',
-        cc_rejected_card_disabled: 'Cartão desabilitado. Ative-o junto ao banco emissor antes de tentar novamente.',
+        cc_rejected_issuer_unavailable:
+            'Emissor indisponível no momento. Tente novamente em alguns minutos.',
+        cc_rejected_call_for_authorize:
+            'Transação necessita autorização do banco emissor. Entre em contato com o banco.',
+        cc_rejected_card_disabled:
+            'Cartão desabilitado. Ative-o junto ao banco emissor antes de tentar novamente.',
         cc_rejected_card_error: 'O emissor não pôde processar o pagamento agora.',
         cc_rejected_blacklist: 'Pagamento recusado por segurança. Utilize outro cartão.',
-        cc_rejected_high_risk: 'Pagamento recusado pela análise de risco. Utilize outro cartão ou método.',
+        cc_rejected_high_risk:
+            'Pagamento recusado pela análise de risco. Utilize outro cartão ou método.',
         cc_rejected_other_reason: 'Pagamento recusado pelo emissor do cartão.',
-        cc_rejected_3ds_mandatory: 'É necessário concluir a verificação 3D Secure para este cartão.',
-        rejected_by_issuer: 'Transação recusada pelo emissor do cartão. Entre em contato com o banco.',
+        cc_rejected_3ds_mandatory:
+            'É necessário concluir a verificação 3D Secure para este cartão.',
+        rejected_by_issuer:
+            'Transação recusada pelo emissor do cartão. Entre em contato com o banco.',
     };
     return (
         table[code] ||
@@ -412,9 +457,9 @@ const mapMpRejection = (statusDetail?: string) => {
 /**
  * Cria um pagamento com cartão de crédito/débito usando Orders API (Checkout Transparente)
  * Recebe o token gerado pelo frontend via MercadoPago.js
- * 
+ *
  * Modo: AUTOMÁTICO (processing_mode: 'automatic')
- * 
+ *
  * Implementa recomendações do Mercado Pago para melhorar taxa de aprovação:
  * - Additional info completo (comprador, produtos, indústria)
  * - Device ID para rastreamento de segurança
@@ -427,15 +472,17 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
 
         // Validar se o Access Token está configurado
         if (!currentToken || currentToken === '') {
-            throw new Error('MP_ACCESS_TOKEN não está configurado. Por favor, adicione MP_ACCESS_TOKEN no arquivo .env');
+            throw new Error(
+                'MP_ACCESS_TOKEN não está configurado. Por favor, adicione MP_ACCESS_TOKEN no arquivo .env'
+            );
         }
 
         // Recriar cliente com token atualizado (garantir que o token está sendo usado)
         const currentClient = new MercadoPagoConfig({
             accessToken: currentToken,
             options: {
-                timeout: 10000
-            }
+                timeout: 10000,
+            },
         });
 
         // Criar instância de Order com cliente atualizado
@@ -444,17 +491,34 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         // Validar dados
         validatePaymentData(params);
 
-        const { orderId, orderNumber, totalAmount, token, description, installments, paymentMethodId, customerData, issuerId, items, cardholder } = params;
+        const {
+            orderId,
+            orderNumber,
+            totalAmount,
+            token,
+            description,
+            installments,
+            paymentMethodId,
+            customerData,
+            issuerId,
+            items,
+            cardholder,
+        } = params;
 
         // Preparar dados do comprador
-        const fallbackName = cardholder?.name && cardholder.name.trim().length > 0 ? cardholder.name : customerData.name;
+        const fallbackName =
+            cardholder?.name && cardholder.name.trim().length > 0
+                ? cardholder.name
+                : customerData.name;
         const firstName = fallbackName.split(' ')[0] || fallbackName;
         const lastName = fallbackName.split(' ').slice(1).join(' ') || firstName;
 
         const identificationType = (cardholder?.identification?.type || 'CPF').toUpperCase();
         const identificationNumberRaw = cardholder?.identification?.number || customerData.cpf;
         const identificationNumber =
-            identificationType === 'CPF' ? normalizeCpfBackend(identificationNumberRaw || '') : (identificationNumberRaw || '').replace(/\D/g, '');
+            identificationType === 'CPF'
+                ? normalizeCpfBackend(identificationNumberRaw || '')
+                : (identificationNumberRaw || '').replace(/\D/g, '');
 
         // Determinar payment_type_id baseado no payment_method_id
         const paymentTypeId = paymentMethodId === 'debit_card' ? 'debit_card' : 'credit_card';
@@ -472,14 +536,14 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                 last_name: lastName,
                 identification: {
                     type: identificationType,
-                    number: identificationNumber
+                    number: identificationNumber,
                 },
                 phone: customerData.phone
                     ? {
                           area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
-                          number: customerData.phone.replace(/\D/g, '').substring(2)
+                          number: customerData.phone.replace(/\D/g, '').substring(2),
                       }
-                    : undefined
+                    : undefined,
             },
             transactions: {
                 payments: [
@@ -489,11 +553,11 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                             id: paymentMethodId, // Bandeira do cartão (visa, master, etc.)
                             type: paymentTypeId, // credit_card ou debit_card
                             token,
-                            installments
-                        }
-                    }
-                ]
-            }
+                            installments,
+                        },
+                    },
+                ],
+            },
         };
 
         // Criar opções com Device ID e Idempotency Key
@@ -506,9 +570,9 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                 headers: {
                     'X-Idempotency-Key': idempotencyKey,
                     // Garantir que o token está no header (mesmo que o SDK deva fazer isso)
-                    'Authorization': `Bearer ${currentToken}`
-                }
-            }
+                    Authorization: `Bearer ${currentToken}`,
+                },
+            },
         };
 
         if (deviceId) {
@@ -530,8 +594,10 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
 
         const paymentStatus = String(paymentInfo.status || '').toLowerCase();
         const paymentStatusDetail = paymentInfo.status_detail || paymentInfo.status_reason;
-        const normalizedDetail = typeof paymentStatusDetail === 'string' ? paymentStatusDetail.toLowerCase() : '';
-        const isProcessedAccredited = paymentStatus === 'processed' && normalizedDetail === 'accredited';
+        const normalizedDetail =
+            typeof paymentStatusDetail === 'string' ? paymentStatusDetail.toLowerCase() : '';
+        const isProcessedAccredited =
+            paymentStatus === 'processed' && normalizedDetail === 'accredited';
         const allowedStatuses = new Set(['approved', 'authorized', 'in_process', 'pending']);
 
         if (paymentStatus && !allowedStatuses.has(paymentStatus) && !isProcessedAccredited) {
@@ -571,7 +637,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             installments: paymentInfo.installments || installments,
             orderStatus: orderResponse.status, // Status da Order
             // Informações de 3D Secure se aplicável
-            threeDSInfo: paymentInfo.three_ds_info
+            threeDSInfo: paymentInfo.three_ds_info,
         };
     } catch (error: any) {
         const debugPayload: Record<string, unknown> = {
@@ -587,7 +653,10 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         if (error?.orderResponse) {
             debugPayload.orderResponse = error.orderResponse;
         }
-        console.error('Erro ao criar pagamento com cartão (Orders API):', JSON.stringify(debugPayload, null, 2));
+        console.error(
+            'Erro ao criar pagamento com cartão (Orders API):',
+            JSON.stringify(debugPayload, null, 2)
+        );
 
         if (!error?.response?.data && error?.orderResponse?.transactions?.payments?.[0]) {
             const rejectedPayment = error.orderResponse.transactions.payments[0];
@@ -638,7 +707,9 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                 }
             })();
 
-            const containsIssuerRejection = typeof payloadString === 'string' && payloadString.toLowerCase().includes('rejected_by_issuer');
+            const containsIssuerRejection =
+                typeof payloadString === 'string' &&
+                payloadString.toLowerCase().includes('rejected_by_issuer');
 
             let issuerMessage: string | null = null;
             if (containsIssuerRejection) {
@@ -680,11 +751,12 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             let normalizedMessages = Array.from(new Set(collectedMessages.filter(Boolean)));
 
             if (containsIssuerRejection && issuerMessage) {
-                const issuerRelated = normalizedMessages.filter((msg) =>
-                    msg.toLowerCase().includes('rejected_by_issuer') || msg === issuerMessage,
+                const issuerRelated = normalizedMessages.filter(
+                    (msg) =>
+                        msg.toLowerCase().includes('rejected_by_issuer') || msg === issuerMessage
                 );
                 const remaining = normalizedMessages.filter(
-                    (msg) => !issuerRelated.includes(msg) && msg !== issuerMessage,
+                    (msg) => !issuerRelated.includes(msg) && msg !== issuerMessage
                 );
                 normalizedMessages = [issuerMessage, ...issuerRelated, ...remaining];
             }
@@ -692,7 +764,9 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             console.warn('[payments][card] normalized error messages', normalizedMessages);
 
             if (!normalizedMessages.length) {
-                normalizedMessages.push('Algo deu errado ao processar seu cartão. Revise os dados ou tente outro cartão.');
+                normalizedMessages.push(
+                    'Algo deu errado ao processar seu cartão. Revise os dados ou tente outro cartão.'
+                );
             }
 
             const messageForError = normalizedMessages[0];
@@ -738,7 +812,7 @@ export const cancelPaymentById = async (paymentId: string) => {
 
         const currentClient = new MercadoPagoConfig({
             accessToken: currentToken,
-            options: { timeout: 10000 }
+            options: { timeout: 10000 },
         });
         const paymentApi = new Payment(currentClient);
 
@@ -750,7 +824,7 @@ export const cancelPaymentById = async (paymentId: string) => {
         try {
             const currentClient = new MercadoPagoConfig({
                 accessToken: process.env.MP_ACCESS_TOKEN!.trim(),
-                options: { timeout: 10000 }
+                options: { timeout: 10000 },
             });
             const paymentApi = new Payment(currentClient);
             const resp = await (paymentApi as any).update({ id: paymentId, status: 'cancelled' });
@@ -797,7 +871,10 @@ export const getPaymentById = async (paymentId: string) => {
     } catch (error: any) {
         const mpError = error?.response?.data;
         const message = mpError?.message || error?.message || 'Erro desconhecido';
-        if (mpError?.error === 'resource not found' || String(message).toLowerCase().includes('resource not found')) {
+        if (
+            mpError?.error === 'resource not found' ||
+            String(message).toLowerCase().includes('resource not found')
+        ) {
             console.log('[payments] getPaymentById resource not found', {
                 paymentId,
                 mpError,
@@ -824,7 +901,10 @@ export { mapPaymentStatus } from '../utils/paymentStatusMapper';
 /**
  * Mapeia método de pagamento do Mercado Pago
  */
-export const mapPaymentMethod = (paymentTypeId: string, paymentMethodId?: string): 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' => {
+export const mapPaymentMethod = (
+    paymentTypeId: string,
+    paymentMethodId?: string
+): 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' => {
     if (paymentTypeId === 'credit_card') return 'credit_card';
     if (paymentTypeId === 'debit_card') return 'debit_card';
     if (paymentTypeId === 'bank_transfer' && paymentMethodId === 'pix') return 'pix';
@@ -855,7 +935,7 @@ export const processWebhookNotification = async (data: any) => {
                 dateApproved: paymentInfo.date_approved,
                 dateCreated: paymentInfo.date_created,
                 externalReference: paymentInfo.external_reference,
-                metadata: paymentInfo.metadata
+                metadata: paymentInfo.metadata,
             };
         }
 

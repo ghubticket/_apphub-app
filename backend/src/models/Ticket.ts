@@ -35,10 +35,7 @@ const ticketSchema = new Schema<ITicket>(
             unique: true,
             trim: true,
             length: [12, 'Código deve ter exatamente 12 caracteres'],
-            match: [
-                /^[A-Z0-9]{12}$/,
-                'Código deve conter apenas letras maiúsculas e números',
-            ],
+            match: [/^[A-Z0-9]{12}$/, 'Código deve conter apenas letras maiúsculas e números'],
         },
         qrCode: {
             type: String,
@@ -151,7 +148,7 @@ ticketSchema.pre('validate', async function (next) {
         }
 
         // Verificar se o código já existe (apenas em ingressos não deletados)
-        const existingTicket = await mongoose.model('Ticket').findOne({ 
+        const existingTicket = await mongoose.model('Ticket').findOne({
             code,
             deletedAt: null,
         });

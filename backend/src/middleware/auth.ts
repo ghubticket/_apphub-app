@@ -71,7 +71,6 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         // Adicionar usuário ao request
         req.user = user;
         next();
-
     } catch (error) {
         if (error instanceof jwt.JsonWebTokenError) {
             return res.status(401).json({
@@ -115,7 +114,9 @@ export const authorize = (...roles: string[]) => {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: [`Apenas usuários com role: ${roles.join(', ')} podem acessar este recurso`],
+                errors: [
+                    `Apenas usuários com role: ${roles.join(', ')} podem acessar este recurso`,
+                ],
             });
         }
 
@@ -180,7 +181,6 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
         }
 
         next();
-
     } catch (error) {
         // Em caso de erro, continua sem usuário
         next();
@@ -196,7 +196,7 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
             return res.status(401).json({
                 success: false,
                 message: 'Token de acesso necessário',
-                errors: ['Usuário não autenticado']
+                errors: ['Usuário não autenticado'],
             });
         }
 
@@ -204,7 +204,7 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: ['Apenas administradores podem acessar esta funcionalidade']
+                errors: ['Apenas administradores podem acessar esta funcionalidade'],
             });
         }
 
@@ -214,7 +214,7 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
-            errors: [error.message]
+            errors: [error.message],
         });
     }
 };

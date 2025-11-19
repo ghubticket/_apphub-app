@@ -19,7 +19,8 @@ function getSecrets() {
         return { encKey: Buffer.from(dev, 'hex'), hmacKey: Buffer.from(dev, 'hex') };
     }
     const encKey = enc.length === 64 ? Buffer.from(enc, 'hex') : Buffer.from(enc, 'base64');
-    let hmacKey = hmac && (hmac.length === 64 ? Buffer.from(hmac, 'hex') : Buffer.from(hmac, 'base64'));
+    let hmacKey =
+        hmac && (hmac.length === 64 ? Buffer.from(hmac, 'hex') : Buffer.from(hmac, 'base64'));
     if (encKey.length !== 32) {
         if (isProd) throw new Error('QR_SECRET deve ser 32 bytes (hex de 64 chars ou base64)');
         // dev: tolerar comprimento inválido gerando um temporário
@@ -64,8 +65,8 @@ export const generateQRCode = async (ticketCode: string): Promise<string> => {
             width: 256, // Tamanho da imagem
             color: {
                 dark: '#000000', // Cor do QR code
-                light: '#FFFFFF' // Cor de fundo
-            }
+                light: '#FFFFFF', // Cor de fundo
+            },
         });
 
         return qrCodeDataUrl;
@@ -104,4 +105,3 @@ export function verifyAndDecode(qrPayload: string, maxAgeSeconds: number = 60 * 
     if (!obj || obj.v !== 1 || !obj.t) throw new Error('Payload inválido');
     return { ticketCode: obj.t as string, ts, nonce: obj.n as string };
 }
-

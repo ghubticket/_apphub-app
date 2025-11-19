@@ -50,4 +50,3 @@ const subscribeLimiter = rateLimit({
 router.post('/', subscribeLimiter, validate(newsletterSubscriptionSchema), subscribeToNewsletter);
 
 export default router;
-

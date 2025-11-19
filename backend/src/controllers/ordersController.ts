@@ -59,14 +59,14 @@ export const countPurchasedTicketsByCPFOrEmail = async (
     // Adicionar filtro por CPF ou Email
     // CRÍTICO: Usar hash do CPF para busca eficiente (CPF está criptografado)
     const { hashCPFForSearch } = await import('../utils/encryption');
-    
+
     if (normalizedCPF && normalizedEmail) {
         // Se ambos estão presentes, usar OR
         const cpfHash = hashCPFForSearch(normalizedCPF);
         if (cpfHash) {
             orderFilters.$or = [
                 { 'customerData.cpfHash': cpfHash },
-                { 'customerData.email': normalizedEmail }
+                { 'customerData.email': normalizedEmail },
             ];
         } else {
             // Se hash falhou, buscar apenas por email
@@ -77,13 +77,16 @@ export const countPurchasedTicketsByCPFOrEmail = async (
         const cpfHash = hashCPFForSearch(normalizedCPF);
         if (cpfHash) {
             orderFilters['customerData.cpfHash'] = cpfHash;
-            
+
             console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Buscando CPF via hash:', {
                 normalizedCPF: `${normalizedCPF.substring(0, 3)}.***.***-**`,
                 cpfHash: cpfHash.substring(0, 16) + '...',
             });
         } else {
-            console.warn('[countPurchasedTicketsByCPFOrEmail] ⚠️ Não foi possível gerar hash do CPF:', normalizedCPF);
+            console.warn(
+                '[countPurchasedTicketsByCPFOrEmail] ⚠️ Não foi possível gerar hash do CPF:',
+                normalizedCPF
+            );
         }
     } else if (normalizedEmail) {
         orderFilters['customerData.email'] = normalizedEmail;
@@ -91,7 +94,7 @@ export const countPurchasedTicketsByCPFOrEmail = async (
 
     // OTIMIZADO: Usar agregação para evitar queries N+1
     // Buscar contagem de tickets diretamente via agregação
-    
+
     // Log detalhado dos filtros antes da busca
     console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Filtros de busca:', {
         eventId,
@@ -99,7 +102,7 @@ export const countPurchasedTicketsByCPFOrEmail = async (
         status: 'paid',
         orderFilters: JSON.stringify(orderFilters, null, 2),
     });
-    
+
     // CRÍTICO: Verificar se há pedidos que correspondem aos filtros básicos primeiro
     // Isso ajuda a identificar se o problema está na busca de CPF ou na agregação
     const eventObjectId = new mongoose.Types.ObjectId(eventId);
@@ -107,57 +110,68 @@ export const countPurchasedTicketsByCPFOrEmail = async (
         event: eventObjectId,
         status: 'paid',
         deletedAt: null,
-    }).select('orderNumber paymentMethod customerData.cpf customerData.email').limit(3).lean();
-    
+    })
+        .select('orderNumber paymentMethod customerData.cpf customerData.email')
+        .limit(3)
+        .lean();
+
     // Teste direto: buscar pedidos com o CPF via hash
     const cpfHash = normalizedCPF ? hashCPFForSearch(normalizedCPF) : null;
-    const directCPFQuery = cpfHash ? await Order.find({
-        event: eventObjectId,
-        status: 'paid',
-        deletedAt: null,
-        'customerData.cpfHash': cpfHash,
-    }).select('orderNumber paymentMethod customerData.cpf').limit(5).lean() : [];
-    
-    console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Teste: Pedidos pagos no evento (amostra):', {
-        count: testQuery.length,
-        orders: testQuery.map((o: any) => ({
-            orderNumber: o.orderNumber,
-            paymentMethod: o.paymentMethod,
-            cpf: o.customerData?.cpf || 'null',
-            cpfType: typeof o.customerData?.cpf,
-            email: o.customerData?.email || 'null',
-        })),
-        searchingFor: {
-            normalizedCPF: normalizedCPF || 'null',
-            normalizedEmail: normalizedEmail || 'null',
-        },
-        directCPFSearch: {
-            cpfHash: cpfHash ? cpfHash.substring(0, 16) + '...' : 'null',
-            foundOrders: directCPFQuery.length,
-            orders: directCPFQuery.map((o: any) => ({
+    const directCPFQuery = cpfHash
+        ? await Order.find({
+              event: eventObjectId,
+              status: 'paid',
+              deletedAt: null,
+              'customerData.cpfHash': cpfHash,
+          })
+              .select('orderNumber paymentMethod customerData.cpf')
+              .limit(5)
+              .lean()
+        : [];
+
+    console.log(
+        '[countPurchasedTicketsByCPFOrEmail] 🔍 Teste: Pedidos pagos no evento (amostra):',
+        {
+            count: testQuery.length,
+            orders: testQuery.map((o: any) => ({
                 orderNumber: o.orderNumber,
                 paymentMethod: o.paymentMethod,
                 cpf: o.customerData?.cpf || 'null',
+                cpfType: typeof o.customerData?.cpf,
+                email: o.customerData?.email || 'null',
             })),
+            searchingFor: {
+                normalizedCPF: normalizedCPF || 'null',
+                normalizedEmail: normalizedEmail || 'null',
+            },
+            directCPFSearch: {
+                cpfHash: cpfHash ? cpfHash.substring(0, 16) + '...' : 'null',
+                foundOrders: directCPFQuery.length,
+                orders: directCPFQuery.map((o: any) => ({
+                    orderNumber: o.orderNumber,
+                    paymentMethod: o.paymentMethod,
+                    cpf: o.customerData?.cpf || 'null',
+                })),
+            },
         }
-    });
-    
+    );
+
     // CRÍTICO: Converter ticketTypeId para ObjectId antes da agregação
     // eventObjectId já foi criado acima no testQuery
     const ticketTypeObjectId = new mongoose.Types.ObjectId(ticketTypeId);
-    
+
     // Ajustar filtros para usar ObjectId
     const adjustedFilters = {
         ...orderFilters,
         event: eventObjectId,
     };
-    
+
     console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Filtros ajustados (com ObjectId):', {
         eventId: eventObjectId.toString(),
         ticketTypeId: ticketTypeObjectId.toString(),
         adjustedFilters: JSON.stringify(adjustedFilters, null, 2),
     });
-    
+
     const result = await Order.aggregate([
         { $match: adjustedFilters },
         {
@@ -171,14 +185,14 @@ export const countPurchasedTicketsByCPFOrEmail = async (
                                 $and: [
                                     { $eq: ['$order', '$$orderId'] },
                                     { $eq: ['$ticketType', ticketTypeObjectId] },
-                                    { $eq: ['$deletedAt', null] }
-                                ]
-                            }
-                        }
-                    }
+                                    { $eq: ['$deletedAt', null] },
+                                ],
+                            },
+                        },
+                    },
                 ],
-                as: 'matchingTickets'
-            }
+                as: 'matchingTickets',
+            },
         },
         {
             $project: {
@@ -187,24 +201,32 @@ export const countPurchasedTicketsByCPFOrEmail = async (
                 paymentMethod: 1,
                 status: 1,
                 customerData: 1, // Incluir para debug
-            }
+            },
         },
         {
             $match: {
-                ticketCount: { $gt: 0 } // Filtrar apenas pedidos que têm tickets do tipo correto
-            }
+                ticketCount: { $gt: 0 }, // Filtrar apenas pedidos que têm tickets do tipo correto
+            },
         },
         {
             $group: {
                 _id: null,
                 totalPurchased: { $sum: '$ticketCount' },
-                orders: { $push: { orderNumber: '$orderNumber', paymentMethod: '$paymentMethod', status: '$status', ticketCount: '$ticketCount', cpf: '$customerData.cpf' } }
-            }
-        }
+                orders: {
+                    $push: {
+                        orderNumber: '$orderNumber',
+                        paymentMethod: '$paymentMethod',
+                        status: '$status',
+                        ticketCount: '$ticketCount',
+                        cpf: '$customerData.cpf',
+                    },
+                },
+            },
+        },
     ]);
 
     const totalPurchased = result.length > 0 ? result[0].totalPurchased : 0;
-    
+
     // Log detalhado para debug
     if (result.length > 0 && result[0].orders) {
         console.log('[countPurchasedTicketsByCPFOrEmail] ✅ Pedidos encontrados:', {
@@ -215,8 +237,8 @@ export const countPurchasedTicketsByCPFOrEmail = async (
                 paymentMethod: o.paymentMethod,
                 status: o.status,
                 ticketCount: o.ticketCount,
-                cpf: o.cpf || 'null'
-            }))
+                cpf: o.cpf || 'null',
+            })),
         });
     } else {
         // CRÍTICO: Se não encontrou pedidos, verificar se há pedidos VIP no banco
@@ -225,8 +247,11 @@ export const countPurchasedTicketsByCPFOrEmail = async (
             event: eventId,
             status: 'paid',
             deletedAt: null,
-        }).select('orderNumber paymentMethod status customerData.cpf customerData.email').limit(5).lean();
-        
+        })
+            .select('orderNumber paymentMethod status customerData.cpf customerData.email')
+            .limit(5)
+            .lean();
+
         console.log('[countPurchasedTicketsByCPFOrEmail] 📊 Nenhum pedido encontrado na busca:', {
             totalPurchased: 0,
             filters: {
@@ -243,13 +268,22 @@ export const countPurchasedTicketsByCPFOrEmail = async (
                     status: o.status,
                     cpf: o.customerData?.cpf || 'null',
                     cpfLength: o.customerData?.cpf?.length || 0,
-                    cpfFormatted: o.customerData?.cpf ? `${o.customerData.cpf.substring(0, 3)}.***.***-**` : 'null',
-                    email: o.customerData?.email ? `${o.customerData.email.substring(0, 3)}***@***` : 'null',
+                    cpfFormatted: o.customerData?.cpf
+                        ? `${o.customerData.cpf.substring(0, 3)}.***.***-**`
+                        : 'null',
+                    email: o.customerData?.email
+                        ? `${o.customerData.email.substring(0, 3)}***@***`
+                        : 'null',
                 })),
                 searchingForCPF: normalizedCPF || 'null',
-                searchingForCPFFormatted: normalizedCPF ? normalizeCPF(normalizedCPF)?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'null',
+                searchingForCPFFormatted: normalizedCPF
+                    ? normalizeCPF(normalizedCPF)?.replace(
+                          /(\d{3})(\d{3})(\d{3})(\d{2})/,
+                          '$1.$2.$3-$4'
+                      )
+                    : 'null',
                 searchingForCPFNormalized: normalizedCPF || 'null',
-            }
+            },
         });
     }
 
@@ -295,17 +329,21 @@ export const createOrder = async (req: Request, res: Response) => {
             return res.status(validation.error!.status).json({
                 success: false,
                 message: validation.error!.message,
-                errors: validation.error!.errors
+                errors: validation.error!.errors,
             });
         }
 
         // REFATORADO: Buscar dados relacionados usando serviço
-        const relatedDataResult = await orderService.fetchOrderRelatedData(eventId!, ticketTypeId!, userId);
+        const relatedDataResult = await orderService.fetchOrderRelatedData(
+            eventId!,
+            ticketTypeId!,
+            userId
+        );
         if (relatedDataResult.error) {
             return res.status(relatedDataResult.error.status).json({
                 success: false,
                 message: relatedDataResult.error.message,
-                errors: relatedDataResult.error.errors
+                errors: relatedDataResult.error.errors,
             });
         }
         const { event, ticketType, user } = relatedDataResult.data!;
@@ -316,7 +354,7 @@ export const createOrder = async (req: Request, res: Response) => {
         const emailToValidate = customerData?.email || user?.email;
         const normalizedCustomerEmail = normalizeEmail(customerData?.email);
         const normalizedUserEmail = normalizeEmail(user?.email);
-        
+
         // Log para debug - verificar se CPF está sendo passado
         console.log('[createOrder] 🔍 Dados do cliente para validação:', {
             hasCustomerDataCPF: !!customerData?.cpf,
@@ -343,7 +381,7 @@ export const createOrder = async (req: Request, res: Response) => {
             return res.status(availabilityValidation.error!.status).json({
                 success: false,
                 message: availabilityValidation.error!.message,
-                errors: availabilityValidation.error!.errors
+                errors: availabilityValidation.error!.errors,
             });
         }
 
@@ -354,19 +392,30 @@ export const createOrder = async (req: Request, res: Response) => {
             quantity!,
             promoterCode
         );
-        const { isVIP, ticketPrice, subtotal, discountAmount, platformFee, totalAmount, usedPromoterCode } = calculation;
+        const {
+            isVIP,
+            ticketPrice,
+            subtotal,
+            discountAmount,
+            platformFee,
+            totalAmount,
+            usedPromoterCode,
+        } = calculation;
 
         // CRÍTICO: Validação rigorosa - APENAS ingressos VIP explícitos podem ser marcados como paid
         // Garantir que isVIP seja boolean true E que ticketType.isVIP seja explicitamente true
         const isReallyVIP = Boolean(isVIP) && Boolean(ticketType?.isVIP === true);
-        
+
         if (isVIP && !isReallyVIP) {
-            console.error('[createOrder] ⚠️ ATENÇÃO: isVIP calculado como true mas ticketType.isVIP não é explicitamente true!', {
-                calculatedIsVIP: isVIP,
-                ticketTypeIsVIP: ticketType?.isVIP,
-                ticketTypeId: ticketType?._id,
-                ticketTypeName: ticketType?.name,
-            });
+            console.error(
+                '[createOrder] ⚠️ ATENÇÃO: isVIP calculado como true mas ticketType.isVIP não é explicitamente true!',
+                {
+                    calculatedIsVIP: isVIP,
+                    ticketTypeIsVIP: ticketType?.isVIP,
+                    ticketTypeId: ticketType?._id,
+                    ticketTypeName: ticketType?.name,
+                }
+            );
         }
 
         // REFATORADO: Buscar pedido existente usando serviço
@@ -383,25 +432,36 @@ export const createOrder = async (req: Request, res: Response) => {
             // Isso evita criar múltiplos pedidos para o mesmo evento/cliente
             const orderStatus = existingOrder.status;
             const paymentMethod = existingOrder.paymentMethod;
-            console.log(`♻️ [createOrder] Pedido existente encontrado para mesmo evento/cliente, adicionando ingressos: orderNumber=${existingOrder.orderNumber}, status=${orderStatus}, paymentMethod=${paymentMethod}`);
-            
+            console.log(
+                `♻️ [createOrder] Pedido existente encontrado para mesmo evento/cliente, adicionando ingressos: orderNumber=${existingOrder.orderNumber}, status=${orderStatus}, paymentMethod=${paymentMethod}`
+            );
+
             // CRÍTICO: Se o pedido existente tem status 'failed', verificar se ainda pode ser reutilizado
             // Permitir reutilização até esgotar tentativas (MAX_CARD_PAYMENT_ATTEMPTS)
             if (orderStatus === 'failed') {
                 const cardAttempts = existingOrder.cardAttempts || 0;
                 if (cardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS) {
                     // Esgotou tentativas: cancelar pedido e criar novo
-                    console.log(`⚠️ [createOrder] Pedido failed esgotou tentativas (${cardAttempts}/${MAX_CARD_PAYMENT_ATTEMPTS}), cancelando e criando novo pedido`);
+                    console.log(
+                        `⚠️ [createOrder] Pedido failed esgotou tentativas (${cardAttempts}/${MAX_CARD_PAYMENT_ATTEMPTS}), cancelando e criando novo pedido`
+                    );
                     try {
                         await orderService.cancelOrderAndReturnStock(existingOrder);
-                        console.log(`✅ [createOrder] Pedido failed cancelado (tentativas esgotadas), criando novo pedido`);
+                        console.log(
+                            `✅ [createOrder] Pedido failed cancelado (tentativas esgotadas), criando novo pedido`
+                        );
                     } catch (cancelError) {
-                        console.error(`❌ [createOrder] Erro ao cancelar pedido failed:`, cancelError);
+                        console.error(
+                            `❌ [createOrder] Erro ao cancelar pedido failed:`,
+                            cancelError
+                        );
                     }
                     // Não reutilizar - continuar para criar novo pedido
                 } else {
                     // Ainda pode tentar: reutilizar o pedido failed
-                    console.log(`♻️ [createOrder] Pedido failed pode ser reutilizado (${cardAttempts}/${MAX_CARD_PAYMENT_ATTEMPTS} tentativas), resetando status para pending`);
+                    console.log(
+                        `♻️ [createOrder] Pedido failed pode ser reutilizado (${cardAttempts}/${MAX_CARD_PAYMENT_ATTEMPTS} tentativas), resetando status para pending`
+                    );
                     const orderToUpdate = await Order.findById(existingOrder._id);
                     if (orderToUpdate) {
                         // Resetar status para pending para permitir nova tentativa
@@ -410,73 +470,79 @@ export const createOrder = async (req: Request, res: Response) => {
                         orderToUpdate.isActive = true;
                         // Não alterar expiresAt - manter o tempo original do pedido
                         await orderToUpdate.save();
-                        console.log(`✅ [createOrder] Pedido resetado para pending (mantendo expiresAt original: ${orderToUpdate.expiresAt}), pode tentar pagamento novamente`);
+                        console.log(
+                            `✅ [createOrder] Pedido resetado para pending (mantendo expiresAt original: ${orderToUpdate.expiresAt}), pode tentar pagamento novamente`
+                        );
                         // Continuar para reutilizar o pedido (código abaixo)
                     } else {
                         // Não encontrou pedido, continuar para criar novo
-                        console.log(`⚠️ [createOrder] Pedido não encontrado no banco, criando novo`);
+                        console.log(
+                            `⚠️ [createOrder] Pedido não encontrado no banco, criando novo`
+                        );
                     }
                 }
             }
-            
+
             // Reutilizar pedido (se não foi cancelado acima e ainda tem tentativas)
-            const canReuse = orderStatus !== 'failed' || (existingOrder.cardAttempts || 0) < MAX_CARD_PAYMENT_ATTEMPTS;
+            const canReuse =
+                orderStatus !== 'failed' ||
+                (existingOrder.cardAttempts || 0) < MAX_CARD_PAYMENT_ATTEMPTS;
             if (canReuse) {
                 // Buscar pedido completo (não lean) para atualizar
                 const orderToUpdate = await Order.findById(existingOrder._id);
                 if (orderToUpdate) {
-                // Pedido já está pending ou failed, pode ser atualizado normalmente
-                // Não precisa mudar status - já está em estado válido para adicionar ingressos
-                // Verificar disponibilidade antes de adicionar
-                const availableQuantity = ticketType.maxQuantity - ticketType.soldQuantity;
-                if (availableQuantity < quantity) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Estoque insuficiente',
-                        errors: [`Disponível: ${availableQuantity}, Solicitado: ${quantity}`]
-                    });
-                }
+                    // Pedido já está pending ou failed, pode ser atualizado normalmente
+                    // Não precisa mudar status - já está em estado válido para adicionar ingressos
+                    // Verificar disponibilidade antes de adicionar
+                    const availableQuantity = ticketType.maxQuantity - ticketType.soldQuantity;
+                    if (availableQuantity < quantity) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Estoque insuficiente',
+                            errors: [`Disponível: ${availableQuantity}, Solicitado: ${quantity}`],
+                        });
+                    }
 
-                // Criar novos tickets para o pedido existente
-                // CRÍTICO: Novos tickets SEMPRE são 'pending' (precisam pagar)
-                // Tickets antigos continuam com seu status original (confirmed se já pagos)
-                const newTickets: any[] = [];
-                for (let i = 0; i < quantity; i++) {
-                    const ticket = new Ticket({
-                        event: eventId,
-                        ticketType: ticketTypeId,
-                        order: orderToUpdate._id,
-                        holder: userId || null,
-                        price: ticketPrice,
-                        status: 'pending', // SEMPRE pending - novos ingressos precisam pagar
-                        qrCode: '', // QR code só será gerado quando pagar
-                    });
-                    await ticket.save();
-                    newTickets.push(ticket._id);
-                }
+                    // Criar novos tickets para o pedido existente
+                    // CRÍTICO: Novos tickets SEMPRE são 'pending' (precisam pagar)
+                    // Tickets antigos continuam com seu status original (confirmed se já pagos)
+                    const newTickets: any[] = [];
+                    for (let i = 0; i < quantity; i++) {
+                        const ticket = new Ticket({
+                            event: eventId,
+                            ticketType: ticketTypeId,
+                            order: orderToUpdate._id,
+                            holder: userId || null,
+                            price: ticketPrice,
+                            status: 'pending', // SEMPRE pending - novos ingressos precisam pagar
+                            qrCode: '', // QR code só será gerado quando pagar
+                        });
+                        await ticket.save();
+                        newTickets.push(ticket._id);
+                    }
 
                     // Atualizar pedido com novos tickets
                     orderToUpdate.tickets = [...(orderToUpdate.tickets || []), ...newTickets];
                     orderToUpdate.totalTickets = (orderToUpdate.totalTickets || 0) + quantity;
-                    
+
                     // Atualizar expiresAt se pedido está PENDING (renovar reserva)
                     if (orderToUpdate.status === 'pending') {
                         orderToUpdate.expiresAt = new Date(Date.now() + CHECKOUT_TIMEOUT_MS);
                     }
-                    
+
                     // Recalcular valores (considerando desconto e taxa)
                     const newSubtotal = ticketPrice * quantity;
                     let newDiscountAmount = 0;
-                    
+
                     // Aplicar desconto de código de promotor se fornecido
                     if (promoterCode && !isVIP && usedPromoterCode) {
                         const code = await PromoterCode.findOne({
                             code: promoterCode.toUpperCase().trim(),
                             isActive: true,
                             deletedAt: null,
-                            events: eventId
+                            events: eventId,
                         });
-                        
+
                         if (code) {
                             if (code.discountType === 'percentage') {
                                 newDiscountAmount = newSubtotal * (code.discountValue / 100);
@@ -485,20 +551,23 @@ export const createOrder = async (req: Request, res: Response) => {
                             }
                         }
                     }
-                    
+
                     const platformFeePercentage = event.platformFeePercentage || 0;
-                    const newPlatformFee = isVIP ? 0 : ((newSubtotal - newDiscountAmount) * (platformFeePercentage / 100));
-                    const newTotalAmount = (newSubtotal - newDiscountAmount) + newPlatformFee;
-                    
+                    const newPlatformFee = isVIP
+                        ? 0
+                        : (newSubtotal - newDiscountAmount) * (platformFeePercentage / 100);
+                    const newTotalAmount = newSubtotal - newDiscountAmount + newPlatformFee;
+
                     orderToUpdate.subtotal = (orderToUpdate.subtotal || 0) + newSubtotal;
-                    orderToUpdate.discountAmount = (orderToUpdate.discountAmount || 0) + newDiscountAmount;
+                    orderToUpdate.discountAmount =
+                        (orderToUpdate.discountAmount || 0) + newDiscountAmount;
                     orderToUpdate.platformFee = (orderToUpdate.platformFee || 0) + newPlatformFee;
                     orderToUpdate.totalAmount = (orderToUpdate.totalAmount || 0) + newTotalAmount;
-                    
+
                     if (usedPromoterCode && !orderToUpdate.promoterCode) {
                         orderToUpdate.promoterCode = usedPromoterCode;
                     }
-                    
+
                     await orderToUpdate.save();
 
                     // Atualizar quantidade vendida
@@ -569,7 +638,9 @@ export const createOrder = async (req: Request, res: Response) => {
             reusableOrder = await Order.findOne(reusableOrderFilters).lean();
 
             if (reusableOrder) {
-                console.log(`♻️ [createOrder] Pedido reutilizado: orderNumber=${reusableOrder.orderNumber}, cardAttempts=${reusableOrder.cardAttempts || 0}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}`);
+                console.log(
+                    `♻️ [createOrder] Pedido reutilizado: orderNumber=${reusableOrder.orderNumber}, cardAttempts=${reusableOrder.cardAttempts || 0}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}`
+                );
                 return res.status(200).json({
                     success: true,
                     message: 'Pedido pendente reutilizado. Continue com o pagamento.',
@@ -587,7 +658,13 @@ export const createOrder = async (req: Request, res: Response) => {
         // CRÍTICO: APENAS ingressos VIP explícitos podem ser marcados como paid
         // NUNCA marcar pedidos PIX ou outros como paid na criação
         let orderStatus: 'pending' | 'paid' = 'pending';
-        let paymentMethod: 'credit_card' | 'debit_card' | 'pix' | 'bank_slip' | 'vip_free' | undefined = undefined;
+        let paymentMethod:
+            | 'credit_card'
+            | 'debit_card'
+            | 'pix'
+            | 'bank_slip'
+            | 'vip_free'
+            | undefined = undefined;
         let ticketStatus: 'pending' | 'confirmed' = 'pending';
 
         // CRÍTICO: Validação dupla - usar isReallyVIP ao invés de isVIP
@@ -597,17 +674,25 @@ export const createOrder = async (req: Request, res: Response) => {
             orderStatus = 'paid';
             paymentMethod = 'vip_free';
             ticketStatus = 'confirmed';
-            console.log('[createOrder] ✅ Criando pedido VIP (status=paid, paymentMethod=vip_free)');
+            console.log(
+                '[createOrder] ✅ Criando pedido VIP (status=paid, paymentMethod=vip_free)'
+            );
         } else {
             // Outros: aguarda pagamento (será integrado depois)
             // CRÍTICO: PIX, cartão, etc. SEMPRE começam como pending
             orderStatus = 'pending';
             ticketStatus = 'pending';
-            console.log('[createOrder] ✅ Criando pedido normal (status=pending, aguardando pagamento)');
+            console.log(
+                '[createOrder] ✅ Criando pedido normal (status=pending, aguardando pagamento)'
+            );
         }
 
         const finalCustomerEmail =
-            normalizedCustomerEmail || normalizeEmail(user?.email) || customerData?.email || user?.email || 'Não informado';
+            normalizedCustomerEmail ||
+            normalizeEmail(user?.email) ||
+            customerData?.email ||
+            user?.email ||
+            'Não informado';
 
         try {
             // REFATORADO: Cancelar pedidos pendentes anteriores usando serviço
@@ -625,13 +710,20 @@ export const createOrder = async (req: Request, res: Response) => {
             const orderNumber = await generateOrderNumber();
             const now = new Date();
             // Para pedidos PENDING: definir expiresAt = agora + 30min (reserva de ingressos)
-            const CHECKOUT_TIMEOUT_MS = Number(process.env.CHECKOUT_TIMEOUT_MINUTES || 30) * 60 * 1000;
-            const expiresAt = orderStatus === 'pending' 
-                ? new Date(now.getTime() + CHECKOUT_TIMEOUT_MS)
-                : undefined;
-            
+            const CHECKOUT_TIMEOUT_MS =
+                Number(process.env.CHECKOUT_TIMEOUT_MINUTES || 30) * 60 * 1000;
+            const expiresAt =
+                orderStatus === 'pending'
+                    ? new Date(now.getTime() + CHECKOUT_TIMEOUT_MS)
+                    : undefined;
+
             // Capturar IP do cliente para detecção de padrões suspeitos
-            const ipAddress = (req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown').toString();
+            const ipAddress = (
+                req.ip ||
+                req.connection.remoteAddress ||
+                req.headers['x-forwarded-for'] ||
+                'unknown'
+            ).toString();
 
             const order = new Order({
                 customer: userId || null,
@@ -654,10 +746,17 @@ export const createOrder = async (req: Request, res: Response) => {
                     phone: customerData?.phone || user?.phone,
                     // CRÍTICO: Normalizar CPF antes de salvar para garantir consistência
                     // Salvar no formato 000.000.000-00 para facilitar busca
-                    cpf: cpfToValidate ? (() => {
-                        const normalized = normalizeCPF(cpfToValidate);
-                        return normalized ? normalized.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : undefined;
-                    })() : undefined,
+                    cpf: cpfToValidate
+                        ? (() => {
+                              const normalized = normalizeCPF(cpfToValidate);
+                              return normalized
+                                  ? normalized.replace(
+                                        /(\d{3})(\d{3})(\d{3})(\d{2})/,
+                                        '$1.$2.$3-$4'
+                                    )
+                                  : undefined;
+                          })()
+                        : undefined,
                 },
                 ipAddress, // IP para detecção de padrões suspeitos
                 cardAttempts: 0,
@@ -674,19 +773,23 @@ export const createOrder = async (req: Request, res: Response) => {
                 action: 'create',
                 performedBy: auditContext.performedBy,
                 performedByRole: auditContext.performedByRole,
-                changes: [{
-                    field: 'status',
-                    oldValue: null,
-                    newValue: order.status,
-                }, {
-                    field: 'totalAmount',
-                    oldValue: null,
-                    newValue: order.totalAmount,
-                }, {
-                    field: 'totalTickets',
-                    oldValue: null,
-                    newValue: order.totalTickets,
-                }],
+                changes: [
+                    {
+                        field: 'status',
+                        oldValue: null,
+                        newValue: order.status,
+                    },
+                    {
+                        field: 'totalAmount',
+                        oldValue: null,
+                        newValue: order.totalAmount,
+                    },
+                    {
+                        field: 'totalTickets',
+                        oldValue: null,
+                        newValue: order.totalTickets,
+                    },
+                ],
                 metadata: {
                     ipAddress: auditContext.ipAddress,
                     userAgent: auditContext.userAgent,
@@ -717,7 +820,7 @@ export const createOrder = async (req: Request, res: Response) => {
             if (usedPromoterCode) {
                 await PromoterCode.updateOne(
                     { code: usedPromoterCode },
-                    { $inc: { currentUses: 1 } },
+                    { $inc: { currentUses: 1 } }
                 );
             }
 
@@ -734,7 +837,7 @@ export const createOrder = async (req: Request, res: Response) => {
             );
 
             // Atualizar pedido com os tickets
-            order.tickets = createdTickets.map(t => t._id as mongoose.Types.ObjectId);
+            order.tickets = createdTickets.map((t) => t._id as mongoose.Types.ObjectId);
             await order.save();
 
             // Atualizar quantidade vendida do tipo de ingresso
@@ -757,20 +860,21 @@ export const createOrder = async (req: Request, res: Response) => {
 
             res.status(201).json({
                 success: true,
-                message: isReallyVIP ? 'Pedido VIP criado com sucesso' : 'Pedido criado com sucesso. Aguardando pagamento.',
+                message: isReallyVIP
+                    ? 'Pedido VIP criado com sucesso'
+                    : 'Pedido criado com sucesso. Aguardando pagamento.',
                 data: {
                     order: populatedOrder,
                     isVIP: isReallyVIP,
                     requiresPayment: !isReallyVIP,
-                }
+                },
             });
-
         } catch (error: any) {
             console.error('Erro ao criar pedido:', error);
             return res.status(500).json({
                 success: false,
                 message: 'Erro ao criar pedido',
-                errors: [error?.message || 'Erro desconhecido']
+                errors: [error?.message || 'Erro desconhecido'],
             });
         }
     } catch (outerError: any) {
@@ -778,7 +882,7 @@ export const createOrder = async (req: Request, res: Response) => {
         return res.status(500).json({
             success: false,
             message: 'Erro ao criar pedido',
-            errors: [outerError?.message || 'Erro desconhecido']
+            errors: [outerError?.message || 'Erro desconhecido'],
         });
     }
 };
@@ -794,7 +898,7 @@ export const listMyOrders = async (req: Request, res: Response) => {
         if (!userId) {
             return res.status(401).json({
                 success: false,
-                message: 'Usuário não autenticado'
+                message: 'Usuário não autenticado',
             });
         }
 
@@ -806,7 +910,7 @@ export const listMyOrders = async (req: Request, res: Response) => {
             deletedAt: null,
             isActive: true,
         };
-        
+
         // CRÍTICO: Por padrão, mostrar APENAS pedidos pending e paid no dashboard do usuário
         // Pedidos cancelled/refunded são importantes para relatórios/admin, mas não precisam aparecer no frontend do usuário
         if (status && ['pending', 'paid', 'cancelled', 'refunded'].includes(String(status))) {
@@ -821,7 +925,7 @@ export const listMyOrders = async (req: Request, res: Response) => {
             filters.$or = [
                 { orderNumber: { $regex: search, $options: 'i' } },
                 { 'customerData.name': { $regex: search, $options: 'i' } },
-                { 'customerData.email': { $regex: search, $options: 'i' } }
+                { 'customerData.email': { $regex: search, $options: 'i' } },
             ];
         }
 
@@ -835,7 +939,7 @@ export const listMyOrders = async (req: Request, res: Response) => {
             .populate({
                 path: 'tickets',
                 select: 'code qrCode status price',
-                match: { deletedAt: null }
+                match: { deletedAt: null },
             })
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -847,149 +951,193 @@ export const listMyOrders = async (req: Request, res: Response) => {
 
         // Remover QR codes de pedidos pendentes (segurança)
         // IMPORTANTE: Para pedidos pagos, garantir que os tickets tenham QR codes
-        const ordersWithFilteredQR = await Promise.all(orders.map(async (order) => {
-            // Se o pedido está pago mas os tickets não têm QR codes, gerar
-            if (order.status === 'paid') {
-                const orderDoc = await Order.findById(order._id);
-                if (orderDoc) {
-                    const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
-                    let needsQRGeneration = false;
-                    for (const ticket of tickets) {
-                        if (ticket.status === 'confirmed' && !ticket.qrCode) {
-                            needsQRGeneration = true;
-                            ticket.qrCode = await generateQRCode(ticket.code);
-                            await ticket.save();
+        const ordersWithFilteredQR = await Promise.all(
+            orders.map(async (order) => {
+                // Se o pedido está pago mas os tickets não têm QR codes, gerar
+                if (order.status === 'paid') {
+                    const orderDoc = await Order.findById(order._id);
+                    if (orderDoc) {
+                        const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
+                        let needsQRGeneration = false;
+                        for (const ticket of tickets) {
+                            if (ticket.status === 'confirmed' && !ticket.qrCode) {
+                                needsQRGeneration = true;
+                                ticket.qrCode = await generateQRCode(ticket.code);
+                                await ticket.save();
+                            }
                         }
-                    }
-                    if (needsQRGeneration) {
-                        // Re-popular para pegar os QR codes atualizados
-                        const updatedOrder = await Order.findById(order._id)
-                            .populate({
-                                path: 'tickets',
-                                select: 'code qrCode status price',
-                                match: { deletedAt: null }
-                            })
-                            .lean();
-                        if (updatedOrder) {
-                            return {
-                                ...updatedOrder,
-                                tickets: updatedOrder.tickets.map((ticket: any) => ({
-                                    ...ticket,
-                                    qrCode: updatedOrder.status === 'paid' ? ticket.qrCode : null
-                                }))
-                            };
+                        if (needsQRGeneration) {
+                            // Re-popular para pegar os QR codes atualizados
+                            const updatedOrder = await Order.findById(order._id)
+                                .populate({
+                                    path: 'tickets',
+                                    select: 'code qrCode status price',
+                                    match: { deletedAt: null },
+                                })
+                                .lean();
+                            if (updatedOrder) {
+                                return {
+                                    ...updatedOrder,
+                                    tickets: updatedOrder.tickets.map((ticket: any) => ({
+                                        ...ticket,
+                                        qrCode:
+                                            updatedOrder.status === 'paid' ? ticket.qrCode : null,
+                                    })),
+                                };
+                            }
                         }
                     }
                 }
-            }
-            
-            // Para pedidos PIX pendentes, buscar informações do PIX para exibir no frontend
-            let pixInfo: any = null;
-            // CRÍTICO: Para PIX, sempre usar Orders API (paymentOrderId), não Payment API
-            // Payment API não funciona para PIX criado via Orders API
-            if (order.status === 'pending' && order.paymentMethod === 'pix') {
-                // Buscar paymentOrderId do banco (pode não estar no lean())
-                const orderDoc = await Order.findById(order._id).select('paymentOrderId paymentId').lean();
-                const paymentOrderId = (orderDoc as any)?.paymentOrderId || (order as any).paymentOrderId;
-                
-                console.log(`[listMyOrders] 🔍 Buscando PIX para pedido ${order.orderNumber}:`, {
-                    hasPaymentOrderId: !!paymentOrderId,
-                    paymentOrderId,
-                    hasPaymentId: !!order.paymentId,
-                    paymentId: order.paymentId,
-                });
-                
-                try {
-                    // Para PIX, SEMPRE tentar Orders API primeiro (via paymentOrderId)
-                    if (paymentOrderId) {
-                        try {
-                            const mpOrder = await paymentService.getOrderById(paymentOrderId);
-                            const mpPayment = mpOrder?.transactions?.payments?.[0];
-                            
-                            // Log completo para debug
-                            console.log(`[listMyOrders] 🔍 Estrutura completa do payment para pedido ${order.orderNumber}:`, {
-                                hasMpPayment: !!mpPayment,
-                                paymentKeys: mpPayment ? Object.keys(mpPayment) : [],
-                                paymentMethod: mpPayment?.payment_method,
-                                paymentMethodType: mpPayment?.payment_method?.type,
-                                paymentMethodId: mpPayment?.payment_method_id,
-                                status: mpPayment?.status,
-                                dateOfExpiration: mpPayment?.date_of_expiration,
-                            });
-                            
-                            // Na Orders API, o PIX está em payment_method (não payment_method_id)
-                            // Verificar se é PIX: payment_method.type === 'pix' ou payment_method_id === 'pix'
-                            const isPix = mpPayment?.payment_method?.type === 'pix' || 
-                                         mpPayment?.payment_method_id === 'pix' ||
-                                         (mpPayment?.payment_method && !mpPayment?.payment_method_id); // Se tem payment_method mas não payment_method_id, provavelmente é PIX
-                            
-                            if (mpPayment && isPix) {
-                                // Na Orders API, os dados do PIX estão em payment_method, não em point_of_interaction
-                                pixInfo = {
-                                    qrCode: mpPayment.payment_method?.qr_code || null,
-                                    qrCodeBase64: mpPayment.payment_method?.qr_code_base64 || null,
-                                    ticketUrl: mpPayment.payment_method?.ticket_url || null,
-                                    expiresAt: mpPayment.date_of_expiration ? new Date(mpPayment.date_of_expiration).toISOString() : null,
-                                    expirationMinutes: mpPayment.date_of_expiration 
-                                        ? Math.round((new Date(mpPayment.date_of_expiration).getTime() - Date.now()) / (60 * 1000))
-                                        : null,
-                                };
-                                console.log(`[listMyOrders] ✅ Informações PIX encontradas via Orders API para pedido ${order.orderNumber}`, {
-                                    paymentOrderId,
-                                    hasQrCode: !!pixInfo.qrCodeBase64,
-                                    hasTicketUrl: !!pixInfo.ticketUrl,
-                                    hasQrCodeString: !!pixInfo.qrCode,
-                                    expirationMinutes: pixInfo.expirationMinutes,
-                                });
-                            } else {
-                                console.warn(`[listMyOrders] ⚠️ Pedido PIX ${order.orderNumber} não é PIX no Orders API`, {
-                                    paymentOrderId,
-                                    paymentMethodType: mpPayment?.payment_method?.type,
-                                    paymentMethodId: mpPayment?.payment_method_id,
-                                    hasMpPayment: !!mpPayment,
-                                });
-                            }
-                        } catch (orderError: any) {
-                            console.error(`[listMyOrders] Erro ao buscar order ${paymentOrderId} no MP para pedido ${order.orderNumber}:`, orderError.message);
-                            // Não tentar Payment API para PIX - não funciona
-                        }
-                    } else {
-                        console.warn(`[listMyOrders] ⚠️ Pedido PIX ${order.orderNumber} não tem paymentOrderId salvo no banco`, {
+
+                // Para pedidos PIX pendentes, buscar informações do PIX para exibir no frontend
+                let pixInfo: any = null;
+                // CRÍTICO: Para PIX, sempre usar Orders API (paymentOrderId), não Payment API
+                // Payment API não funciona para PIX criado via Orders API
+                if (order.status === 'pending' && order.paymentMethod === 'pix') {
+                    // Buscar paymentOrderId do banco (pode não estar no lean())
+                    const orderDoc = await Order.findById(order._id)
+                        .select('paymentOrderId paymentId')
+                        .lean();
+                    const paymentOrderId =
+                        (orderDoc as any)?.paymentOrderId || (order as any).paymentOrderId;
+
+                    console.log(
+                        `[listMyOrders] 🔍 Buscando PIX para pedido ${order.orderNumber}:`,
+                        {
+                            hasPaymentOrderId: !!paymentOrderId,
+                            paymentOrderId,
                             hasPaymentId: !!order.paymentId,
                             paymentId: order.paymentId,
-                        });
-                    }
-                    
-                    if (!pixInfo) {
-                        console.warn(`[listMyOrders] ⚠️ Não foi possível obter informações PIX para pedido ${order.orderNumber} - verifique se paymentOrderId está salvo`);
-                    }
-                } catch (error: any) {
-                    console.error(`[listMyOrders] Erro geral ao buscar informações do PIX para pedido ${order.orderNumber}:`, error.message);
-                    // Ignorar erro ao buscar informações do PIX
-                }
-            }
+                        }
+                    );
 
-            const orderResponse = {
-                ...order,
-                tickets: order.tickets.map((ticket: any) => ({
-                    ...ticket,
-                    qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
-                })),
-                pixInfo: pixInfo || undefined, // Informações do PIX para pedidos pendentes
-            };
-            
-            // Log para debug
-            if (order.status === 'pending' && order.paymentMethod === 'pix') {
-                console.log(`[listMyOrders] 📦 Retornando pedido PIX pendente ${order.orderNumber}:`, {
-                    hasPixInfo: !!orderResponse.pixInfo,
-                    pixInfoKeys: orderResponse.pixInfo ? Object.keys(orderResponse.pixInfo) : [],
-                    hasQrCode: !!orderResponse.pixInfo?.qrCodeBase64,
-                    hasTicketUrl: !!orderResponse.pixInfo?.ticketUrl,
-                });
-            }
-            
-            return orderResponse;
-        }));
+                    try {
+                        // Para PIX, SEMPRE tentar Orders API primeiro (via paymentOrderId)
+                        if (paymentOrderId) {
+                            try {
+                                const mpOrder = await paymentService.getOrderById(paymentOrderId);
+                                const mpPayment = mpOrder?.transactions?.payments?.[0];
+
+                                // Log completo para debug
+                                console.log(
+                                    `[listMyOrders] 🔍 Estrutura completa do payment para pedido ${order.orderNumber}:`,
+                                    {
+                                        hasMpPayment: !!mpPayment,
+                                        paymentKeys: mpPayment ? Object.keys(mpPayment) : [],
+                                        paymentMethod: mpPayment?.payment_method,
+                                        paymentMethodType: mpPayment?.payment_method?.type,
+                                        paymentMethodId: mpPayment?.payment_method_id,
+                                        status: mpPayment?.status,
+                                        dateOfExpiration: mpPayment?.date_of_expiration,
+                                    }
+                                );
+
+                                // Na Orders API, o PIX está em payment_method (não payment_method_id)
+                                // Verificar se é PIX: payment_method.type === 'pix' ou payment_method_id === 'pix'
+                                const isPix =
+                                    mpPayment?.payment_method?.type === 'pix' ||
+                                    mpPayment?.payment_method_id === 'pix' ||
+                                    (mpPayment?.payment_method && !mpPayment?.payment_method_id); // Se tem payment_method mas não payment_method_id, provavelmente é PIX
+
+                                if (mpPayment && isPix) {
+                                    // Na Orders API, os dados do PIX estão em payment_method, não em point_of_interaction
+                                    pixInfo = {
+                                        qrCode: mpPayment.payment_method?.qr_code || null,
+                                        qrCodeBase64:
+                                            mpPayment.payment_method?.qr_code_base64 || null,
+                                        ticketUrl: mpPayment.payment_method?.ticket_url || null,
+                                        expiresAt: mpPayment.date_of_expiration
+                                            ? new Date(mpPayment.date_of_expiration).toISOString()
+                                            : null,
+                                        expirationMinutes: mpPayment.date_of_expiration
+                                            ? Math.round(
+                                                  (new Date(
+                                                      mpPayment.date_of_expiration
+                                                  ).getTime() -
+                                                      Date.now()) /
+                                                      (60 * 1000)
+                                              )
+                                            : null,
+                                    };
+                                    console.log(
+                                        `[listMyOrders] ✅ Informações PIX encontradas via Orders API para pedido ${order.orderNumber}`,
+                                        {
+                                            paymentOrderId,
+                                            hasQrCode: !!pixInfo.qrCodeBase64,
+                                            hasTicketUrl: !!pixInfo.ticketUrl,
+                                            hasQrCodeString: !!pixInfo.qrCode,
+                                            expirationMinutes: pixInfo.expirationMinutes,
+                                        }
+                                    );
+                                } else {
+                                    console.warn(
+                                        `[listMyOrders] ⚠️ Pedido PIX ${order.orderNumber} não é PIX no Orders API`,
+                                        {
+                                            paymentOrderId,
+                                            paymentMethodType: mpPayment?.payment_method?.type,
+                                            paymentMethodId: mpPayment?.payment_method_id,
+                                            hasMpPayment: !!mpPayment,
+                                        }
+                                    );
+                                }
+                            } catch (orderError: any) {
+                                console.error(
+                                    `[listMyOrders] Erro ao buscar order ${paymentOrderId} no MP para pedido ${order.orderNumber}:`,
+                                    orderError.message
+                                );
+                                // Não tentar Payment API para PIX - não funciona
+                            }
+                        } else {
+                            console.warn(
+                                `[listMyOrders] ⚠️ Pedido PIX ${order.orderNumber} não tem paymentOrderId salvo no banco`,
+                                {
+                                    hasPaymentId: !!order.paymentId,
+                                    paymentId: order.paymentId,
+                                }
+                            );
+                        }
+
+                        if (!pixInfo) {
+                            console.warn(
+                                `[listMyOrders] ⚠️ Não foi possível obter informações PIX para pedido ${order.orderNumber} - verifique se paymentOrderId está salvo`
+                            );
+                        }
+                    } catch (error: any) {
+                        console.error(
+                            `[listMyOrders] Erro geral ao buscar informações do PIX para pedido ${order.orderNumber}:`,
+                            error.message
+                        );
+                        // Ignorar erro ao buscar informações do PIX
+                    }
+                }
+
+                const orderResponse = {
+                    ...order,
+                    tickets: order.tickets.map((ticket: any) => ({
+                        ...ticket,
+                        qrCode: order.status === 'paid' ? ticket.qrCode : null, // Só retorna QR code se pedido estiver pago
+                    })),
+                    pixInfo: pixInfo || undefined, // Informações do PIX para pedidos pendentes
+                };
+
+                // Log para debug
+                if (order.status === 'pending' && order.paymentMethod === 'pix') {
+                    console.log(
+                        `[listMyOrders] 📦 Retornando pedido PIX pendente ${order.orderNumber}:`,
+                        {
+                            hasPixInfo: !!orderResponse.pixInfo,
+                            pixInfoKeys: orderResponse.pixInfo
+                                ? Object.keys(orderResponse.pixInfo)
+                                : [],
+                            hasQrCode: !!orderResponse.pixInfo?.qrCodeBase64,
+                            hasTicketUrl: !!orderResponse.pixInfo?.ticketUrl,
+                        }
+                    );
+                }
+
+                return orderResponse;
+            })
+        );
 
         res.json({
             success: true,
@@ -999,17 +1147,16 @@ export const listMyOrders = async (req: Request, res: Response) => {
                     page: Number(page),
                     limit: Number(limit),
                     total,
-                    totalPages: Math.ceil(total / Number(limit))
-                }
-            }
+                    totalPages: Math.ceil(total / Number(limit)),
+                },
+            },
         });
-
     } catch (error: any) {
         console.error('Erro ao listar pedidos:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao listar pedidos',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -1028,7 +1175,7 @@ export const listAllOrders = async (req: Request, res: Response) => {
             filters.$or = [
                 { orderNumber: { $regex: search, $options: 'i' } },
                 { 'customerData.name': { $regex: search, $options: 'i' } },
-                { 'customerData.email': { $regex: search, $options: 'i' } }
+                { 'customerData.email': { $regex: search, $options: 'i' } },
             ];
         }
         if (status && ['pending', 'paid', 'cancelled', 'refunded'].includes(String(status))) {
@@ -1044,7 +1191,7 @@ export const listAllOrders = async (req: Request, res: Response) => {
             .populate({
                 path: 'tickets',
                 select: 'code qrCode status price ticketType',
-                match: { deletedAt: null }
+                match: { deletedAt: null },
             })
             .populate('customer', 'name email')
             .sort({ createdAt: -1 })
@@ -1057,49 +1204,52 @@ export const listAllOrders = async (req: Request, res: Response) => {
 
         // Remover QR codes de pedidos pendentes (segurança)
         // IMPORTANTE: Para pedidos pagos, garantir que os tickets tenham QR codes
-        const ordersWithFilteredQR = await Promise.all(orders.map(async (order) => {
-            // Se o pedido está pago mas os tickets não têm QR codes, gerar
-            if (order.status === 'paid') {
-                const orderDoc = await Order.findById(order._id);
-                if (orderDoc) {
-                    const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
-                    let needsQRGeneration = false;
-                    for (const ticket of tickets) {
-                        if (ticket.status === 'confirmed' && !ticket.qrCode) {
-                            needsQRGeneration = true;
-                            ticket.qrCode = await generateQRCode(ticket.code);
-                            await ticket.save();
+        const ordersWithFilteredQR = await Promise.all(
+            orders.map(async (order) => {
+                // Se o pedido está pago mas os tickets não têm QR codes, gerar
+                if (order.status === 'paid') {
+                    const orderDoc = await Order.findById(order._id);
+                    if (orderDoc) {
+                        const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
+                        let needsQRGeneration = false;
+                        for (const ticket of tickets) {
+                            if (ticket.status === 'confirmed' && !ticket.qrCode) {
+                                needsQRGeneration = true;
+                                ticket.qrCode = await generateQRCode(ticket.code);
+                                await ticket.save();
+                            }
                         }
-                    }
-                    if (needsQRGeneration) {
-                        // Re-popular para pegar os QR codes atualizados
-                        const updatedOrder = await Order.findById(order._id)
-                            .populate({
-                                path: 'tickets',
-                                select: 'code qrCode status price ticketType',
-                                match: { deletedAt: null }
-                            })
-                            .lean();
-                        if (updatedOrder) {
-                            return {
-                                ...updatedOrder,
-                                tickets: updatedOrder.tickets.map((ticket: any) => ({
-                                    ...ticket,
-                                    qrCode: updatedOrder.status === 'paid' ? ticket.qrCode : null
-                                }))
-                            };
+                        if (needsQRGeneration) {
+                            // Re-popular para pegar os QR codes atualizados
+                            const updatedOrder = await Order.findById(order._id)
+                                .populate({
+                                    path: 'tickets',
+                                    select: 'code qrCode status price ticketType',
+                                    match: { deletedAt: null },
+                                })
+                                .lean();
+                            if (updatedOrder) {
+                                return {
+                                    ...updatedOrder,
+                                    tickets: updatedOrder.tickets.map((ticket: any) => ({
+                                        ...ticket,
+                                        qrCode:
+                                            updatedOrder.status === 'paid' ? ticket.qrCode : null,
+                                    })),
+                                };
+                            }
                         }
                     }
                 }
-            }
-            return {
-                ...order,
-                tickets: order.tickets.map((ticket: any) => ({
-                    ...ticket,
-                    qrCode: order.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
-                }))
-            };
-        }));
+                return {
+                    ...order,
+                    tickets: order.tickets.map((ticket: any) => ({
+                        ...ticket,
+                        qrCode: order.status === 'paid' ? ticket.qrCode : null, // Só retorna QR code se pedido estiver pago
+                    })),
+                };
+            })
+        );
 
         res.json({
             success: true,
@@ -1109,17 +1259,16 @@ export const listAllOrders = async (req: Request, res: Response) => {
                     page: Number(page),
                     limit: Number(limit),
                     total,
-                    totalPages: Math.ceil(total / Number(limit))
-                }
-            }
+                    totalPages: Math.ceil(total / Number(limit)),
+                },
+            },
         });
-
     } catch (error: any) {
         console.error('Erro ao listar todos os pedidos:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao listar pedidos',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -1134,7 +1283,7 @@ export const getOrderById = async (req: Request, res: Response) => {
 
         const order = await Order.findOne({
             _id: id,
-            deletedAt: null
+            deletedAt: null,
         })
             .populate('event', 'name date location coverImage squareImage')
             .populate({
@@ -1143,8 +1292,8 @@ export const getOrderById = async (req: Request, res: Response) => {
                 match: { deletedAt: null },
                 populate: [
                     { path: 'usedBy', select: 'name email' },
-                    { path: 'ticketType', select: 'name price isVIP' }
-                ]
+                    { path: 'ticketType', select: 'name price isVIP' },
+                ],
             })
             .populate('customer', 'name email')
             .lean();
@@ -1152,13 +1301,13 @@ export const getOrderById = async (req: Request, res: Response) => {
         if (!order) {
             return res.status(404).json({
                 success: false,
-                message: 'Pedido não encontrado'
+                message: 'Pedido não encontrado',
             });
         }
 
         // Verificar se o usuário tem permissão (admin ou dono do pedido)
         const isAdmin = (req as any).user?.role === 'ADMIN';
-        
+
         // IMPORTANTE: order.customer pode estar populado (objeto) ou não populado (ObjectId)
         // Se estiver populado, extrair o _id. Se não, usar diretamente
         let orderCustomerId: string | null = null;
@@ -1171,7 +1320,7 @@ export const getOrderById = async (req: Request, res: Response) => {
                 orderCustomerId = String(order.customer);
             }
         }
-        
+
         const requestUserId = userId ? String(userId) : null;
         const isOwner = orderCustomerId && requestUserId && orderCustomerId === requestUserId;
 
@@ -1191,22 +1340,30 @@ export const getOrderById = async (req: Request, res: Response) => {
         if (!isAdmin && !isOwner) {
             console.log('[getOrderById] ❌ Acesso negado:', {
                 orderId: id,
-                reason: !isAdmin && !isOwner ? 'Usuário não é admin nem dono do pedido' : 'Desconhecido',
+                reason:
+                    !isAdmin && !isOwner
+                        ? 'Usuário não é admin nem dono do pedido'
+                        : 'Desconhecido',
                 orderCustomerId,
                 requestUserId,
             });
             return res.status(403).json({
-                success: false, 
-                message: 'Acesso negado'
+                success: false,
+                message: 'Acesso negado',
             });
         }
 
         // Sincronizar status de pedidos pendentes com Mercado Pago (em background, não bloqueia resposta)
         // REGRA: MP é a fonte de verdade única - sincronizar PIX e cartão
         const isPixOrder = order.paymentMethod === 'pix';
-        const isCardOrder = order.paymentMethod === 'credit_card' || order.paymentMethod === 'debit_card';
+        const isCardOrder =
+            order.paymentMethod === 'credit_card' || order.paymentMethod === 'debit_card';
 
-        if (order.status === 'pending' && (isPixOrder || isCardOrder) && (order.paymentOrderId || order.paymentId)) {
+        if (
+            order.status === 'pending' &&
+            (isPixOrder || isCardOrder) &&
+            (order.paymentOrderId || order.paymentId)
+        ) {
             // Executar em background para não bloquear a resposta
             setImmediate(async () => {
                 try {
@@ -1220,11 +1377,17 @@ export const getOrderById = async (req: Request, res: Response) => {
                     // Para PIX, usar Orders API primeiro; para cartão, usar Payment API
                     if (isPixOrder && (orderDoc as any).paymentOrderId) {
                         try {
-                            const mpOrder = await paymentService.getOrderById((orderDoc as any).paymentOrderId);
+                            const mpOrder = await paymentService.getOrderById(
+                                (orderDoc as any).paymentOrderId
+                            );
                             const mpPayment = mpOrder?.transactions?.payments?.[0];
                             if (mpPayment) {
                                 paymentInfo = mpPayment;
-                                mpStatus = (mpPayment.status || mpOrder?.status || '').toLowerCase();
+                                mpStatus = (
+                                    mpPayment.status ||
+                                    mpOrder?.status ||
+                                    ''
+                                ).toLowerCase();
                                 if (mpPayment.date_of_expiration) {
                                     mpExpiration = new Date(mpPayment.date_of_expiration);
                                 }
@@ -1233,14 +1396,19 @@ export const getOrderById = async (req: Request, res: Response) => {
                             }
                         } catch (orderError) {
                             if (process.env.NODE_ENV !== 'production') {
-                                console.warn('[getOrderById] Erro ao buscar order no MP:', orderError);
+                                console.warn(
+                                    '[getOrderById] Erro ao buscar order no MP:',
+                                    orderError
+                                );
                             }
                             return; // Não continuar se não conseguir buscar
                         }
                     } else if (orderDoc.paymentId) {
                         // Para cartão ou fallback PIX: usar Payment API
                         try {
-                            paymentInfo = await (paymentService as any).getPaymentById(orderDoc.paymentId);
+                            paymentInfo = await (paymentService as any).getPaymentById(
+                                orderDoc.paymentId
+                            );
                             if (paymentInfo) {
                                 mpStatus = (paymentInfo.status || '').toLowerCase();
                                 if (paymentInfo.date_of_expiration) {
@@ -1250,7 +1418,10 @@ export const getOrderById = async (req: Request, res: Response) => {
                         } catch (paymentError) {
                             // Payment API pode não funcionar para PIX Orders API, ignorar erro
                             if (process.env.NODE_ENV !== 'production') {
-                                console.warn('[getOrderById] Erro ao buscar payment no MP:', paymentError);
+                                console.warn(
+                                    '[getOrderById] Erro ao buscar payment no MP:',
+                                    paymentError
+                                );
                             }
                             return; // Não continuar se não conseguir buscar
                         }
@@ -1274,21 +1445,25 @@ export const getOrderById = async (req: Request, res: Response) => {
 
                         // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                         // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
-                        const tickets = await Ticket.find({ 
+                        const tickets = await Ticket.find({
                             _id: { $in: orderDoc.tickets }, // Usar apenas tickets do pedido
                             order: orderDoc._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
-                            deletedAt: null 
+                            deletedAt: null,
                         });
-                        
-                        console.log(`📋 [getOrderById] Confirmando ${tickets.length} ticket(s) do pedido ${orderDoc.orderNumber} (${orderDoc._id})`);
-                        
+
+                        console.log(
+                            `📋 [getOrderById] Confirmando ${tickets.length} ticket(s) do pedido ${orderDoc.orderNumber} (${orderDoc._id})`
+                        );
+
                         for (const ticket of tickets) {
                             // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
                             if (String(ticket.order) !== String(orderDoc._id)) {
-                                console.error(`⚠️ [getOrderById] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${orderDoc._id}! Pulando...`);
+                                console.error(
+                                    `⚠️ [getOrderById] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${orderDoc._id}! Pulando...`
+                                );
                                 continue;
                             }
-                            
+
                             if (ticket.status === 'pending') {
                                 ticket.status = 'confirmed';
                                 ticket.isActive = true;
@@ -1297,12 +1472,16 @@ export const getOrderById = async (req: Request, res: Response) => {
                                     ticket.qrCode = await generateQRCode(ticket.code);
                                 }
                                 await ticket.save();
-                                console.log(`✅ [getOrderById] Ticket ${ticket._id} confirmado para pedido ${orderDoc.orderNumber}`);
+                                console.log(
+                                    `✅ [getOrderById] Ticket ${ticket._id} confirmado para pedido ${orderDoc.orderNumber}`
+                                );
                             }
                         }
 
                         if (process.env.NODE_ENV !== 'production') {
-                            console.log(`[getOrderById] Pedido ${String(orderDoc._id)} (${isPixOrder ? 'PIX' : 'Cartão'}): MP aprovou. Atualizando para paid e gerando QR codes.`);
+                            console.log(
+                                `[getOrderById] Pedido ${String(orderDoc._id)} (${isPixOrder ? 'PIX' : 'Cartão'}): MP aprovou. Atualizando para paid e gerando QR codes.`
+                            );
                         }
                     }
                     // REGRA: Se o MP cancelou, SEMPRE seguir o MP (100% alinhamento)
@@ -1317,9 +1496,13 @@ export const getOrderById = async (req: Request, res: Response) => {
                             const now = new Date();
                             const paymentMethod = isPixOrder ? 'PIX' : 'Cartão';
                             if (isPixOrder && mpExpiration && now < mpExpiration) {
-                                console.log(`[getOrderById] ${paymentMethod} pedido ${String(orderDoc._id)}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`);
+                                console.log(
+                                    `[getOrderById] ${paymentMethod} pedido ${String(orderDoc._id)}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`
+                                );
                             } else {
-                                console.log(`[getOrderById] ${paymentMethod} pedido ${String(orderDoc._id)}: MP cancelou (status: ${mpStatus}). Seguindo MP e cancelando.`);
+                                console.log(
+                                    `[getOrderById] ${paymentMethod} pedido ${String(orderDoc._id)}: MP cancelou (status: ${mpStatus}). Seguindo MP e cancelando.`
+                                );
                             }
                         }
                     }
@@ -1327,7 +1510,10 @@ export const getOrderById = async (req: Request, res: Response) => {
                     // Não bloquear a resposta em caso de erro na sincronização
                     if (process.env.NODE_ENV !== 'production') {
                         const paymentMethod = isPixOrder ? 'PIX' : 'Cartão';
-                        console.warn(`[getOrderById] Erro ao sincronizar status ${paymentMethod}:`, syncError);
+                        console.warn(
+                            `[getOrderById] Erro ao sincronizar status ${paymentMethod}:`,
+                            syncError
+                        );
                     }
                 }
             });
@@ -1343,8 +1529,8 @@ export const getOrderById = async (req: Request, res: Response) => {
                 match: { deletedAt: null },
                 populate: [
                     { path: 'usedBy', select: 'name email' },
-                    { path: 'ticketType', select: 'name price isVIP' }
-                ]
+                    { path: 'ticketType', select: 'name price isVIP' },
+                ],
             })
             .populate('customer', 'name email')
             .lean();
@@ -1352,7 +1538,7 @@ export const getOrderById = async (req: Request, res: Response) => {
         if (!freshOrder) {
             return res.status(404).json({
                 success: false,
-                message: 'Pedido não encontrado'
+                message: 'Pedido não encontrado',
             });
         }
 
@@ -1361,16 +1547,19 @@ export const getOrderById = async (req: Request, res: Response) => {
         let pixInfo: any = null;
         if (freshOrder.status === 'pending' && freshOrder.paymentMethod === 'pix') {
             // Buscar paymentOrderId do banco (pode não estar no lean())
-            const orderDocForPix = await Order.findById(freshOrder._id).select('paymentOrderId paymentId').lean();
-            const paymentOrderId = (orderDocForPix as any)?.paymentOrderId || (freshOrder as any).paymentOrderId;
-            
+            const orderDocForPix = await Order.findById(freshOrder._id)
+                .select('paymentOrderId paymentId')
+                .lean();
+            const paymentOrderId =
+                (orderDocForPix as any)?.paymentOrderId || (freshOrder as any).paymentOrderId;
+
             console.log(`[getOrderById] 🔍 Buscando PIX para pedido ${freshOrder.orderNumber}:`, {
                 hasPaymentOrderId: !!paymentOrderId,
                 paymentOrderId,
                 hasPaymentId: !!freshOrder.paymentId,
                 paymentId: freshOrder.paymentId,
             });
-            
+
             try {
                 const paymentService = await import('../services/paymentService');
                 // Para PIX, SEMPRE tentar Orders API primeiro (via paymentOrderId)
@@ -1378,49 +1567,71 @@ export const getOrderById = async (req: Request, res: Response) => {
                     try {
                         const mpOrder = await paymentService.getOrderById(paymentOrderId);
                         const mpPayment = mpOrder?.transactions?.payments?.[0];
-                        
+
                         // Na Orders API, o PIX está em payment_method (não payment_method_id)
                         // Verificar se é PIX: payment_method.type === 'pix' ou payment_method_id === 'pix'
-                        const isPix = mpPayment?.payment_method?.type === 'pix' || 
-                                     mpPayment?.payment_method_id === 'pix' ||
-                                     (mpPayment?.payment_method && !mpPayment?.payment_method_id); // Se tem payment_method mas não payment_method_id, provavelmente é PIX
-                        
+                        const isPix =
+                            mpPayment?.payment_method?.type === 'pix' ||
+                            mpPayment?.payment_method_id === 'pix' ||
+                            (mpPayment?.payment_method && !mpPayment?.payment_method_id); // Se tem payment_method mas não payment_method_id, provavelmente é PIX
+
                         if (mpPayment && isPix) {
                             // Na Orders API, os dados do PIX estão em payment_method, não em point_of_interaction
                             pixInfo = {
                                 qrCode: mpPayment.payment_method?.qr_code || null,
                                 qrCodeBase64: mpPayment.payment_method?.qr_code_base64 || null,
                                 ticketUrl: mpPayment.payment_method?.ticket_url || null,
-                                expiresAt: mpPayment.date_of_expiration ? new Date(mpPayment.date_of_expiration).toISOString() : null,
-                                expirationMinutes: mpPayment.date_of_expiration 
-                                    ? Math.round((new Date(mpPayment.date_of_expiration).getTime() - Date.now()) / (60 * 1000))
+                                expiresAt: mpPayment.date_of_expiration
+                                    ? new Date(mpPayment.date_of_expiration).toISOString()
+                                    : null,
+                                expirationMinutes: mpPayment.date_of_expiration
+                                    ? Math.round(
+                                          (new Date(mpPayment.date_of_expiration).getTime() -
+                                              Date.now()) /
+                                              (60 * 1000)
+                                      )
                                     : null,
                             };
-                            console.log(`[getOrderById] ✅ Informações PIX encontradas via Orders API para pedido ${freshOrder.orderNumber}`, {
-                                paymentOrderId,
-                                hasQrCode: !!pixInfo.qrCodeBase64,
-                                hasTicketUrl: !!pixInfo.ticketUrl,
-                                hasQrCodeString: !!pixInfo.qrCode,
-                            });
+                            console.log(
+                                `[getOrderById] ✅ Informações PIX encontradas via Orders API para pedido ${freshOrder.orderNumber}`,
+                                {
+                                    paymentOrderId,
+                                    hasQrCode: !!pixInfo.qrCodeBase64,
+                                    hasTicketUrl: !!pixInfo.ticketUrl,
+                                    hasQrCodeString: !!pixInfo.qrCode,
+                                }
+                            );
                         } else {
-                            console.warn(`[getOrderById] ⚠️ Pedido PIX ${freshOrder.orderNumber} não é PIX no Orders API`, {
-                                paymentOrderId,
-                                paymentMethodType: mpPayment?.payment_method?.type,
-                                paymentMethodId: mpPayment?.payment_method_id,
-                            });
+                            console.warn(
+                                `[getOrderById] ⚠️ Pedido PIX ${freshOrder.orderNumber} não é PIX no Orders API`,
+                                {
+                                    paymentOrderId,
+                                    paymentMethodType: mpPayment?.payment_method?.type,
+                                    paymentMethodId: mpPayment?.payment_method_id,
+                                }
+                            );
                         }
                     } catch (orderError: any) {
-                        console.error(`[getOrderById] Erro ao buscar order ${paymentOrderId} no MP:`, orderError.message);
+                        console.error(
+                            `[getOrderById] Erro ao buscar order ${paymentOrderId} no MP:`,
+                            orderError.message
+                        );
                         // Não tentar Payment API para PIX - não funciona
                     }
                 } else {
-                    console.warn(`[getOrderById] ⚠️ Pedido PIX ${freshOrder.orderNumber} não tem paymentOrderId salvo no banco`, {
-                        hasPaymentId: !!freshOrder.paymentId,
-                        paymentId: freshOrder.paymentId,
-                    });
+                    console.warn(
+                        `[getOrderById] ⚠️ Pedido PIX ${freshOrder.orderNumber} não tem paymentOrderId salvo no banco`,
+                        {
+                            hasPaymentId: !!freshOrder.paymentId,
+                            paymentId: freshOrder.paymentId,
+                        }
+                    );
                 }
             } catch (error: any) {
-                console.error(`[getOrderById] Erro geral ao buscar informações do PIX:`, error.message);
+                console.error(
+                    `[getOrderById] Erro geral ao buscar informações do PIX:`,
+                    error.message
+                );
             }
         }
 
@@ -1429,22 +1640,21 @@ export const getOrderById = async (req: Request, res: Response) => {
             ...freshOrder,
             tickets: freshOrder.tickets.map((ticket: any) => ({
                 ...ticket,
-                qrCode: freshOrder.status === 'paid' ? ticket.qrCode : null // Só retorna QR code se pedido estiver pago
+                qrCode: freshOrder.status === 'paid' ? ticket.qrCode : null, // Só retorna QR code se pedido estiver pago
             })),
             pixInfo: pixInfo || undefined, // Informações do PIX para pedidos pendentes
         };
 
         res.json({
             success: true,
-            data: orderWithFilteredQR
+            data: orderWithFilteredQR,
         });
-
     } catch (error: any) {
         console.error('Erro ao buscar pedido:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar pedido',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -1479,7 +1689,10 @@ export const cancelOrder = async (req: Request, res: Response) => {
             return res.json({ success: true, message: 'Pedido já está cancelado' });
         }
         if (order.status === 'paid') {
-            return res.status(400).json({ success: false, message: 'Pedido pago não pode ser cancelado aqui. Use reembolso.' });
+            return res.status(400).json({
+                success: false,
+                message: 'Pedido pago não pode ser cancelado aqui. Use reembolso.',
+            });
         }
 
         // Se houver pagamento, primeiro consultar status no MP para evitar falso positivo
@@ -1495,7 +1708,9 @@ export const cancelOrder = async (req: Request, res: Response) => {
                 // Para PIX, tentar Orders API primeiro
                 if (isPixOrder && (order as any).paymentOrderId) {
                     try {
-                        const mpOrder = await paymentService.getOrderById((order as any).paymentOrderId);
+                        const mpOrder = await paymentService.getOrderById(
+                            (order as any).paymentOrderId
+                        );
                         const mpPayment = mpOrder?.transactions?.payments?.[0];
                         if (mpPayment) {
                             payment = mpPayment;
@@ -1527,7 +1742,10 @@ export const cancelOrder = async (req: Request, res: Response) => {
                 }
 
                 if (mpStatus === 'approved') {
-                    return res.status(400).json({ success: false, message: 'Pedido já aprovado no Mercado Pago; não é possível cancelar.' })
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Pedido já aprovado no Mercado Pago; não é possível cancelar.',
+                    });
                 }
 
                 // Para PIX: verificar se realmente expirou antes de cancelar
@@ -1536,7 +1754,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
                     if (now < mpExpiration) {
                         return res.status(400).json({
                             success: false,
-                            message: `Pedido PIX ainda não expirou no Mercado Pago. Expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} minutos. Aguarde a expiração ou cancele diretamente no Mercado Pago.`
+                            message: `Pedido PIX ainda não expirou no Mercado Pago. Expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} minutos. Aguarde a expiração ou cancele diretamente no Mercado Pago.`,
                         });
                     }
                 }
@@ -1547,13 +1765,19 @@ export const cancelOrder = async (req: Request, res: Response) => {
                         try {
                             await paymentService.cancelOrderById((order as any).paymentOrderId);
                         } catch (cancelError) {
-                            console.warn('[cancelOrder] Erro ao cancelar order no MP:', cancelError);
+                            console.warn(
+                                '[cancelOrder] Erro ao cancelar order no MP:',
+                                cancelError
+                            );
                         }
                     } else if (order.paymentId) {
                         try {
                             await (paymentService as any).cancelPaymentById(order.paymentId);
                         } catch (cancelError) {
-                            console.warn('[cancelOrder] Erro ao cancelar payment no MP:', cancelError);
+                            console.warn(
+                                '[cancelOrder] Erro ao cancelar payment no MP:',
+                                cancelError
+                            );
                         }
                     }
                     order.paymentStatus = 'cancelled';
@@ -1569,16 +1793,18 @@ export const cancelOrder = async (req: Request, res: Response) => {
         // Buscar tickets para obter ticketType e quantidade
         // CRÍTICO: Buscar APENAS tickets pending para liberar estoque
         // Tickets confirmed já foram pagos e não devem ter estoque liberado
-        const pendingTickets = await Ticket.find({ 
-            order: order._id, 
+        const pendingTickets = await Ticket.find({
+            order: order._id,
             deletedAt: null,
-            status: 'pending' // APENAS tickets pending
+            status: 'pending', // APENAS tickets pending
         }).populate('ticketType');
 
         // Agrupar por ticketType para liberar estoque corretamente (apenas pending)
         const ticketTypeCounts = new Map<string, number>();
         for (const ticket of pendingTickets) {
-            const ticketTypeId = String((ticket as any).ticketType?._id || (ticket as any).ticketType);
+            const ticketTypeId = String(
+                (ticket as any).ticketType?._id || (ticket as any).ticketType
+            );
             if (ticketTypeId) {
                 ticketTypeCounts.set(ticketTypeId, (ticketTypeCounts.get(ticketTypeId) || 0) + 1);
             }
@@ -1592,12 +1818,16 @@ export const cancelOrder = async (req: Request, res: Response) => {
                 const oldSoldQuantity = ticketType.soldQuantity;
                 ticketType.soldQuantity = Math.max(0, ticketType.soldQuantity - quantity);
                 await ticketType.save();
-                console.log(`✅ [cancelOrder] Estoque devolvido: ${quantity} ingressos do tipo ${ticketTypeId} (${oldSoldQuantity} -> ${ticketType.soldQuantity})`);
+                console.log(
+                    `✅ [cancelOrder] Estoque devolvido: ${quantity} ingressos do tipo ${ticketTypeId} (${oldSoldQuantity} -> ${ticketType.soldQuantity})`
+                );
             }
         }
-        
+
         // Buscar todos os tickets para resposta (incluindo confirmed)
-        const allTickets = await Ticket.find({ order: order._id, deletedAt: null }).populate('ticketType');
+        const allTickets = await Ticket.find({ order: order._id, deletedAt: null }).populate(
+            'ticketType'
+        );
 
         // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
         // O pedido PENDING já funciona como reserva e quando cancelado, o estoque é liberado automaticamente
@@ -1616,11 +1846,13 @@ export const cancelOrder = async (req: Request, res: Response) => {
             action: 'cancel',
             performedBy: auditContext.performedBy,
             performedByRole: auditContext.performedByRole,
-            changes: [{
-                field: 'status',
-                oldValue: oldStatus,
-                newValue: 'cancelled',
-            }],
+            changes: [
+                {
+                    field: 'status',
+                    oldValue: oldStatus,
+                    newValue: 'cancelled',
+                },
+            ],
             metadata: {
                 ipAddress: auditContext.ipAddress,
                 userAgent: auditContext.userAgent,
@@ -1636,14 +1868,14 @@ export const cancelOrder = async (req: Request, res: Response) => {
         // Se o pedido tem tickets confirmados (já pagos) e tickets pending (aguardando pagamento),
         // apenas os pending devem ser cancelados quando o pagamento expira
         await Ticket.updateMany(
-            { 
-                order: order._id, 
+            {
+                order: order._id,
                 deletedAt: null,
-                status: 'pending' // APENAS tickets pending - não mexer nos confirmados
+                status: 'pending', // APENAS tickets pending - não mexer nos confirmados
             },
             { $set: { status: 'cancelled', isActive: false, qrCode: '' } }
         );
-        
+
         // Se ainda há tickets confirmados, o pedido não deveria estar cancelado
         // Mas como o PIX expirou, mantemos o pedido como cancelled
         // Os tickets confirmados continuam válidos mesmo com pedido cancelled
@@ -1668,10 +1900,12 @@ export const cancelOrder = async (req: Request, res: Response) => {
                         month: '2-digit',
                         year: 'numeric',
                         hour: '2-digit',
-                        minute: '2-digit'
+                        minute: '2-digit',
                     }),
                     cancellationReason: 'Pedido cancelado pelo usuário ou sistema',
-                    refundInfo: order.paymentId ? 'O valor será estornado em até 5 dias úteis.' : undefined
+                    refundInfo: order.paymentId
+                        ? 'O valor será estornado em até 5 dias úteis.'
+                        : undefined,
                 });
             }
         } catch (emailError) {
@@ -1680,7 +1914,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
         }
 
         // Segurança extra: nunca retornar QR de tickets não confirmados
-        const safeTickets = allTickets.map(t => {
+        const safeTickets = allTickets.map((t) => {
             const ticketObj = t.toObject();
             // Manter QR code apenas se ticket está confirmed
             if (ticketObj.status !== 'confirmed') {
@@ -1699,7 +1933,11 @@ export const cancelOrder = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao cancelar pedido:', error);
-        return res.status(500).json({ success: false, message: 'Erro ao cancelar pedido', errors: [error.message || 'Erro desconhecido'] });
+        return res.status(500).json({
+            success: false,
+            message: 'Erro ao cancelar pedido',
+            errors: [error.message || 'Erro desconhecido'],
+        });
     }
 };
 
@@ -1715,13 +1953,13 @@ export const confirmPayment = async (req: Request, res: Response) => {
         // Buscar pedido
         const order = await Order.findOne({
             _id: id,
-            deletedAt: null
+            deletedAt: null,
         });
 
         if (!order) {
             return res.status(404).json({
                 success: false,
-                message: 'Pedido não encontrado'
+                message: 'Pedido não encontrado',
             });
         }
 
@@ -1729,7 +1967,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
         if (order.status === 'paid') {
             return res.status(400).json({
                 success: false,
-                message: 'Pedido já está pago'
+                message: 'Pedido já está pago',
             });
         }
 
@@ -1738,7 +1976,9 @@ export const confirmPayment = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Pedido não pode ser confirmado',
-                errors: [`Status atual: ${order.status}. Apenas pedidos pendentes podem ser confirmados.`]
+                errors: [
+                    `Status atual: ${order.status}. Apenas pedidos pendentes podem ser confirmados.`,
+                ],
             });
         }
 
@@ -1752,7 +1992,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
         // Buscar todos os tickets do pedido
         const tickets = await Ticket.find({
             order: order._id,
-            deletedAt: null
+            deletedAt: null,
         });
 
         // Gerar QR codes para todos os tickets pendentes
@@ -1779,15 +2019,14 @@ export const confirmPayment = async (req: Request, res: Response) => {
         res.json({
             success: true,
             message: 'Pagamento confirmado e QR codes gerados com sucesso',
-            data: populatedOrder
+            data: populatedOrder,
         });
-
     } catch (error: any) {
         console.error('Erro ao confirmar pagamento:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao confirmar pagamento',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -1803,7 +2042,9 @@ export const getFinancialStats = async (req: Request, res: Response) => {
             status: 'paid',
             paymentMethod: { $ne: 'vip_free' },
             deletedAt: null,
-        }).select('subtotal discountAmount platformFee').lean();
+        })
+            .select('subtotal discountAmount platformFee')
+            .lean();
 
         // Calcular totais
         let totalSales = 0; // Total de vendas para repassar ao dono (subtotal - desconto, SEM taxa)
@@ -1823,14 +2064,14 @@ export const getFinancialStats = async (req: Request, res: Response) => {
                 totalSales, // Valor total das vendas (sem taxa)
                 totalFees, // Valor total das taxas (recebível da plataforma)
                 totalRevenue: totalSales + totalFees, // Total geral (para referência)
-            }
+            },
         });
     } catch (error: any) {
         console.error('Erro ao buscar estatísticas financeiras:', error);
         return res.status(500).json({
             success: false,
             message: 'Erro ao buscar estatísticas financeiras',
-            errors: [error.message]
+            errors: [error.message],
         });
     }
 };
@@ -1857,22 +2098,19 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
             console.log('[updateOrderPromoterCode] ❌ OrderId não fornecido');
             return res.status(400).json({
                 success: false,
-                message: 'ID do pedido é obrigatório'
+                message: 'ID do pedido é obrigatório',
             });
         }
 
         // Buscar pedido
         console.log('[updateOrderPromoterCode] 🔍 Buscando pedido:', orderId);
-        const order = await Order.findById(orderId)
-            .populate('event')
-            .populate('tickets')
-            .lean();
+        const order = await Order.findById(orderId).populate('event').populate('tickets').lean();
 
         if (!order) {
             console.log('[updateOrderPromoterCode] ❌ Pedido não encontrado:', orderId);
             return res.status(404).json({
                 success: false,
-                message: 'Pedido não encontrado'
+                message: 'Pedido não encontrado',
             });
         }
 
@@ -1895,10 +2133,12 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
                 match: orderUserId === userId,
             });
             if (orderUserId !== userId) {
-                console.log('[updateOrderPromoterCode] ❌ Acesso negado - pedido não pertence ao usuário');
+                console.log(
+                    '[updateOrderPromoterCode] ❌ Acesso negado - pedido não pertence ao usuário'
+                );
                 return res.status(403).json({
                     success: false,
-                    message: 'Acesso negado'
+                    message: 'Acesso negado',
                 });
             }
         }
@@ -1910,7 +2150,7 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
             });
             return res.status(400).json({
                 success: false,
-                message: 'Apenas pedidos pendentes podem ter código de promotor atualizado'
+                message: 'Apenas pedidos pendentes podem ter código de promotor atualizado',
             });
         }
 
@@ -1922,7 +2162,7 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
             console.log('[updateOrderPromoterCode] ❌ Evento não encontrado:', eventId);
             return res.status(404).json({
                 success: false,
-                message: 'Evento não encontrado'
+                message: 'Evento não encontrado',
             });
         }
         console.log('[updateOrderPromoterCode] ✅ Evento encontrado:', {
@@ -1941,7 +2181,7 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
             console.log('[updateOrderPromoterCode] ❌ Pedido não possui tickets');
             return res.status(400).json({
                 success: false,
-                message: 'Pedido não possui tickets'
+                message: 'Pedido não possui tickets',
             });
         }
         console.log('[updateOrderPromoterCode] ✅ Tickets encontrados:', tickets.length);
@@ -1952,7 +2192,7 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
             console.log('[updateOrderPromoterCode] ❌ Tipo de ingresso não encontrado no ticket');
             return res.status(404).json({
                 success: false,
-                message: 'Tipo de ingresso não encontrado'
+                message: 'Tipo de ingresso não encontrado',
             });
         }
         console.log('[updateOrderPromoterCode] ✅ Tipo de ingresso encontrado:', {
@@ -1970,22 +2210,25 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
                 code: codeToSearch,
                 eventId,
             });
-            
+
             const code = await PromoterCode.findOne({
                 code: codeToSearch,
                 isActive: true,
                 deletedAt: null,
-                events: eventId
+                events: eventId,
             }).lean();
 
             if (!code) {
-                console.log('[updateOrderPromoterCode] ❌ Código de promotor não encontrado ou inválido:', {
-                    code: codeToSearch,
-                    eventId,
-                });
+                console.log(
+                    '[updateOrderPromoterCode] ❌ Código de promotor não encontrado ou inválido:',
+                    {
+                        code: codeToSearch,
+                        eventId,
+                    }
+                );
                 return res.status(400).json({
                     success: false,
-                    message: 'Código de promotor inválido ou não válido para este evento'
+                    message: 'Código de promotor inválido ou não válido para este evento',
                 });
             }
 
@@ -2019,7 +2262,9 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
                 console.log('[updateOrderPromoterCode] ℹ️ Ticket VIP - desconto não aplicado');
             }
         } else {
-            console.log('[updateOrderPromoterCode] ℹ️ Removendo código de promotor (promoterCode é null/undefined)');
+            console.log(
+                '[updateOrderPromoterCode] ℹ️ Removendo código de promotor (promoterCode é null/undefined)'
+            );
         }
 
         // Recalcular valores do pedido
@@ -2027,7 +2272,7 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
         const subtotal = order.subtotal || 0;
         const platformFeePercentage = event.platformFeePercentage || 0;
         const subtotalAfterDiscount = subtotal - discountAmount;
-        const platformFee = isVIP ? 0 : (subtotalAfterDiscount * (platformFeePercentage / 100));
+        const platformFee = isVIP ? 0 : subtotalAfterDiscount * (platformFeePercentage / 100);
         const totalAmount = subtotalAfterDiscount + platformFee;
 
         console.log('[updateOrderPromoterCode] 💰 Valores recalculados:', {
@@ -2066,10 +2311,12 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
             .lean();
 
         if (!updatedOrder) {
-            console.log('[updateOrderPromoterCode] ❌ Erro ao atualizar pedido - pedido não encontrado após update');
+            console.log(
+                '[updateOrderPromoterCode] ❌ Erro ao atualizar pedido - pedido não encontrado após update'
+            );
             return res.status(500).json({
                 success: false,
-                message: 'Erro ao atualizar pedido'
+                message: 'Erro ao atualizar pedido',
             });
         }
 
@@ -2083,17 +2330,19 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
 
         return res.json({
             success: true,
-            message: promoterCode ? 'Código de promotor aplicado com sucesso' : 'Código de promotor removido com sucesso',
+            message: promoterCode
+                ? 'Código de promotor aplicado com sucesso'
+                : 'Código de promotor removido com sucesso',
             data: {
-                order: updatedOrder
-            }
+                order: updatedOrder,
+            },
         });
     } catch (error: any) {
         console.error('Erro ao atualizar código de promotor:', error);
         return res.status(500).json({
             success: false,
             message: 'Erro ao atualizar código de promotor',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };

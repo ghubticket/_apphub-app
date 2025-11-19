@@ -1,5 +1,14 @@
 import express from 'express';
-import { createOrder, listMyOrders, listAllOrders, getOrderById, confirmPayment, cancelOrder, getFinancialStats, updateOrderPromoterCode } from '../controllers/ordersController';
+import {
+    createOrder,
+    listMyOrders,
+    listAllOrders,
+    getOrderById,
+    confirmPayment,
+    cancelOrder,
+    getFinancialStats,
+    updateOrderPromoterCode,
+} from '../controllers/ordersController';
 import rateLimit from 'express-rate-limit';
 import { authenticate, isAdmin } from '../middleware/auth';
 import { orderCreationUserRateLimit } from '../middleware/rateLimiting';
@@ -65,7 +74,7 @@ const createOrderRateLimit = rateLimit({
     max: isDevelopment ? 200 : 20, // 200 em dev, 20 em produção
     standardHeaders: true,
     legacyHeaders: false,
-    message: 'Muitas criações de pedidos. Tente novamente em alguns minutos.'
+    message: 'Muitas criações de pedidos. Tente novamente em alguns minutos.',
 });
 
 // Rate limiting duplo: por IP (já existente) + por usuário autenticado (novo)
@@ -262,4 +271,3 @@ router.get('/financial/stats', authenticate, isAdmin, getFinancialStats);
 router.patch('/:id/promoter-code', authenticate, updateOrderPromoterCode);
 
 export default router;
-

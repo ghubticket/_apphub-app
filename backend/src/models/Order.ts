@@ -1,5 +1,11 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { encryptSensitiveData, decryptSensitiveData, hashCPFForSearch, hashPhoneForSearch, isEncrypted } from '../utils/encryption';
+import {
+    encryptSensitiveData,
+    decryptSensitiveData,
+    hashCPFForSearch,
+    hashPhoneForSearch,
+    isEncrypted,
+} from '../utils/encryption';
 
 // Interface para o documento Order
 export interface IOrder extends Document {
@@ -73,10 +79,12 @@ const orderSchema = new Schema<IOrder>(
             ref: 'Event',
             required: [true, 'Evento é obrigatório'],
         },
-        tickets: [{
-            type: Schema.Types.ObjectId,
-            ref: 'Ticket',
-        }],
+        tickets: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: 'Ticket',
+            },
+        ],
         subtotal: {
             type: Number,
             required: [true, 'Subtotal é obrigatório'],
@@ -122,7 +130,8 @@ const orderSchema = new Schema<IOrder>(
             type: String,
             enum: {
                 values: ['credit_card', 'debit_card', 'pix', 'bank_slip', 'vip_free'],
-                message: 'Método de pagamento deve ser: credit_card, debit_card, pix, bank_slip ou vip_free',
+                message:
+                    'Método de pagamento deve ser: credit_card, debit_card, pix, bank_slip ou vip_free',
             },
             // Não é obrigatório se for VIP (será 'vip_free' automaticamente)
         },
@@ -186,10 +195,7 @@ const orderSchema = new Schema<IOrder>(
                 required: [true, 'Email do cliente é obrigatório'],
                 trim: true,
                 lowercase: true,
-                match: [
-                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    'Email deve ter um formato válido',
-                ],
+                match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email deve ter um formato válido'],
             },
             phone: {
                 type: String,
@@ -206,10 +212,7 @@ const orderSchema = new Schema<IOrder>(
             cpf: {
                 type: String,
                 trim: true,
-                match: [
-                    /^\d{3}\.\d{3}\.\d{3}-\d{2}$/,
-                    'CPF deve estar no formato 000.000.000-00',
-                ],
+                match: [/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, 'CPF deve estar no formato 000.000.000-00'],
             },
             cpfHash: {
                 type: String,
@@ -306,7 +309,7 @@ orderSchema.pre('save', async function (next) {
             }
 
             // Verificar se o número já existe (apenas em pedidos não deletados)
-            const existingOrder = await mongoose.model('Order').findOne({ 
+            const existingOrder = await mongoose.model('Order').findOne({
                 orderNumber,
                 deletedAt: null,
             });
@@ -324,16 +327,22 @@ orderSchema.pre('save', async function (next) {
                 this.orderNumber = orderNumber;
             }
         }
-        
+
         // Validar transição de status quando não é novo
         if (!this.isNew && this.isModified('status')) {
-            const current = await mongoose.model('Order').findById(this._id).select('status').lean() as any;
+            const current = (await mongoose
+                .model('Order')
+                .findById(this._id)
+                .select('status')
+                .lean()) as any;
             const fromStatus = current?.status as string | undefined;
             const toStatus = (this as any).status as string;
             if (fromStatus && toStatus && fromStatus !== toStatus) {
                 const allowed = ALLOWED_STATUS_TRANSITIONS[fromStatus] || [];
                 if (!allowed.includes(toStatus)) {
-                    return next(new Error(`Transição de status inválida: ${fromStatus} -> ${toStatus}`));
+                    return next(
+                        new Error(`Transição de status inválida: ${fromStatus} -> ${toStatus}`)
+                    );
                 }
             }
         }
@@ -385,7 +394,7 @@ orderSchema.pre('save', async function (next) {
 // Validar transições em operações findOneAndUpdate
 orderSchema.pre('findOneAndUpdate', async function (next) {
     const update: any = this.getUpdate() || {};
-    const nextStatus = ('status' in update) ? update.status : (update.$set?.status);
+    const nextStatus = 'status' in update ? update.status : update.$set?.status;
     if (!nextStatus) return next();
 
     const current = await (this as any).model.findOne(this.getQuery()).select('status').lean();
@@ -423,7 +432,7 @@ orderSchema.statics.findByOrderNumber = function (orderNumber: string) {
 // Middleware para descriptografar dados sensíveis ao buscar
 orderSchema.post(['find', 'findOne', 'findOneAndUpdate'], function (docs: any) {
     if (!docs) return;
-    
+
     const documents = Array.isArray(docs) ? docs : [docs];
     documents.forEach((doc: any) => {
         if (doc && doc.customerData) {
@@ -453,7 +462,7 @@ orderSchema.post(['find', 'findOne', 'findOneAndUpdate'], function (docs: any) {
 // Método toJSON para garantir descriptografia
 orderSchema.methods.toJSON = function () {
     const orderObject = this.toObject();
-    
+
     // Descriptografar dados sensíveis se estiverem criptografados
     if (orderObject.customerData) {
         if (orderObject.customerData.cpf && isEncrypted(orderObject.customerData.cpf)) {
@@ -465,7 +474,9 @@ orderSchema.methods.toJSON = function () {
         }
         if (orderObject.customerData.phone && isEncrypted(orderObject.customerData.phone)) {
             try {
-                orderObject.customerData.phone = decryptSensitiveData(orderObject.customerData.phone);
+                orderObject.customerData.phone = decryptSensitiveData(
+                    orderObject.customerData.phone
+                );
             } catch (error) {
                 console.error('Erro ao descriptografar telefone no toJSON:', error);
             }
@@ -474,7 +485,7 @@ orderSchema.methods.toJSON = function () {
         delete orderObject.customerData.cpfHash;
         delete orderObject.customerData.phoneHash;
     }
-    
+
     return orderObject;
 };
 

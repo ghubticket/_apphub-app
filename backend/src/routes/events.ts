@@ -1,15 +1,24 @@
-import { Router } from 'express'
-import { authenticate, isAdmin } from '../middleware/auth'
-import { eventImageUpload, validatePngMagicBytes } from '../middleware/upload'
-import { createEvent, listEvents, getEvent, updateEvent, updateEventStatus, deleteEvent, getEventTicketStats, distributeVip } from '../controllers/eventsController'
+import { Router } from 'express';
+import { authenticate, isAdmin } from '../middleware/auth';
+import { eventImageUpload, validatePngMagicBytes } from '../middleware/upload';
+import {
+    createEvent,
+    listEvents,
+    getEvent,
+    updateEvent,
+    updateEventStatus,
+    deleteEvent,
+    getEventTicketStats,
+    distributeVip,
+} from '../controllers/eventsController';
 
-const router = Router()
+const router = Router();
 
 // Upload fields: cover (1200x500), square (300x300)
 const uploadFields = eventImageUpload.fields([
     { name: 'cover', maxCount: 1 },
-    { name: 'square', maxCount: 1 }
-])
+    { name: 'square', maxCount: 1 },
+]);
 
 /**
  * @swagger
@@ -31,7 +40,7 @@ const uploadFields = eventImageUpload.fields([
  *       200:
  *         description: Lista paginada de eventos
  */
-router.get('/', listEvents)
+router.get('/', listEvents);
 
 /**
  * @swagger
@@ -48,7 +57,7 @@ router.get('/', listEvents)
  *       200: { description: Evento }
  *       404: { description: Não encontrado }
  */
-router.get('/:id', getEvent)
+router.get('/:id', getEvent);
 
 /**
  * @swagger
@@ -78,7 +87,7 @@ router.get('/:id', getEvent)
  *     responses:
  *       201: { description: Criado }
  */
-router.post('/', authenticate, isAdmin, uploadFields, validatePngMagicBytes, createEvent)
+router.post('/', authenticate, isAdmin, uploadFields, validatePngMagicBytes, createEvent);
 
 /**
  * @swagger
@@ -108,7 +117,7 @@ router.post('/', authenticate, isAdmin, uploadFields, validatePngMagicBytes, cre
  *     responses:
  *       200: { description: Atualizado }
  */
-router.put('/:id', authenticate, isAdmin, uploadFields, validatePngMagicBytes, updateEvent)
+router.put('/:id', authenticate, isAdmin, uploadFields, validatePngMagicBytes, updateEvent);
 
 /**
  * @swagger
@@ -136,7 +145,7 @@ router.put('/:id', authenticate, isAdmin, uploadFields, validatePngMagicBytes, u
  *       200: { description: Status atualizado }
  *       404: { description: Evento não encontrado }
  */
-router.patch('/:id/status', authenticate, isAdmin, updateEventStatus)
+router.patch('/:id/status', authenticate, isAdmin, updateEventStatus);
 
 /**
  * @swagger
@@ -150,10 +159,10 @@ router.patch('/:id/status', authenticate, isAdmin, updateEventStatus)
  *     responses:
  *       200: { description: Removido (soft delete) }
  */
-router.delete('/:id', authenticate, isAdmin, deleteEvent)
+router.delete('/:id', authenticate, isAdmin, deleteEvent);
 
 // Estatísticas de ingressos do evento
-router.get('/:id/tickets/stats', authenticate, getEventTicketStats)
+router.get('/:id/tickets/stats', authenticate, getEventTicketStats);
 
 /**
  * @swagger
@@ -183,8 +192,6 @@ router.get('/:id/tickets/stats', authenticate, getEventTicketStats)
  *       400: { description: Dados inválidos }
  *       404: { description: Usuário/Evento/Tipo VIP não encontrado }
  */
-router.post('/:id/vip/distribute', authenticate, isAdmin, distributeVip)
+router.post('/:id/vip/distribute', authenticate, isAdmin, distributeVip);
 
-export default router
-
-
+export default router;

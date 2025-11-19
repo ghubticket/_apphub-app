@@ -12,7 +12,7 @@ export function getSSLOptions(): SSLOptions | null {
     // ../../ = raiz do projeto
     const projectRoot = path.resolve(__dirname, '../../..');
     const certsDir = path.join(projectRoot, 'certificates');
-    
+
     // Procurar automaticamente pelo certificado mais recente (localhost+X.pem)
     function findLatestCert(): string | null {
         if (!fs.existsSync(certsDir)) {
@@ -26,37 +26,37 @@ export function getSSLOptions(): SSLOptions | null {
             console.log(`   [findLatestCert] Todos os arquivos: ${allFiles.join(', ')}`);
         }
         const certs = allFiles
-            .filter(f => f.startsWith('localhost+') && f.endsWith('.pem') && !f.includes('-key'))
-            .map(f => {
+            .filter((f) => f.startsWith('localhost+') && f.endsWith('.pem') && !f.includes('-key'))
+            .map((f) => {
                 const filePath = path.join(certsDir, f);
                 return {
                     name: f,
                     path: filePath,
-                    mtime: fs.statSync(filePath).mtime.getTime()
+                    mtime: fs.statSync(filePath).mtime.getTime(),
                 };
             })
             .sort((a, b) => b.mtime - a.mtime);
-        
+
         if (process.env.NODE_ENV !== 'production') {
             console.log(`   [findLatestCert] Certificados filtrados: ${certs.length}`);
             if (certs.length > 0) {
                 console.log(`   [findLatestCert] Certificado mais recente: ${certs[0].path}`);
             }
         }
-        
+
         return certs.length > 0 ? certs[0].path : null;
     }
-    
+
     const latestCert = findLatestCert();
     let certPath: string;
     let keyPath: string;
-    
+
     // Debug: verificar qual branch será executado
     if (process.env.NODE_ENV !== 'production') {
         console.log(`   [SSL Logic] SSL_CERT_PATH definido: ${!!process.env.SSL_CERT_PATH}`);
         console.log(`   [SSL Logic] latestCert existe: ${!!latestCert}`);
     }
-    
+
     if (process.env.SSL_CERT_PATH) {
         if (process.env.NODE_ENV !== 'production') {
             console.log(`   [SSL Logic] Usando SSL_CERT_PATH do .env`);
@@ -74,10 +74,13 @@ export function getSSLOptions(): SSLOptions | null {
             console.log(`   [SSL Logic] Usando fallback`);
         }
         // Fallback: procurar qualquer certificado localhost+
-        const allCerts = fs.existsSync(certsDir) 
-            ? fs.readdirSync(certsDir)
-                .filter(f => f.startsWith('localhost+') && f.endsWith('.pem') && !f.includes('-key'))
-                .map(f => path.join(certsDir, f))
+        const allCerts = fs.existsSync(certsDir)
+            ? fs
+                  .readdirSync(certsDir)
+                  .filter(
+                      (f) => f.startsWith('localhost+') && f.endsWith('.pem') && !f.includes('-key')
+                  )
+                  .map((f) => path.join(certsDir, f))
             : [];
         if (allCerts.length > 0) {
             certPath = allCerts[0];
@@ -133,4 +136,3 @@ export function getSSLOptions(): SSLOptions | null {
         return null;
     }
 }
-

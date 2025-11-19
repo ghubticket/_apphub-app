@@ -21,7 +21,8 @@ async function recordValidationAttempt(
         const userAgent = req.get('user-agent') || 'unknown';
 
         // PROTEÇÃO CONTRA SPAM: Para tentativas de replay/already_used, verificar se já existe registro recente
-        const isReplayAttempt = !success && (reason === 'replay_detected' || reason === 'already_used');
+        const isReplayAttempt =
+            !success && (reason === 'replay_detected' || reason === 'already_used');
         const REPLAY_COOLDOWN_MINUTES = 5; // Não criar novo registro se já existe um nos últimos 5 minutos
 
         if (isReplayAttempt) {
@@ -32,12 +33,16 @@ async function recordValidationAttempt(
                 ticketCode: ticketCode.toUpperCase(),
                 success: false,
                 reason: { $in: ['replay_detected', 'already_used'] },
-                createdAt: { $gte: cooldownTime }
-            }).sort({ createdAt: -1 }).lean();
+                createdAt: { $gte: cooldownTime },
+            })
+                .sort({ createdAt: -1 })
+                .lean();
 
             if (recentReplayAttempt) {
                 // Já existe tentativa recente - não criar novo registro, apenas logar e marcar como suspeito
-                console.warn(`⚠️ Tentativa de replay ignorada (cooldown): QR ${ticketCode} já teve replay registrado há menos de ${REPLAY_COOLDOWN_MINUTES} minutos`);
+                console.warn(
+                    `⚠️ Tentativa de replay ignorada (cooldown): QR ${ticketCode} já teve replay registrado há menos de ${REPLAY_COOLDOWN_MINUTES} minutos`
+                );
 
                 // Ainda assim, verificar padrões suspeitos para marcar usuário
                 if (ticket?.holder) {
@@ -102,9 +107,10 @@ async function checkSuspiciousPatterns(holderId: string, ticketCode: string) {
         // Marcar como suspeito se tiver 1+ tentativas suspeitas (mais agressivo para detectar golpes)
         if (suspiciousCount >= 1) {
             user.isSuspicious = true;
-            user.suspiciousReason = suspiciousCount === 1
-                ? `Tentativa de usar QR code já utilizado (1 tentativa nas últimas 24h)`
-                : `Múltiplas tentativas de usar QR codes já utilizados (${suspiciousCount} tentativas nas últimas 24h)`;
+            user.suspiciousReason =
+                suspiciousCount === 1
+                    ? `Tentativa de usar QR code já utilizado (1 tentativa nas últimas 24h)`
+                    : `Múltiplas tentativas de usar QR codes já utilizados (${suspiciousCount} tentativas nas últimas 24h)`;
         }
 
         await user.save();
@@ -149,13 +155,13 @@ export const getTicketByCode = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Código inválido',
-                errors: ['Código deve ter 12 caracteres']
+                errors: ['Código deve ter 12 caracteres'],
             });
         }
 
         const ticket = await Ticket.findOne({
             code: code.toUpperCase(),
-            deletedAt: null
+            deletedAt: null,
         })
             .populate('event', 'name date location')
             .populate('ticketType', 'name price isVIP')
@@ -166,21 +172,20 @@ export const getTicketByCode = async (req: Request, res: Response) => {
         if (!ticket) {
             return res.status(404).json({
                 success: false,
-                message: 'Ingresso não encontrado'
+                message: 'Ingresso não encontrado',
             });
         }
 
         res.json({
             success: true,
-            data: ticket
+            data: ticket,
         });
-
     } catch (error: any) {
         console.error('Erro ao buscar ingresso:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar ingresso',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -201,7 +206,7 @@ export const validateTicket = async (req: Request, res: Response) => {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: ['Apenas usuários com role QRCODE podem validar ingressos']
+                errors: ['Apenas usuários com role QRCODE podem validar ingressos'],
             });
         }
 
@@ -209,13 +214,13 @@ export const validateTicket = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Código inválido',
-                errors: ['Código deve ter 12 caracteres']
+                errors: ['Código deve ter 12 caracteres'],
             });
         }
 
         const ticket = await Ticket.findOne({
             code: code.toUpperCase(),
-            deletedAt: null
+            deletedAt: null,
         });
 
         if (!ticket) {
@@ -223,7 +228,7 @@ export const validateTicket = async (req: Request, res: Response) => {
             await recordValidationAttempt(code, false, 'not_found', req, undefined, validatorId);
             return res.status(404).json({
                 success: false,
-                message: 'Ingresso não encontrado'
+                message: 'Ingresso não encontrado',
             });
         }
 
@@ -231,11 +236,18 @@ export const validateTicket = async (req: Request, res: Response) => {
         if (ticket.holder) {
             const blocked = await checkUserBlocked(ticket.holder.toString());
             if (blocked.blocked) {
-                await recordValidationAttempt(code, false, 'unauthorized', req, ticket, validatorId);
+                await recordValidationAttempt(
+                    code,
+                    false,
+                    'unauthorized',
+                    req,
+                    ticket,
+                    validatorId
+                );
                 return res.status(403).json({
                     success: false,
                     message: 'Validação bloqueada',
-                    errors: [blocked.reason || 'Usuário está bloqueado']
+                    errors: [blocked.reason || 'Usuário está bloqueado'],
                 });
             }
         }
@@ -243,14 +255,21 @@ export const validateTicket = async (req: Request, res: Response) => {
         // BLACKLIST: Verificar se o ingresso está cancelado ou estornado
         // QR codes de ingressos cancelados/estornados não podem ser validados
         if (ticket.status === 'cancelled' || ticket.status === 'refunded') {
-            await recordValidationAttempt(code, false, 'ticket_cancelled_or_refunded', req, ticket, validatorId);
+            await recordValidationAttempt(
+                code,
+                false,
+                'ticket_cancelled_or_refunded',
+                req,
+                ticket,
+                validatorId
+            );
             return res.status(403).json({
                 success: false,
                 message: 'Ingresso cancelado ou estornado',
                 errors: [
                     `Este ingresso foi ${ticket.status === 'cancelled' ? 'cancelado' : 'estornado'} e não pode ser validado.`,
-                    'QR codes de ingressos cancelados/estornados estão na blacklist.'
-                ]
+                    'QR codes de ingressos cancelados/estornados estão na blacklist.',
+                ],
             });
         }
 
@@ -260,7 +279,9 @@ export const validateTicket = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Ingresso não confirmado',
-                errors: [`Status atual: ${ticket.status}. Apenas ingressos confirmados podem ser validados.`]
+                errors: [
+                    `Status atual: ${ticket.status}. Apenas ingressos confirmados podem ser validados.`,
+                ],
             });
         }
 
@@ -272,19 +293,26 @@ export const validateTicket = async (req: Request, res: Response) => {
             return res.status(404).json({
                 success: false,
                 message: 'Pedido não encontrado',
-                errors: ['Pedido associado ao ingresso não foi encontrado']
+                errors: ['Pedido associado ao ingresso não foi encontrado'],
             });
         }
 
         if (order.status === 'cancelled' || order.status === 'refunded') {
-            await recordValidationAttempt(code, false, 'order_cancelled_or_refunded', req, ticket, validatorId);
+            await recordValidationAttempt(
+                code,
+                false,
+                'order_cancelled_or_refunded',
+                req,
+                ticket,
+                validatorId
+            );
             return res.status(403).json({
                 success: false,
                 message: 'Pedido cancelado ou estornado',
                 errors: [
                     `O pedido associado a este ingresso foi ${order.status === 'cancelled' ? 'cancelado' : 'estornado'}.`,
-                    'QR codes de ingressos de pedidos cancelados/estornados estão na blacklist.'
-                ]
+                    'QR codes de ingressos de pedidos cancelados/estornados estão na blacklist.',
+                ],
             });
         }
 
@@ -294,7 +322,7 @@ export const validateTicket = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Pedido não pago',
-                errors: ['Ingresso não pode ser validado pois o pedido não está pago']
+                errors: ['Ingresso não pode ser validado pois o pedido não está pago'],
             });
         }
 
@@ -305,7 +333,7 @@ export const validateTicket = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 message: 'Evento não disponível',
-                errors: ['Evento não está ativo ou foi cancelado']
+                errors: ['Evento não está ativo ou foi cancelado'],
             });
         }
 
@@ -317,15 +345,17 @@ export const validateTicket = async (req: Request, res: Response) => {
         // (para casos futuros de transferência, pode ser outro holder do mesmo pedido)
         if (holderId) {
             const orderTickets = (order as any)?.tickets || [];
-            const isValidHolder = orderTickets.some((t: any) =>
-                String(t.holder) === holderId || String(t._id) === holderId
+            const isValidHolder = orderTickets.some(
+                (t: any) => String(t.holder) === holderId || String(t._id) === holderId
             );
 
             if (isValidHolder) {
                 presentHolderId = holderId;
             } else {
                 // Se holder informado não está no pedido, usar o holder do ticket
-                console.warn(`⚠️ Holder informado (${holderId}) não está no pedido. Usando holder do ticket.`);
+                console.warn(
+                    `⚠️ Holder informado (${holderId}) não está no pedido. Usando holder do ticket.`
+                );
             }
         }
 
@@ -337,7 +367,7 @@ export const validateTicket = async (req: Request, res: Response) => {
                 _id: ticket._id,
                 code: code.toUpperCase(),
                 status: 'confirmed', // Só atualiza se ainda estiver 'confirmed'
-                deletedAt: null
+                deletedAt: null,
             },
             {
                 $set: {
@@ -345,12 +375,12 @@ export const validateTicket = async (req: Request, res: Response) => {
                     usedAt: new Date(),
                     usedBy: validatorId,
                     usedByHolderId: presentHolderId, // Registrar quem estava presente
-                    validatedAt: new Date()
-                }
+                    validatedAt: new Date(),
+                },
             },
             {
                 new: true, // Retorna o documento atualizado
-                runValidators: true
+                runValidators: true,
             }
         );
 
@@ -373,28 +403,39 @@ export const validateTicket = async (req: Request, res: Response) => {
                     ? (usedTicket.usedByHolderId as any)
                     : (usedTicket?.holder as any); // Se não informado, assume que foi o holder
 
-                const firstPassedHolderName = firstPassedHolder?.name || firstPassedHolder?.email || 'Não identificado';
+                const firstPassedHolderName =
+                    firstPassedHolder?.name || firstPassedHolder?.email || 'Não identificado';
                 const firstPassedHolderId = String(firstPassedHolder?._id || firstPassedHolder);
 
                 // Detectar se o holder original está tentando usar um QR já usado (POSSÍVEL BURLA!)
-                const isHolderTryingToReuse = currentTicket.holder &&
-                    String(currentTicket.holder._id || currentTicket.holder) === String(ticket.holder);
+                const isHolderTryingToReuse =
+                    currentTicket.holder &&
+                    String(currentTicket.holder._id || currentTicket.holder) ===
+                        String(ticket.holder);
 
                 // Detectar se quem está tentando usar agora é diferente de quem passou primeiro
                 const currentAttemptHolderId = holderId || ticket.holder.toString();
-                const isDifferentPerson = String(currentAttemptHolderId) !== String(firstPassedHolderId);
+                const isDifferentPerson =
+                    String(currentAttemptHolderId) !== String(firstPassedHolderId);
 
                 // Buscar informações de quem validou primeiro
                 const firstValidation = await ValidationAttempt.findOne({
                     ticketCode: code.toUpperCase(),
-                    success: true
+                    success: true,
                 })
                     .populate('validatorId', 'name email')
                     .sort({ createdAt: 1 })
                     .lean();
 
                 // Registrar tentativa de usar QR já utilizado (SUSPEITO!)
-                await recordValidationAttempt(code, false, 'already_used', req, ticket, validatorId);
+                await recordValidationAttempt(
+                    code,
+                    false,
+                    'already_used',
+                    req,
+                    ticket,
+                    validatorId
+                );
 
                 // SEMPRE marcar o holder do ticket como suspeito quando há tentativa de replay
                 // (independente de quem está tentando passar - pode ser o próprio holder ou outra pessoa)
@@ -403,32 +444,42 @@ export const validateTicket = async (req: Request, res: Response) => {
                     if (holderUser && holderUser.role === 'CLIENTE') {
                         if (isHolderTryingToReuse) {
                             // Holder original tentando reutilizar
-                            console.warn(`⚠️ SUSPEITO: Holder original tentando usar QR já utilizado!`, {
-                                ticketCode: code,
-                                holder: (currentTicket.holder as any)?.name || currentTicket.holder,
-                                firstPassedHolder: firstPassedHolderName,
-                                firstUsedAt: currentTicket.usedAt,
-                                firstUsedBy: (currentTicket.usedBy as any)?.name || currentTicket.usedBy,
-                                attemptedBy: validatorId,
-                                isDifferentPerson
-                            });
+                            console.warn(
+                                `⚠️ SUSPEITO: Holder original tentando usar QR já utilizado!`,
+                                {
+                                    ticketCode: code,
+                                    holder:
+                                        (currentTicket.holder as any)?.name || currentTicket.holder,
+                                    firstPassedHolder: firstPassedHolderName,
+                                    firstUsedAt: currentTicket.usedAt,
+                                    firstUsedBy:
+                                        (currentTicket.usedBy as any)?.name || currentTicket.usedBy,
+                                    attemptedBy: validatorId,
+                                    isDifferentPerson,
+                                }
+                            );
 
                             holderUser.isSuspicious = true;
                             holderUser.suspiciousReason = `Tentativa de reutilizar QR code já validado. QR foi usado por ${firstPassedHolderName} em ${currentTicket.usedAt?.toLocaleString('pt-BR')}`;
                         } else {
                             // Outra pessoa tentando usar QR do holder (possível fraude)
-                            console.warn(`⚠️ SUSPEITO: Tentativa de usar QR code de outra pessoa!`, {
-                                ticketCode: code,
-                                holder: (currentTicket.holder as any)?.name || currentTicket.holder,
-                                firstPassedHolder: firstPassedHolderName,
-                                attemptedBy: validatorId
-                            });
+                            console.warn(
+                                `⚠️ SUSPEITO: Tentativa de usar QR code de outra pessoa!`,
+                                {
+                                    ticketCode: code,
+                                    holder:
+                                        (currentTicket.holder as any)?.name || currentTicket.holder,
+                                    firstPassedHolder: firstPassedHolderName,
+                                    attemptedBy: validatorId,
+                                }
+                            );
 
                             holderUser.isSuspicious = true;
                             holderUser.suspiciousReason = `Tentativa de usar QR code já validado. QR foi usado por ${firstPassedHolderName} em ${currentTicket.usedAt?.toLocaleString('pt-BR')}`;
                         }
                         holderUser.lastSuspiciousActivity = new Date();
-                        holderUser.suspiciousActivityCount = (holderUser.suspiciousActivityCount || 0) + 1;
+                        holderUser.suspiciousActivityCount =
+                            (holderUser.suspiciousActivityCount || 0) + 1;
                         await holderUser.save();
                     }
                 }
@@ -437,7 +488,8 @@ export const validateTicket = async (req: Request, res: Response) => {
                 const usedByInfo = currentTicket.usedBy
                     ? (currentTicket.usedBy as any)?.name || 'Usuário QRCODE'
                     : 'Sistema';
-                const usedAtInfo = currentTicket.usedAt?.toLocaleString('pt-BR') || 'Data não disponível';
+                const usedAtInfo =
+                    currentTicket.usedAt?.toLocaleString('pt-BR') || 'Data não disponível';
 
                 return res.status(400).json({
                     success: false,
@@ -449,7 +501,7 @@ export const validateTicket = async (req: Request, res: Response) => {
                         `Validado por: ${usedByInfo}`,
                         isHolderTryingToReuse
                             ? `⚠️ ATENÇÃO: Este ingresso pertence a você, mas foi usado por ${firstPassedHolderName}.`
-                            : `Este ingresso não pode ser usado novamente.`
+                            : `Este ingresso não pode ser usado novamente.`,
                     ],
                     data: {
                         alreadyUsed: true,
@@ -459,8 +511,8 @@ export const validateTicket = async (req: Request, res: Response) => {
                         firstPassedHolderId: firstPassedHolderId, // ← NOVO
                         isHolderTryingToReuse,
                         isDifferentPerson, // ← NOVO: Indica se é pessoa diferente
-                        holder: (currentTicket.holder as any)?.name || 'Não informado'
-                    }
+                        holder: (currentTicket.holder as any)?.name || 'Não informado',
+                    },
                 });
             }
 
@@ -468,7 +520,9 @@ export const validateTicket = async (req: Request, res: Response) => {
             return res.status(409).json({
                 success: false,
                 message: 'Conflito na validação',
-                errors: ['Ingresso foi validado por outro usuário simultaneamente. Tente novamente.']
+                errors: [
+                    'Ingresso foi validado por outro usuário simultaneamente. Tente novamente.',
+                ],
             });
         }
 
@@ -488,15 +542,14 @@ export const validateTicket = async (req: Request, res: Response) => {
         res.json({
             success: true,
             message: 'Ingresso validado com sucesso',
-            data: populatedTicket
+            data: populatedTicket,
         });
-
     } catch (error: any) {
         console.error('Erro ao validar ingresso:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao validar ingresso',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -511,13 +564,13 @@ export const listMyTickets = async (req: Request, res: Response) => {
         if (!userId) {
             return res.status(401).json({
                 success: false,
-                message: 'Usuário não autenticado'
+                message: 'Usuário não autenticado',
             });
         }
 
         const tickets = await Ticket.find({
             holder: userId,
-            deletedAt: null
+            deletedAt: null,
         })
             .populate('event', 'name date location coverImage')
             .populate('ticketType', 'name price isVIP')
@@ -527,15 +580,14 @@ export const listMyTickets = async (req: Request, res: Response) => {
 
         res.json({
             success: true,
-            data: tickets
+            data: tickets,
         });
-
     } catch (error: any) {
         console.error('Erro ao listar ingressos:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao listar ingressos',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -553,14 +605,14 @@ export const getValidationHistory = async (req: Request, res: Response) => {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: ['Apenas usuários com role QRCODE podem ver histórico de validações']
+                errors: ['Apenas usuários com role QRCODE podem ver histórico de validações'],
             });
         }
 
         if (!validatorId) {
             return res.status(401).json({
                 success: false,
-                message: 'Usuário não autenticado'
+                message: 'Usuário não autenticado',
             });
         }
 
@@ -573,7 +625,7 @@ export const getValidationHistory = async (req: Request, res: Response) => {
 
         // Construir filtros
         const filters: any = {
-            validatorId: validatorId
+            validatorId: validatorId,
         };
 
         // Aplicar filtro de status
@@ -591,44 +643,45 @@ export const getValidationHistory = async (req: Request, res: Response) => {
         if (search) {
             // Buscar tickets que correspondem ao termo de busca
             const matchingTickets = await Ticket.find({
-                $or: [
-                    { code: { $regex: search.toUpperCase(), $options: 'i' } },
-                ],
-                deletedAt: null
-            }).select('_id').lean();
+                $or: [{ code: { $regex: search.toUpperCase(), $options: 'i' } }],
+                deletedAt: null,
+            })
+                .select('_id')
+                .lean();
 
-            const ticketIds = matchingTickets.map(t => t._id);
+            const ticketIds = matchingTickets.map((t) => t._id);
 
             // Buscar usuários (holders) que correspondem ao CPF ou nome
             // CPF está criptografado, então usar hash para busca
             const { hashCPFForSearch } = await import('../utils/encryption');
             const searchDigits = search.replace(/\D/g, '');
-            const searchCPFHash = searchDigits.length === 11 
-                ? hashCPFForSearch(searchDigits) // hashCPFForSearch aceita apenas dígitos
-                : null;
-            
+            const searchCPFHash =
+                searchDigits.length === 11
+                    ? hashCPFForSearch(searchDigits) // hashCPFForSearch aceita apenas dígitos
+                    : null;
+
             const userFilters: any = {
-                deletedAt: null
+                deletedAt: null,
             };
-            
+
             if (searchCPFHash) {
                 // Se parece ser um CPF, buscar por hash
                 userFilters.$or = [
                     { cpfHash: searchCPFHash },
                     { name: { $regex: search, $options: 'i' } },
-                    { email: { $regex: search, $options: 'i' } }
+                    { email: { $regex: search, $options: 'i' } },
                 ];
             } else {
                 // Se não parece ser CPF, buscar apenas por nome/email
                 userFilters.$or = [
                     { name: { $regex: search, $options: 'i' } },
-                    { email: { $regex: search, $options: 'i' } }
+                    { email: { $regex: search, $options: 'i' } },
                 ];
             }
-            
+
             const matchingUsers = await User.find(userFilters).select('_id').lean();
 
-            const userIds = matchingUsers.map(u => u._id);
+            const userIds = matchingUsers.map((u) => u._id);
 
             // Aplicar filtro: ticket code OU holder (CPF/nome/email)
             if (ticketIds.length > 0 || userIds.length > 0) {
@@ -648,109 +701,112 @@ export const getValidationHistory = async (req: Request, res: Response) => {
         }
 
         // Buscar tentativas de validação com paginação
-        const [attempts, total, totalValidations, validValidations, duplicateAttempts] = await Promise.all([
-            ValidationAttempt.find(filters)
-                .populate('ticketId', 'code status')
-                .populate('holderId', 'name email cpf')
-                .populate('eventId', 'name date location')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .lean(),
-            ValidationAttempt.countDocuments(filters), // Total com filtros aplicados (para paginação)
-            ValidationAttempt.countDocuments({ validatorId: validatorId }), // Total geral de validações do validador
-            ValidationAttempt.countDocuments({ validatorId: validatorId, success: true }), // Validações válidas (sucesso)
-            ValidationAttempt.countDocuments({ 
-                validatorId: validatorId, 
-                success: false, 
-                reason: { $in: ['already_used', 'replay_detected'] } 
-            }) // Tentativas duplicadas/golpe
-        ]);
+        const [attempts, total, totalValidations, validValidations, duplicateAttempts] =
+            await Promise.all([
+                ValidationAttempt.find(filters)
+                    .populate('ticketId', 'code status')
+                    .populate('holderId', 'name email cpf')
+                    .populate('eventId', 'name date location')
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit)
+                    .lean(),
+                ValidationAttempt.countDocuments(filters), // Total com filtros aplicados (para paginação)
+                ValidationAttempt.countDocuments({ validatorId: validatorId }), // Total geral de validações do validador
+                ValidationAttempt.countDocuments({ validatorId: validatorId, success: true }), // Validações válidas (sucesso)
+                ValidationAttempt.countDocuments({
+                    validatorId: validatorId,
+                    success: false,
+                    reason: { $in: ['already_used', 'replay_detected'] },
+                }), // Tentativas duplicadas/golpe
+            ]);
 
         // Formatar resposta (usar Promise.all para permitir await dentro do map)
-        const history = await Promise.all(attempts.map(async (attempt: any) => {
-            // Buscar informações do ticket se disponível
-            let ticketHolder = 'N/A';
-            let eventName = 'N/A';
-            let ticketCode = attempt.ticketCode;
-
-            if (attempt.ticketId) {
-                ticketCode = attempt.ticketId.code || attempt.ticketCode;
-            }
-
-            if (attempt.holderId) {
-                ticketHolder = (attempt.holderId as any)?.name || 'N/A';
-            }
-
-            if (attempt.eventId) {
-                eventName = (attempt.eventId as any)?.name || 'N/A';
-            }
-
-            // Determinar mensagem baseada no reason
-            let message = attempt.success
-                ? 'Ingresso validado com sucesso'
-                : 'Validação falhou';
-
-            if (attempt.reason === 'already_used' || attempt.reason === 'replay_detected') {
-                // Buscar informações do ticket usado para melhorar mensagem
-                let whoUsed = 'N/A';
-                let usedAt: Date | null = null;
+        const history = await Promise.all(
+            attempts.map(async (attempt: any) => {
+                // Buscar informações do ticket se disponível
+                let ticketHolder = 'N/A';
+                let eventName = 'N/A';
+                let ticketCode = attempt.ticketCode;
 
                 if (attempt.ticketId) {
-                    const ticket = await Ticket.findById(attempt.ticketId)
-                        .populate('usedByHolderId', 'name')
-                        .populate('usedBy', 'name')
-                        .populate('holder', 'name')
-                        .lean();
+                    ticketCode = attempt.ticketId.code || attempt.ticketCode;
+                }
 
-                    if (ticket) {
-                        if (ticket.usedByHolderId) {
-                            whoUsed = (ticket.usedByHolderId as any)?.name || 'N/A';
-                        } else if (ticket.usedBy) {
-                            whoUsed = (ticket.usedBy as any)?.name || 'N/A';
-                        } else if (ticket.holder) {
-                            whoUsed = (ticket.holder as any)?.name || 'N/A';
-                        }
+                if (attempt.holderId) {
+                    ticketHolder = (attempt.holderId as any)?.name || 'N/A';
+                }
 
-                        if (ticket.usedAt) {
-                            usedAt = new Date(ticket.usedAt);
+                if (attempt.eventId) {
+                    eventName = (attempt.eventId as any)?.name || 'N/A';
+                }
+
+                // Determinar mensagem baseada no reason
+                let message = attempt.success
+                    ? 'Ingresso validado com sucesso'
+                    : 'Validação falhou';
+
+                if (attempt.reason === 'already_used' || attempt.reason === 'replay_detected') {
+                    // Buscar informações do ticket usado para melhorar mensagem
+                    let whoUsed = 'N/A';
+                    let usedAt: Date | null = null;
+
+                    if (attempt.ticketId) {
+                        const ticket = await Ticket.findById(attempt.ticketId)
+                            .populate('usedByHolderId', 'name')
+                            .populate('usedBy', 'name')
+                            .populate('holder', 'name')
+                            .lean();
+
+                        if (ticket) {
+                            if (ticket.usedByHolderId) {
+                                whoUsed = (ticket.usedByHolderId as any)?.name || 'N/A';
+                            } else if (ticket.usedBy) {
+                                whoUsed = (ticket.usedBy as any)?.name || 'N/A';
+                            } else if (ticket.holder) {
+                                whoUsed = (ticket.holder as any)?.name || 'N/A';
+                            }
+
+                            if (ticket.usedAt) {
+                                usedAt = new Date(ticket.usedAt);
+                            }
                         }
                     }
+
+                    if (whoUsed !== 'N/A' && usedAt) {
+                        const formattedTime = usedAt.toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                        });
+                        message = `QR já UTILIZADO por: ${whoUsed} em ${formattedTime}`;
+                    } else {
+                        message = 'QR já utilizado (replay detectado)';
+                    }
+                } else if (attempt.reason === 'not_found') {
+                    message = 'Ingresso não encontrado';
+                } else if (attempt.reason === 'invalid_status') {
+                    message = 'Status do ingresso inválido';
+                } else if (attempt.reason === 'expired') {
+                    message = 'QR code expirado';
                 }
 
-                if (whoUsed !== 'N/A' && usedAt) {
-                    const formattedTime = usedAt.toLocaleString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                    });
-                    message = `QR já UTILIZADO por: ${whoUsed} em ${formattedTime}`;
-                } else {
-                    message = 'QR já utilizado (replay detectado)';
-                }
-            } else if (attempt.reason === 'not_found') {
-                message = 'Ingresso não encontrado';
-            } else if (attempt.reason === 'invalid_status') {
-                message = 'Status do ingresso inválido';
-            } else if (attempt.reason === 'expired') {
-                message = 'QR code expirado';
-            }
-
-            return {
-                id: attempt._id.toString(),
-                ticketCode,
-                ticketHolder,
-                eventName,
-                status: attempt.success ? 'success' : 'error',
-                message,
-                reason: attempt.reason,
-                timestamp: attempt.createdAt,
-                success: attempt.success
-            };
-        }));
+                return {
+                    id: attempt._id.toString(),
+                    ticketCode,
+                    ticketHolder,
+                    eventName,
+                    status: attempt.success ? 'success' : 'error',
+                    message,
+                    reason: attempt.reason,
+                    timestamp: attempt.createdAt,
+                    success: attempt.success,
+                };
+            })
+        );
 
         res.json({
             success: true,
@@ -764,16 +820,15 @@ export const getValidationHistory = async (req: Request, res: Response) => {
                 total,
                 totalPages: Math.ceil(total / limit),
                 hasNextPage: page * limit < total,
-                hasPrevPage: page > 1
-            }
+                hasPrevPage: page > 1,
+            },
         });
-
     } catch (error: any) {
         console.error('Erro ao buscar histórico de validações:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar histórico de validações',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -790,13 +845,13 @@ export const listEventTickets = async (req: Request, res: Response) => {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: ['Apenas ADMIN pode listar ingressos de eventos']
+                errors: ['Apenas ADMIN pode listar ingressos de eventos'],
             });
         }
 
         const tickets = await Ticket.find({
             event: eventId,
-            deletedAt: null
+            deletedAt: null,
         })
             .populate('ticketType', 'name price isVIP')
             .populate('order', 'orderNumber status')
@@ -806,15 +861,14 @@ export const listEventTickets = async (req: Request, res: Response) => {
 
         res.json({
             success: true,
-            data: tickets
+            data: tickets,
         });
-
     } catch (error: any) {
         console.error('Erro ao listar ingressos do evento:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao listar ingressos do evento',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -828,7 +882,10 @@ export const scanSecureQr = async (req: Request, res: Response) => {
         const role = (req as any).user?.role;
         // Apenas QRCODE pode ler QR codes (Admin não para não bagunçar)
         if (role !== 'QRCODE') {
-            return res.status(403).json({ success: false, message: 'Acesso negado. Apenas usuários com role QRCODE podem ler QR codes.' });
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado. Apenas usuários com role QRCODE podem ler QR codes.',
+            });
         }
 
         const { qr } = req.body || {};
@@ -850,7 +907,9 @@ export const scanSecureQr = async (req: Request, res: Response) => {
                 if (qr.startsWith('data:')) {
                     const commaIdx = qr.indexOf(',');
                     if (commaIdx === -1) {
-                        return res.status(400).json({ success: false, message: 'Formato de QR inválido' });
+                        return res
+                            .status(400)
+                            .json({ success: false, message: 'Formato de QR inválido' });
                     }
                     base64Data = qr.substring(commaIdx + 1);
                 }
@@ -860,17 +919,23 @@ export const scanSecureQr = async (req: Request, res: Response) => {
                 const imageData = {
                     data: new Uint8ClampedArray(image.bitmap.data),
                     width: image.bitmap.width,
-                    height: image.bitmap.height
+                    height: image.bitmap.height,
                 };
 
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
                 if (!code || !code.data) {
-                    return res.status(400).json({ success: false, message: 'Não foi possível decodificar a imagem QR' });
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Não foi possível decodificar a imagem QR',
+                    });
                 }
 
                 qrPayload = code.data;
             } catch (e: any) {
-                return res.status(400).json({ success: false, message: `Erro ao processar QR: ${e?.message || 'Formato inválido'}` });
+                return res.status(400).json({
+                    success: false,
+                    message: `Erro ao processar QR: ${e?.message || 'Formato inválido'}`,
+                });
             }
         }
 
@@ -882,14 +947,24 @@ export const scanSecureQr = async (req: Request, res: Response) => {
         } catch (e: any) {
             if (String(e?.code) === '11000') {
                 // Replay detectado - buscar informações do ticket usado
-                const ticket = await Ticket.findOne({ code: ticketCode.toUpperCase(), deletedAt: null })
+                const ticket = await Ticket.findOne({
+                    code: ticketCode.toUpperCase(),
+                    deletedAt: null,
+                })
                     .populate('holder', 'name email')
                     .populate('usedBy', 'name email')
                     .populate('usedByHolderId', 'name email')
                     .lean();
 
                 const validatorId = (req as any).user?._id?.toString() || (req as any).user?.id;
-                await recordValidationAttempt(ticketCode, false, 'replay_detected', req, ticket, validatorId);
+                await recordValidationAttempt(
+                    ticketCode,
+                    false,
+                    'replay_detected',
+                    req,
+                    ticket,
+                    validatorId
+                );
 
                 // Montar mensagem detalhada
                 let whoUsed = 'N/A';
@@ -911,13 +986,13 @@ export const scanSecureQr = async (req: Request, res: Response) => {
 
                 const formattedTime = usedAt
                     ? usedAt.toLocaleString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                    })
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                      })
                     : 'Data não disponível';
 
                 return res.status(409).json({
@@ -926,7 +1001,7 @@ export const scanSecureQr = async (req: Request, res: Response) => {
                     reason: 'replay_detected',
                     firstPassedHolder: whoUsed,
                     usedAt: usedAt?.toISOString(),
-                    alreadyUsed: true
+                    alreadyUsed: true,
                 });
             }
             throw e;
@@ -943,13 +1018,17 @@ export const scanSecureQr = async (req: Request, res: Response) => {
         }
 
         if (ticket.status !== 'confirmed') {
-            return res.status(400).json({ success: false, message: `Ingresso não confirmado (status: ${ticket.status})` });
+            return res.status(400).json({
+                success: false,
+                message: `Ingresso não confirmado (status: ${ticket.status})`,
+            });
         }
 
         return res.json({ success: true, data: { ticket, ts } });
     } catch (error: any) {
         console.error('Erro ao ler QR:', error);
-        return res.status(400).json({ success: false, message: error?.message || 'Falha ao validar QR' });
+        return res
+            .status(400)
+            .json({ success: false, message: error?.message || 'Falha ao validar QR' });
     }
 };
-

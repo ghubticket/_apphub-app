@@ -43,7 +43,7 @@ const usersToCreate: UserData[] = [
  */
 async function connectDB() {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/eventhub';
-    
+
     try {
         await mongoose.connect(mongoUri);
         console.log('✅ Conectado ao MongoDB');
@@ -59,8 +59,8 @@ async function connectDB() {
 async function createOrUpdateUser(userData: UserData) {
     try {
         // Verificar se usuário já existe (incluindo soft deleted)
-        const existingUser = await User.findOne({ 
-            email: userData.email.toLowerCase() 
+        const existingUser = await User.findOne({
+            email: userData.email.toLowerCase(),
         });
 
         if (existingUser) {
@@ -123,14 +123,14 @@ async function main() {
 
     for (const userData of usersToCreate) {
         try {
-            const existingUser = await User.findOne({ 
-                email: userData.email.toLowerCase() 
+            const existingUser = await User.findOne({
+                email: userData.email.toLowerCase(),
             });
-            
+
             const wasExisting = !!existingUser && !existingUser.deletedAt;
-            
+
             await createOrUpdateUser(userData);
-            
+
             if (wasExisting) {
                 results.updated++;
             } else {
@@ -158,4 +158,3 @@ main().catch((error) => {
     console.error('❌ Erro fatal:', error);
     process.exit(1);
 });
-

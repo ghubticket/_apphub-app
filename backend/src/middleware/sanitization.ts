@@ -4,11 +4,12 @@ import { Request, Response, NextFunction } from 'express';
 function sanitizeString(input: string): string {
     if (!input) return input;
     // Remove tags script/style e eventos on*
-    let out = input.replace(/<\/(?:script|style)>/gi, '')
-                   .replace(/<(?:script|style)[^>]*>/gi, '')
-                   .replace(/on[a-z]+\s*=\s*"[^"]*"/gi, '')
-                   .replace(/on[a-z]+\s*=\s*'[^']*'/gi, '')
-                   .replace(/on[a-z]+\s*=\s*[^\s>]+/gi, '');
+    let out = input
+        .replace(/<\/(?:script|style)>/gi, '')
+        .replace(/<(?:script|style)[^>]*>/gi, '')
+        .replace(/on[a-z]+\s*=\s*"[^"]*"/gi, '')
+        .replace(/on[a-z]+\s*=\s*'[^']*'/gi, '')
+        .replace(/on[a-z]+\s*=\s*[^\s>]+/gi, '');
     // Remove javascript: URLs
     out = out.replace(/javascript:\s*/gi, '');
     return out;
@@ -37,5 +38,3 @@ export function sanitizeBody(req: Request, _res: Response, next: NextFunction) {
     }
     next();
 }
-
-

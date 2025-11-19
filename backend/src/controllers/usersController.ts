@@ -12,7 +12,7 @@ export const listSuspiciousUsers = async (req: Request, res: Response) => {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: ['Apenas ADMIN pode listar usuários suspeitos']
+                errors: ['Apenas ADMIN pode listar usuários suspeitos'],
             });
         }
 
@@ -20,11 +20,13 @@ export const listSuspiciousUsers = async (req: Request, res: Response) => {
             $or: [
                 { isSuspicious: true },
                 { isBlacklisted: true },
-                { suspiciousActivityCount: { $gte: 1 } }
+                { suspiciousActivityCount: { $gte: 1 } },
             ],
-            deletedAt: null
+            deletedAt: null,
         })
-            .select('name email phone cpf role isActive suspiciousActivityCount isSuspicious suspiciousReason lastSuspiciousActivity isBlacklisted blacklistReason blacklistedAt createdAt')
+            .select(
+                'name email phone cpf role isActive suspiciousActivityCount isSuspicious suspiciousReason lastSuspiciousActivity isBlacklisted blacklistReason blacklistedAt createdAt'
+            )
             .sort({ lastSuspiciousActivity: -1, suspiciousActivityCount: -1 })
             .lean();
 
@@ -35,7 +37,7 @@ export const listSuspiciousUsers = async (req: Request, res: Response) => {
                     holderId: user._id,
                     success: false,
                     reason: { $in: ['already_used', 'replay_detected'] },
-                    createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Últimos 7 dias
+                    createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // Últimos 7 dias
                 })
                     .sort({ createdAt: -1 })
                     .limit(10)
@@ -45,21 +47,21 @@ export const listSuspiciousUsers = async (req: Request, res: Response) => {
                 return {
                     ...user,
                     recentAttempts: attempts,
-                    attemptsCount: attempts.length
+                    attemptsCount: attempts.length,
                 };
             })
         );
 
         res.json({
             success: true,
-            data: enrichedUsers
+            data: enrichedUsers,
         });
     } catch (error: any) {
         console.error('Erro ao listar usuários suspeitos:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao listar usuários suspeitos',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -74,7 +76,7 @@ export const toggleSuspicious = async (req: Request, res: Response) => {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: ['Apenas ADMIN pode marcar usuários como suspeitos']
+                errors: ['Apenas ADMIN pode marcar usuários como suspeitos'],
             });
         }
 
@@ -85,7 +87,7 @@ export const toggleSuspicious = async (req: Request, res: Response) => {
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'Usuário não encontrado',
             });
         }
 
@@ -102,14 +104,14 @@ export const toggleSuspicious = async (req: Request, res: Response) => {
         res.json({
             success: true,
             message: `Usuário ${user.isSuspicious ? 'marcado como suspeito' : 'removido da lista de suspeitos'}`,
-            data: user
+            data: user,
         });
     } catch (error: any) {
         console.error('Erro ao atualizar status de suspeito:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao atualizar status de suspeito',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -124,7 +126,7 @@ export const toggleBlacklist = async (req: Request, res: Response) => {
             return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
-                errors: ['Apenas ADMIN pode gerenciar blacklist']
+                errors: ['Apenas ADMIN pode gerenciar blacklist'],
             });
         }
 
@@ -135,7 +137,7 @@ export const toggleBlacklist = async (req: Request, res: Response) => {
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'Usuário não encontrado',
             });
         }
 
@@ -156,14 +158,14 @@ export const toggleBlacklist = async (req: Request, res: Response) => {
         res.json({
             success: true,
             message: `Usuário ${user.isBlacklisted ? 'adicionado à blacklist' : 'removido da blacklist'}`,
-            data: user
+            data: user,
         });
     } catch (error: any) {
         console.error('Erro ao atualizar blacklist:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao atualizar blacklist',
-            errors: [error.message || 'Erro desconhecido']
+            errors: [error.message || 'Erro desconhecido'],
         });
     }
 };
@@ -171,7 +173,9 @@ export const toggleBlacklist = async (req: Request, res: Response) => {
 /**
  * Verifica se usuário está bloqueado antes de permitir validação
  */
-export const checkUserBlocked = async (userId: string): Promise<{ blocked: boolean; reason?: string }> => {
+export const checkUserBlocked = async (
+    userId: string
+): Promise<{ blocked: boolean; reason?: string }> => {
     try {
         const user = await User.findById(userId);
         if (!user) {
@@ -181,7 +185,7 @@ export const checkUserBlocked = async (userId: string): Promise<{ blocked: boole
         if (user.isBlacklisted) {
             return {
                 blocked: true,
-                reason: user.blacklistReason || 'Usuário está na blacklist'
+                reason: user.blacklistReason || 'Usuário está na blacklist',
             };
         }
 
@@ -191,4 +195,3 @@ export const checkUserBlocked = async (userId: string): Promise<{ blocked: boole
         return { blocked: false };
     }
 };
-

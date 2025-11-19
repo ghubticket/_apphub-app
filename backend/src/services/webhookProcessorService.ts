@@ -8,7 +8,14 @@ function computeNextAttempt(attempts: number): Date {
     return new Date(Date.now() + minutes * 60 * 1000);
 }
 
-export async function enqueueOrGet(eventId: string, topic: string | undefined, payload: any, headers: Record<string, any>, signature: string | undefined, signatureValid: boolean) {
+export async function enqueueOrGet(
+    eventId: string,
+    topic: string | undefined,
+    payload: any,
+    headers: Record<string, any>,
+    signature: string | undefined,
+    signatureValid: boolean
+) {
     try {
         const existing = await WebhookEvent.findOne({ eventId });
         if (existing) return existing;
@@ -64,7 +71,9 @@ export function startWebhookWorker(processor: Processor) {
                 status: { $in: ['pending', 'failed'] },
                 nextAttemptAt: { $lte: now },
                 attempts: { $lt: 6 },
-            }).sort({ updatedAt: 1 }).limit(10);
+            })
+                .sort({ updatedAt: 1 })
+                .limit(10);
 
             for (const c of candidates) {
                 await processOne(c, processor);
@@ -74,5 +83,3 @@ export function startWebhookWorker(processor: Processor) {
         }
     }, intervalMs);
 }
-
-

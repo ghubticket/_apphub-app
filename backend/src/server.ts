@@ -14,22 +14,22 @@ import { sanitizeBody } from './middleware/sanitization';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/node';
 import { getSSLOptions } from './config/ssl';
-import authRoutes from './routes/auth'
-import usersRoutes from './routes/users'
-import eventsRoutes from './routes/events'
-import ticketTypesRoutes from './routes/ticketTypes'
-import reservationsRoutes from './routes/reservations'
-import ordersRoutes from './routes/orders'
-import ticketsRoutes from './routes/tickets'
-import healthRoutes from './routes/health'
+import authRoutes from './routes/auth';
+import usersRoutes from './routes/users';
+import eventsRoutes from './routes/events';
+import ticketTypesRoutes from './routes/ticketTypes';
+import reservationsRoutes from './routes/reservations';
+import ordersRoutes from './routes/orders';
+import ticketsRoutes from './routes/tickets';
+import healthRoutes from './routes/health';
 import deliveryRoutes from './routes/delivery';
 import promoterCodesRoutes from './routes/promoterCodes';
 import paymentRoutes from './routes/payment';
 import newsletterRoutes from './routes/newsletter';
 import { startWebhookWorker } from './services/webhookProcessorService';
-import { startOrderExpirationScheduler } from './services/orderExpirationService'
-import { startReservationExpirationScheduler } from './services/reservationExpirationService'
-import { checkMercadoPagoConfig, checkEmailConfig } from './utils/checkEnv'
+import { startOrderExpirationScheduler } from './services/orderExpirationService';
+import { startReservationExpirationScheduler } from './services/reservationExpirationService';
+import { checkMercadoPagoConfig, checkEmailConfig } from './utils/checkEnv';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -65,31 +65,33 @@ app.use((req: any, _res, next) => {
     next();
 });
 
-app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: {
-        useDefaults: true,
-        directives: {
-            defaultSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "http://localhost:3001", "https:"],
-            scriptSrc: [
-                "'self'",
-                (req: any) => `'nonce-${req.nonce}'`, // Permitir scripts com nonce
-            ],
-            styleSrc: [
-                "'self'",
-                (req: any) => `'nonce-${req.nonce}'`, // Permitir estilos com nonce
-                // Manter 'unsafe-inline' apenas em desenvolvimento para compatibilidade
-                ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
-            ],
-            fontSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "https:"],
-            frameSrc: ["'self'"],
-            objectSrc: ["'none'"],
-            upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+app.use(
+    helmet({
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+        contentSecurityPolicy: {
+            useDefaults: true,
+            directives: {
+                defaultSrc: ["'self'"],
+                imgSrc: ["'self'", 'data:', 'http://localhost:3001', 'https:'],
+                scriptSrc: [
+                    "'self'",
+                    (req: any) => `'nonce-${req.nonce}'`, // Permitir scripts com nonce
+                ],
+                styleSrc: [
+                    "'self'",
+                    (req: any) => `'nonce-${req.nonce}'`, // Permitir estilos com nonce
+                    // Manter 'unsafe-inline' apenas em desenvolvimento para compatibilidade
+                    ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
+                ],
+                fontSrc: ["'self'", 'data:', 'https:'],
+                connectSrc: ["'self'", 'https:'],
+                frameSrc: ["'self'"],
+                objectSrc: ["'none'"],
+                upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+            },
         },
-    },
-}));
+    })
+);
 
 // HSTS forte em produção
 if ((process.env.NODE_ENV || 'development') === 'production') {
@@ -118,7 +120,7 @@ app.use((req: any, res, next) => {
             durationMs,
             ip: req.ip,
             userAgent: req.get('user-agent') || 'unknown',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
         };
         // Consolida em uma única linha JSON para fácil ingestão
         console.log(JSON.stringify({ level: 'info', msg: 'http_request', ...log }));
@@ -145,8 +147,8 @@ const allowedOrigins = Array.from(
             ...fallbackOrigins,
         ]
             .filter((value): value is string => Boolean(value))
-            .map(normalizeOrigin),
-    ),
+            .map(normalizeOrigin)
+    )
 );
 const warnedCorsOrigins = new Set<string>();
 
@@ -163,7 +165,9 @@ app.use(
             // Em dev, permitir e apenas logar
             if ((process.env.NODE_ENV || 'development') !== 'production') {
                 if (!warnedCorsOrigins.has(normalizedOrigin)) {
-                    console.warn(`⚠️  CORS liberado em desenvolvimento para origem não listada: ${origin}`);
+                    console.warn(
+                        `⚠️  CORS liberado em desenvolvimento para origem não listada: ${origin}`
+                    );
                     warnedCorsOrigins.add(normalizedOrigin);
                 }
                 return callback(null, true);
@@ -172,7 +176,14 @@ app.use(
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'X-meli-session-id', 'x-session-id'],
+        allowedHeaders: [
+            'Content-Type',
+            'Authorization',
+            'Accept',
+            'X-Requested-With',
+            'X-meli-session-id',
+            'x-session-id',
+        ],
         exposedHeaders: ['x-session-id'],
     })
 );
@@ -185,7 +196,7 @@ app.use(cookieParser());
 app.use((req: Request, res: Response, next: NextFunction) => {
     // Permitir health checks e webhooks sem validação de User-Agent
     const publicPaths = ['/health', '/api/health', '/api/payments/webhook'];
-    if (publicPaths.some(path => req.path.startsWith(path))) {
+    if (publicPaths.some((path) => req.path.startsWith(path))) {
         return next();
     }
     // Aplicar validação de User-Agent para todas as outras rotas
@@ -198,7 +209,7 @@ app.use(generalRateLimit);
 // Servir arquivos estáticos de upload com cache forte e proteção simples de hotlink
 const __allowedUploadOrigins = [
     process.env.FRONTEND_URL || 'http://localhost:3000',
-    process.env.DASHBOARD_URL || 'http://localhost:3000'
+    process.env.DASHBOARD_URL || 'http://localhost:3000',
 ];
 
 app.use('/uploads', (req: Request, res: Response, next) => {
@@ -218,22 +229,27 @@ app.use('/uploads', (req: Request, res: Response, next) => {
     next();
 });
 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
-    setHeaders: (res) => {
-        res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
-    }
-}));
+app.use(
+    '/uploads',
+    express.static(path.join(__dirname, '../uploads'), {
+        setHeaders: (res) => {
+            res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+        },
+    })
+);
 
 // ====================================
 // Middlewares de Parsing
 // ====================================
 
 // Capturar rawBody para verificação de assinatura de webhooks
-app.use(express.json({
-    verify: (req: any, _res, buf) => {
-        req.rawBody = buf;
-    }
-}));
+app.use(
+    express.json({
+        verify: (req: any, _res, buf) => {
+            req.rawBody = buf;
+        },
+    })
+);
 app.use(express.urlencoded({ extended: true }));
 
 // Sanitização Global - Proteção XSS
@@ -241,7 +257,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use((req: Request, res: Response, next: NextFunction) => {
     // Excluir webhooks e rotas que precisam do body raw
     const excludedPaths = ['/api/payments/webhook'];
-    if (excludedPaths.some(path => req.path.startsWith(path))) {
+    if (excludedPaths.some((path) => req.path.startsWith(path))) {
         return next();
     }
     sanitizeBody(req, res, next);
@@ -414,7 +430,9 @@ const startServer = async () => {
                 console.log('🚀 ========================================');
                 console.log(`📡  Porta HTTPS: ${httpsPort}`);
                 console.log(`🌍  URL Local: https://localhost:${httpsPort}`);
-                console.log(`🌐  URL Rede: https://0.0.0.0:${httpsPort} (acessível por outros dispositivos na rede)`);
+                console.log(
+                    `🌐  URL Rede: https://0.0.0.0:${httpsPort} (acessível por outros dispositivos na rede)`
+                );
                 console.log(`📚  Ambiente: ${process.env.NODE_ENV || 'development'}`);
                 console.log('🚀 ========================================');
                 console.log('');
@@ -435,7 +453,9 @@ const startServer = async () => {
                 console.log('🚀 ========================================');
                 console.log(`📡  Porta: ${PORT}`);
                 console.log(`🌍  URL Local: http://localhost:${PORT}`);
-                console.log(`🌐  URL Rede: http://0.0.0.0:${PORT} (acessível por outros dispositivos na rede)`);
+                console.log(
+                    `🌐  URL Rede: http://0.0.0.0:${PORT} (acessível por outros dispositivos na rede)`
+                );
                 console.log(`📚  Ambiente: ${process.env.NODE_ENV || 'development'}`);
                 console.log('🚀 ========================================');
                 console.log('');
@@ -488,4 +508,3 @@ const startServer = async () => {
 startServer();
 
 export default app;
-

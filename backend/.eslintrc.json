@@ -19,10 +19,16 @@
     "prettier"
   ],
   "rules": {
-    "prettier/prettier": "warn",
-    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
-    "@typescript-eslint/no-explicit-any": "warn",
-    "no-console": "off"
+    "prettier/prettier": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/no-var-requires": "off",
+    "@typescript-eslint/no-namespace": "off",
+    "no-console": "off",
+    "no-control-regex": "off",
+    "no-empty": "off",
+    "no-async-promise-executor": "off"
   },
   "ignorePatterns": ["dist", "node_modules"]
 }

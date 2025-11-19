@@ -6,34 +6,20 @@ import Joi from 'joi';
 
 // Schema para registro de usuário
 export const registerSchema = Joi.object({
-    name: Joi.string()
-        .min(2)
-        .max(100)
-        .trim()
-        .required()
-        .messages({
-            'string.min': 'Nome deve ter pelo menos 2 caracteres',
-            'string.max': 'Nome deve ter no máximo 100 caracteres',
-            'any.required': 'Nome é obrigatório',
-        }),
-    email: Joi.string()
-        .email()
-        .lowercase()
-        .trim()
-        .required()
-        .messages({
-            'string.email': 'Email deve ter um formato válido',
-            'any.required': 'Email é obrigatório',
-        }),
-    password: Joi.string()
-        .min(6)
-        .max(128)
-        .required()
-        .messages({
-            'string.min': 'Senha deve ter pelo menos 6 caracteres',
-            'string.max': 'Senha deve ter no máximo 128 caracteres',
-            'any.required': 'Senha é obrigatória',
-        }),
+    name: Joi.string().min(2).max(100).trim().required().messages({
+        'string.min': 'Nome deve ter pelo menos 2 caracteres',
+        'string.max': 'Nome deve ter no máximo 100 caracteres',
+        'any.required': 'Nome é obrigatório',
+    }),
+    email: Joi.string().email().lowercase().trim().required().messages({
+        'string.email': 'Email deve ter um formato válido',
+        'any.required': 'Email é obrigatório',
+    }),
+    password: Joi.string().min(6).max(128).required().messages({
+        'string.min': 'Senha deve ter pelo menos 6 caracteres',
+        'string.max': 'Senha deve ter no máximo 128 caracteres',
+        'any.required': 'Senha é obrigatória',
+    }),
     phone: Joi.string()
         .pattern(/^\(\d{2}\)\s\d{4,5}-\d{4}$/)
         .optional()
@@ -50,33 +36,21 @@ export const registerSchema = Joi.object({
 
 // Schema para login
 export const loginSchema = Joi.object({
-    email: Joi.string()
-        .email()
-        .lowercase()
-        .trim()
-        .required()
-        .messages({
-            'string.email': 'Email deve ter um formato válido',
-            'any.required': 'Email é obrigatório',
-        }),
-    password: Joi.string()
-        .required()
-        .messages({
-            'any.required': 'Senha é obrigatória',
-        }),
+    email: Joi.string().email().lowercase().trim().required().messages({
+        'string.email': 'Email deve ter um formato válido',
+        'any.required': 'Email é obrigatório',
+    }),
+    password: Joi.string().required().messages({
+        'any.required': 'Senha é obrigatória',
+    }),
 });
 
 // Schema para atualização de perfil
 export const updateProfileSchema = Joi.object({
-    name: Joi.string()
-        .min(2)
-        .max(100)
-        .trim()
-        .optional()
-        .messages({
-            'string.min': 'Nome deve ter pelo menos 2 caracteres',
-            'string.max': 'Nome deve ter no máximo 100 caracteres',
-        }),
+    name: Joi.string().min(2).max(100).trim().optional().messages({
+        'string.min': 'Nome deve ter pelo menos 2 caracteres',
+        'string.max': 'Nome deve ter no máximo 100 caracteres',
+    }),
     phone: Joi.string()
         .pattern(/^\(\d{2}\)\s\d{4,5}-\d{4}$/)
         .optional()
@@ -95,27 +69,18 @@ export const updateProfileSchema = Joi.object({
 
 // Schema para mudança de senha
 export const changePasswordSchema = Joi.object({
-    currentPassword: Joi.string()
-        .required()
-        .messages({
-            'any.required': 'Senha atual é obrigatória',
-        }),
-    newPassword: Joi.string()
-        .min(6)
-        .max(128)
-        .required()
-        .messages({
-            'string.min': 'Nova senha deve ter pelo menos 6 caracteres',
-            'string.max': 'Nova senha deve ter no máximo 128 caracteres',
-            'any.required': 'Nova senha é obrigatória',
-        }),
-    confirmPassword: Joi.string()
-        .valid(Joi.ref('newPassword'))
-        .required()
-        .messages({
-            'any.only': 'Confirmação de senha deve ser igual à nova senha',
-            'any.required': 'Confirmação de senha é obrigatória',
-        }),
+    currentPassword: Joi.string().required().messages({
+        'any.required': 'Senha atual é obrigatória',
+    }),
+    newPassword: Joi.string().min(6).max(128).required().messages({
+        'string.min': 'Nova senha deve ter pelo menos 6 caracteres',
+        'string.max': 'Nova senha deve ter no máximo 128 caracteres',
+        'any.required': 'Nova senha é obrigatória',
+    }),
+    confirmPassword: Joi.string().valid(Joi.ref('newPassword')).required().messages({
+        'any.only': 'Confirmação de senha deve ser igual à nova senha',
+        'any.required': 'Confirmação de senha é obrigatória',
+    }),
 });
 
 // Schema para parâmetros de URL (ID)
@@ -131,39 +96,25 @@ export const idParamSchema = Joi.object({
 
 // Schema para paginação
 export const paginationSchema = Joi.object({
-    page: Joi.number()
-        .integer()
-        .min(1)
-        .default(1)
-        .messages({
-            'number.base': 'Página deve ser um número',
-            'number.integer': 'Página deve ser um número inteiro',
-            'number.min': 'Página deve ser pelo menos 1',
-        }),
-    limit: Joi.number()
-        .integer()
-        .min(1)
-        .max(100)
-        .default(10)
-        .messages({
-            'number.base': 'Limite deve ser um número',
-            'number.integer': 'Limite deve ser um número inteiro',
-            'number.min': 'Limite deve ser pelo menos 1',
-            'number.max': 'Limite deve ser no máximo 100',
-        }),
+    page: Joi.number().integer().min(1).default(1).messages({
+        'number.base': 'Página deve ser um número',
+        'number.integer': 'Página deve ser um número inteiro',
+        'number.min': 'Página deve ser pelo menos 1',
+    }),
+    limit: Joi.number().integer().min(1).max(100).default(10).messages({
+        'number.base': 'Limite deve ser um número',
+        'number.integer': 'Limite deve ser um número inteiro',
+        'number.min': 'Limite deve ser pelo menos 1',
+        'number.max': 'Limite deve ser no máximo 100',
+    }),
 });
 
 // Schema para busca
 export const searchSchema = Joi.object({
-    q: Joi.string()
-        .min(1)
-        .max(100)
-        .trim()
-        .optional()
-        .messages({
-            'string.min': 'Termo de busca deve ter pelo menos 1 caractere',
-            'string.max': 'Termo de busca deve ter no máximo 100 caracteres',
-        }),
+    q: Joi.string().min(1).max(100).trim().optional().messages({
+        'string.min': 'Termo de busca deve ter pelo menos 1 caractere',
+        'string.max': 'Termo de busca deve ter no máximo 100 caracteres',
+    }),
     sort: Joi.string()
         .valid('name', 'email', 'createdAt', '-name', '-email', '-createdAt')
         .default('-createdAt')
@@ -173,28 +124,14 @@ export const searchSchema = Joi.object({
 });
 
 export const newsletterSubscriptionSchema = Joi.object({
-    email: Joi.string()
-        .email()
-        .lowercase()
-        .trim()
-        .required()
-        .messages({
-            'string.email': 'Email deve ter um formato válido',
-            'any.required': 'Email é obrigatório',
-        }),
-    name: Joi.string()
-        .max(120)
-        .trim()
-        .optional()
-        .allow('', null)
-        .messages({
-            'string.max': 'Nome não pode ultrapassar 120 caracteres',
-        }),
-    source: Joi.string()
-        .max(60)
-        .trim()
-        .optional()
-        .messages({
-            'string.max': 'Fonte não pode ultrapassar 60 caracteres',
-        }),
+    email: Joi.string().email().lowercase().trim().required().messages({
+        'string.email': 'Email deve ter um formato válido',
+        'any.required': 'Email é obrigatório',
+    }),
+    name: Joi.string().max(120).trim().optional().allow('', null).messages({
+        'string.max': 'Nome não pode ultrapassar 120 caracteres',
+    }),
+    source: Joi.string().max(60).trim().optional().messages({
+        'string.max': 'Fonte não pode ultrapassar 60 caracteres',
+    }),
 });

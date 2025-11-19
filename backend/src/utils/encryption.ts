@@ -14,10 +14,14 @@ function getEncryptionKey(): Buffer {
 
     if (!key) {
         if (isProd) {
-            throw new Error('ENCRYPTION_KEY é obrigatório em produção. Configure uma chave de 32 bytes (64 caracteres hex ou base64).');
+            throw new Error(
+                'ENCRYPTION_KEY é obrigatório em produção. Configure uma chave de 32 bytes (64 caracteres hex ou base64).'
+            );
         }
         // Em desenvolvimento, gerar chave temporária (volátil)
-        console.warn('⚠️ ENCRYPTION_KEY não configurado. Usando chave temporária (dados não serão persistentes entre reinicializações).');
+        console.warn(
+            '⚠️ ENCRYPTION_KEY não configurado. Usando chave temporária (dados não serão persistentes entre reinicializações).'
+        );
         return crypto.randomBytes(32);
     }
 
@@ -33,9 +37,13 @@ function getEncryptionKey(): Buffer {
 
     if (keyBuffer.length !== 32) {
         if (isProd) {
-            throw new Error(`ENCRYPTION_KEY deve ser 32 bytes. Recebido: ${keyBuffer.length} bytes. Use 64 caracteres hex ou base64.`);
+            throw new Error(
+                `ENCRYPTION_KEY deve ser 32 bytes. Recebido: ${keyBuffer.length} bytes. Use 64 caracteres hex ou base64.`
+            );
         }
-        console.warn(`⚠️ ENCRYPTION_KEY tem tamanho incorreto (${keyBuffer.length} bytes). Usando chave temporária.`);
+        console.warn(
+            `⚠️ ENCRYPTION_KEY tem tamanho incorreto (${keyBuffer.length} bytes). Usando chave temporária.`
+        );
         return crypto.randomBytes(32);
     }
 
@@ -45,7 +53,7 @@ function getEncryptionKey(): Buffer {
 /**
  * Criptografa dados sensíveis usando AES-256-GCM
  * Formato: iv:authTag:encryptedData (tudo em hex)
- * 
+ *
  * @param plaintext - Texto a ser criptografado
  * @returns String criptografada no formato "iv:authTag:encryptedData"
  */
@@ -73,7 +81,7 @@ export function encryptSensitiveData(plaintext: string): string {
 
 /**
  * Descriptografa dados sensíveis usando AES-256-GCM
- * 
+ *
  * @param encryptedData - String criptografada no formato "iv:authTag:encryptedData"
  * @returns Texto descriptografado
  */
@@ -85,7 +93,9 @@ export function decryptSensitiveData(encryptedData: string): string {
     // Verificar se já está descriptografado (dados antigos ou migração)
     // Se não contém ':', assume que é texto plano (backward compatibility)
     if (!encryptedData.includes(':')) {
-        console.warn('⚠️ Dados não parecem estar criptografados. Retornando como texto plano (backward compatibility).');
+        console.warn(
+            '⚠️ Dados não parecem estar criptografados. Retornando como texto plano (backward compatibility).'
+        );
         return encryptedData;
     }
 
@@ -119,7 +129,7 @@ export function decryptSensitiveData(encryptedData: string): string {
 /**
  * Gera hash SHA-256 de um CPF normalizado para busca eficiente
  * Permite buscar por CPF sem descriptografar todos os registros
- * 
+ *
  * @param cpf - CPF no formato 000.000.000-00 ou 00000000000 (aceita qualquer formato)
  * @returns Hash SHA-256 do CPF normalizado (apenas dígitos)
  */
@@ -130,7 +140,7 @@ export function hashCPFForSearch(cpf: string): string {
 
     // Normalizar CPF: remover formatação e manter apenas dígitos
     const normalized = cpf.replace(/\D/g, '');
-    
+
     if (normalized.length !== 11) {
         console.warn(`[hashCPFForSearch] CPF inválido: ${cpf} (${normalized.length} dígitos)`);
         return '';
@@ -142,7 +152,7 @@ export function hashCPFForSearch(cpf: string): string {
 
 /**
  * Gera hash SHA-256 de um telefone normalizado para busca eficiente
- * 
+ *
  * @param phone - Telefone no formato (11) 99999-9999
  * @returns Hash SHA-256 do telefone normalizado (apenas dígitos)
  */
@@ -153,7 +163,7 @@ export function hashPhoneForSearch(phone: string): string {
 
     // Normalizar telefone: remover formatação e manter apenas dígitos
     const normalized = phone.replace(/\D/g, '');
-    
+
     if (normalized.length < 10 || normalized.length > 11) {
         return '';
     }
@@ -164,7 +174,7 @@ export function hashPhoneForSearch(phone: string): string {
 
 /**
  * Verifica se uma string está criptografada
- * 
+ *
  * @param data - String a verificar
  * @returns true se parece estar criptografada (formato "iv:authTag:encryptedData")
  */
@@ -174,6 +184,5 @@ export function isEncrypted(data: string): boolean {
     }
     // Formato criptografado: 3 partes separadas por ':'
     const parts = data.split(':');
-    return parts.length === 3 && parts.every(part => /^[0-9a-f]+$/i.test(part));
+    return parts.length === 3 && parts.every((part) => /^[0-9a-f]+$/i.test(part));
 }
-

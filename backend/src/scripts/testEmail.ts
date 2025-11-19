@@ -1,9 +1,9 @@
 /**
  * Script de teste para verificar envio de emails via Resend
- * 
+ *
  * Uso:
  *   ts-node src/scripts/testEmail.ts --to seu-email@exemplo.com
- * 
+ *
  * Ou com variáveis de ambiente:
  *   TO_EMAIL=seu-email@exemplo.com ts-node src/scripts/testEmail.ts
  */
@@ -17,8 +17,9 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 async function testEmail() {
     // Obter email de destino
-    const toEmail = process.env.TO_EMAIL || process.argv.find(arg => arg.startsWith('--to='))?.split('=')[1];
-    
+    const toEmail =
+        process.env.TO_EMAIL || process.argv.find((arg) => arg.startsWith('--to='))?.split('=')[1];
+
     if (!toEmail) {
         console.error('❌ Erro: Email de destino não informado');
         console.log('');
@@ -119,7 +120,7 @@ async function testEmail() {
             1. Criar templates de email para diferentes eventos
             2. Implementar envio automático após pagamento
             3. Adicionar anexos (PDFs com QR codes)
-        `
+        `,
     });
 
     if (result.success) {
@@ -135,8 +136,7 @@ async function testEmail() {
 }
 
 // Executar teste
-testEmail().catch(error => {
+testEmail().catch((error) => {
     console.error('❌ Erro fatal:', error);
     process.exit(1);
 });
-

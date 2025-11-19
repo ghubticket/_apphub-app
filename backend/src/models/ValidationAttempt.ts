@@ -50,16 +50,16 @@ const validationAttemptSchema = new Schema<IValidationAttempt>(
         reason: {
             type: String,
             enum: [
-                'already_used',      // QR já foi usado
-                'not_found',         // Ingresso não encontrado
-                'invalid_status',     // Status inválido (não confirmado)
-                'replay_detected',   // Replay detectado (nonce duplicado)
-                'order_not_paid',    // Pedido não pago
-                'event_inactive',    // Evento inativo
-                'unauthorized',      // Sem permissão
-                'expired',           // QR expirado
-                'invalid_signature',  // Assinatura inválida
-                'other',             // Outro motivo
+                'already_used', // QR já foi usado
+                'not_found', // Ingresso não encontrado
+                'invalid_status', // Status inválido (não confirmado)
+                'replay_detected', // Replay detectado (nonce duplicado)
+                'order_not_paid', // Pedido não pago
+                'event_inactive', // Evento inativo
+                'unauthorized', // Sem permissão
+                'expired', // QR expirado
+                'invalid_signature', // Assinatura inválida
+                'other', // Outro motivo
             ],
         },
         ipAddress: {
@@ -109,9 +109,7 @@ validationAttemptSchema.statics.checkMultiEventUsage = async function (
         .lean();
 
     const uniqueEvents = new Set(
-        attempts
-            .map((a: any) => a.eventId?._id?.toString())
-            .filter((id: string) => id)
+        attempts.map((a: any) => a.eventId?._id?.toString()).filter((id: string) => id)
     );
 
     return {
@@ -123,4 +121,3 @@ validationAttemptSchema.statics.checkMultiEventUsage = async function (
 
 export default mongoose.models.ValidationAttempt ||
     mongoose.model<IValidationAttempt>('ValidationAttempt', validationAttemptSchema);
-

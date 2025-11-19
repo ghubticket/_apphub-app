@@ -8,7 +8,8 @@ const options = {
         info: {
             title: 'EventHub API',
             version: '1.0.0',
-            description: 'API para sistema de vendas de ingressos e controle de acesso para eventos de pagode',
+            description:
+                'API para sistema de vendas de ingressos e controle de acesso para eventos de pagode',
             contact: {
                 name: 'EventHub Team',
                 email: 'contato@eventhub.com',
@@ -135,7 +136,7 @@ const options = {
                         },
                         price: {
                             type: 'number',
-                            example: 50.00,
+                            example: 50.0,
                         },
                         capacity: {
                             type: 'number',

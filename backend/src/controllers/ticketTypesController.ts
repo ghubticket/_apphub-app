@@ -78,7 +78,7 @@ export const createTicketType = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao criar tipo de ingresso:', error);
-        
+
         // Extrair erros de validação do Mongoose
         const validationErrors: Record<string, string> = {};
         if (error.errors) {
@@ -86,7 +86,7 @@ export const createTicketType = async (req: Request, res: Response) => {
                 validationErrors[key] = error.errors[key].message;
             });
         }
-        
+
         // Se for erro de validação do Mongoose, retornar mensagens específicas
         if (error.name === 'ValidationError') {
             const errorMessages = Object.values(validationErrors).join(', ');
@@ -96,12 +96,12 @@ export const createTicketType = async (req: Request, res: Response) => {
                 errors: validationErrors,
             });
         }
-        
+
         // Se for erro de índice duplicado (event + name + lotNumber)
         if (error.code === 11000) {
             const keyPattern = error.keyPattern || {};
             const keyValue = error.keyValue || {};
-            
+
             // Se for o índice único composto (event + name + lotNumber)
             if (keyPattern.event && keyPattern.name && keyPattern.lotNumber) {
                 const lotNumber = keyValue.lotNumber;
@@ -115,7 +115,7 @@ export const createTicketType = async (req: Request, res: Response) => {
                     },
                 });
             }
-            
+
             // Para outros índices únicos
             const field = Object.keys(keyPattern)[0];
             return res.status(400).json({
@@ -124,7 +124,7 @@ export const createTicketType = async (req: Request, res: Response) => {
                 errors: { [field]: 'Este valor já está em uso' },
             });
         }
-        
+
         res.status(400).json({
             success: false,
             message: error.message || 'Erro ao criar tipo de ingresso',
@@ -139,7 +139,7 @@ export const listTicketTypes = async (req: Request, res: Response) => {
         const { eventId } = req.params;
         const { includeInactive } = req.query;
 
-        const filter: any = { 
+        const filter: any = {
             event: eventId,
             deletedAt: null, // Não mostrar tipos de ingresso deletados
         };
@@ -152,17 +152,21 @@ export const listTicketTypes = async (req: Request, res: Response) => {
             .populate('event', 'name date');
 
         // Reconciliar soldQuantity com base em tickets CONFIRMADOS (evita divergência)
-        const reconciled = await Promise.all(ticketTypes.map(async (tt: any) => {
-            const confirmedCount = await (await import('../models/Ticket')).default.countDocuments({
-                ticketType: tt._id,
-                status: { $in: ['confirmed', 'used'] },
-                deletedAt: null,
+        const reconciled = await Promise.all(
+            ticketTypes.map(async (tt: any) => {
+                const confirmedCount = await (
+                    await import('../models/Ticket')
+                ).default.countDocuments({
+                    ticketType: tt._id,
+                    status: { $in: ['confirmed', 'used'] },
+                    deletedAt: null,
+                });
+                return {
+                    ...tt.toObject(),
+                    soldQuantity: confirmedCount,
+                };
             })
-            return {
-                ...tt.toObject(),
-                soldQuantity: confirmedCount,
-            }
-        }))
+        );
 
         res.status(200).json({
             success: true,
@@ -182,7 +186,7 @@ export const getTicketType = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        const ticketType = await TicketType.findOne({ 
+        const ticketType = await TicketType.findOne({
             _id: id,
             deletedAt: null, // Não mostrar tipos de ingresso deletados
         }).populate('event', 'name date');
@@ -225,7 +229,7 @@ export const updateTicketType = async (req: Request, res: Response) => {
             salesEnd,
         } = req.body;
 
-        const ticketType = await TicketType.findOne({ 
+        const ticketType = await TicketType.findOne({
             _id: id,
             deletedAt: null, // Não atualizar tipos de ingresso deletados
         });
@@ -241,7 +245,10 @@ export const updateTicketType = async (req: Request, res: Response) => {
         const finalName = name !== undefined ? name.trim() : ticketType.name;
         const finalLotNumber = lotNumber !== undefined ? lotNumber : ticketType.lotNumber;
 
-        if ((lotNumber && lotNumber !== ticketType.lotNumber) || (name && name.trim() !== ticketType.name)) {
+        if (
+            (lotNumber && lotNumber !== ticketType.lotNumber) ||
+            (name && name.trim() !== ticketType.name)
+        ) {
             const existingLot = await TicketType.findOne({
                 event: ticketType.event,
                 name: finalName,
@@ -263,7 +270,7 @@ export const updateTicketType = async (req: Request, res: Response) => {
         }
 
         // Se for VIP, garantir que preço seja 0
-        const finalPrice = isVIP !== undefined ? (isVIP ? 0 : price) : (ticketType.isVIP ? 0 : price);
+        const finalPrice = isVIP !== undefined ? (isVIP ? 0 : price) : ticketType.isVIP ? 0 : price;
 
         // Atualizar campos
         if (name !== undefined) ticketType.name = name;
@@ -275,7 +282,8 @@ export const updateTicketType = async (req: Request, res: Response) => {
         if (maxPerPurchase !== undefined) ticketType.maxPerPurchase = maxPerPurchase;
         if (maxPerCPF !== undefined) ticketType.maxPerCPF = maxPerCPF || null;
         if (maxPerEmail !== undefined) ticketType.maxPerEmail = maxPerEmail || null;
-        if (salesStart !== undefined) ticketType.salesStart = salesStart ? new Date(salesStart) : undefined;
+        if (salesStart !== undefined)
+            ticketType.salesStart = salesStart ? new Date(salesStart) : undefined;
         if (salesEnd !== undefined) ticketType.salesEnd = salesEnd ? new Date(salesEnd) : undefined;
 
         await ticketType.save();
@@ -287,7 +295,7 @@ export const updateTicketType = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao atualizar tipo de ingresso:', error);
-        
+
         // Extrair erros de validação do Mongoose
         const validationErrors: Record<string, string> = {};
         if (error.errors) {
@@ -295,7 +303,7 @@ export const updateTicketType = async (req: Request, res: Response) => {
                 validationErrors[key] = error.errors[key].message;
             });
         }
-        
+
         // Se for erro de validação do Mongoose, retornar mensagens específicas
         if (error.name === 'ValidationError') {
             const errorMessages = Object.values(validationErrors).join(', ');
@@ -305,12 +313,12 @@ export const updateTicketType = async (req: Request, res: Response) => {
                 errors: validationErrors,
             });
         }
-        
+
         // Se for erro de índice duplicado (event + name + lotNumber)
         if (error.code === 11000) {
             const keyPattern = error.keyPattern || {};
             const keyValue = error.keyValue || {};
-            
+
             // Se for o índice único composto (event + name + lotNumber)
             if (keyPattern.event && keyPattern.name && keyPattern.lotNumber) {
                 const lotNumber = keyValue.lotNumber;
@@ -324,7 +332,7 @@ export const updateTicketType = async (req: Request, res: Response) => {
                     },
                 });
             }
-            
+
             // Para outros índices únicos
             const field = Object.keys(keyPattern)[0];
             return res.status(400).json({
@@ -333,7 +341,7 @@ export const updateTicketType = async (req: Request, res: Response) => {
                 errors: { [field]: 'Este valor já está em uso' },
             });
         }
-        
+
         res.status(400).json({
             success: false,
             message: error.message || 'Erro ao atualizar tipo de ingresso',
@@ -347,7 +355,7 @@ export const deleteTicketType = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        const ticketType = await TicketType.findOne({ 
+        const ticketType = await TicketType.findOne({
             _id: id,
             deletedAt: null, // Não atualizar tipos de ingresso deletados
         });
@@ -393,7 +401,7 @@ export const updateTicketTypeStatus = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { isActive } = req.body;
 
-        const ticketType = await TicketType.findOne({ 
+        const ticketType = await TicketType.findOne({
             _id: id,
             deletedAt: null, // Não atualizar tipos de ingresso deletados
         });
@@ -421,4 +429,3 @@ export const updateTicketTypeStatus = async (req: Request, res: Response) => {
         });
     }
 };
-

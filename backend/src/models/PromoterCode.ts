@@ -49,19 +49,13 @@ const promoterCodeSchema = new Schema<IPromoterCode>(
             required: [true, 'Email é obrigatório'],
             trim: true,
             lowercase: true,
-            match: [
-                /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                'Email deve ter um formato válido',
-            ],
+            match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email deve ter um formato válido'],
         },
         whatsapp: {
             type: String,
             required: [true, 'WhatsApp é obrigatório'],
             trim: true,
-            match: [
-                /^\(\d{2}\)\s\d{4,5}-\d{4}$/,
-                'WhatsApp deve estar no formato (11) 99999-9999',
-            ],
+            match: [/^\(\d{2}\)\s\d{4,5}-\d{4}$/, 'WhatsApp deve estar no formato (11) 99999-9999'],
         },
         discountType: {
             type: String,
@@ -94,10 +88,12 @@ const promoterCodeSchema = new Schema<IPromoterCode>(
             type: Boolean,
             default: true,
         },
-        events: [{
-            type: Schema.Types.ObjectId,
-            ref: 'Event',
-        }],
+        events: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: 'Event',
+            },
+        ],
         createdBy: {
             type: Schema.Types.ObjectId,
             ref: 'User',
@@ -146,4 +142,3 @@ promoterCodeSchema.pre('save', async function (next) {
 
 // Exportar o modelo
 export default mongoose.model<IPromoterCode>('PromoterCode', promoterCodeSchema);
-

@@ -67,4 +67,3 @@ export const subscribeToNewsletter = async (req: Request, res: Response) => {
         });
     }
 };
-

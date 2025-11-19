@@ -4,7 +4,14 @@ import AuditLog from '../models/AuditLog';
 interface AuditContext {
     entityType: 'Order' | 'Ticket' | 'Event' | 'User' | 'TicketType';
     entityId: string;
-    action: 'create' | 'update' | 'delete' | 'status_change' | 'payment_update' | 'cancel' | 'refund';
+    action:
+        | 'create'
+        | 'update'
+        | 'delete'
+        | 'status_change'
+        | 'payment_update'
+        | 'cancel'
+        | 'refund';
     performedBy?: string; // userId
     performedByRole?: 'ADMIN' | 'CLIENTE' | 'QRCODE' | 'SYSTEM';
     changes?: {
@@ -62,10 +69,14 @@ export function createAuditContextFromRequest(req: Request): {
 } {
     const user = (req as any).user;
     return {
-        ipAddress: (req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown').toString(),
+        ipAddress: (
+            req.ip ||
+            req.connection.remoteAddress ||
+            req.headers['x-forwarded-for'] ||
+            'unknown'
+        ).toString(),
         userAgent: req.get('user-agent') || 'unknown',
         performedBy: user?._id?.toString() || user?.id,
         performedByRole: user?.role || 'SYSTEM',
     };
 }
-

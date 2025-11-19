@@ -120,14 +120,14 @@ const eventSchema = new Schema<IEvent>(
             min: [0, 'Taxa percentual não pode ser negativa'],
             max: [100, 'Taxa percentual não pode ser maior que 100%'],
             validate: {
-                validator: function(value: number) {
+                validator: function (value: number) {
                     // Validação adicional: garantir que é um número válido e dentro do range
-                    if (value === null || value === undefined) return true // Permite undefined/null (optional)
-                    if (typeof value !== 'number' || isNaN(value)) return false
-                    if (value < 0 || value > 100) return false
-                    return true
+                    if (value === null || value === undefined) return true; // Permite undefined/null (optional)
+                    if (typeof value !== 'number' || isNaN(value)) return false;
+                    if (value < 0 || value > 100) return false;
+                    return true;
                 },
-                message: 'Taxa percentual deve ser um número entre 0 e 100'
+                message: 'Taxa percentual deve ser um número entre 0 e 100',
             },
             // Taxa percentual da plataforma sobre cada ingresso (ex: 5 = 5%)
         },
@@ -147,26 +147,25 @@ const eventSchema = new Schema<IEvent>(
         image: {
             type: String,
             trim: true,
-            match: [
-                /^https?:\/\/.+/,
-                'URL da imagem deve ser válida',
-            ],
+            match: [/^https?:\/\/.+/, 'URL da imagem deve ser válida'],
         },
         coverImage: {
             type: String,
             trim: true,
-            match: [/^https?:\/\/.+/, 'URL da imagem deve ser válida']
+            match: [/^https?:\/\/.+/, 'URL da imagem deve ser válida'],
         },
         squareImage: {
             type: String,
             trim: true,
-            match: [/^https?:\/\/.+/, 'URL da imagem deve ser válida']
+            match: [/^https?:\/\/.+/, 'URL da imagem deve ser válida'],
         },
-        tags: [{
-            type: String,
-            trim: true,
-            maxlength: [50, 'Tag deve ter no máximo 50 caracteres'],
-        }],
+        tags: [
+            {
+                type: String,
+                trim: true,
+                maxlength: [50, 'Tag deve ter no máximo 50 caracteres'],
+            },
+        ],
         isActive: {
             type: Boolean,
             default: true,
@@ -236,7 +235,7 @@ eventSchema.statics.findUpcoming = function () {
     return this.find({
         date: { $gt: new Date() },
         status: 'published',
-        isActive: true
+        isActive: true,
     }).sort({ date: 1 });
 };
 

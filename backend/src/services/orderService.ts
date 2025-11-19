@@ -29,8 +29,8 @@ export function validateOrderInput(
             error: {
                 status: 400,
                 message: 'Dados inválidos',
-                errors: ['eventId, ticketTypeId e quantity são obrigatórios']
-            }
+                errors: ['eventId, ticketTypeId e quantity são obrigatórios'],
+            },
         };
     }
 
@@ -40,8 +40,8 @@ export function validateOrderInput(
             error: {
                 status: 400,
                 message: 'Quantidade inválida',
-                errors: ['Máximo de 10 ingressos por pedido']
-            }
+                errors: ['Máximo de 10 ingressos por pedido'],
+            },
         };
     }
 
@@ -68,19 +68,23 @@ export async function fetchOrderRelatedData(
             error: {
                 status: 404,
                 message: 'Evento não encontrado ou inativo',
-                errors: []
-            }
+                errors: [],
+            },
         };
     }
 
-    const ticketType = await TicketType.findOne({ _id: ticketTypeId, deletedAt: null, isActive: true });
+    const ticketType = await TicketType.findOne({
+        _id: ticketTypeId,
+        deletedAt: null,
+        isActive: true,
+    });
     if (!ticketType) {
         return {
             error: {
                 status: 404,
                 message: 'Tipo de ingresso não encontrado ou inativo',
-                errors: []
-            }
+                errors: [],
+            },
         };
     }
 
@@ -89,8 +93,8 @@ export async function fetchOrderRelatedData(
             error: {
                 status: 400,
                 message: 'Tipo de ingresso não pertence a este evento',
-                errors: []
-            }
+                errors: [],
+            },
         };
     }
 
@@ -102,8 +106,8 @@ export async function fetchOrderRelatedData(
                 error: {
                     status: 404,
                     message: 'Usuário não encontrado',
-                    errors: []
-                }
+                    errors: [],
+                },
             };
         }
     }
@@ -135,8 +139,8 @@ export async function validateAvailabilityAndLimits(
             error: {
                 status: 400,
                 message: 'Quantidade insuficiente',
-                errors: [`Apenas ${availableQuantity} ingressos disponíveis`]
-            }
+                errors: [`Apenas ${availableQuantity} ingressos disponíveis`],
+            },
         };
     }
 
@@ -147,8 +151,8 @@ export async function validateAvailabilityAndLimits(
             error: {
                 status: 400,
                 message: 'Limite excedido',
-                errors: [`Máximo de ${ticketType.maxPerPurchase} ingressos por compra`]
-            }
+                errors: [`Máximo de ${ticketType.maxPerPurchase} ingressos por compra`],
+            },
         };
     }
 
@@ -157,7 +161,7 @@ export async function validateAvailabilityAndLimits(
     if (ticketType.maxPerCPF && cpfToValidate) {
         // Importar função dinamicamente para evitar dependência circular
         const ordersController = await import('../controllers/ordersController');
-        
+
         console.log('[validateAvailabilityAndLimits] 🔍 Validando limite por CPF:', {
             eventId,
             ticketTypeId,
@@ -167,21 +171,21 @@ export async function validateAvailabilityAndLimits(
             cpfToValidate: cpfToValidate ? `${cpfToValidate.substring(0, 3)}.***.***-**` : 'null',
             quantity,
         });
-        
+
         const purchasedByCPF = await ordersController.countPurchasedTicketsByCPFOrEmail(
             eventId,
             ticketTypeId,
             cpfToValidate,
             undefined
         );
-        
+
         console.log('[validateAvailabilityAndLimits] 📊 Contagem de ingressos já comprados:', {
             purchasedByCPF,
             quantity,
             totalAfterPurchase: purchasedByCPF + quantity,
             maxPerCPF: ticketType.maxPerCPF,
         });
-        
+
         const totalAfterPurchase = purchasedByCPF + quantity;
 
         if (totalAfterPurchase > ticketType.maxPerCPF) {
@@ -200,13 +204,13 @@ export async function validateAvailabilityAndLimits(
                     message: 'Limite acumulado por CPF excedido',
                     errors: [
                         `Este CPF já comprou ${purchasedByCPF} ingresso(s) deste tipo. ` +
-                        `Limite máximo: ${ticketType.maxPerCPF}. ` +
-                        `Você pode comprar no máximo mais ${remaining} ingresso(s).`
-                    ]
-                }
+                            `Limite máximo: ${ticketType.maxPerCPF}. ` +
+                            `Você pode comprar no máximo mais ${remaining} ingresso(s).`,
+                    ],
+                },
             };
         }
-        
+
         console.log('[validateAvailabilityAndLimits] ✅ Limite por CPF OK:', {
             purchasedByCPF,
             quantity,
@@ -215,10 +219,13 @@ export async function validateAvailabilityAndLimits(
         });
     } else if (ticketType.maxPerCPF && !cpfToValidate) {
         // CRÍTICO: Se há limite por CPF mas CPF não foi fornecido, bloquear
-        console.warn('[validateAvailabilityAndLimits] ⚠️ Limite por CPF configurado mas CPF não fornecido:', {
-            ticketTypeName: ticketType.name,
-            maxPerCPF: ticketType.maxPerCPF,
-        });
+        console.warn(
+            '[validateAvailabilityAndLimits] ⚠️ Limite por CPF configurado mas CPF não fornecido:',
+            {
+                ticketTypeName: ticketType.name,
+                maxPerCPF: ticketType.maxPerCPF,
+            }
+        );
         return {
             isValid: false,
             error: {
@@ -226,9 +233,9 @@ export async function validateAvailabilityAndLimits(
                 message: 'CPF obrigatório',
                 errors: [
                     `Este tipo de ingresso requer CPF para validação de limite. ` +
-                    `Limite máximo: ${ticketType.maxPerCPF} ingresso(s) por CPF.`
-                ]
-            }
+                        `Limite máximo: ${ticketType.maxPerCPF} ingresso(s) por CPF.`,
+                ],
+            },
         };
     }
 
@@ -253,10 +260,10 @@ export async function validateAvailabilityAndLimits(
                     message: 'Limite acumulado por Email excedido',
                     errors: [
                         `Este Email já comprou ${purchasedByEmail} ingresso(s) deste tipo. ` +
-                        `Limite máximo: ${ticketType.maxPerEmail}. ` +
-                        `Você pode comprar no máximo mais ${remaining} ingresso(s).`
-                    ]
-                }
+                            `Limite máximo: ${ticketType.maxPerEmail}. ` +
+                            `Você pode comprar no máximo mais ${remaining} ingresso(s).`,
+                    ],
+                },
             };
         }
     }
@@ -298,7 +305,7 @@ export async function calculateOrderValues(
             code: promoterCode.toUpperCase().trim(),
             isActive: true,
             deletedAt: null,
-            events: event._id
+            events: event._id,
         });
 
         if (code) {
@@ -314,7 +321,7 @@ export async function calculateOrderValues(
     // Calcular taxa da plataforma
     const platformFeePercentage = event.platformFeePercentage || 0;
     const subtotalAfterDiscount = subtotal - discountAmount;
-    const platformFee = isVIP ? 0 : (subtotalAfterDiscount * (platformFeePercentage / 100));
+    const platformFee = isVIP ? 0 : subtotalAfterDiscount * (platformFeePercentage / 100);
     const totalAmount = subtotalAfterDiscount + platformFee;
 
     return {
@@ -324,7 +331,7 @@ export async function calculateOrderValues(
         discountAmount,
         platformFee,
         totalAmount,
-        usedPromoterCode
+        usedPromoterCode,
     };
 }
 
@@ -355,16 +362,16 @@ export async function findExistingOrder(
         existingOrderFilters['customerData.email'] = normalizedUserEmail;
     }
 
-    return await Order.findOne(existingOrderFilters)
-        .populate('tickets', 'ticketType')
-        .lean();
+    return await Order.findOne(existingOrderFilters).populate('tickets', 'ticketType').lean();
 }
 
 /**
  * Devolve estoque de um pedido
  */
 export async function returnStockFromOrder(oldOrder: any) {
-    const oldTickets = await Ticket.find({ order: oldOrder._id, deletedAt: null }).populate('ticketType');
+    const oldTickets = await Ticket.find({ order: oldOrder._id, deletedAt: null }).populate(
+        'ticketType'
+    );
     const ticketTypeCounts = new Map<string, number>();
 
     for (const ticket of oldTickets) {
@@ -379,7 +386,9 @@ export async function returnStockFromOrder(oldOrder: any) {
         if (oldTicketType && qty > 0) {
             oldTicketType.soldQuantity = Math.max(0, oldTicketType.soldQuantity - qty);
             await oldTicketType.save();
-            console.log(`🔄 [orderService] Devolvendo ${qty} ingressos ao estoque (ticketType: ${ticketTypeId})`);
+            console.log(
+                `🔄 [orderService] Devolvendo ${qty} ingressos ao estoque (ticketType: ${ticketTypeId})`
+            );
         }
     }
 }
@@ -401,7 +410,9 @@ export async function cancelOrderAndReturnStock(oldOrder: any) {
             { status: 'cancelled', deletedAt: new Date() }
         );
 
-        console.log(`✅ [orderService] Pedido ${oldOrder.orderNumber} cancelado e ingressos devolvidos ao estoque`);
+        console.log(
+            `✅ [orderService] Pedido ${oldOrder.orderNumber} cancelado e ingressos devolvidos ao estoque`
+        );
     }
 }
 
@@ -452,17 +463,23 @@ export async function cancelPreviousPendingOrders(
     const failedOrdersToClean = await Order.find(failedFilters).populate('tickets');
 
     if (pendingOrdersToCancel.length > 0) {
-        console.log(`🔄 [orderService] Cancelando ${pendingOrdersToCancel.length} pedido(s) pendente(s) anterior(es)`);
+        console.log(
+            `🔄 [orderService] Cancelando ${pendingOrdersToCancel.length} pedido(s) pendente(s) anterior(es)`
+        );
         for (const oldOrder of pendingOrdersToCancel) {
             await cancelOrderAndReturnStock(oldOrder);
         }
     }
 
     if (failedOrdersToClean.length > 0) {
-        console.log(`🔄 [orderService] Limpando ${failedOrdersToClean.length} pedido(s) failed anterior(es) - devolvendo estoque`);
+        console.log(
+            `🔄 [orderService] Limpando ${failedOrdersToClean.length} pedido(s) failed anterior(es) - devolvendo estoque`
+        );
         for (const oldOrder of failedOrdersToClean) {
             await returnStockFromOrder(oldOrder);
-            console.log(`✅ [orderService] Estoque devolvido do pedido failed ${oldOrder.orderNumber}`);
+            console.log(
+                `✅ [orderService] Estoque devolvido do pedido failed ${oldOrder.orderNumber}`
+            );
         }
     }
 }
@@ -532,7 +549,7 @@ export async function sendVIPOrderEmail(populatedOrder: any) {
             return;
         }
 
-        const ticketsWithQR = tickets.filter(t => t.qrCode);
+        const ticketsWithQR = tickets.filter((t) => t.qrCode);
         if (ticketsWithQR.length === 0) {
             return;
         }
@@ -542,16 +559,16 @@ export async function sendVIPOrderEmail(populatedOrder: any) {
                 name: event.name,
                 date: event.date,
                 location: event.location,
-                address: event.address
+                address: event.address,
             },
             orderNumber,
             customerName: customerName || 'Cliente',
-            tickets: ticketsWithQR.map(t => ({
+            tickets: ticketsWithQR.map((t) => ({
                 code: t.code,
                 qrCode: t.qrCode,
                 ticketType: (t.ticketType as any)?.name || 'Ingresso',
-                holderName: (t.holder as any)?.name || customerName || 'Cliente'
-            }))
+                holderName: (t.holder as any)?.name || customerName || 'Cliente',
+            })),
         });
 
         const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
@@ -560,13 +577,13 @@ export async function sendVIPOrderEmail(populatedOrder: any) {
             month: 'long',
             day: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
         });
 
-        const qrCodesForEmail = ticketsWithQR.map(t => ({
+        const qrCodesForEmail = ticketsWithQR.map((t) => ({
             code: t.code,
             qrCode: t.qrCode,
-            holderName: (t.holder as any)?.name || customerName || 'Cliente'
+            holderName: (t.holder as any)?.name || customerName || 'Cliente',
         }));
 
         const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
@@ -582,22 +599,26 @@ export async function sendVIPOrderEmail(populatedOrder: any) {
                 totalTickets: ticketsWithQR.length,
                 ticketType: ticketsWithQR[0]?.ticketType?.name || 'VIP',
                 downloadLink: `${dashboardUrl}/orders/${orderId}`,
-                qrCodes: qrCodesForEmail
+                qrCodes: qrCodesForEmail,
             },
-            [{
-                filename: `cortesia-${orderNumber}.pdf`,
-                content: pdfBuffer,
-                contentType: 'application/pdf'
-            }]
+            [
+                {
+                    filename: `cortesia-${orderNumber}.pdf`,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf',
+                },
+            ]
         );
 
         if (emailResult.success) {
             console.log(`✅ Email de cortesia com PDF enviado para ${customerEmail}`);
         } else {
-            console.error(`❌ Erro ao enviar email de cortesia para ${customerEmail}:`, emailResult.error);
+            console.error(
+                `❌ Erro ao enviar email de cortesia para ${customerEmail}:`,
+                emailResult.error
+            );
         }
     } catch (emailError) {
         console.error('Erro ao enviar email de cortesia:', emailError);
     }
 }
-
