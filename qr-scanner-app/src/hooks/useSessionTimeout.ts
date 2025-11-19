@@ -35,8 +35,6 @@ export const useSessionTimeout = ({
       return;
     }
 
-    let interval: NodeJS.Timeout;
-
     // Resetar timer em qualquer interação do usuário
     const handleActivity = () => {
       resetTimer();
@@ -50,7 +48,7 @@ export const useSessionTimeout = ({
     });
 
     // Atualizar timer a cada segundo
-    interval = setInterval(() => {
+    const interval = setInterval(() => {
       setTimeRemaining((prev) => {
         const newTime = prev - 1000;
 

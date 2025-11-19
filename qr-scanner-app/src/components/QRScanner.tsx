@@ -27,7 +27,7 @@ const QRScanner = ({ onScanningChange }: QRScannerProps) => {
   const isProcessingRef = useRef(false);
   const lastScannedQrRef = useRef<string>('');
   const lastScanTimeRef = useRef<number>(0);
-  const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const overlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const addToHistory = useValidationStore((state) => state.addToHistory);
   const syncHistory = useValidationStore((state) => state.syncHistory);
@@ -416,7 +416,7 @@ const QRScanner = ({ onScanningChange }: QRScannerProps) => {
         clearTimeout(overlayTimeoutRef.current);
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handler para fechar overlay
   const handleCloseOverlay = useCallback(() => {
