@@ -84,7 +84,7 @@ export const sendEmail = async (
             subject: emailData.subject,
             html: emailData.html,
             text: emailData.text,
-            replyTo: emailData.replyTo,
+            ...(emailData.replyTo && { reply_to: emailData.replyTo }),
             attachments: emailData.attachments?.map((att) => ({
                 filename: att.filename,
                 content:
