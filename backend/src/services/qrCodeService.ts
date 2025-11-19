@@ -71,7 +71,6 @@ export const generateQRCode = async (ticketCode: string): Promise<string> => {
 
         return qrCodeDataUrl;
     } catch (error) {
-        console.error('Erro ao gerar QR Code:', error);
         throw new Error('Falha ao gerar QR Code do ingresso');
     }
 };

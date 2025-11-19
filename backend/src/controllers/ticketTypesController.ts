@@ -429,3 +429,41 @@ export const updateTicketTypeStatus = async (req: Request, res: Response) => {
         });
     }
 };
+
+// Obter quantidade disponível de um tipo de ingresso
+export const getAvailableQuantity = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const ticketType = await TicketType.findOne({
+            _id: id,
+            deletedAt: null,
+        });
+
+        if (!ticketType || !ticketType.isActive) {
+            return res.status(404).json({
+                success: false,
+                message: 'Tipo de ingresso não encontrado',
+                data: {
+                    availableQuantity: 0,
+                },
+            });
+        }
+
+        // Pedidos PENDING já estão em soldQuantity, então availableQuantity já considera isso
+        const availableQuantity = ticketType.availableQuantity;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                availableQuantity,
+                ticketTypeId: id,
+            },
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao obter quantidade disponível',
+        });
+    }
+};

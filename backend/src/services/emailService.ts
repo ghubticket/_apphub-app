@@ -18,16 +18,13 @@ const getResendClient = (): Resend | null => {
     const apiKey = process.env.RESEND_API_KEY?.trim();
 
     if (!apiKey) {
-        console.warn('⚠️ RESEND_API_KEY não configurada. Emails não serão enviados.');
         return null;
     }
 
     try {
         resendClient = new Resend(apiKey);
-        console.log('✅ Cliente Resend inicializado com sucesso');
         return resendClient;
     } catch (error) {
-        console.error('❌ Erro ao inicializar Resend:', error);
         return null;
     }
 };
@@ -102,24 +99,12 @@ export const sendEmail = async (
         }
 
         const messageId = result.data?.id;
-        console.log(`✅ Email enviado com sucesso. ID: ${messageId}`);
-
-        // Log detalhado para debug (apenas em dev)
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(
-                `   📧 Para: ${Array.isArray(emailData.to) ? emailData.to.join(', ') : emailData.to}`
-            );
-            console.log(`   📨 De: ${from}`);
-            console.log(`   📋 Assunto: ${emailData.subject}`);
-            console.log(`   🔗 Ver logs: https://resend.com/emails/${messageId}`);
-        }
 
         return {
             success: true,
             messageId: messageId,
         };
     } catch (error: any) {
-        console.error('❌ Erro ao enviar email:', error);
         return {
             success: false,
             error: error?.message || 'Erro desconhecido ao enviar email',

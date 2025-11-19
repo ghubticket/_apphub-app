@@ -18,7 +18,6 @@ import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import eventsRoutes from './routes/events';
 import ticketTypesRoutes from './routes/ticketTypes';
-import reservationsRoutes from './routes/reservations';
 import ordersRoutes from './routes/orders';
 import ticketsRoutes from './routes/tickets';
 import healthRoutes from './routes/health';
@@ -28,7 +27,6 @@ import paymentRoutes from './routes/payment';
 import newsletterRoutes from './routes/newsletter';
 import { startWebhookWorker } from './services/webhookProcessorService';
 import { startOrderExpirationScheduler } from './services/orderExpirationService';
-import { startReservationExpirationScheduler } from './services/reservationExpirationService';
 import { checkMercadoPagoConfig, checkEmailConfig } from './utils/checkEnv';
 
 // Carregar variáveis de ambiente
@@ -161,14 +159,8 @@ app.use(
             if (allowedOrigins.includes(normalizedOrigin)) {
                 return callback(null, true);
             }
-            // Em dev, permitir e apenas logar
+            // Em dev, permitir
             if ((process.env.NODE_ENV || 'development') !== 'production') {
-                if (!warnedCorsOrigins.has(normalizedOrigin)) {
-                    console.warn(
-                        `⚠️  CORS liberado em desenvolvimento para origem não listada: ${origin}`
-                    );
-                    warnedCorsOrigins.add(normalizedOrigin);
-                }
                 return callback(null, true);
             }
             return callback(new Error(`CORS: Origin não permitido (${origin})`));
@@ -288,8 +280,6 @@ app.use('/api/events', eventsRoutes);
 // Rotas de tipos de ingresso (nested em events e standalone)
 app.use('/api/events', ticketTypesRoutes);
 app.use('/api', ticketTypesRoutes);
-// Rotas de reservas temporárias
-app.use('/api/reservations', reservationsRoutes);
 // Rotas de pedidos
 app.use('/api/orders', ordersRoutes);
 // Rotas de ingressos
@@ -435,8 +425,6 @@ const startServer = async () => {
             startOrderExpirationScheduler();
         }
 
-        // Iniciar scheduler de cancelamento automático de reservas expiradas (15 minutos)
-        startReservationExpirationScheduler();
 
         // Worker: reprocessamento de webhooks pendentes/fracassados
         startWebhookWorker(async (payload: any) => {

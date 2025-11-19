@@ -20,27 +20,7 @@ export const checkEmailConfig = () => {
         isConfigured: isEmailConfigured(),
     };
 
-    if (process.env.NODE_ENV !== 'production') {
-        console.log('🔍 Verificação de Configuração do Resend (Email):');
-        console.log(
-            '  API Key:',
-            checks.apiKey.configured ? '✅ Configurada' : '❌ Não configurada'
-        );
-        if (checks.apiKey.configured) {
-            console.log('    Valor:', checks.apiKey.value);
-        }
-        console.log(
-            '  From Email:',
-            checks.fromEmail.configured ? '✅ Configurado' : '⚠️ Usando padrão'
-        );
-        if (checks.fromEmail.configured) {
-            console.log('    Valor:', checks.fromEmail.value);
-        }
-        console.log(
-            '  Status:',
-            checks.isConfigured ? '✅ Email habilitado' : '❌ Email desabilitado'
-        );
-    }
+    // Verificação silenciosa
 
     return checks;
 };
@@ -64,39 +44,7 @@ export const checkMercadoPagoConfig = () => {
         },
     };
 
-    if (process.env.NODE_ENV !== 'production') {
-        console.log('🔍 Verificação de Configuração do Mercado Pago:');
-        console.log(
-            '  Access Token:',
-            checks.accessToken.configured ? '✅ Configurado' : '❌ Não configurado'
-        );
-        if (checks.accessToken.configured) {
-            console.log(
-                '    Tipo:',
-                checks.accessToken.isTest
-                    ? '🧪 Teste (Sandbox)'
-                    : checks.accessToken.isProduction
-                      ? '🚀 Produção'
-                      : '⚠️ Tipo desconhecido'
-            );
-            console.log('    Valor:', checks.accessToken.value);
-        }
-        console.log(
-            '  Public Key:',
-            checks.publicKey.configured ? '✅ Configurado' : '❌ Não configurado'
-        );
-        if (checks.publicKey.configured) {
-            console.log(
-                '    Tipo:',
-                checks.publicKey.isTest
-                    ? '🧪 Teste (Sandbox)'
-                    : checks.publicKey.isProduction
-                      ? '🚀 Produção'
-                      : '⚠️ Tipo desconhecido'
-            );
-            console.log('    Valor:', checks.publicKey.value);
-        }
-    }
+    // Verificação silenciosa
 
     return checks;
 };

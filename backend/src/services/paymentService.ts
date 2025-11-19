@@ -30,12 +30,6 @@ function getAccessToken(): string {
  */
 function createMercadoPagoClient(): MercadoPagoConfig {
     const accessToken = getAccessToken();
-    
-    // Log de debug (apenas início do token para segurança)
-    if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ MP_ACCESS_TOKEN carregado:', accessToken.substring(0, 20) + '...');
-        console.log('✅ Tamanho do token:', accessToken.length, 'caracteres');
-    }
 
     return new MercadoPagoConfig({
         accessToken: accessToken,
@@ -194,18 +188,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         const currentClient = createMercadoPagoClient();
         const currentToken = getAccessToken();
 
-        // Log de debug
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(
-                '🔍 Criando pagamento PIX com token:',
-                currentToken.substring(0, 20) + '...'
-            );
-            console.log(
-                '🔍 DEBUG - Token passado para cliente:',
-                currentToken.substring(0, 30) + '...'
-            );
-            console.log('🔍 DEBUG - Token completo tem', currentToken.length, 'caracteres');
-        }
+        // Criando pagamento PIX
 
         // Criar instância de Order com cliente
         const currentOrder = new Order(currentClient);
@@ -294,29 +277,12 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         const response = await currentOrder.create(options);
         const orderResponse = response as any;
 
-        // Log para debug
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(
-                '🔍 DEBUG - Resposta completa do Mercado Pago:',
-                JSON.stringify(orderResponse, null, 2)
-            );
-        }
-
         // Extrair informações da primeira transação (PIX)
         // Orders API retorna: orderResponse.transactions.payments[0]
         const paymentInfo = orderResponse.transactions?.payments?.[0];
 
         if (!paymentInfo) {
             throw new Error('Nenhum pagamento encontrado na order');
-        }
-
-        // Log detalhado do paymentInfo para debug
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('🔍 DEBUG - Payment Info:', JSON.stringify(paymentInfo, null, 2));
-            console.log(
-                '🔍 DEBUG - payment_method:',
-                JSON.stringify(paymentInfo.payment_method, null, 2)
-            );
         }
 
         // Extrair QR Code - na Orders API, está em payment_method
@@ -339,17 +305,6 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
     } catch (error: any) {
         console.error('Erro ao criar pagamento PIX (Orders API):', error);
 
-        // Log detalhado para debug
-        if (process.env.NODE_ENV !== 'production') {
-            const token = process.env.MP_ACCESS_TOKEN?.trim();
-            console.error('🔍 DEBUG - Token configurado:', token ? 'SIM' : 'NÃO');
-            console.error(
-                '🔍 DEBUG - Token (primeiros 20 chars):',
-                token?.substring(0, 20) || 'N/A'
-            );
-            console.error('🔍 DEBUG - Erro completo:', JSON.stringify(error, null, 2));
-        }
-
         // Tratamento específico para erro de autenticação
         if (
             error.message?.includes('authorization') ||
@@ -357,10 +312,6 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             error.code === 'unauthorized' ||
             (error.response?.data && error.response.data.code === 'unauthorized')
         ) {
-            console.error('❌ Erro de autenticação com Mercado Pago');
-            console.error('   Verifique se o MP_ACCESS_TOKEN está correto no arquivo .env');
-            console.error('   Certifique-se de que o servidor foi reiniciado após editar o .env');
-
             throw new Error(
                 'MP_ACCESS_TOKEN não está configurado ou é inválido. Verifique o arquivo backend/.env e adicione: MP_ACCESS_TOKEN=SEU_TOKEN. Certifique-se de reiniciar o servidor após editar o .env'
             );
@@ -648,8 +599,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         const fallbackErrors = Array.isArray(error?.errors) ? error.errors : null;
         if (responseData || fallbackErrors) {
             const payloadToProcess = responseData ?? { errors: fallbackErrors };
-            console.warn('[payments][card] Orders API raw error payload', payloadToProcess);
-            console.warn('[payments][card] entering responseData handling branch');
+            // Processando erro do Orders API
 
             const collectedMessages: string[] = [];
 
@@ -721,7 +671,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                 normalizedMessages = [issuerMessage, ...issuerRelated, ...remaining];
             }
 
-            console.warn('[payments][card] normalized error messages', normalizedMessages);
+            // Mensagens de erro normalizadas
 
             if (!normalizedMessages.length) {
                 normalizedMessages.push(
@@ -830,11 +780,7 @@ export const getPaymentById = async (paymentId: string) => {
             mpError?.error === 'resource not found' ||
             String(message).toLowerCase().includes('resource not found')
         ) {
-            console.log('[payments] getPaymentById resource not found', {
-                paymentId,
-                mpError,
-                message,
-            });
+            // Payment não encontrado
             return null;
         }
         console.error('Erro ao buscar pagamento:', error);

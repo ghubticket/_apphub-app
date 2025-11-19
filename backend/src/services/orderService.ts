@@ -3,7 +3,6 @@ import { Order, Ticket, TicketType, Event, User, PromoterCode } from '../models'
 import { generateQRCode } from './qrCodeService';
 import { generateTicketPDF } from './pdfService';
 import { sendCourtesyTicketEmail } from './emailTemplates';
-import * as reservationService from './reservationService';
 import { normalizeEmail } from '../utils/validationHelpers';
 
 const CHECKOUT_TIMEOUT_MINUTES = Number(process.env.CHECKOUT_TIMEOUT_MINUTES || 30);
@@ -131,8 +130,8 @@ export async function validateAvailabilityAndLimits(
     cpfToValidate?: string | null,
     emailToValidate?: string | null
 ): Promise<AvailabilityValidationResult> {
-    // Verificar disponibilidade usando o serviço de reservas
-    const availableQuantity = await reservationService.getAvailableQuantity(eventId, ticketTypeId);
+    // Verificar disponibilidade (pedidos PENDING já estão em soldQuantity)
+    const availableQuantity = ticketType.availableQuantity;
     if (availableQuantity < quantity) {
         return {
             isValid: false,

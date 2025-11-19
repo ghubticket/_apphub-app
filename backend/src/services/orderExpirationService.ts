@@ -120,20 +120,12 @@ export async function expirePendingOrders(
                             mpExpiration = new Date(mpPayment.date_of_expiration);
                         }
 
-                        if (process.env.NODE_ENV !== 'production') {
-                            console.log(
-                                `[order-expiration] PIX pedido ${String(order._id)}: obtido da Order API - status=${mpStatus}, date_of_expiration=${mpExpiration?.toISOString() || 'null'}`
-                            );
-                        }
+                        // Status obtido da Order API
                     } else if (mpOrder?.status) {
                         mpStatus = String(mpOrder.status).toLowerCase();
                     }
                 } catch (mpOrderError) {
-                    console.warn(
-                        '[order-expiration] Falha ao consultar order no Mercado Pago',
-                        String(order._id),
-                        mpOrderError
-                    );
+                    // Falha ao consultar order no Mercado Pago - ignorar
                 }
             }
 
@@ -149,22 +141,10 @@ export async function expirePendingOrders(
                     }
                 } catch (paymentError) {
                     // Payment API pode falhar, ignorar silenciosamente
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.debug(
-                            '[order-expiration] Falha ao buscar payment no MP:',
-                            String(order._id),
-                            paymentError
-                        );
-                    }
                 }
             }
 
-            // Log final para debug
-            if (isPixOrder && process.env.NODE_ENV !== 'production') {
-                console.log(
-                    `[order-expiration] PIX pedido ${String(order._id)} - Status final: mpStatus=${mpStatus || 'null'}, mpExpiration=${mpExpiration?.toISOString() || 'null'}, paymentId=${order.paymentId || 'null'}, paymentOrderId=${(order as any).paymentOrderId || 'null'}`
-                );
-            }
+            // Status final verificado
 
             if (mpStatus === 'approved') {
                 order.status = 'paid';
@@ -187,11 +167,6 @@ export async function expirePendingOrders(
                 const minAgeMs = 2 * 60 * 1000; // 2 minutos
                 if (orderAgeMs < minAgeMs) {
                     // Pedido muito novo, não cancelar ainda
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.log(
-                            `[order-expiration] PIX muito novo (${Math.round(orderAgeMs / 1000)}s), ignorando verificação de expiração para pedido ${String(order._id)}`
-                        );
-                    }
                     return false; // Pedido muito novo, não expirou ainda
                 }
 
@@ -199,13 +174,6 @@ export async function expirePendingOrders(
                 if (mpExpiration) {
                     // Temos a data de expiração do MP - usar apenas ela
                     const timeUntilExpiration = mpExpiration.getTime() - now.getTime();
-                    const minutesUntilExpiration = Math.round(timeUntilExpiration / (60 * 1000));
-
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.log(
-                            `[order-expiration] PIX pedido ${String(order._id)}: expira em ${minutesUntilExpiration} minutos (${mpExpiration.toISOString()})`
-                        );
-                    }
 
                     shouldExpire = mpExpired;
 
@@ -216,10 +184,6 @@ export async function expirePendingOrders(
                 } else {
                     // Não conseguimos obter a data de expiração do MP
                     // NÃO cancelar pedidos PIX sem date_of_expiration - aguardar webhook ou próxima verificação
-                    // O Mercado Pago deve sempre retornar date_of_expiration para PIX
-                    console.warn(
-                        `[order-expiration] ⚠️ PIX sem date_of_expiration do MP para pedido ${String(order._id)}. NÃO cancelando - aguardando próxima verificação ou webhook. Status: ${mpStatus || 'unknown'}, PaymentId: ${order.paymentId || 'none'}, OrderId: ${(order as any).paymentOrderId || 'none'}`
-                    );
                     return false; // Não cancelar se não temos a data de expiração
                 }
             } else {
@@ -241,20 +205,6 @@ export async function expirePendingOrders(
                 // Se o MP já cancelou, seguir o MP independente da data de expiração
                 if (['cancelled', 'rejected', 'expired'].includes(effectiveStatus)) {
                     await cancelOrderLocally(order, now, effectiveStatus);
-                    if (process.env.NODE_ENV !== 'production') {
-                        const mpExpiration = paymentInfo?.date_of_expiration
-                            ? new Date(paymentInfo.date_of_expiration)
-                            : null;
-                        if (mpExpiration && now < mpExpiration) {
-                            console.log(
-                                `[order-expiration] PIX pedido ${String(order._id)}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`
-                            );
-                        } else {
-                            console.log(
-                                `[order-expiration] PIX pedido ${String(order._id)}: MP cancelou (status: ${effectiveStatus}). Seguindo MP e cancelando.`
-                            );
-                        }
-                    }
                     return true; // Expirou
                 }
 
@@ -266,46 +216,23 @@ export async function expirePendingOrders(
                             try {
                                 await paymentService.cancelOrderById((order as any).paymentOrderId);
                             } catch (cancelError) {
-                                console.warn(
-                                    '[order-expiration] Falha ao cancelar order no Mercado Pago',
-                                    String(order._id),
-                                    cancelError
-                                );
+                                // Erro ao cancelar no MP - continuar
                             }
                         } else if (order.paymentId) {
                             try {
                                 await paymentService.cancelPaymentById(order.paymentId);
                             } catch (cancelError) {
-                                console.warn(
-                                    '[order-expiration] Falha ao cancelar pagamento no Mercado Pago',
-                                    String(order._id),
-                                    cancelError
-                                );
+                                // Erro ao cancelar pagamento no MP - continuar
                             }
                         }
                         await cancelOrderLocally(order, now);
-                        if (process.env.NODE_ENV !== 'production') {
-                            console.log(
-                                `[order-expiration] PIX pedido ${String(order._id)}: expirou (${mpExpiration.toISOString()}). Cancelando automaticamente.`
-                            );
-                        }
                         return true; // Expirou
                     }
                 } else if (mpExpiration && now < mpExpiration) {
                     // Ainda não expirou, não cancelar
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.log(
-                            `[order-expiration] PIX pedido ${String(order._id)}: ainda não expirou (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Mantendo como pending.`
-                        );
-                    }
                     return false;
                 } else {
                     // Sem data de expiração, não cancelar (aguardar webhook ou próxima verificação)
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.warn(
-                            `[order-expiration] PIX pedido ${String(order._id)}: sem date_of_expiration. Mantendo como pending.`
-                        );
-                    }
                     return false;
                 }
             } else {
@@ -336,11 +263,6 @@ export async function expirePendingOrders(
                             );
                         }
                         await cancelOrderLocally(order, now);
-                        if (process.env.NODE_ENV !== 'production') {
-                            console.log(
-                                `[order-expiration] Cartão pedido ${String(order._id)}: expirou. Cancelando automaticamente.`
-                            );
-                        }
                         return true; // Expirou
                     }
                 }
@@ -348,7 +270,6 @@ export async function expirePendingOrders(
 
             return false; // Não expirou
         } catch (error) {
-            console.error('Erro ao expirar/cancelar pedido', String(order._id), error);
             return false; // Em caso de erro, não contar como expirado
         }
     });
@@ -362,19 +283,11 @@ export async function expirePendingOrders(
 
 export function startOrderExpirationScheduler() {
     const intervalMs = Number(process.env.ORDER_EXPIRATION_CHECK_INTERVAL_MS || 60_000);
-    console.log(
-        `🕒 Order expiration scheduler ativo (timeout padrão=${DEFAULT_TIMEOUT_MINUTES}m, timeout PIX=${PIX_TIMEOUT_MINUTES}m, interval=${intervalMs}ms)`
-    );
     setInterval(async () => {
         try {
-            const result = await expirePendingOrders();
-            if (result.expired > 0) {
-                console.log(
-                    `⏰ Expirados ${result.expired} pedido(s) pendente(s) nesta verificação`
-                );
-            }
+            await expirePendingOrders();
         } catch (e) {
-            console.error('Erro no scheduler de expiração de pedidos', e);
+            // Erro no scheduler - ignorar silenciosamente
         }
     }, intervalMs);
 }

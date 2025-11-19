@@ -1,29 +1,24 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-// Obter quantidade disponível considerando reservas ativas
+// Obter quantidade disponível (pedidos PENDING já estão em soldQuantity)
 export const getAvailableQuantity = async (
     eventId: string,
     ticketTypeId: string
 ): Promise<number> => {
     try {
         const response = await fetch(
-            `${API_BASE_URL}/reservations/available?eventId=${eventId}&ticketTypeId=${ticketTypeId}`
+            `${API_BASE_URL}/ticket-types/${ticketTypeId}/available`
         );
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-
             throw new Error(errorData.message || `Erro ao obter quantidade disponível: ${response.statusText}`);
         }
 
         const data = await response.json();
-
-        
-return data.data?.availableQuantity || 0;
+        return data.data?.availableQuantity || 0;
     } catch (error: any) {
-        console.error('Erro ao obter quantidade disponível:', error);
-        
-return 0;
+        return 0;
     }
 };
 
@@ -42,16 +37,11 @@ export const getAvailableQuantities = async (
 
         const results = await Promise.all(promises);
 
-        
-return results.reduce((acc, { ticketTypeId, quantity }) => {
+        return results.reduce((acc, { ticketTypeId, quantity }) => {
             acc[ticketTypeId] = quantity;
-            
-return acc;
+            return acc;
         }, {} as Record<string, number>);
     } catch (error: any) {
-        console.error('Erro ao obter quantidades disponíveis:', error);
-        
-return {};
+        return {};
     }
 };
-

@@ -7,6 +7,7 @@ import {
     updateTicketType,
     deleteTicketType,
     updateTicketTypeStatus,
+    getAvailableQuantity,
 } from '../controllers/ticketTypesController';
 
 const router = Router();
@@ -217,5 +218,25 @@ router.patch('/ticket-types/:id/status', authenticate, isAdmin, updateTicketType
  *         description: Não encontrado
  */
 router.delete('/ticket-types/:id', authenticate, isAdmin, deleteTicketType);
+
+/**
+ * @swagger
+ * /ticket-types/{id}/available:
+ *   get:
+ *     summary: Obter quantidade disponível de um tipo de ingresso
+ *     tags: [TicketTypes]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Quantidade disponível
+ *       404:
+ *         description: Tipo de ingresso não encontrado
+ */
+router.get('/ticket-types/:id/available', getAvailableQuantity);
 
 export default router;

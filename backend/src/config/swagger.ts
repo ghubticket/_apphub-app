@@ -204,6 +204,5 @@ export const setupSwagger = (app: Application): void => {
         res.send(specs);
     });
 
-    console.log('📚 Swagger configurado com sucesso!');
-    console.log('🌐 Documentação disponível em: http://localhost:3001/api-docs');
+    // Swagger configurado
 };

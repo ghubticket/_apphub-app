@@ -54,7 +54,7 @@ export async function logAudit(context: AuditContext): Promise<void> {
         });
     } catch (error) {
         // Não falhar a operação principal se o log de auditoria der erro
-        console.error('Erro ao registrar auditoria (não crítico):', error);
+        // Erro ao registrar auditoria - não crítico
     }
 }
 
