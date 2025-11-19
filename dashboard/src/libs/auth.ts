@@ -3,7 +3,6 @@ import CredentialProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 
 // NextAuth configuration
-// @ts-expect-error - NextAuthOptions type export issues in v4.24
 export const authOptions: any = {
 
     // ** Configure one or more authentication providers
@@ -113,7 +112,7 @@ export const authOptions: any = {
          * the `session()` callback. So we have to add custom parameters in `token`
          * via `jwt()` callback to make them accessible in the `session()` callback
          */
-        async jwt({ token, user }) {
+        async jwt({ token, user }: any) {
             if (user) {
                 /*
                  * For adding custom parameters to user in session, we first need to add those parameters
@@ -128,7 +127,7 @@ export const authOptions: any = {
 
             return token
         },
-        async session({ session, token }) {
+        async session({ session, token }: any) {
             if (session.user) {
                 // ** Add custom params to user in session which are added in `jwt()` callback via `token` parameter
                 session.user.name = token.name || ''
