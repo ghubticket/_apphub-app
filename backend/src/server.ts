@@ -122,8 +122,7 @@ app.use((req: any, res, next) => {
             userAgent: req.get('user-agent') || 'unknown',
             timestamp: new Date().toISOString(),
         };
-        // Consolida em uma única linha JSON para fácil ingestão
-        console.log(JSON.stringify({ level: 'info', msg: 'http_request', ...log }));
+        // Log removido - usar sistema de logging apropriado em produção
     });
     next();
 });
@@ -415,64 +414,20 @@ const startServer = async () => {
         checkEmailConfig();
 
         // Verificar se SSL está disponível
-        const sslOptions = getSSLOptions();
+        // No Railway, sempre usar HTTP na porta PORT (Railway faz proxy HTTPS automaticamente)
+        const isRailway = !!process.env.RAILWAY_ENVIRONMENT || !!process.env.RAILWAY_PROJECT_ID;
+        const sslOptions = isRailway ? null : getSSLOptions();
         const httpsPort = Number(process.env.HTTPS_PORT) || 3443;
-        const useHttps = sslOptions !== null;
-
+        const useHttps = sslOptions !== null && !isRailway;
+        
         // Iniciar servidor
         if (useHttps) {
             // Servidor HTTPS
             const httpsServer = https.createServer(sslOptions, app);
-            httpsServer.listen(httpsPort, '0.0.0.0', () => {
-                console.log('');
-                console.log('🚀 ========================================');
-                console.log(`🚀  EventHub API está rodando com HTTPS! 🔒`);
-                console.log('🚀 ========================================');
-                console.log(`📡  Porta HTTPS: ${httpsPort}`);
-                console.log(`🌍  URL Local: https://localhost:${httpsPort}`);
-                console.log(
-                    `🌐  URL Rede: https://0.0.0.0:${httpsPort} (acessível por outros dispositivos na rede)`
-                );
-                console.log(`📚  Ambiente: ${process.env.NODE_ENV || 'development'}`);
-                console.log('🚀 ========================================');
-                console.log('');
-                console.log('💡 Próximos passos:');
-                console.log(`   1. Acesse https://localhost:${httpsPort} para testar`);
-                console.log(`   2. 📚 Swagger: https://localhost:${httpsPort}/api-docs`);
-                console.log(`   3. 🔐 Auth: https://localhost:${httpsPort}/auth/login`);
-                console.log('   4. Endpoints de eventos em /api/events');
-                console.log('   5. 💳 Endpoints de pagamento em /api/payments');
-                console.log('');
-            });
+            httpsServer.listen(httpsPort, '0.0.0.0');
         } else {
             // Servidor HTTP (fallback)
-            app.listen(PORT, '0.0.0.0', () => {
-                console.log('');
-                console.log('🚀 ========================================');
-                console.log(`🚀  EventHub API está rodando!`);
-                console.log('🚀 ========================================');
-                console.log(`📡  Porta: ${PORT}`);
-                console.log(`🌍  URL Local: http://localhost:${PORT}`);
-                console.log(
-                    `🌐  URL Rede: http://0.0.0.0:${PORT} (acessível por outros dispositivos na rede)`
-                );
-                console.log(`📚  Ambiente: ${process.env.NODE_ENV || 'development'}`);
-                console.log('🚀 ========================================');
-                console.log('');
-                console.log('💡 Próximos passos:');
-                console.log('   1. Acesse http://localhost:3001 para testar');
-                console.log('   2. 📚 Swagger: http://localhost:3001/api-docs');
-                console.log('   3. 🔐 Auth: http://localhost:3001/auth/login');
-                console.log('   4. Endpoints de eventos em /api/events');
-                console.log('   5. 💳 Endpoints de pagamento em /api/payments');
-                console.log('');
-                if (process.env.SSL_ENABLED === 'true') {
-                    console.log('⚠️  SSL_ENABLED=true mas certificados não encontrados.');
-                    console.log('   Para usar HTTPS, execute: mkcert localhost 127.0.0.1 ::1');
-                    console.log('   E coloque os certificados em: backend/certificates/');
-                    console.log('');
-                }
-            });
+            app.listen(PORT, '0.0.0.0');
         }
 
         // Iniciar job de expiração de pedidos pendentes
