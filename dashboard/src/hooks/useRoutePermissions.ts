@@ -1,12 +1,14 @@
 import { useEffect } from 'react'
 
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 import { useUserRole } from './useUserRole'
 import { canAccessRoute, getAllowedRoutes } from '@/configs/routePermissions'
 
 export const useRoutePermissions = () => {
-  const { userRole, status } = useUserRole()
+  const { userRole } = useUserRole()
+  const { status } = useSession()
   const router = useRouter()
 
   // Verificar se pode acessar uma rota específica

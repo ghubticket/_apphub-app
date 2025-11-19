@@ -1,9 +1,10 @@
 // Third-party Imports
 import CredentialProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
-import type { NextAuthOptions } from 'next-auth'
 
-export const authOptions: NextAuthOptions = {
+// NextAuth configuration
+// @ts-expect-error - NextAuthOptions type export issues in v4.24
+export const authOptions: any = {
 
     // ** Configure one or more authentication providers
     // ** Please refer to https://next-auth.js.org/configuration/options#providers for more `providers` options
