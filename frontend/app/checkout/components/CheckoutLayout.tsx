@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useState, useMemo } from 'react';
+import { useEffect, useCallback, useState, useMemo, useRef } from 'react';
 import Container from '@/components/shared/Container';
 import { CheckoutHeader } from './CheckoutHeader';
 import { CheckoutTimer } from './CheckoutTimer';
@@ -19,6 +19,7 @@ import { useCheckoutOrder } from '../hooks/useCheckoutOrder';
 import { useCheckoutState } from '../hooks/useCheckoutState';
 import { useOrderCleanup } from '../hooks/useOrderCleanup';
 import { useNavigationGuard } from '../hooks/useNavigationGuard';
+import { useCheckoutNavigation } from '../hooks/useCheckoutNavigation';
 import { useCardPayment } from '../hooks/useCardPayment';
 import { usePixPayment } from '../hooks/usePixPayment';
 import { clearCartItems } from '@/lib/cart';
@@ -33,6 +34,7 @@ import { storageHelpers } from '../utils/storageHelpers';
  */
 export function CheckoutLayout() {
     const router = useRouter();
+    const navigation = useCheckoutNavigation();
 
     // Carregar dados do carrinho
     const { summarizedCart, totalAmount, totalTickets, loading: cartLoading, refreshCart } = useCheckoutCart();
@@ -285,11 +287,10 @@ export function CheckoutLayout() {
     }, [createOrder]);
 
     const handleGoHome = useCallback(() => {
-        clearOrder();
-        clearCartItems();
-        refreshCart();
-        router.push('/');
-    }, [clearOrder, refreshCart, router]);
+        // Usar a função de navegação que já limpa tudo (pedido, carrinho, storage)
+        // Isso garante consistência com outros pontos de navegação
+        navigation.navigateToHome();
+    }, [navigation]);
 
     // Calcular expiresAt para o timer (sempre usa o expiresAt do pedido)
     const timerExpiresAt = order?.expiresAt || null;
@@ -302,6 +303,12 @@ export function CheckoutLayout() {
     // CRÍTICO: Mostrar loading IMEDIATAMENTE se não há pedido mas há condições para criar um
     // Isso garante que o loading apareça antes de qualquer renderização
     // IMPORTANTE: Não mostrar loading de criação se já existe pedido no storage (será restaurado)
+    // OTIMIZADO: Usar ref para verificar storage apenas uma vez e evitar recálculos
+    const savedOrderIdRef = useRef<string | null>(null);
+    if (savedOrderIdRef.current === null) {
+        savedOrderIdRef.current = storageHelpers.loadActiveOrderId();
+    }
+    
     const shouldShowInitialLoading = useMemo(() => {
         // Se já está carregando (cart ou order), mostrar loading
         if (cartLoading || orderLoading) {
@@ -309,8 +316,7 @@ export function CheckoutLayout() {
         }
         
         // Verificar se há pedido no storage - se houver, não mostrar loading de criação
-        const savedOrderId = storageHelpers.loadActiveOrderId();
-        if (savedOrderId) {
+        if (savedOrderIdRef.current) {
             console.log('[CheckoutLayout] ℹ️ Pedido encontrado no storage, não mostrando loading de criação (será restaurado)');
             return false;
         }

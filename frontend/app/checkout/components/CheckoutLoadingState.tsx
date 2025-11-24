@@ -76,19 +76,33 @@ export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ c
             if (timerRef.current) {
                 clearTimeout(timerRef.current);
             }
+        }
+        
+        // Se orderLoading está true, manter showLoading true (não iniciar timer ainda)
+        // O timer só será iniciado quando orderLoading virar false
+        if (orderLoading) {
+            // Se showLoading não está true, ativar
+            if (!showLoading) {
+                setShowLoading(true);
+            }
+        }
+        
+        // Se orderLoading mudou para false, iniciar timer de 10s para manter loading visual
+        if (!orderLoading && orderLoadingRef.current) {
+            console.log('[CheckoutLoadingState] ✅ orderLoading mudou para FALSE - iniciando timer de 10s');
             
-            // Timer de 10 segundos para visualização
+            // Limpar timer anterior se existir
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
+            }
+            
+            // Timer de 10 segundos para manter loading visual após pedido ser criado
             timerRef.current = setTimeout(() => {
                 console.log('[CheckoutLoadingState] ⏰ Timer de 10s expirado - desativando loading');
                 setShowLoading(false);
+                hasShownLoadingRef.current = false;
                 timerRef.current = null;
             }, 10000);
-        }
-        
-        // Se orderLoading mudou para false, mas ainda não passou o tempo mínimo
-        if (!orderLoading && orderLoadingRef.current && hasShownLoadingRef.current) {
-            console.log('[CheckoutLoadingState] ⚠️ orderLoading mudou para FALSE, mas mantendo loading por mais tempo');
-            // Não desativar imediatamente, deixar o timer gerenciar
         }
 
         // Atualizar ref
@@ -101,9 +115,13 @@ export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ c
                 timerRef.current = null;
             }
         };
-    }, [orderLoading]);
+    }, [orderLoading, showLoading]);
 
     // Determinar qual loading mostrar
+    // CRÍTICO: Mostrar loading se:
+    // 1. orderLoading está true (pedido sendo criado) - SEMPRE mostrar
+    // 2. OU showLoading está true (dentro dos 10s após orderLoading virar false)
+    // Isso garante que o loading apareça enquanto o pedido está sendo criado
     const shouldShowFullscreen = orderLoading || showLoading;
     
     console.log('[CheckoutLoadingState] 🎨 Renderizando:', {

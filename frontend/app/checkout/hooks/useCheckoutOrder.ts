@@ -102,32 +102,40 @@ export function useCheckoutOrder(
     const navigation = useCheckoutNavigation();
     
     // Estado consolidado usando reducer
-    // CRÍTICO: Iniciar com loading: true se não há pedido mas há condições para criar um
-    // Isso faz o loading aparecer IMEDIATAMENTE ao entrar no checkout
-    const initialLoading = useMemo(() => {
+    // CRÍTICO: Iniciar com loading: false e usar useEffect para ativar quando necessário
+    // Isso evita problemas com hooks condicionais e acessa props corretamente
+    const [state, dispatch] = useReducer(orderReducer, {
+        order: null,
+        loading: false,
+        error: null,
+        showRestoreModal: false,
+        showExpiredModal: false,
+    });
+    
+    // Efeito para ativar loading inicial se necessário (apenas uma vez quando condições são atendidas)
+    const hasInitializedLoadingRef = useRef(false);
+    useEffect(() => {
+        if (hasInitializedLoadingRef.current) return;
+        
         // Verificar se já existe pedido no storage
         const savedOrderId = storage.loadOrderId();
         if (savedOrderId) {
             // Se há pedido no storage, não iniciar com loading (será verificado depois)
             console.log('[useCheckoutOrder] ℹ️ Pedido encontrado no storage, não iniciando com loading');
-            return false;
+            hasInitializedLoadingRef.current = true;
+            return;
         }
         
-        // Se há itens no carrinho e dados do cliente, mas não há pedido, iniciar com loading
-        if (cartItems.length > 0 && customerData.name && customerData.email) {
-            console.log('[useCheckoutOrder] 🚀 Iniciando com loading: true - condições para criar pedido atendidas');
-            return true;
+        // Verificar condições iniciais
+        const hasCartItems = cartItems.length > 0;
+        const hasCustomerData = customerData.name && customerData.email;
+        
+        if (hasCartItems && hasCustomerData) {
+            console.log('[useCheckoutOrder] 🚀 Ativando loading inicial - condições para criar pedido atendidas');
+            dispatch({ type: 'SET_LOADING', payload: true });
+            hasInitializedLoadingRef.current = true;
         }
-        return false;
-    }, [cartItems.length, customerData.name, customerData.email, storage]);
-
-    const [state, dispatch] = useReducer(orderReducer, {
-        order: null,
-        loading: initialLoading,
-        error: null,
-        showRestoreModal: false,
-        showExpiredModal: false,
-    });
+    }, [cartItems.length, customerData.name, customerData.email, storage]); // Dependências necessárias
     
     // Wrappers para setters (para compatibilidade com hooks que recebem setters)
     const setOrder = useCallback((order: CheckoutOrder | null) => {
@@ -305,7 +313,9 @@ export function useCheckoutOrder(
             return;
         }
 
-        if (state.loading || creatingRef.current) {
+        // CRÍTICO: Não verificar state.loading aqui, pois o loading pode estar ativo
+        // mas ainda precisamos criar o pedido. Verificar apenas creatingRef para evitar duplicatas
+        if (creatingRef.current) {
             return;
         }
 
@@ -338,14 +348,17 @@ export function useCheckoutOrder(
 
         if (cartItems.length > 0 && customerData.name && customerData.email) {
             const timer = setTimeout(() => {
-                if (!creatingRef.current && !state.loading && (!state.order || state.order.status !== 'pending')) {
+                // CRÍTICO: Não verificar state.loading aqui também
+                // O loading pode estar ativo mas ainda precisamos criar o pedido
+                if (!creatingRef.current && (!state.order || state.order.status !== 'pending')) {
+                    console.log('[useCheckoutOrder] 🚀 Criando pedido automaticamente');
                     createOrder();
                 }
             }, 500);
 
             return () => clearTimeout(timer);
         }
-    }, [cartItems, customerData, state.order, state.loading, state.error, createOrder, refreshOrder, storage, rateLimit]);
+    }, [cartItems, customerData, state.order, state.error, createOrder, refreshOrder, storage, rateLimit]);
 
     // Buscar pedido existente ao montar componente
     useEffect(() => {

@@ -316,9 +316,10 @@ export function useOrderCreation({
                 storage.saveOrderId(orderData._id);
                 createOrderAbortControllerRef.current = null; // Limpar AbortController após sucesso
                 
-                // IMPORTANTE: Manter loading ativo por mais tempo para o usuário ver
-                // O CheckoutLoadingState tem um timer de 10 segundos que vai gerenciar isso
-                console.log('[useOrderCreation] ✅ Pedido criado com sucesso - mantendo loading ativo (será desativado pelo CheckoutLoadingState após 10s)');
+                // IMPORTANTE: Desativar loading após criar pedido com sucesso
+                // O CheckoutLoadingState vai manter o loading visual por 10s usando seu próprio estado
+                console.log('[useOrderCreation] ✅ Pedido criado com sucesso - desativando loading (CheckoutLoadingState vai manter visual por 10s)');
+                setLoading(false);
                 
                 // IMPORTANTE: Se o pedido tem expiresAt, salvar o timer no localStorage para usar como fallback
                 if (orderData.status === 'pending' && orderData.expiresAt) {
@@ -397,19 +398,17 @@ export function useOrderCreation({
             }
         } finally {
             // IMPORTANTE: Verificar se o pedido foi criado com sucesso antes de desativar loading
-            // Se o pedido foi criado, NÃO desativar loading imediatamente - deixar o CheckoutLoadingState gerenciar
+            // Se o pedido foi criado, o loading já foi desativado acima (após setOrder)
+            // Se não foi criado (erro), desativar loading aqui
             const orderWasCreated = orderIdRef.current || cachedOrderIdFromStorageRef.current;
             if (!orderWasCreated) {
                 // Apenas desativar loading se não houve sucesso na criação
                 console.log('[useOrderCreation] 🔄 setLoading(false) - finally (sem pedido criado ou erro)');
                 setLoading(false);
             } else {
-                console.log('[useOrderCreation] ⏳ Mantendo loading ativo - pedido criado com sucesso (CheckoutLoadingState vai gerenciar o tempo)');
-                // Usar setTimeout para desativar loading após 10 segundos (mesmo tempo do CheckoutLoadingState)
-                setTimeout(() => {
-                    console.log('[useOrderCreation] 🔄 setLoading(false) - timeout de 10s expirado');
-                    setLoading(false);
-                }, 10000);
+                // Pedido foi criado, loading já foi desativado acima
+                // O CheckoutLoadingState vai manter o loading visual por 10s usando seu próprio estado
+                console.log('[useOrderCreation] ✅ Pedido criado - loading já foi desativado, CheckoutLoadingState vai gerenciar visual');
             }
             creatingRef.current = false;
             // Limpar AbortController no finally para garantir cleanup mesmo em caso de erro

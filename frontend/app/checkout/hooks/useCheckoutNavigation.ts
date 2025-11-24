@@ -40,10 +40,28 @@ export function useCheckoutNavigation(): UseCheckoutNavigationReturn {
     }, [storage]);
 
     // Navegar para home
+    // CRÍTICO: Limpar tudo (pedido, carrinho, storage) ao voltar para home
+    // Isso garante que ao voltar após criar PIX, tudo esteja zerado
     const navigateToHome = useCallback(() => {
-        console.log('[useCheckoutNavigation] 🏠 Navegando para home');
+        console.log('[useCheckoutNavigation] 🏠 Navegando para home - limpando tudo');
+        
+        // Limpar storage relacionado ao pedido
+        storage.clearOrderRelated();
+        
+        // Limpar carrinho
+        clearCartItems();
+        
+        // Permitir navegação
+        allowNavigation();
+        
+        // Limpar flags globais
+        if (typeof window !== 'undefined') {
+            (window as any).__ALLOW_NAVIGATION__ = true;
+            window.onbeforeunload = null;
+        }
+        
         router.push('/');
-    }, [router]);
+    }, [router, storage, allowNavigation]);
 
     // Navegar para dashboard
     const navigateToDashboard = useCallback((options?: { clearStorage?: boolean; useReplace?: boolean }) => {

@@ -133,7 +133,7 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
         errors.push('Email inválido');
     }
 
-    // Validar CPF (11 dígitos)
+    // Validar CPF (11 dígitos) - apenas se fornecido
     const identificationType =
         'cardholder' in params && params.cardholder?.identification?.type
             ? String(params.cardholder.identification.type).toUpperCase()
@@ -142,10 +142,13 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
         'cardholder' in params && params.cardholder?.identification?.number
             ? params.cardholder.identification.number
             : params.customerData.cpf;
-    if (identificationType === 'CPF') {
-        const docNumber = normalizeCpfBackend(docNumberRaw || '');
-        if (!isValidCpfBackend(docNumber)) {
-            errors.push('CPF inválido');
+    if (identificationType === 'CPF' && docNumberRaw) {
+        // Só validar CPF se foi fornecido (não vazio/null/undefined)
+        const docNumber = normalizeCpfBackend(docNumberRaw);
+        if (docNumber && docNumber.length > 0) {
+            if (!isValidCpfBackend(docNumber)) {
+                errors.push('CPF inválido');
+            }
         }
     }
 
@@ -217,10 +220,15 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 email: customerData.email,
                 first_name: firstName,
                 last_name: lastName,
-                identification: {
-                    type: 'CPF',
-                    number: normalizeCpfBackend(customerData.cpf),
-                },
+                // CPF é opcional - só incluir se fornecido e válido
+                ...(customerData.cpf && normalizeCpfBackend(customerData.cpf || '').length === 11
+                    ? {
+                          identification: {
+                              type: 'CPF',
+                              number: normalizeCpfBackend(customerData.cpf),
+                          },
+                      }
+                    : {}),
                 phone: customerData.phone
                     ? {
                           area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
