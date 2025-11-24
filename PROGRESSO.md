@@ -596,6 +596,40 @@
   - ⚠️ **Configuração necessária:** Adicionar `ENCRYPTION_KEY` no `.env` (32 bytes, hex ou base64)
   - ✅ HTTPS obrigatório (redirect HTTP → HTTPS em produção)
 
+- ✅ **Otimizações de Performance** (IMPLEMENTADO) 🆕
+  - ✅ **Middleware de monitoramento de performance**
+    - Logging de tempo de resposta de cada endpoint
+    - Headers `X-Response-Time` nas respostas
+    - Identificação automática de endpoints lentos (> 1s)
+    - Métricas de tempo de DB e processamento
+  - ✅ **Otimização de queries MongoDB**
+    - Uso de `.lean()` em queries de leitura (reduz overhead)
+    - Uso de `.select()` para retornar apenas campos necessários
+    - Índices compostos adicionados em `Order`, `TicketType` e `Event`
+    - Queries paralelizadas com `Promise.all` onde possível
+  - ✅ **Cache no backend**
+    - Cache em memória com TTL para catálogo de eventos/tickets
+    - Cache de contagens de tickets por CPF/Email (1 minuto)
+    - Invalidação automática de cache quando dados mudam
+  - ✅ **Otimização do endpoint de catálogo**
+    - Endpoint `/api/catalog` otimizado com aggregation pipeline
+    - Retorna eventos + ticket types em uma única query (elimina N+1)
+    - Cache de 3 minutos para resultados
+  - ✅ **Otimização de criação de pedidos**
+    - Queries paralelizadas (`Event`, `TicketType`, `User`)
+    - Batch insert de tickets com `Ticket.insertMany()`
+    - Geração de QR codes em paralelo
+    - Operações não-críticas executadas em background (`cancelPreviousPendingOrders`)
+    - Cache de códigos de promotor
+  - ✅ **Cache no frontend**
+    - Cache em memória (sessionStorage/localStorage) para eventos e ticket types
+    - TTL configurável (5 min para eventos, 2 min para ticket types, 3 min para catálogo completo)
+    - Reduz chamadas redundantes à API
+  - ✅ **Índices MongoDB otimizados**
+    - `Order`: índices compostos para status, expiração, CPF hash, email
+    - `TicketType`: índices para event, disponibilidade, período de venda
+    - `Event`: índices para status, organizador, cidade, estado, isActive
+
 - [ ] Backup e redundância
   - [ ] Backup automático do MongoDB
   - [ ] CDN para arquivos estáticos
@@ -671,7 +705,12 @@
 
 ### Fase 4 - Melhorias (contínuo)
 - [ ] Relatórios avançados
-- [ ] Otimizações de performance
+- ✅ **Otimizações de performance** (IMPLEMENTADO) 🆕
+  - Middleware de monitoramento
+  - Cache frontend e backend
+  - Queries otimizadas com índices
+  - Endpoint de catálogo otimizado
+  - Criação de pedidos otimizada
 - [ ] Sistema offline (opcional)
 - [ ] Testes automatizados
 
@@ -714,8 +753,8 @@
 
 ---
 
-**Status Geral:** ~85% do MVP completo ✅  
-**Backend:** ~95% completo ✅  
+**Status Geral:** ~90% do MVP completo ✅  
+**Backend:** ~98% completo ✅  
 **Próxima milestone:** Portal público + Endpoint de redefinição de senha + Testes em evento real
 
 **Melhorias de Segurança Implementadas:**
@@ -729,4 +768,12 @@
   - Criptografia AES-256-GCM automática
   - Hash SHA-256 para busca eficiente
   - Backward compatibility com dados antigos
+
+**Otimizações de Performance Implementadas:** 🆕
+- ✅ Middleware de monitoramento de performance
+- ✅ Cache frontend e backend com TTL
+- ✅ Queries MongoDB otimizadas (`.lean()`, `.select()`, índices)
+- ✅ Endpoint `/api/catalog` otimizado (elimina N+1 queries)
+- ✅ Criação de pedidos otimizada (queries paralelas, batch inserts)
+- ✅ Operações não-críticas em background
 

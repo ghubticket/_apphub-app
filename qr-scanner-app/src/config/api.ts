@@ -33,9 +33,17 @@ if (typeof window !== 'undefined') {
       logger.log('🔗 Usando API local HTTPS:', API_URL);
     }
   } else if (!import.meta.env.VITE_API_URL) {
-    // Acesso direto via IP na rede local
-    API_URL = `http://${hostname}:3001/api`;
-    logger.log('🌐 Detectado acesso via rede local. Usando:', API_URL);
+    // Se estiver em produção (HTTPS), não tentar usar HTTP
+    if (window.location.protocol === 'https:') {
+      logger.error('❌ ERRO: VITE_API_URL não configurado em produção!');
+      logger.error('💡 SOLUÇÃO: Configure VITE_API_URL no Vercel Environment Variables');
+      logger.error('   Exemplo: https://apphub-app-production.up.railway.app/api');
+      API_URL = 'https://ERRO-CONFIGURE-ENV/api';
+    } else {
+      // Acesso direto via IP na rede local (apenas HTTP)
+      API_URL = `http://${hostname}:3001/api`;
+      logger.log('🌐 Detectado acesso via rede local. Usando:', API_URL);
+    }
   }
 }
 

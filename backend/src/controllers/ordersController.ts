@@ -49,19 +49,30 @@ export const countPurchasedTicketsByCPFOrEmail = async (
         return 0;
     }
 
+    // Tentar obter do cache primeiro (cache de 1 minuto)
+    const { cacheTicketCounts, generateTicketCountCacheKey } = await import('../services/cacheService');
+    const cacheKey = generateTicketCountCacheKey(eventId, ticketTypeId, normalizedCPF || undefined, normalizedEmail || undefined);
+    const cachedCount = cacheTicketCounts.get(cacheKey);
+    if (cachedCount !== null && cachedCount !== undefined) {
+        return cachedCount;
+    }
+
     // Construir filtros para buscar pedidos pagos do evento
+    // OTIMIZADO: Usar índices compostos criados anteriormente
+    const eventObjectId = new mongoose.Types.ObjectId(eventId);
+    const ticketTypeObjectId = new mongoose.Types.ObjectId(ticketTypeId);
+    
     const orderFilters: any = {
-        event: eventId,
+        event: eventObjectId,
         status: 'paid',
         deletedAt: null,
     };
 
-    // Adicionar filtro por CPF ou Email
-    // CRÍTICO: Usar hash do CPF para busca eficiente (CPF está criptografado)
+    // Adicionar filtro por CPF ou Email usando índices otimizados
     const { hashCPFForSearch } = await import('../utils/encryption');
 
     if (normalizedCPF && normalizedEmail) {
-        // Se ambos estão presentes, usar OR
+        // Se ambos estão presentes, usar OR (usa índices compostos)
         const cpfHash = hashCPFForSearch(normalizedCPF);
         if (cpfHash) {
             orderFilters.$or = [
@@ -73,108 +84,26 @@ export const countPurchasedTicketsByCPFOrEmail = async (
             orderFilters['customerData.email'] = normalizedEmail;
         }
     } else if (normalizedCPF) {
-        // Buscar por CPF usando hash (CPF está criptografado no banco)
+        // Buscar por CPF usando hash (usa índice composto: cpfHash + event + status)
         const cpfHash = hashCPFForSearch(normalizedCPF);
         if (cpfHash) {
             orderFilters['customerData.cpfHash'] = cpfHash;
-
-            console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Buscando CPF via hash:', {
-                normalizedCPF: `${normalizedCPF.substring(0, 3)}.***.***-**`,
-                cpfHash: cpfHash.substring(0, 16) + '...',
-            });
         } else {
-            console.warn(
-                '[countPurchasedTicketsByCPFOrEmail] ⚠️ Não foi possível gerar hash do CPF:',
-                normalizedCPF
-            );
+            // Se hash falhou, retornar 0
+            return 0;
         }
     } else if (normalizedEmail) {
+        // Buscar por email (usa índice composto: email + event + status)
         orderFilters['customerData.email'] = normalizedEmail;
     }
 
-    // OTIMIZADO: Usar agregação para evitar queries N+1
-    // Buscar contagem de tickets diretamente via agregação
-
-    // Log detalhado dos filtros antes da busca
-    console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Filtros de busca:', {
-        eventId,
-        ticketTypeId,
-        status: 'paid',
-        orderFilters: JSON.stringify(orderFilters, null, 2),
-    });
-
-    // CRÍTICO: Verificar se há pedidos que correspondem aos filtros básicos primeiro
-    // Isso ajuda a identificar se o problema está na busca de CPF ou na agregação
-    const eventObjectId = new mongoose.Types.ObjectId(eventId);
-    const testQuery = await Order.find({
-        event: eventObjectId,
-        status: 'paid',
-        deletedAt: null,
-    })
-        .select('orderNumber paymentMethod customerData.cpf customerData.email')
-        .limit(3)
-        .lean();
-
-    // Teste direto: buscar pedidos com o CPF via hash
-    const cpfHash = normalizedCPF ? hashCPFForSearch(normalizedCPF) : null;
-    const directCPFQuery = cpfHash
-        ? await Order.find({
-              event: eventObjectId,
-              status: 'paid',
-              deletedAt: null,
-              'customerData.cpfHash': cpfHash,
-          })
-              .select('orderNumber paymentMethod customerData.cpf')
-              .limit(5)
-              .lean()
-        : [];
-
-    console.log(
-        '[countPurchasedTicketsByCPFOrEmail] 🔍 Teste: Pedidos pagos no evento (amostra):',
-        {
-            count: testQuery.length,
-            orders: testQuery.map((o: any) => ({
-                orderNumber: o.orderNumber,
-                paymentMethod: o.paymentMethod,
-                cpf: o.customerData?.cpf || 'null',
-                cpfType: typeof o.customerData?.cpf,
-                email: o.customerData?.email || 'null',
-            })),
-            searchingFor: {
-                normalizedCPF: normalizedCPF || 'null',
-                normalizedEmail: normalizedEmail || 'null',
-            },
-            directCPFSearch: {
-                cpfHash: cpfHash ? cpfHash.substring(0, 16) + '...' : 'null',
-                foundOrders: directCPFQuery.length,
-                orders: directCPFQuery.map((o: any) => ({
-                    orderNumber: o.orderNumber,
-                    paymentMethod: o.paymentMethod,
-                    cpf: o.customerData?.cpf || 'null',
-                })),
-            },
-        }
-    );
-
-    // CRÍTICO: Converter ticketTypeId para ObjectId antes da agregação
-    // eventObjectId já foi criado acima no testQuery
-    const ticketTypeObjectId = new mongoose.Types.ObjectId(ticketTypeId);
-
-    // Ajustar filtros para usar ObjectId
-    const adjustedFilters = {
-        ...orderFilters,
-        event: eventObjectId,
-    };
-
-    console.log('[countPurchasedTicketsByCPFOrEmail] 🔍 Filtros ajustados (com ObjectId):', {
-        eventId: eventObjectId.toString(),
-        ticketTypeId: ticketTypeObjectId.toString(),
-        adjustedFilters: JSON.stringify(adjustedFilters, null, 2),
-    });
-
+    // OTIMIZADO: Agregação simplificada usando índices
+    // Removidos logs de debug e queries de teste desnecessárias
     const result = await Order.aggregate([
-        { $match: adjustedFilters },
+        // Match usa índices compostos para busca rápida
+        { $match: orderFilters },
         {
+            // Lookup apenas tickets do tipo específico
             $lookup: {
                 from: 'tickets',
                 let: { orderId: '$_id' },
@@ -186,6 +115,8 @@ export const countPurchasedTicketsByCPFOrEmail = async (
                                     { $eq: ['$order', '$$orderId'] },
                                     { $eq: ['$ticketType', ticketTypeObjectId] },
                                     { $eq: ['$deletedAt', null] },
+                                    // Apenas tickets confirmados/usados (não pendentes)
+                                    { $in: ['$status', ['confirmed', 'used']] },
                                 ],
                             },
                         },
@@ -194,98 +125,25 @@ export const countPurchasedTicketsByCPFOrEmail = async (
                 as: 'matchingTickets',
             },
         },
-        {
-            $project: {
-                ticketCount: { $size: '$matchingTickets' },
-                orderNumber: 1,
-                paymentMethod: 1,
-                status: 1,
-                customerData: 1, // Incluir para debug
-            },
-        },
+        // Filtrar apenas pedidos que têm tickets do tipo correto
         {
             $match: {
-                ticketCount: { $gt: 0 }, // Filtrar apenas pedidos que têm tickets do tipo correto
+                'matchingTickets.0': { $exists: true },
             },
         },
+        // Somar quantidade de tickets
         {
             $group: {
                 _id: null,
-                totalPurchased: { $sum: '$ticketCount' },
-                orders: {
-                    $push: {
-                        orderNumber: '$orderNumber',
-                        paymentMethod: '$paymentMethod',
-                        status: '$status',
-                        ticketCount: '$ticketCount',
-                        cpf: '$customerData.cpf',
-                    },
-                },
+                totalPurchased: { $sum: { $size: '$matchingTickets' } },
             },
         },
     ]);
 
-    const totalPurchased = result.length > 0 ? result[0].totalPurchased : 0;
+    const totalPurchased = result.length > 0 && result[0].totalPurchased ? result[0].totalPurchased : 0;
 
-    // Log detalhado para debug
-    if (result.length > 0 && result[0].orders) {
-        console.log('[countPurchasedTicketsByCPFOrEmail] ✅ Pedidos encontrados:', {
-            totalPurchased,
-            ordersCount: result[0].orders.length,
-            orders: result[0].orders.map((o: any) => ({
-                orderNumber: o.orderNumber,
-                paymentMethod: o.paymentMethod,
-                status: o.status,
-                ticketCount: o.ticketCount,
-                cpf: o.cpf || 'null',
-            })),
-        });
-    } else {
-        // CRÍTICO: Se não encontrou pedidos, verificar se há pedidos VIP no banco
-        // Isso ajuda a identificar se o problema é na busca ou se realmente não há pedidos
-        const debugQuery = await Order.find({
-            event: eventId,
-            status: 'paid',
-            deletedAt: null,
-        })
-            .select('orderNumber paymentMethod status customerData.cpf customerData.email')
-            .limit(5)
-            .lean();
-
-        console.log('[countPurchasedTicketsByCPFOrEmail] 📊 Nenhum pedido encontrado na busca:', {
-            totalPurchased: 0,
-            filters: {
-                eventId,
-                ticketTypeId,
-                hasCPF: !!normalizedCPF,
-                hasEmail: !!normalizedEmail,
-            },
-            debugInfo: {
-                totalPaidOrdersInEvent: debugQuery.length,
-                sampleOrders: debugQuery.map((o: any) => ({
-                    orderNumber: o.orderNumber,
-                    paymentMethod: o.paymentMethod,
-                    status: o.status,
-                    cpf: o.customerData?.cpf || 'null',
-                    cpfLength: o.customerData?.cpf?.length || 0,
-                    cpfFormatted: o.customerData?.cpf
-                        ? `${o.customerData.cpf.substring(0, 3)}.***.***-**`
-                        : 'null',
-                    email: o.customerData?.email
-                        ? `${o.customerData.email.substring(0, 3)}***@***`
-                        : 'null',
-                })),
-                searchingForCPF: normalizedCPF || 'null',
-                searchingForCPFFormatted: normalizedCPF
-                    ? normalizeCPF(normalizedCPF)?.replace(
-                          /(\d{3})(\d{3})(\d{3})(\d{2})/,
-                          '$1.$2.$3-$4'
-                      )
-                    : 'null',
-                searchingForCPFNormalized: normalizedCPF || 'null',
-            },
-        });
-    }
+    // Armazenar no cache (1 minuto)
+    cacheTicketCounts.set(cacheKey, totalPurchased, 60 * 1000);
 
     return totalPurchased;
 };
@@ -1993,6 +1851,14 @@ export const confirmPayment = async (req: Request, res: Response) => {
         const tickets = await Ticket.find({
             order: order._id,
             deletedAt: null,
+        });
+        
+        // Invalidar cache de contagens de tickets quando pedido é pago
+        // Buscar ticket types únicos do pedido para invalidar cache específico
+        const uniqueTicketTypeIds = [...new Set(tickets.map((t: any) => String(t.ticketType)))];
+        const { cacheTicketCounts } = await import('../services/cacheService');
+        uniqueTicketTypeIds.forEach(ticketTypeId => {
+            cacheTicketCounts.invalidateForEvent(String(order.event), ticketTypeId);
         });
 
         // Gerar QR codes para todos os tickets pendentes

@@ -1,9 +1,15 @@
 import axios, { AxiosHeaders } from 'axios';
 
 // Log da URL da API para debug
-const apiBaseURL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3443/api';
+// Prioridade: .env.local > .env > fallback
+// Fallback usa HTTP (porta 3001) para desenvolvimento local
+const apiBaseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 if (typeof window !== 'undefined') {
-  console.log('[API] 🔧 Configuração da API:', { baseURL: apiBaseURL, env: process.env.NEXT_PUBLIC_API_URL });
+  console.log('[API] 🔧 Configuração da API:', { 
+    baseURL: apiBaseURL, 
+    env: process.env.NEXT_PUBLIC_API_URL,
+    source: process.env.NEXT_PUBLIC_API_URL ? 'env' : 'fallback'
+  });
 }
 
 const api = axios.create({

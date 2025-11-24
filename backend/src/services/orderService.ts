@@ -61,7 +61,17 @@ export async function fetchOrderRelatedData(
     ticketTypeId: string,
     userId?: string | null
 ): Promise<{ data?: OrderRelatedData; error?: OrderValidationResult['error'] }> {
-    const event = await Event.findOne({ _id: eventId, deletedAt: null, isActive: true });
+    // Paralelizar queries independentes para melhor performance
+    const [event, ticketType, user] = await Promise.all([
+        Event.findOne({ _id: eventId, deletedAt: null, isActive: true }),
+        TicketType.findOne({
+            _id: ticketTypeId,
+            deletedAt: null,
+            isActive: true,
+        }),
+        userId ? User.findOne({ _id: userId, deletedAt: null }) : Promise.resolve(null),
+    ]);
+
     if (!event) {
         return {
             error: {
@@ -72,11 +82,6 @@ export async function fetchOrderRelatedData(
         };
     }
 
-    const ticketType = await TicketType.findOne({
-        _id: ticketTypeId,
-        deletedAt: null,
-        isActive: true,
-    });
     if (!ticketType) {
         return {
             error: {
@@ -97,18 +102,14 @@ export async function fetchOrderRelatedData(
         };
     }
 
-    let user = null;
-    if (userId) {
-        user = await User.findOne({ _id: userId, deletedAt: null });
-        if (!user) {
-            return {
-                error: {
-                    status: 404,
-                    message: 'Usuário não encontrado',
-                    errors: [],
-                },
-            };
-        }
+    if (userId && !user) {
+        return {
+            error: {
+                status: 404,
+                message: 'Usuário não encontrado',
+                errors: [],
+            },
+        };
     }
 
     return { data: { event, ticketType, user } };
@@ -458,33 +459,42 @@ export async function cancelPreviousPendingOrders(
         failedFilters['customerData.email'] = normalizedUserEmail;
     }
 
-    const pendingOrdersToCancel = await Order.find(cancelFilters).populate('tickets');
-    const failedOrdersToClean = await Order.find(failedFilters).populate('tickets');
+    // Executar cancelamento em background (não bloquear criação de pedido)
+    // Usar setImmediate para executar após a resposta ser enviada
+    setImmediate(async () => {
+        const pendingOrdersToCancel = await Order.find(cancelFilters).populate('tickets');
+        const failedOrdersToClean = await Order.find(failedFilters).populate('tickets');
 
-    if (pendingOrdersToCancel.length > 0) {
-        console.log(
-            `🔄 [orderService] Cancelando ${pendingOrdersToCancel.length} pedido(s) pendente(s) anterior(es)`
-        );
-        for (const oldOrder of pendingOrdersToCancel) {
-            await cancelOrderAndReturnStock(oldOrder);
-        }
-    }
-
-    if (failedOrdersToClean.length > 0) {
-        console.log(
-            `🔄 [orderService] Limpando ${failedOrdersToClean.length} pedido(s) failed anterior(es) - devolvendo estoque`
-        );
-        for (const oldOrder of failedOrdersToClean) {
-            await returnStockFromOrder(oldOrder);
+        if (pendingOrdersToCancel.length > 0) {
             console.log(
-                `✅ [orderService] Estoque devolvido do pedido failed ${oldOrder.orderNumber}`
+                `🔄 [orderService] Cancelando ${pendingOrdersToCancel.length} pedido(s) pendente(s) anterior(es)`
+            );
+            // Executar cancelamentos em paralelo
+            await Promise.all(
+                pendingOrdersToCancel.map((oldOrder) => cancelOrderAndReturnStock(oldOrder))
             );
         }
-    }
+
+        if (failedOrdersToClean.length > 0) {
+            console.log(
+                `🔄 [orderService] Limpando ${failedOrdersToClean.length} pedido(s) failed anterior(es) - devolvendo estoque`
+            );
+            // Executar limpeza em paralelo
+            await Promise.all(
+                failedOrdersToClean.map(async (oldOrder) => {
+                    await returnStockFromOrder(oldOrder);
+                    console.log(
+                        `✅ [orderService] Estoque devolvido do pedido failed ${oldOrder.orderNumber}`
+                    );
+                })
+            );
+        }
+    });
 }
 
 /**
  * Cria tickets para um pedido
+ * Otimizado: usa insertMany para criar todos os tickets de uma vez
  */
 export async function createTicketsForOrder(
     orderId: mongoose.Types.ObjectId,
@@ -496,29 +506,27 @@ export async function createTicketsForOrder(
     userId?: string | null,
     isVIP: boolean = false
 ): Promise<any[]> {
-    const createdTickets: any[] = [];
+    // Criar todos os tickets de uma vez usando insertMany (mais rápido)
+    const ticketsData = Array.from({ length: quantity }, () => ({
+        event: eventId,
+        ticketType: ticketTypeId,
+        order: orderId,
+        holder: userId || null,
+        price: ticketPrice,
+        status: ticketStatus,
+        qrCode: '',
+    }));
 
-    for (let i = 0; i < quantity; i++) {
-        const ticket = new Ticket({
-            event: eventId,
-            ticketType: ticketTypeId,
-            order: orderId,
-            holder: userId || null,
-            price: ticketPrice,
-            status: ticketStatus,
-            qrCode: '',
-        });
+    const createdTickets = await Ticket.insertMany(ticketsData);
 
-        await ticket.save();
-
-        // Gerar QR Code APENAS se o pedido estiver PAID ou for VIP
-        if (ticketStatus === 'confirmed' || isVIP) {
+    // Gerar QR Codes em paralelo APENAS se o pedido estiver PAID ou for VIP
+    if (ticketStatus === 'confirmed' || isVIP) {
+        const qrCodePromises = createdTickets.map(async (ticket) => {
             const qrCode = await generateQRCode(ticket.code);
             ticket.qrCode = qrCode;
-            await ticket.save();
-        }
-
-        createdTickets.push(ticket);
+            return ticket.save();
+        });
+        await Promise.all(qrCodePromises);
     }
 
     return createdTickets;

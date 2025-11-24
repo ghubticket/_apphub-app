@@ -11,6 +11,7 @@ import { generalRateLimit } from './middleware/rateLimiting';
 import { authenticateWithCookies } from './middleware/cookies';
 import { validateUserAgent } from './middleware/deviceValidation';
 import { sanitizeBody } from './middleware/sanitization';
+import { performanceLogger } from './middleware/performanceLogger';
 import crypto from 'crypto';
 import * as Sentry from '@sentry/node';
 import { getSSLOptions } from './config/ssl';
@@ -19,6 +20,7 @@ import usersRoutes from './routes/users';
 import eventsRoutes from './routes/events';
 import ticketTypesRoutes from './routes/ticketTypes';
 import ordersRoutes from './routes/orders';
+import catalogRoutes from './routes/catalog';
 import ticketsRoutes from './routes/tickets';
 import healthRoutes from './routes/health';
 import deliveryRoutes from './routes/delivery';
@@ -63,33 +65,42 @@ app.use((req: any, _res, next) => {
     next();
 });
 
-app.use(
-    helmet({
-        crossOriginResourcePolicy: { policy: 'cross-origin' },
-        contentSecurityPolicy: {
-            useDefaults: true,
-            directives: {
-                defaultSrc: ["'self'"],
-                imgSrc: ["'self'", 'data:', 'http://localhost:3001', 'https:'],
-                scriptSrc: [
-                    "'self'",
-                    (req: any) => `'nonce-${req.nonce}'`, // Permitir scripts com nonce
-                ],
-                styleSrc: [
-                    "'self'",
-                    (req: any) => `'nonce-${req.nonce}'`, // Permitir estilos com nonce
-                    // Manter 'unsafe-inline' apenas em desenvolvimento para compatibilidade
-                    ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
-                ],
-                fontSrc: ["'self'", 'data:', 'https:'],
-                connectSrc: ["'self'", 'https:'],
-                frameSrc: ["'self'"],
-                objectSrc: ["'none'"],
-                upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+// Aplicar Helmet com CSP, mas desabilitar CSP para Swagger UI
+app.use((req: Request, res: Response, next: NextFunction) => {
+    // Desabilitar CSP apenas para Swagger UI (precisa de estilos inline)
+    if (req.path?.startsWith('/api-docs')) {
+        helmet({
+            crossOriginResourcePolicy: { policy: 'cross-origin' },
+            contentSecurityPolicy: false, // Desabilitar CSP para Swagger
+        })(req, res, next);
+    } else {
+        helmet({
+            crossOriginResourcePolicy: { policy: 'cross-origin' },
+            contentSecurityPolicy: {
+                useDefaults: true,
+                directives: {
+                    defaultSrc: ["'self'"],
+                    imgSrc: ["'self'", 'data:', 'http://localhost:3001', 'https:'],
+                    scriptSrc: [
+                        "'self'",
+                        (req: any) => `'nonce-${req.nonce}'`, // Permitir scripts com nonce
+                    ],
+                    styleSrc: [
+                        "'self'",
+                        (req: any) => `'nonce-${req.nonce}'`, // Permitir estilos com nonce
+                        // Manter 'unsafe-inline' apenas em desenvolvimento para compatibilidade
+                        ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
+                    ],
+                    fontSrc: ["'self'", 'data:', 'https:'],
+                    connectSrc: ["'self'", 'https:'],
+                    frameSrc: ["'self'"],
+                    objectSrc: ["'none'"],
+                    upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+                },
             },
-        },
-    })
-);
+        })(req, res, next);
+    }
+});
 
 // HSTS forte em produção
 if ((process.env.NODE_ENV || 'development') === 'production') {
@@ -124,6 +135,9 @@ app.use((req: any, res, next) => {
     });
     next();
 });
+
+// Middleware de Performance - Deve vir após requestId mas antes das rotas
+app.use(performanceLogger);
 
 // CORS - Permitir requisições do frontend, dashboard e QR scanner app (restrito em produção)
 const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '');
@@ -280,6 +294,8 @@ app.use('/api/events', eventsRoutes);
 // Rotas de tipos de ingresso (nested em events e standalone)
 app.use('/api/events', ticketTypesRoutes);
 app.use('/api', ticketTypesRoutes);
+// Rotas de catálogo otimizado
+app.use('/api/catalog', catalogRoutes);
 // Rotas de pedidos
 app.use('/api/orders', ordersRoutes);
 // Rotas de ingressos

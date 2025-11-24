@@ -19,8 +19,9 @@ export const connectDatabase = async (): Promise<void> => {
         // Configurações de conexão
         const options = {
             maxPoolSize: 10,
-            serverSelectionTimeoutMS: 5000,
+            serverSelectionTimeoutMS: 30000, // Aumentado para 30 segundos
             socketTimeoutMS: 45000,
+            connectTimeoutMS: 30000, // Timeout de conexão inicial
             bufferCommands: false,
         };
 

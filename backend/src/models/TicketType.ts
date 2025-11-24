@@ -138,6 +138,10 @@ const ticketTypeSchema = new Schema<ITicketType>(
 // Permite: Pista Lote 1, Pista Lote 2, VIP Lote 1 (mesmo número de lote para tipos diferentes)
 ticketTypeSchema.index({ event: 1, name: 1, lotNumber: 1 }, { unique: true });
 ticketTypeSchema.index({ event: 1 });
+// Índice composto para buscar tickets por evento, ativos e não deletados
+ticketTypeSchema.index({ event: 1, isActive: 1, deletedAt: 1 });
+// Índice composto para queries de disponibilidade
+ticketTypeSchema.index({ event: 1, soldQuantity: 1 });
 ticketTypeSchema.index({ isActive: 1 });
 ticketTypeSchema.index({ salesStart: 1, salesEnd: 1 });
 

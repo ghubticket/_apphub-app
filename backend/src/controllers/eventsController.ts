@@ -154,7 +154,12 @@ export const listEvents = async (req: Request, res: Response) => {
         console.log('[listEvents] 🔍 Filtros aplicados:', JSON.stringify(filters, null, 2));
 
         const [events, total] = await Promise.all([
-            Event.find(filters).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+            Event.find(filters)
+                .select('name description date location city state coverImage squareImage status isActive ticketFee platformFeePercentage createdAt')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(Number(limit))
+                .lean(),
             Event.countDocuments(filters),
         ]);
 

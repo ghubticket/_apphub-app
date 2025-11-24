@@ -353,9 +353,38 @@ export const createOrder = async (req: Request, res: Response) => {
 
 ---
 
+## 🚀 Otimizações de Performance Implementadas
+
+### Status: ✅ COMPLETO
+
+**O que foi implementado:**
+- ✅ **Middleware de monitoramento de performance**
+  - Logging de tempo de resposta de cada endpoint
+  - Headers `X-Response-Time` nas respostas
+  - Identificação automática de endpoints lentos (> 1s)
+- ✅ **Otimização de queries MongoDB**
+  - Uso de `.lean()` e `.select()` em queries de leitura
+  - Índices compostos em `Order`, `TicketType` e `Event`
+  - Queries paralelizadas com `Promise.all`
+- ✅ **Cache no backend e frontend**
+  - Cache em memória com TTL para catálogo e contagens
+  - Cache no frontend (sessionStorage/localStorage)
+  - Invalidação automática quando dados mudam
+- ✅ **Endpoint de catálogo otimizado**
+  - `/api/catalog` com aggregation pipeline (elimina N+1 queries)
+  - Retorna eventos + ticket types em uma única query
+- ✅ **Otimização de criação de pedidos**
+  - Queries paralelizadas
+  - Batch insert de tickets
+  - Operações não-críticas em background
+
+**Impacto:** 🟢 **MÉDIA** - Melhora significativa na performance e escalabilidade
+
+---
+
 ## 📊 Status Atual
 
-**Implementado:** ~90% ✅  
+**Implementado:** ~92% ✅  
 **Crítico faltando:** 4 itens 🔴  
 **Alta prioridade faltando:** 3 itens 🟡  
 **Média prioridade faltando:** 7 itens 🟢

@@ -2,6 +2,7 @@
 
 import api from './api';
 import type { TicketProduct } from '@/types/ticket';
+import { cacheEvents, cacheTicketTypes, cacheCatalog, generateCacheKey } from './cache';
 
 type FetchTicketCatalogOptions = {
     limitEvents?: number;
@@ -137,23 +138,45 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
 
     console.log('[fetchTicketCatalog] 🔍 Buscando catálogo de ingressos:', { limitEvents, limitTicketsPerEvent, search, onlyWithAvailability });
 
-    const eventsResponse = await api.get('/events', {
-        params: {
-            page: 1,
-            limit: limitEvents,
-            search,
-        },
-    });
+    // Tentar obter do cache primeiro
+    const cacheKey = generateCacheKey(options);
+    const cachedCatalog = cacheCatalog.get(cacheKey);
+    if (cachedCatalog) {
+        console.log('[fetchTicketCatalog] ✅ Retornando catálogo do cache');
+        return cachedCatalog;
+    }
 
-    const eventsRaw: RawEvent[] = Array.isArray(eventsResponse.data?.data?.events)
-        ? eventsResponse.data.data.events
-        : Array.isArray(eventsResponse.data?.events)
-          ? eventsResponse.data.events
-          : Array.isArray(eventsResponse.data)
-            ? eventsResponse.data
-            : [];
+    // Buscar eventos (com cache)
+    const eventsCacheKey = `page_1_limit_${limitEvents}_search_${search || ''}`;
+    const cachedEvents = cacheEvents.get(eventsCacheKey);
+    let eventsRaw: RawEvent[];
+    
+    if (cachedEvents && Array.isArray(cachedEvents)) {
+        eventsRaw = cachedEvents;
+    } else {
+        const eventsResponse = await api.get('/events', {
+            params: {
+                page: 1,
+                limit: limitEvents,
+                search,
+            },
+        });
 
-    console.log('[fetchTicketCatalog] 📋 Eventos retornados pela API:', eventsRaw.length);
+        eventsRaw = Array.isArray(eventsResponse.data?.data?.events)
+            ? eventsResponse.data.data.events
+            : Array.isArray(eventsResponse.data?.events)
+              ? eventsResponse.data.events
+              : Array.isArray(eventsResponse.data)
+                ? eventsResponse.data
+                : [];
+
+        // Armazenar eventos no cache (5 minutos)
+        if (eventsRaw.length > 0) {
+            cacheEvents.set(eventsCacheKey, eventsRaw, 5 * 60 * 1000);
+        }
+    }
+
+    console.log('[fetchTicketCatalog] 📋 Eventos retornados (cache/API):', eventsRaw.length);
     eventsRaw.forEach((event, idx) => {
         console.log(`   ${idx + 1}. ${event.name} - isActive: ${event.isActive} - status: ${event.status || 'undefined'}`);
     });
@@ -167,17 +190,33 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
     const ticketsNested = await Promise.all(
         filteredEvents.map(async (event) => {
             try {
-                console.log(`[fetchTicketCatalog] 🎫 Buscando tickets para evento: ${event.name} (${event._id ?? event.id})`);
-                const ticketTypesResponse = await api.get(`/events/${event._id ?? event.id}/ticket-types`, {
-                    params: {
-                        includeInactive: false,
-                    },
-                });
-                const ticketTypes: RawTicketType[] = Array.isArray(ticketTypesResponse.data?.data)
-                    ? ticketTypesResponse.data.data
-                    : Array.isArray(ticketTypesResponse.data)
-                      ? ticketTypesResponse.data
-                      : [];
+                const eventId = event._id ?? event.id;
+                console.log(`[fetchTicketCatalog] 🎫 Buscando tickets para evento: ${event.name} (${eventId})`);
+                
+                // Tentar obter do cache primeiro
+                const cachedTicketTypes = cacheTicketTypes.get(eventId);
+                let ticketTypes: RawTicketType[];
+                
+                if (cachedTicketTypes && Array.isArray(cachedTicketTypes)) {
+                    ticketTypes = cachedTicketTypes;
+                    console.log(`[fetchTicketCatalog] ✅ Tickets do evento ${event.name} obtidos do cache`);
+                } else {
+                    const ticketTypesResponse = await api.get(`/events/${eventId}/ticket-types`, {
+                        params: {
+                            includeInactive: false,
+                        },
+                    });
+                    ticketTypes = Array.isArray(ticketTypesResponse.data?.data)
+                        ? ticketTypesResponse.data.data
+                        : Array.isArray(ticketTypesResponse.data)
+                          ? ticketTypesResponse.data
+                          : [];
+                    
+                    // Armazenar no cache (2 minutos)
+                    if (ticketTypes.length > 0) {
+                        cacheTicketTypes.set(eventId, ticketTypes, 2 * 60 * 1000);
+                    }
+                }
 
                 console.log(`[fetchTicketCatalog] 🎫 Tickets encontrados para ${event.name}:`, ticketTypes.length);
                 ticketTypes.forEach((ticket, idx) => {
@@ -210,12 +249,17 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
     const flattened = ticketsNested.flat();
     console.log('[fetchTicketCatalog] 📦 Total de tickets após normalização:', flattened.length);
 
-    return flattened.sort((a, b) => {
+    const sorted = flattened.sort((a, b) => {
         const dateA = a.sortTimestamp ?? Number.POSITIVE_INFINITY;
         const dateB = b.sortTimestamp ?? Number.POSITIVE_INFINITY;
         if (dateA === dateB) return 0;
         return dateA - dateB;
     });
+
+    // Armazenar catálogo completo no cache (3 minutos)
+    cacheCatalog.set(cacheKey, sorted, 3 * 60 * 1000);
+
+    return sorted;
 };
 
 export type { FetchTicketCatalogOptions };

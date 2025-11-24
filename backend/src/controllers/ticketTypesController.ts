@@ -148,8 +148,10 @@ export const listTicketTypes = async (req: Request, res: Response) => {
         }
 
         const ticketTypes = await TicketType.find(filter)
+            .select('name description price isVIP lotNumber maxQuantity soldQuantity maxPerPurchase maxPerCPF maxPerEmail salesStart salesEnd isActive createdAt')
             .sort({ lotNumber: 1 })
-            .populate('event', 'name date');
+            .populate('event', 'name date')
+            .lean();
 
         // Reconciliar soldQuantity com base em tickets CONFIRMADOS (evita divergência)
         const reconciled = await Promise.all(
@@ -161,8 +163,9 @@ export const listTicketTypes = async (req: Request, res: Response) => {
                     status: { $in: ['confirmed', 'used'] },
                     deletedAt: null,
                 });
+                // Como usamos .lean(), tt já é um objeto simples, não precisa de .toObject()
                 return {
-                    ...tt.toObject(),
+                    ...tt,
                     soldQuantity: confirmedCount,
                 };
             })
