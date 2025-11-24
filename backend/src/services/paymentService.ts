@@ -200,7 +200,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         validatePaymentData(params);
 
         const { orderId, orderNumber, totalAmount, customerData, description, items } = params;
-        
+
         // CRÍTICO: Validar que totalAmount está presente e é um número válido
         if (totalAmount === undefined || totalAmount === null || isNaN(Number(totalAmount))) {
             console.error('❌ ERRO CRÍTICO: totalAmount inválido:', {
@@ -213,9 +213,11 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                     hasCustomerData: !!customerData,
                 },
             });
-            throw new Error(`totalAmount é obrigatório e deve ser um número válido. Recebido: ${totalAmount} (tipo: ${typeof totalAmount})`);
+            throw new Error(
+                `totalAmount é obrigatório e deve ser um número válido. Recebido: ${totalAmount} (tipo: ${typeof totalAmount})`
+            );
         }
-        
+
         // Garantir que totalAmount é um número
         const numericTotalAmount = Number(totalAmount);
         if (numericTotalAmount <= 0) {
@@ -235,13 +237,28 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
         let payerEmail = customerData.email;
         const isSandbox = currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
-        
+
+        // Log para debug
+        console.log('🔍 [paymentService] Verificando conversão de email:', {
+            originalEmail: customerData.email,
+            isSandbox,
+            tokenStartsWithTest: currentToken.startsWith('TEST-'),
+            nodeEnv: process.env.NODE_ENV,
+            currentTokenPrefix: currentToken.substring(0, 10),
+        });
+
         if (isSandbox && !payerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = payerEmail.split('@')[0] || 'test';
             payerEmail = `${emailName}@testuser.com`;
             console.log(
                 `🔧 [paymentService] Email convertido para sandbox: "${customerData.email}" → "${payerEmail}"`
+            );
+        } else if (isSandbox && payerEmail.endsWith('@testuser.com')) {
+            console.log(`✅ [paymentService] Email já está no formato sandbox: "${payerEmail}"`);
+        } else {
+            console.log(
+                `ℹ️ [paymentService] Ambiente não é sandbox, mantendo email original: "${payerEmail}"`
             );
         }
 
@@ -271,7 +288,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                           const phoneDigits = customerData.phone.replace(/\D/g, '');
                           const areaCode = phoneDigits.substring(0, 2);
                           const phoneNumber = phoneDigits.substring(2);
-                          
+
                           // Validar telefone antes de incluir
                           // area_code deve ter 2 dígitos, number deve ter pelo menos 8 dígitos
                           if (areaCode.length === 2 && phoneNumber.length >= 8) {
@@ -281,7 +298,9 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                               };
                           }
                           // Se telefone inválido, não incluir (opcional no MP)
-                          console.warn(`⚠️ [paymentService] Telefone inválido ignorado: ${customerData.phone} (area_code: ${areaCode}, number: ${phoneNumber})`);
+                          console.warn(
+                              `⚠️ [paymentService] Telefone inválido ignorado: ${customerData.phone} (area_code: ${areaCode}, number: ${phoneNumber})`
+                          );
                           return undefined;
                       })()
                     : undefined,
@@ -323,7 +342,10 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
 
         // Log para debug - payload completo antes de enviar
         if (process.env.NODE_ENV !== 'production') {
-            console.log('🔍 DEBUG - Payload completo antes de enviar ao Mercado Pago:', JSON.stringify(orderData, null, 2));
+            console.log(
+                '🔍 DEBUG - Payload completo antes de enviar ao Mercado Pago:',
+                JSON.stringify(orderData, null, 2)
+            );
             console.log('🔍 DEBUG - Headers da requisição:', {
                 'X-Idempotency-Key': idempotencyKey.substring(0, 20) + '...',
                 Authorization: 'Bearer ' + currentToken.substring(0, 20) + '...',
@@ -393,13 +415,35 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         }
 
         // Tratamento específico para erro de email em sandbox
+        // NOTA: Este erro não deveria ocorrer se a conversão de email estiver funcionando corretamente
+        // Mas se ocorrer, significa que a conversão falhou ou não foi aplicada
         if (error.errors && Array.isArray(error.errors)) {
             const sandboxEmailError = error.errors.find(
                 (e: any) => e.code === 'invalid_email_for_sandbox'
             );
             if (sandboxEmailError) {
+                // Log detalhado para debug
+                const errorToken = getAccessToken();
+                console.error('❌ ERRO: Email sandbox não foi convertido corretamente:', {
+                    originalEmail: params.customerData.email,
+                    isSandbox:
+                        errorToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production',
+                    currentToken: errorToken.substring(0, 20) + '...',
+                    nodeEnv: process.env.NODE_ENV,
+                });
+
+                // Tentar converter agora (fallback)
+                let fallbackEmail = params.customerData.email;
+                if (!fallbackEmail.endsWith('@testuser.com')) {
+                    const emailName = fallbackEmail.split('@')[0] || 'test';
+                    fallbackEmail = `${emailName}@testuser.com`;
+                    console.log(
+                        `🔧 FALLBACK: Convertendo email agora: "${params.customerData.email}" → "${fallbackEmail}"`
+                    );
+                }
+
                 throw new Error(
-                    `Email inválido para ambiente de teste. Em sandbox, o email deve terminar com '@testuser.com'. Email usado: ${params.customerData.email}`
+                    `Email inválido para ambiente de teste. Em sandbox, o email deve terminar com '@testuser.com'. Email usado: ${params.customerData.email}. Email convertido: ${fallbackEmail}`
                 );
             }
 
@@ -415,16 +459,21 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 if (e.path) detail.path = e.path;
                 return detail;
             });
-            
-            const errorMessages = errorDetails.map((e: any) => {
-                const fieldInfo = e.field || e.property || e.path || e.parameter;
-                if (fieldInfo) {
-                    return `${e.message} (campo: ${fieldInfo})`;
-                }
-                return e.message;
-            }).join(', ');
-            
-            console.error('❌ Detalhes completos do erro do Mercado Pago:', JSON.stringify(errorDetails, null, 2));
+
+            const errorMessages = errorDetails
+                .map((e: any) => {
+                    const fieldInfo = e.field || e.property || e.path || e.parameter;
+                    if (fieldInfo) {
+                        return `${e.message} (campo: ${fieldInfo})`;
+                    }
+                    return e.message;
+                })
+                .join(', ');
+
+            console.error(
+                '❌ Detalhes completos do erro do Mercado Pago:',
+                JSON.stringify(errorDetails, null, 2)
+            );
             throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
         }
 
@@ -443,16 +492,21 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                     if (e.path) detail.path = e.path;
                     return detail;
                 });
-                
-                const errorMessages = errorDetails.map((e: any) => {
-                    const fieldInfo = e.field || e.property || e.path || e.parameter;
-                    if (fieldInfo) {
-                        return `${e.message} (campo: ${fieldInfo})`;
-                    }
-                    return e.message;
-                }).join(', ');
-                
-                console.error('❌ Detalhes completos do erro do Mercado Pago (response.data):', JSON.stringify(errorDetails, null, 2));
+
+                const errorMessages = errorDetails
+                    .map((e: any) => {
+                        const fieldInfo = e.field || e.property || e.path || e.parameter;
+                        if (fieldInfo) {
+                            return `${e.message} (campo: ${fieldInfo})`;
+                        }
+                        return e.message;
+                    })
+                    .join(', ');
+
+                console.error(
+                    '❌ Detalhes completos do erro do Mercado Pago (response.data):',
+                    JSON.stringify(errorDetails, null, 2)
+                );
                 throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
             }
             throw new Error(`Erro do Mercado Pago: ${mpError.message || JSON.stringify(mpError)}`);
@@ -535,14 +589,14 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             cardholder?.name && cardholder.name.trim().length > 0
                 ? cardholder.name.trim()
                 : customerData.name.trim();
-        
+
         if (fallbackName.length < 2) {
             throw new Error('Nome do cliente deve ter pelo menos 2 caracteres');
         }
-        
+
         const firstName = fallbackName.split(' ')[0] || fallbackName;
         const lastName = fallbackName.split(' ').slice(1).join(' ') || firstName;
-        
+
         // Garantir que firstName e lastName não estão vazios
         if (!firstName || firstName.trim().length === 0) {
             throw new Error('Nome do cliente inválido: primeiro nome não pode estar vazio');
@@ -550,7 +604,9 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         if (!lastName || lastName.trim().length === 0) {
             // Se lastName estiver vazio, usar firstName como fallback
             const fallbackLastName = firstName;
-            console.warn(`⚠️ [paymentService] lastName vazio, usando firstName como fallback: ${fallbackLastName}`);
+            console.warn(
+                `⚠️ [paymentService] lastName vazio, usando firstName como fallback: ${fallbackLastName}`
+            );
         }
 
         const identificationType = (cardholder?.identification?.type || 'CPF').toUpperCase();
@@ -568,7 +624,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
         let payerEmail = cardholder?.email || customerData.email;
         const isSandbox = currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
-        
+
         if (isSandbox && !payerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = payerEmail.split('@')[0] || 'test';
@@ -598,7 +654,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                           const phoneDigits = customerData.phone.replace(/\D/g, '');
                           const areaCode = phoneDigits.substring(0, 2);
                           const phoneNumber = phoneDigits.substring(2);
-                          
+
                           // Validar telefone antes de incluir
                           // area_code deve ter 2 dígitos, number deve ter pelo menos 8 dígitos
                           if (areaCode.length === 2 && phoneNumber.length >= 8) {
@@ -608,7 +664,9 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                               };
                           }
                           // Se telefone inválido, não incluir (opcional no MP)
-                          console.warn(`⚠️ [paymentService] Telefone inválido ignorado: ${customerData.phone} (area_code: ${areaCode}, number: ${phoneNumber})`);
+                          console.warn(
+                              `⚠️ [paymentService] Telefone inválido ignorado: ${customerData.phone} (area_code: ${areaCode}, number: ${phoneNumber})`
+                          );
                           return undefined;
                       })()
                     : undefined,
