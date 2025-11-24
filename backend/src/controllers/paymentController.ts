@@ -130,10 +130,13 @@ export const createPixPayment = async (req: Request, res: Response) => {
             });
         }
 
-        // Mock de email para sandbox (apenas em desenvolvimento)
-        // Em sandbox, o email deve terminar com @testuser.com
+        // Mock de email para sandbox
+        // CRÍTICO: Verificar se estamos usando sandbox pelo access token (começa com "TEST-")
+        // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
         let customerEmail = order.customerData.email;
-        if (process.env.NODE_ENV !== 'production' && !customerEmail.endsWith('@testuser.com')) {
+        const isSandbox = process.env.MP_ACCESS_TOKEN?.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
+        
+        if (isSandbox && !customerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = customerEmail.split('@')[0] || 'test';
             customerEmail = `${emailName}@testuser.com`;
@@ -437,10 +440,13 @@ export const createCardPayment = async (req: Request, res: Response) => {
             });
         }
 
-        // Mock de email para sandbox (apenas em desenvolvimento)
-        // Em sandbox, o email deve terminar com @testuser.com
+        // Mock de email para sandbox
+        // CRÍTICO: Verificar se estamos usando sandbox pelo access token (começa com "TEST-")
+        // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
         let customerEmail = order.customerData.email;
-        if (process.env.NODE_ENV !== 'production' && !customerEmail.endsWith('@testuser.com')) {
+        const isSandbox = process.env.MP_ACCESS_TOKEN?.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
+        
+        if (isSandbox && !customerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = customerEmail.split('@')[0] || 'test';
             customerEmail = `${emailName}@testuser.com`;
@@ -463,7 +469,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
               }
             : undefined;
 
-        if (process.env.NODE_ENV !== 'production') {
+        // Reutilizar isSandbox já declarado acima (linha 447)
+        if (isSandbox) {
             if (
                 normalizedCardholder?.email &&
                 !normalizedCardholder.email.endsWith('@testuser.com')

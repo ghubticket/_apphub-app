@@ -58,6 +58,7 @@ export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ c
     }, [cartLoading, orderLoading, showLoading]);
 
     // Efeito para manter o loading visível quando orderLoading for true
+    // CRÍTICO: Não incluir showLoading nas dependências para evitar loop infinito (React error #425)
     useEffect(() => {
         console.log('[CheckoutLoadingState] ⚙️ useEffect executado:', {
             orderLoading,
@@ -75,16 +76,20 @@ export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ c
             // Limpar timer anterior se existir
             if (timerRef.current) {
                 clearTimeout(timerRef.current);
+                timerRef.current = null;
             }
         }
         
-        // Se orderLoading está true, manter showLoading true (não iniciar timer ainda)
-        // O timer só será iniciado quando orderLoading virar false
+        // Se orderLoading está true, garantir que showLoading está true
         if (orderLoading) {
-            // Se showLoading não está true, ativar
-            if (!showLoading) {
-                setShowLoading(true);
-            }
+            // Usar função de atualização para evitar dependência circular
+            setShowLoading((prev) => {
+                if (!prev) {
+                    console.log('[CheckoutLoadingState] 🔄 Ativando showLoading (orderLoading está true)');
+                    return true;
+                }
+                return prev;
+            });
         }
         
         // Se orderLoading mudou para false, iniciar timer de 10s para manter loading visual
@@ -115,7 +120,7 @@ export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ c
                 timerRef.current = null;
             }
         };
-    }, [orderLoading, showLoading]);
+    }, [orderLoading]); // Removido showLoading das dependências para evitar loop
 
     // Determinar qual loading mostrar
     // CRÍTICO: Mostrar loading se:
