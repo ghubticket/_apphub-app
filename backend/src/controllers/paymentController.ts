@@ -20,10 +20,14 @@ const MAX_CARD_PAYMENT_ATTEMPTS = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS |
  * Valida e busca um pedido com verificações de segurança
  */
 const validateAndGetOrder = async (orderId: string, userId: string, req: Request) => {
+    // OTIMIZAÇÃO: Usar .select() para limitar campos e .lean() para objetos simples
+    // CRÍTICO: Incluir totalAmount no select - necessário para criar pagamento
     const order = await Order.findOne({ _id: orderId, deletedAt: null })
+        .select('status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount')
         .populate('event', 'name description')
         .populate('tickets', 'ticketType')
-        .populate('customer', 'name email phone cpf');
+        .populate('customer', 'name email phone cpf')
+        .lean();
 
     if (!order) {
         throw new Error('Pedido não encontrado');
@@ -98,10 +102,11 @@ export const createPixPayment = async (req: Request, res: Response) => {
         const order = await validateAndGetOrder(orderId, userId, req);
 
         // Buscar tickets para descrição e items
-        const tickets = await Ticket.find({ _id: { $in: order.tickets } }).populate(
-            'ticketType',
-            'name price'
-        );
+        // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
+        const tickets = await Ticket.find({ _id: { $in: order.tickets } })
+            .select('ticketType')
+            .populate('ticketType', 'name price')
+            .lean();
 
         const description =
             tickets
@@ -168,36 +173,21 @@ export const createPixPayment = async (req: Request, res: Response) => {
         const statusInfo = getPaymentStatusInfo(pixPayment.status, pixPayment.statusDetail || '');
 
         // Atualizar pedido com informações completas do pagamento (Orders API)
-        // Salvar orderId do Mercado Pago se disponível
-        if (pixPayment.orderId) {
-            order.paymentOrderId = pixPayment.orderId;
-        }
-        order.paymentId = pixPayment.paymentId;
-        order.paymentStatus = pixPayment.status;
-        order.paymentStatusDetail = pixPayment.statusDetail;
-        order.paymentMessage = statusInfo.userMessage;
-        order.paymentAdminMessage = statusInfo.adminMessage;
-        order.paymentMethod = 'pix';
-
+        // CRÍTICO: order vem de .lean(), então não tem método .save()
+        // Preparar objeto de atualização com todos os campos necessários
+        
         // Para PIX recém-criado: sempre começar como 'pending' a menos que seja realmente 'paid'
         // Isso evita que pedidos sejam marcados como 'cancelled' prematuramente
-        if (statusInfo.internalStatus === 'paid') {
-            order.status = 'paid';
-            order.paidAt = new Date();
-        } else {
-            // Garantir que pedidos PIX pendentes sempre comecem como 'pending'
-            // Não importa o status retornado pelo MP (pode ser 'action_required', 'processing', etc.)
-            order.status = 'pending';
-        }
-        order.isActive = true;
-
+        const isPaid = statusInfo.internalStatus === 'paid';
+        
         // REFATORADO: Ajustar expiresAt do pedido quando criar PIX
         // Se faltar pouco tempo no expiresAt do pedido, estender para +30min a partir de agora
         const PIX_TIMEOUT_MINUTES = 30;
         const PIX_TIMEOUT_MS = PIX_TIMEOUT_MINUTES * 60 * 1000;
         const now = new Date();
+        let finalExpiresAt: Date | undefined = undefined;
 
-        if (order.status === 'pending' && pixPayment.expiresAt) {
+        if (!isPaid && pixPayment.expiresAt) {
             const pixExpiresAt = new Date(pixPayment.expiresAt);
             const orderExpiresAt = (order as any).expiresAt as Date | undefined;
 
@@ -206,21 +196,51 @@ export const createPixPayment = async (req: Request, res: Response) => {
                 const timeRemaining = orderExpiresAt.getTime() - now.getTime();
                 if (timeRemaining < PIX_TIMEOUT_MS) {
                     // Estender expiresAt do pedido para +30min a partir de agora
-                    order.expiresAt = new Date(now.getTime() + PIX_TIMEOUT_MS);
+                    finalExpiresAt = new Date(now.getTime() + PIX_TIMEOUT_MS);
                     console.log(
-                        `[createPixPayment] ⏰ Estendendo expiresAt do pedido ${order.orderNumber}: ${orderExpiresAt.toISOString()} → ${order.expiresAt.toISOString()} (faltavam ${Math.round(timeRemaining / 60000)}min)`
+                        `[createPixPayment] ⏰ Estendendo expiresAt do pedido ${order.orderNumber}: ${orderExpiresAt.toISOString()} → ${finalExpiresAt.toISOString()} (faltavam ${Math.round(timeRemaining / 60000)}min)`
                     );
                 } else {
                     // Usar o expiresAt do PIX (que pode ser maior que o do pedido)
-                    order.expiresAt = pixExpiresAt > orderExpiresAt ? pixExpiresAt : orderExpiresAt;
+                    finalExpiresAt = pixExpiresAt > orderExpiresAt ? pixExpiresAt : orderExpiresAt;
                 }
             } else {
                 // Pedido não tem expiresAt, usar o do PIX
-                order.expiresAt = pixExpiresAt;
+                finalExpiresAt = pixExpiresAt;
             }
         }
 
-        await order.save();
+        // Preparar objeto de atualização
+        const updateData: any = {
+            paymentId: pixPayment.paymentId,
+            paymentStatus: pixPayment.status,
+            paymentStatusDetail: pixPayment.statusDetail,
+            paymentMessage: statusInfo.userMessage,
+            paymentAdminMessage: statusInfo.adminMessage,
+            paymentMethod: 'pix',
+            isActive: true,
+        };
+
+        // Adicionar paymentOrderId se disponível
+        if (pixPayment.orderId) {
+            updateData.paymentOrderId = pixPayment.orderId;
+        }
+
+        // Adicionar status e paidAt se pago
+        if (isPaid) {
+            updateData.status = 'paid';
+            updateData.paidAt = new Date();
+        } else {
+            updateData.status = 'pending';
+        }
+
+        // Adicionar expiresAt se calculado
+        if (finalExpiresAt) {
+            updateData.expiresAt = finalExpiresAt;
+        }
+
+        // Atualizar pedido usando findByIdAndUpdate (order vem de .lean())
+        await Order.findByIdAndUpdate(order._id, updateData, { new: true });
 
         // REFATORADO: Não criar reservas separadas - o pedido PENDING já funciona como reserva
         // O pedido já tem expiresAt ajustado acima e bloqueia estoque (soldQuantity++)
@@ -408,10 +428,11 @@ export const createCardPayment = async (req: Request, res: Response) => {
         order = await validateAndGetOrder(orderId, userId, req);
 
         // Buscar tickets para descrição e items
-        const tickets = await Ticket.find({ _id: { $in: order.tickets } }).populate(
-            'ticketType',
-            'name price'
-        );
+        // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
+        const tickets = await Ticket.find({ _id: { $in: order.tickets } })
+            .select('ticketType')
+            .populate('ticketType', 'name price')
+            .lean();
 
         const description =
             tickets
@@ -585,11 +606,14 @@ export const createCardPayment = async (req: Request, res: Response) => {
 
             // CRÍTICO: Confirmar APENAS tickets deste pedido específico
             // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
+            // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
             const tickets = await Ticket.find({
                 _id: { $in: order.tickets },
                 order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
                 deletedAt: null,
-            });
+            })
+                .select('_id code qrCode status ticketType holder price')
+                .lean();
 
             console.log(
                 `💳 [createCardPayment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
@@ -1131,11 +1155,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                     // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                     // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
+                    // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
                     const tickets = await Ticket.find({
                         _id: { $in: order.tickets },
                         order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
                         deletedAt: null,
-                    });
+                    })
+                        .select('_id code qrCode status ticketType holder price')
+                        .lean();
 
                     console.log(
                         `🔔 [handleWebhook] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
@@ -1291,11 +1318,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                 // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                 // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
+                // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
                 const tickets = await Ticket.find({
                     _id: { $in: order.tickets },
                     order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
                     deletedAt: null,
-                });
+                })
+                    .select('_id code qrCode status ticketType holder price')
+                    .lean();
 
                 console.log(
                     `🔔 [handleWebhook-payment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`

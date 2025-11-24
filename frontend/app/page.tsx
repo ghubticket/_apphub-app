@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Container from '@/components/shared/Container';
 import TicketCatalog from '@/components/tickets/TicketCatalog';
 import AboutSection from '@/components/home/AboutSection';
@@ -31,7 +31,17 @@ export default function Home() {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string>('');
 
+    // OTIMIZAÇÃO: Usar useRef para evitar chamadas duplicadas
+    const hasLoadedRef = useRef(false);
+    
     const loadHighlights = useCallback(async () => {
+        // Evitar chamadas duplicadas (React Strict Mode, re-renders)
+        if (hasLoadedRef.current) {
+            console.log('[Home] ⏭️ loadHighlights já foi executado, pulando...');
+            return;
+        }
+        
+        hasLoadedRef.current = true;
         setLoading(true);
         setError('');
         try {
@@ -44,6 +54,7 @@ export default function Home() {
         } catch (err: any) {
             console.error('Erro ao carregar destaques de ingressos', err);
             setError('Não foi possível carregar os destaques do momento. Tente novamente em instantes.');
+            hasLoadedRef.current = false; // Permitir retry em caso de erro
         } finally {
             setLoading(false);
         }

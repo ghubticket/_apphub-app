@@ -200,6 +200,27 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         validatePaymentData(params);
 
         const { orderId, orderNumber, totalAmount, customerData, description, items } = params;
+        
+        // CRÍTICO: Validar que totalAmount está presente e é um número válido
+        if (totalAmount === undefined || totalAmount === null || isNaN(Number(totalAmount))) {
+            console.error('❌ ERRO CRÍTICO: totalAmount inválido:', {
+                totalAmount,
+                type: typeof totalAmount,
+                params: {
+                    orderId,
+                    orderNumber,
+                    totalAmount,
+                    hasCustomerData: !!customerData,
+                },
+            });
+            throw new Error(`totalAmount é obrigatório e deve ser um número válido. Recebido: ${totalAmount} (tipo: ${typeof totalAmount})`);
+        }
+        
+        // Garantir que totalAmount é um número
+        const numericTotalAmount = Number(totalAmount);
+        if (numericTotalAmount <= 0) {
+            throw new Error(`totalAmount deve ser maior que zero. Recebido: ${numericTotalAmount}`);
+        }
 
         // Calcular data de expiração
         const expirationDate = new Date();
@@ -209,15 +230,31 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         const firstName = customerData.name.split(' ')[0] || customerData.name;
         const lastName = customerData.name.split(' ').slice(1).join(' ') || firstName;
 
+        // OTIMIZAÇÃO: Converter email para sandbox se necessário
+        // CRÍTICO: Verificar se estamos usando sandbox pelo access token (começa com "TEST-")
+        // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
+        let payerEmail = customerData.email;
+        const isSandbox = currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
+        
+        if (isSandbox && !payerEmail.endsWith('@testuser.com')) {
+            // Extrair o nome do email original (antes do @) e adicionar @testuser.com
+            const emailName = payerEmail.split('@')[0] || 'test';
+            payerEmail = `${emailName}@testuser.com`;
+            console.log(
+                `🔧 [paymentService] Email convertido para sandbox: "${customerData.email}" → "${payerEmail}"`
+            );
+        }
+
         // Criar Order usando Orders API (modo automático)
         // Estrutura simplificada conforme documentação Orders API
+        // CRÍTICO: Usar numericTotalAmount validado em vez de totalAmount direto
         const orderData = {
             type: 'online',
             processing_mode: 'automatic',
-            total_amount: String(totalAmount),
+            total_amount: String(numericTotalAmount),
             external_reference: orderId,
             payer: {
-                email: customerData.email,
+                email: payerEmail,
                 first_name: firstName,
                 last_name: lastName,
                 // CPF é opcional - só incluir se fornecido e válido
@@ -230,16 +267,29 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                       }
                     : {}),
                 phone: customerData.phone
-                    ? {
-                          area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
-                          number: customerData.phone.replace(/\D/g, '').substring(2),
-                      }
+                    ? (() => {
+                          const phoneDigits = customerData.phone.replace(/\D/g, '');
+                          const areaCode = phoneDigits.substring(0, 2);
+                          const phoneNumber = phoneDigits.substring(2);
+                          
+                          // Validar telefone antes de incluir
+                          // area_code deve ter 2 dígitos, number deve ter pelo menos 8 dígitos
+                          if (areaCode.length === 2 && phoneNumber.length >= 8) {
+                              return {
+                                  area_code: areaCode,
+                                  number: phoneNumber,
+                              };
+                          }
+                          // Se telefone inválido, não incluir (opcional no MP)
+                          console.warn(`⚠️ [paymentService] Telefone inválido ignorado: ${customerData.phone} (area_code: ${areaCode}, number: ${phoneNumber})`);
+                          return undefined;
+                      })()
                     : undefined,
             },
             transactions: {
                 payments: [
                     {
-                        amount: String(totalAmount),
+                        amount: String(numericTotalAmount),
                         payment_method: {
                             id: 'pix',
                             type: 'bank_transfer',
@@ -271,8 +321,9 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             options.requestOptions.headers['X-meli-session-id'] = deviceId;
         }
 
-        // Log para debug
+        // Log para debug - payload completo antes de enviar
         if (process.env.NODE_ENV !== 'production') {
+            console.log('🔍 DEBUG - Payload completo antes de enviar ao Mercado Pago:', JSON.stringify(orderData, null, 2));
             console.log('🔍 DEBUG - Headers da requisição:', {
                 'X-Idempotency-Key': idempotencyKey.substring(0, 20) + '...',
                 Authorization: 'Bearer ' + currentToken.substring(0, 20) + '...',
@@ -311,7 +362,23 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             orderStatus: orderResponse.status, // Status da Order
         };
     } catch (error: any) {
-        console.error('Erro ao criar pagamento PIX (Orders API):', error);
+        // Log detalhado do erro para debug
+        console.error('❌ Erro ao criar pagamento PIX (Orders API):', {
+            message: error?.message,
+            code: error?.code,
+            status: error?.response?.status,
+            statusText: error?.response?.statusText,
+            responseData: error?.response?.data,
+            errors: error?.errors,
+            requestInfo: {
+                orderId: params.orderId,
+                totalAmount: params.totalAmount,
+                customerEmail: params.customerData.email,
+                customerName: params.customerData.name,
+                hasPhone: !!params.customerData.phone,
+                hasCpf: !!params.customerData.cpf,
+            },
+        });
 
         // Tratamento específico para erro de autenticação
         if (
@@ -336,8 +403,28 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 );
             }
 
-            // Tratamento para outros erros específicos
-            const errorMessages = error.errors.map((e: any) => e.message || e.code).join(', ');
+            // Tratamento para outros erros específicos - incluir mais detalhes
+            const errorDetails = error.errors.map((e: any) => {
+                const detail: any = {
+                    message: e.message || e.code || 'Erro desconhecido',
+                    code: e.code,
+                };
+                // Incluir campo/propriedade se disponível
+                if (e.field) detail.field = e.field;
+                if (e.property) detail.property = e.property;
+                if (e.path) detail.path = e.path;
+                return detail;
+            });
+            
+            const errorMessages = errorDetails.map((e: any) => {
+                const fieldInfo = e.field || e.property || e.path || e.parameter;
+                if (fieldInfo) {
+                    return `${e.message} (campo: ${fieldInfo})`;
+                }
+                return e.message;
+            }).join(', ');
+            
+            console.error('❌ Detalhes completos do erro do Mercado Pago:', JSON.stringify(errorDetails, null, 2));
             throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
         }
 
@@ -345,9 +432,27 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         if (error.response?.data) {
             const mpError = error.response.data;
             if (mpError.errors && Array.isArray(mpError.errors)) {
-                const errorMessages = mpError.errors
-                    .map((e: any) => e.message || e.code)
-                    .join(', ');
+                const errorDetails = mpError.errors.map((e: any) => {
+                    const detail: any = {
+                        message: e.message || e.code || 'Erro desconhecido',
+                        code: e.code,
+                    };
+                    // Incluir campo/propriedade se disponível
+                    if (e.field) detail.field = e.field;
+                    if (e.property) detail.property = e.property;
+                    if (e.path) detail.path = e.path;
+                    return detail;
+                });
+                
+                const errorMessages = errorDetails.map((e: any) => {
+                    const fieldInfo = e.field || e.property || e.path || e.parameter;
+                    if (fieldInfo) {
+                        return `${e.message} (campo: ${fieldInfo})`;
+                    }
+                    return e.message;
+                }).join(', ');
+                
+                console.error('❌ Detalhes completos do erro do Mercado Pago (response.data):', JSON.stringify(errorDetails, null, 2));
                 throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
             }
             throw new Error(`Erro do Mercado Pago: ${mpError.message || JSON.stringify(mpError)}`);
@@ -425,12 +530,28 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         } = params;
 
         // Preparar dados do comprador
+        // Validar e limpar nome (remover espaços extras, garantir mínimo de caracteres)
         const fallbackName =
             cardholder?.name && cardholder.name.trim().length > 0
-                ? cardholder.name
-                : customerData.name;
+                ? cardholder.name.trim()
+                : customerData.name.trim();
+        
+        if (fallbackName.length < 2) {
+            throw new Error('Nome do cliente deve ter pelo menos 2 caracteres');
+        }
+        
         const firstName = fallbackName.split(' ')[0] || fallbackName;
         const lastName = fallbackName.split(' ').slice(1).join(' ') || firstName;
+        
+        // Garantir que firstName e lastName não estão vazios
+        if (!firstName || firstName.trim().length === 0) {
+            throw new Error('Nome do cliente inválido: primeiro nome não pode estar vazio');
+        }
+        if (!lastName || lastName.trim().length === 0) {
+            // Se lastName estiver vazio, usar firstName como fallback
+            const fallbackLastName = firstName;
+            console.warn(`⚠️ [paymentService] lastName vazio, usando firstName como fallback: ${fallbackLastName}`);
+        }
 
         const identificationType = (cardholder?.identification?.type || 'CPF').toUpperCase();
         const identificationNumberRaw = cardholder?.identification?.number || customerData.cpf;
@@ -442,6 +563,21 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         // Determinar payment_type_id baseado no payment_method_id
         const paymentTypeId = paymentMethodId === 'debit_card' ? 'debit_card' : 'credit_card';
 
+        // OTIMIZAÇÃO: Converter email para sandbox se necessário
+        // CRÍTICO: Verificar se estamos usando sandbox pelo access token (começa com "TEST-")
+        // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
+        let payerEmail = cardholder?.email || customerData.email;
+        const isSandbox = currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
+        
+        if (isSandbox && !payerEmail.endsWith('@testuser.com')) {
+            // Extrair o nome do email original (antes do @) e adicionar @testuser.com
+            const emailName = payerEmail.split('@')[0] || 'test';
+            payerEmail = `${emailName}@testuser.com`;
+            console.log(
+                `🔧 [paymentService] Email convertido para sandbox: "${cardholder?.email || customerData.email}" → "${payerEmail}"`
+            );
+        }
+
         // Criar Order usando Orders API (modo automático)
         // Conforme documentação: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-v2/payment-integration/cards
         const orderData = {
@@ -450,7 +586,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             total_amount: String(totalAmount), // Valor total da order
             external_reference: orderId,
             payer: {
-                email: cardholder?.email || customerData.email,
+                email: payerEmail,
                 first_name: firstName,
                 last_name: lastName,
                 identification: {
@@ -458,10 +594,23 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                     number: identificationNumber,
                 },
                 phone: customerData.phone
-                    ? {
-                          area_code: customerData.phone.replace(/\D/g, '').substring(0, 2),
-                          number: customerData.phone.replace(/\D/g, '').substring(2),
-                      }
+                    ? (() => {
+                          const phoneDigits = customerData.phone.replace(/\D/g, '');
+                          const areaCode = phoneDigits.substring(0, 2);
+                          const phoneNumber = phoneDigits.substring(2);
+                          
+                          // Validar telefone antes de incluir
+                          // area_code deve ter 2 dígitos, number deve ter pelo menos 8 dígitos
+                          if (areaCode.length === 2 && phoneNumber.length >= 8) {
+                              return {
+                                  area_code: areaCode,
+                                  number: phoneNumber,
+                              };
+                          }
+                          // Se telefone inválido, não incluir (opcional no MP)
+                          console.warn(`⚠️ [paymentService] Telefone inválido ignorado: ${customerData.phone} (area_code: ${areaCode}, number: ${phoneNumber})`);
+                          return undefined;
+                      })()
                     : undefined,
             },
             transactions: {

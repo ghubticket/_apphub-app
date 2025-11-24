@@ -3,6 +3,7 @@ import https from 'https';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import path from 'path';
 import { connectDatabase } from './config/database';
@@ -210,6 +211,21 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Rate Limiting Global - Proteção contra DDoS
 app.use(generalRateLimit);
+
+// Compressão de Respostas - Reduz tamanho de JSON e outros conteúdos
+// OTIMIZAÇÃO: Comprime respostas para reduzir tráfego de rede
+app.use(compression({
+    filter: (req: Request, res: Response) => {
+        // Comprimir apenas se o cliente suporta
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        // Usar compressão padrão do compression
+        return compression.filter(req, res);
+    },
+    level: 6, // Nível de compressão (0-9, 6 é um bom equilíbrio)
+    threshold: 1024, // Comprimir apenas respostas maiores que 1KB
+}));
 
 // Servir arquivos estáticos de upload com cache forte e proteção simples de hotlink
 const __allowedUploadOrigins = [

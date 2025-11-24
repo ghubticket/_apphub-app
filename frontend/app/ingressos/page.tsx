@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import TicketCatalog from '@/components/tickets/TicketCatalog';
 import Container from '@/components/shared/Container';
 import type { TicketProduct } from '@/types/ticket';
@@ -11,7 +11,17 @@ export default function TicketsPage() {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string>('');
 
+    // OTIMIZAÇÃO: Usar useRef para evitar chamadas duplicadas
+    const hasLoadedRef = useRef(false);
+    
     const loadTickets = useCallback(async () => {
+        // Evitar chamadas duplicadas (React Strict Mode, re-renders)
+        if (hasLoadedRef.current) {
+            console.log('[TicketsPage] ⏭️ loadTickets já foi executado, pulando...');
+            return;
+        }
+        
+        hasLoadedRef.current = true;
         setLoading(true);
         setError('');
         try {
@@ -27,6 +37,7 @@ export default function TicketsPage() {
                     err?.message ??
                     'Não foi possível carregar os ingressos disponíveis. Tente novamente.',
             );
+            hasLoadedRef.current = false; // Permitir retry em caso de erro
         } finally {
             setLoading(false);
         }
