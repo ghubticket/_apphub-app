@@ -185,7 +185,7 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
  * - Additional info completo (comprador, produtos, indústria)
  * - Device ID para rastreamento de segurança
  */
-export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?: string) => {
+export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?: string): Promise<any> => {
     try {
         // Criar cliente Mercado Pago (validação lazy do token)
         const currentClient = createMercadoPagoClient();
@@ -233,15 +233,19 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         const lastName = customerData.name.split(' ').slice(1).join(' ') || firstName;
 
         // OTIMIZAÇÃO: Converter email para sandbox se necessário
-        // CRÍTICO: Verificar se estamos usando sandbox pelo access token (começa com "TEST-")
-        // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
+        // CRÍTICO: Verificar se estamos usando sandbox por múltiplos métodos:
+        // 1. Variável de ambiente MP_SANDBOX=true (forçar sandbox)
+        // 2. Token começa com "TEST-" (token de teste do MP)
+        // 3. NODE_ENV !== 'production' (ambiente de desenvolvimento)
         let payerEmail = customerData.email;
-        const isSandbox = currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
+        const forceSandbox = process.env.MP_SANDBOX === 'true' || process.env.MP_SANDBOX === '1';
+        const isSandbox = forceSandbox || currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
 
         // Log para debug
         console.log('🔍 [paymentService] Verificando conversão de email:', {
             originalEmail: customerData.email,
             isSandbox,
+            forceSandbox,
             tokenStartsWithTest: currentToken.startsWith('TEST-'),
             nodeEnv: process.env.NODE_ENV,
             currentTokenPrefix: currentToken.substring(0, 10),
@@ -422,26 +426,37 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 (e: any) => e.code === 'invalid_email_for_sandbox'
             );
             if (sandboxEmailError) {
-                // Log detalhado para debug
-                const errorToken = getAccessToken();
-                console.error('❌ ERRO: Email sandbox não foi convertido corretamente:', {
-                    originalEmail: params.customerData.email,
-                    isSandbox:
-                        errorToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production',
-                    currentToken: errorToken.substring(0, 20) + '...',
-                    nodeEnv: process.env.NODE_ENV,
-                });
-
-                // Tentar converter agora (fallback)
+                // CRÍTICO: Se recebemos erro de email sandbox, significa que estamos em sandbox
+                // mas a conversão não foi aplicada. Converter agora e tentar novamente.
+                console.error('❌ ERRO: Email sandbox não foi convertido corretamente. Tentando novamente com email convertido...');
+                
+                // Converter email para sandbox
                 let fallbackEmail = params.customerData.email;
                 if (!fallbackEmail.endsWith('@testuser.com')) {
                     const emailName = fallbackEmail.split('@')[0] || 'test';
                     fallbackEmail = `${emailName}@testuser.com`;
-                    console.log(
-                        `🔧 FALLBACK: Convertendo email agora: "${params.customerData.email}" → "${fallbackEmail}"`
-                    );
+                    console.log(`🔧 FALLBACK: Convertendo email e tentando novamente: "${params.customerData.email}" → "${fallbackEmail}"`);
+                    
+                    // Tentar novamente com email convertido (recursão controlada)
+                    // Atualizar params com email convertido
+                    const retryParams = {
+                        ...params,
+                        customerData: {
+                            ...params.customerData,
+                            email: fallbackEmail,
+                        },
+                    };
+                    
+                    // Tentar criar pagamento novamente com email convertido
+                    // Usar um flag para evitar loop infinito
+                    if (!(error as any).__retryAttempted) {
+                        (error as any).__retryAttempted = true;
+                        console.log('🔄 Tentando criar pagamento novamente com email convertido...');
+                        return createPixPayment(retryParams, deviceId);
+                    }
                 }
-
+                
+                // Se já tentou ou email já está convertido, lançar erro
                 throw new Error(
                     `Email inválido para ambiente de teste. Em sandbox, o email deve terminar com '@testuser.com'. Email usado: ${params.customerData.email}. Email convertido: ${fallbackEmail}`
                 );

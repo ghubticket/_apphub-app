@@ -462,10 +462,13 @@ export const createCardPayment = async (req: Request, res: Response) => {
         }
 
         // Mock de email para sandbox
-        // CRÍTICO: Verificar se estamos usando sandbox pelo access token (começa com "TEST-")
-        // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
+        // CRÍTICO: Verificar se estamos usando sandbox por múltiplos métodos:
+        // 1. Variável de ambiente MP_SANDBOX=true (forçar sandbox)
+        // 2. Token começa com "TEST-" (token de teste do MP)
+        // 3. NODE_ENV !== 'production' (ambiente de desenvolvimento)
         let customerEmail = order.customerData.email;
-        const isSandbox = process.env.MP_ACCESS_TOKEN?.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
+        const forceSandbox = process.env.MP_SANDBOX === 'true' || process.env.MP_SANDBOX === '1';
+        const isSandbox = forceSandbox || process.env.MP_ACCESS_TOKEN?.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
         
         if (isSandbox && !customerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
