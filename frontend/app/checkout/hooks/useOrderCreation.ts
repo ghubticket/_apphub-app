@@ -130,6 +130,7 @@ export function useOrderCreation({
         lastCreateTimeRef.current = now; // Registrar timestamp da criação
 
         try {
+            console.log('[useOrderCreation] 🔄 setLoading(true) - ATIVANDO loading');
             setLoading(true);
             setError(null);
 
@@ -158,6 +159,7 @@ export function useOrderCreation({
                             orderIdRef.current = existingOrder._id;
                             cachedOrderIdFromStorageRef.current = existingOrder._id; // OTIMIZADO: Atualizar cache
                             storage.saveOrderId(existingOrder._id);
+                            console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido existente válido encontrado');
                             setLoading(false);
                             creatingRef.current = false;
                             return; // Não criar novo pedido
@@ -178,6 +180,7 @@ export function useOrderCreation({
                             orderIdRef.current = null;
                             cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
                             setOrder(null);
+                            console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido expirado');
                             setLoading(false);
                             creatingRef.current = false;
                             
@@ -202,6 +205,7 @@ export function useOrderCreation({
                         // Isso evita loop infinito quando o backend retorna pedidos com status 'failed'
                         if (orderStatus === 'failed' || orderStatus === 'cancelled') {
                             console.warn('[useOrderCreation] ⚠️ Pedido com status inválido detectado, abortando criação de novo pedido para evitar loop infinito');
+                            console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido com status inválido');
                             setLoading(false);
                             creatingRef.current = false;
                             setError('Não foi possível criar um pedido válido. Por favor, tente novamente.');
@@ -285,6 +289,7 @@ export function useOrderCreation({
                         ticketTypeId: orderData.tickets?.[0]?.ticketType,
                     });
                     
+                    console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido criado com status inválido (failed/cancelled)');
                     setLoading(false);
                     creatingRef.current = false;
                     
@@ -310,6 +315,10 @@ export function useOrderCreation({
                 cachedOrderIdFromStorageRef.current = orderData._id; // OTIMIZADO: Atualizar cache
                 storage.saveOrderId(orderData._id);
                 createOrderAbortControllerRef.current = null; // Limpar AbortController após sucesso
+                
+                // IMPORTANTE: Manter loading ativo por mais tempo para o usuário ver
+                // O CheckoutLoadingState tem um timer de 10 segundos que vai gerenciar isso
+                console.log('[useOrderCreation] ✅ Pedido criado com sucesso - mantendo loading ativo (será desativado pelo CheckoutLoadingState após 10s)');
                 
                 // IMPORTANTE: Se o pedido tem expiresAt, salvar o timer no localStorage para usar como fallback
                 if (orderData.status === 'pending' && orderData.expiresAt) {
@@ -387,7 +396,21 @@ export function useOrderCreation({
                 }
             }
         } finally {
-            setLoading(false);
+            // IMPORTANTE: Verificar se o pedido foi criado com sucesso antes de desativar loading
+            // Se o pedido foi criado, NÃO desativar loading imediatamente - deixar o CheckoutLoadingState gerenciar
+            const orderWasCreated = orderIdRef.current || cachedOrderIdFromStorageRef.current;
+            if (!orderWasCreated) {
+                // Apenas desativar loading se não houve sucesso na criação
+                console.log('[useOrderCreation] 🔄 setLoading(false) - finally (sem pedido criado ou erro)');
+                setLoading(false);
+            } else {
+                console.log('[useOrderCreation] ⏳ Mantendo loading ativo - pedido criado com sucesso (CheckoutLoadingState vai gerenciar o tempo)');
+                // Usar setTimeout para desativar loading após 10 segundos (mesmo tempo do CheckoutLoadingState)
+                setTimeout(() => {
+                    console.log('[useOrderCreation] 🔄 setLoading(false) - timeout de 10s expirado');
+                    setLoading(false);
+                }, 10000);
+            }
             creatingRef.current = false;
             // Limpar AbortController no finally para garantir cleanup mesmo em caso de erro
             if (createOrderAbortControllerRef.current && !createOrderAbortControllerRef.current.signal.aborted) {
@@ -414,4 +437,5 @@ export function useOrderCreation({
         createOrder,
     };
 }
+
 

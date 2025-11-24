@@ -60,16 +60,24 @@ function CheckoutPageContent() {
         }
     }, []);
 
-    if (!isReady || (isReady && !isAuthenticated)) {
-    return (
-        <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
+    // OTIMIZADO: Só mostrar loading de autenticação se realmente estiver verificando
+    // Se já está autenticado, não precisa mostrar loading
+    if (!isReady) {
+        return (
+            <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
                 <div className="flex min-h-screen items-center justify-center">
                     <div className="rounded-3xl border border-[#ded7ca] bg-white/70 p-10 text-center text-sm text-[#7d796c]">
                         Verificando autenticação...
                     </div>
-                    </div>
-        </main>
-    );
+                </div>
+            </main>
+        );
+    }
+
+    // Se não está autenticado após verificação, redirecionar (já está no useEffect acima)
+    // Mas não bloquear renderização para não mostrar tela branca
+    if (!isAuthenticated) {
+        return null; // O useEffect vai redirecionar
     }
 
     return <CheckoutLayout />;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useReducer, useEffect, useCallback, useRef } from 'react';
+import { useReducer, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '@/lib/api';
 import type { CheckoutCartItem } from '../types';
 import { useCheckoutStorage } from './useCheckoutStorage';
@@ -102,9 +102,28 @@ export function useCheckoutOrder(
     const navigation = useCheckoutNavigation();
     
     // Estado consolidado usando reducer
+    // CRÍTICO: Iniciar com loading: true se não há pedido mas há condições para criar um
+    // Isso faz o loading aparecer IMEDIATAMENTE ao entrar no checkout
+    const initialLoading = useMemo(() => {
+        // Verificar se já existe pedido no storage
+        const savedOrderId = storage.loadOrderId();
+        if (savedOrderId) {
+            // Se há pedido no storage, não iniciar com loading (será verificado depois)
+            console.log('[useCheckoutOrder] ℹ️ Pedido encontrado no storage, não iniciando com loading');
+            return false;
+        }
+        
+        // Se há itens no carrinho e dados do cliente, mas não há pedido, iniciar com loading
+        if (cartItems.length > 0 && customerData.name && customerData.email) {
+            console.log('[useCheckoutOrder] 🚀 Iniciando com loading: true - condições para criar pedido atendidas');
+            return true;
+        }
+        return false;
+    }, [cartItems.length, customerData.name, customerData.email, storage]);
+
     const [state, dispatch] = useReducer(orderReducer, {
         order: null,
-        loading: false,
+        loading: initialLoading,
         error: null,
         showRestoreModal: false,
         showExpiredModal: false,

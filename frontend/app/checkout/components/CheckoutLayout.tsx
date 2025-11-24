@@ -299,9 +299,35 @@ export function CheckoutLayout() {
         return order?.totalAmount ?? totalAmount;
     }, [order?.totalAmount, totalAmount]);
 
+    // CRÍTICO: Mostrar loading IMEDIATAMENTE se não há pedido mas há condições para criar um
+    // Isso garante que o loading apareça antes de qualquer renderização
+    // IMPORTANTE: Não mostrar loading de criação se já existe pedido no storage (será restaurado)
+    const shouldShowInitialLoading = useMemo(() => {
+        // Se já está carregando (cart ou order), mostrar loading
+        if (cartLoading || orderLoading) {
+            return true;
+        }
+        
+        // Verificar se há pedido no storage - se houver, não mostrar loading de criação
+        const savedOrderId = storageHelpers.loadActiveOrderId();
+        if (savedOrderId) {
+            console.log('[CheckoutLayout] ℹ️ Pedido encontrado no storage, não mostrando loading de criação (será restaurado)');
+            return false;
+        }
+        
+        // Se não há pedido e não há pedido no storage, mas há itens no carrinho e dados do cliente, mostrar loading
+        // Isso faz o loading aparecer IMEDIATAMENTE ao entrar no checkout para criar novo pedido
+        if (!order && summarizedCart.length > 0 && customerData.name && customerData.email) {
+            console.log('[CheckoutLayout] 🚀 Mostrando loading inicial - condições para criar pedido atendidas');
+            return true;
+        }
+        
+        return false;
+    }, [cartLoading, orderLoading, order, summarizedCart.length, customerData.name, customerData.email]);
+
     // Mostrar loading
-    if (cartLoading || orderLoading) {
-        return <CheckoutLoadingState cartLoading={cartLoading} orderLoading={orderLoading} />;
+    if (shouldShowInitialLoading) {
+        return <CheckoutLoadingState cartLoading={cartLoading} orderLoading={orderLoading || (!order && summarizedCart.length > 0)} />;
     }
 
     // Mostrar erro
