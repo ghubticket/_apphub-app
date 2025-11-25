@@ -964,14 +964,46 @@ export const cancelPaymentById = async (paymentId: string) => {
     }
 };
 
+// Cache de orders do Mercado Pago para evitar chamadas duplicadas
+// TTL: 5 segundos (suficiente para polling, mas não muito longo)
+const mpOrderCache = new Map<string, { data: any; timestamp: number }>();
+const MP_ORDER_CACHE_TTL = 5000; // 5 segundos
+
 /**
  * Busca informações de uma Order pelo ID (Orders API)
+ * OTIMIZADO: Usa cache para evitar chamadas duplicadas ao Mercado Pago
  */
 export const getOrderById = async (orderId: string) => {
     try {
+        // Verificar cache primeiro
+        const cached = mpOrderCache.get(orderId);
+        if (cached && Date.now() - cached.timestamp < MP_ORDER_CACHE_TTL) {
+            console.log(`[paymentService] ✅ Retornando order do cache: ${orderId}`);
+            return cached.data;
+        }
+
+        // Buscar do Mercado Pago
+        console.log(`[paymentService] 🔍 Buscando order no Mercado Pago: ${orderId}`);
         const client = createMercadoPagoClient();
         const orderApi = new Order(client);
         const response = await orderApi.get({ id: orderId });
+        
+        // Armazenar no cache
+        mpOrderCache.set(orderId, {
+            data: response as any,
+            timestamp: Date.now(),
+        });
+        
+        // Limpar cache expirado periodicamente (a cada 10 requisições)
+        if (mpOrderCache.size > 100) {
+            const now = Date.now();
+            for (const [key, value] of mpOrderCache.entries()) {
+                if (now - value.timestamp >= MP_ORDER_CACHE_TTL) {
+                    mpOrderCache.delete(key);
+                }
+            }
+        }
+        
         return response as any;
     } catch (error: any) {
         console.error('Erro ao buscar order:', error);

@@ -1182,18 +1182,22 @@ export const getOrderById = async (req: Request, res: Response) => {
         const requestUserId = userId ? String(userId) : null;
         const isOwner = orderCustomerId && requestUserId && orderCustomerId === requestUserId;
 
-        // Log detalhado para debug
-        console.log('[getOrderById] 🔍 Verificando permissão:', {
-            orderId: id,
-            orderCustomerId,
-            requestUserId,
-            isAdmin,
-            isOwner,
-            orderCustomerType: typeof order.customer,
-            requestUserType: typeof userId,
-            orderCustomerValue: order.customer,
-            requestUserValue: userId,
-        });
+        // OTIMIZAÇÃO: Reduzir logs verbosos - só logar se não estiver em produção ou se for primeira vez
+        const shouldLogPermission = process.env.NODE_ENV !== 'production' || !(global as any).__lastPermissionLogTime || Date.now() - (global as any).__lastPermissionLogTime > 10000;
+        if (shouldLogPermission) {
+            console.log('[getOrderById] 🔍 Verificando permissão:', {
+                orderId: id,
+                orderCustomerId,
+                requestUserId,
+                isAdmin,
+                isOwner,
+                orderCustomerType: typeof order.customer,
+                requestUserType: typeof userId,
+                orderCustomerValue: order.customer,
+                requestUserValue: userId,
+            });
+            (global as any).__lastPermissionLogTime = Date.now();
+        }
 
         if (!isAdmin && !isOwner) {
             console.log('[getOrderById] ❌ Acesso negado:', {
@@ -1411,12 +1415,17 @@ export const getOrderById = async (req: Request, res: Response) => {
             const paymentOrderId =
                 (orderDocForPix as any)?.paymentOrderId || (freshOrder as any).paymentOrderId;
 
-            console.log(`[getOrderById] 🔍 Buscando PIX para pedido ${freshOrder.orderNumber}:`, {
-                hasPaymentOrderId: !!paymentOrderId,
-                paymentOrderId,
-                hasPaymentId: !!freshOrder.paymentId,
-                paymentId: freshOrder.paymentId,
-            });
+            // OTIMIZAÇÃO: Reduzir logs verbosos - só logar se não estiver em produção ou se for primeira vez
+            const shouldLog = process.env.NODE_ENV !== 'production' || !(global as any).__lastPixLogTime || Date.now() - (global as any).__lastPixLogTime > 10000;
+            if (shouldLog) {
+                console.log(`[getOrderById] 🔍 Buscando PIX para pedido ${freshOrder.orderNumber}:`, {
+                    hasPaymentOrderId: !!paymentOrderId,
+                    paymentOrderId,
+                    hasPaymentId: !!freshOrder.paymentId,
+                    paymentId: freshOrder.paymentId,
+                });
+                (global as any).__lastPixLogTime = Date.now();
+            }
 
             try {
                 const paymentService = await import('../services/paymentService');
@@ -1450,15 +1459,20 @@ export const getOrderById = async (req: Request, res: Response) => {
                                       )
                                     : null,
                             };
-                            console.log(
-                                `[getOrderById] ✅ Informações PIX encontradas via Orders API para pedido ${freshOrder.orderNumber}`,
-                                {
-                                    paymentOrderId,
-                                    hasQrCode: !!pixInfo.qrCodeBase64,
-                                    hasTicketUrl: !!pixInfo.ticketUrl,
-                                    hasQrCodeString: !!pixInfo.qrCode,
-                                }
-                            );
+                            // OTIMIZAÇÃO: Reduzir logs verbosos - só logar se não estiver em produção ou se for primeira vez
+                            const shouldLogPixInfo = process.env.NODE_ENV !== 'production' || !(global as any).__lastPixInfoLogTime || Date.now() - (global as any).__lastPixInfoLogTime > 10000;
+                            if (shouldLogPixInfo) {
+                                console.log(
+                                    `[getOrderById] ✅ Informações PIX encontradas via Orders API para pedido ${freshOrder.orderNumber}`,
+                                    {
+                                        paymentOrderId,
+                                        hasQrCode: !!pixInfo.qrCodeBase64,
+                                        hasTicketUrl: !!pixInfo.ticketUrl,
+                                        hasQrCodeString: !!pixInfo.qrCode,
+                                    }
+                                );
+                                (global as any).__lastPixInfoLogTime = Date.now();
+                            }
                         } else {
                             console.warn(
                                 `[getOrderById] ⚠️ Pedido PIX ${freshOrder.orderNumber} não é PIX no Orders API`,
