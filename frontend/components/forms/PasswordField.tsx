@@ -4,7 +4,8 @@ import { forwardRef, InputHTMLAttributes, ReactNode, useId, useState } from 'rea
 import { HiOutlineEye, HiOutlineEyeSlash } from 'react-icons/hi2';
 
 const baseInputClasses =
-    'w-full rounded-xl border border-[#d7d2c8] bg-white px-4 py-3 text-sm text-[#1f1d2b] placeholder:text-[#9894a5] shadow-[inset_0_1px_3px_rgba(18,18,36,0.08)] transition focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 disabled:cursor-not-allowed disabled:opacity-70';
+    // Importante: fonte base 16px no mobile para evitar zoom automático em iOS
+    'w-full rounded-xl border border-[#d7d2c8] bg-white px-4 py-3 text-base md:text-sm text-[#1f1d2b] placeholder:text-[#9894a5] shadow-[inset_0_1px_3px_rgba(18,18,36,0.08)] transition focus:border-[#f97316] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 disabled:cursor-not-allowed disabled:opacity-70';
 
 interface PasswordFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     label: string;

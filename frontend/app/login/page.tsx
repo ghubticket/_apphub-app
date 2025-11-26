@@ -10,7 +10,7 @@ import Button from '@/components/shared/Button';
 import Container from '@/components/shared/Container';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
-import { sanitizeInput } from '@/utils/sanitize';
+import { sanitizeInput, isValidCpf } from '@/utils/sanitize';
 import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
 
 type LoginFormFields = 'email' | 'password';
@@ -38,12 +38,6 @@ const formatCPF = (value: string) => {
     return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
 };
 
-// Função para validar CPF básico
-const validateCPF = (cpf: string): boolean => {
-    const numbers = cpf.replace(/\D/g, '');
-    return numbers.length === 11;
-};
-
 export default function LoginPage() {
     const router = useRouter();
     const { login: authLogin, isAuthenticated, isReady } = useAuth();
@@ -61,6 +55,7 @@ export default function LoginPage() {
     });
 
     const [cpf, setCpf] = useState('');
+    const [cpfError, setCpfError] = useState('');
 
     const [errors, setErrors] = useState<Record<LoginFormFields, string>>({
         email: '',
@@ -79,6 +74,9 @@ export default function LoginPage() {
     const handleCPFChange = (event: ChangeEvent<HTMLInputElement>) => {
         const formatted = formatCPF(event.target.value);
         setCpf(formatted);
+        if (cpfError) {
+            setCpfError('');
+        }
     };
 
     const handleRememberToggle = (event: ChangeEvent<HTMLInputElement>) => {
@@ -181,12 +179,17 @@ export default function LoginPage() {
 
     const handleCreateAccount = () => {
         const cpfNumbers = cpf.replace(/\D/g, '');
-        if (validateCPF(cpf)) {
-            router.push(`/cadastro?cpf=${encodeURIComponent(cpfNumbers)}`);
-        } else {
-            // Se CPF não está completo, ainda pode ir para cadastro
-            router.push('/cadastro');
+        if (!cpfNumbers) {
+            setCpfError('Informe seu CPF para continuar.');
+            return;
         }
+        if (!isValidCpf(cpfNumbers)) {
+            setCpfError('CPF inválido. Confira os números antes de continuar.');
+            return;
+        }
+
+        // CPF válido: seguir para cadastro já com o CPF preenchido
+        router.push(`/cadastro?cpf=${encodeURIComponent(cpfNumbers)}`);
     };
 
     const emailSuggestions = useEmailSuggestions(formData.email);
@@ -329,6 +332,7 @@ export default function LoginPage() {
                                     value={cpf}
                                     onChange={handleCPFChange}
                                     maxLength={14}
+                                    error={cpfError}
                                 />
                             </div>
 
