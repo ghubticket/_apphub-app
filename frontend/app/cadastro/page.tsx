@@ -16,6 +16,7 @@ import Button from '@/components/shared/Button';
 import Container from '@/components/shared/Container';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
 import { useRouter } from 'next/navigation';
 import {
     sanitizeInput,
@@ -26,15 +27,6 @@ import {
 } from '@/utils/sanitize';
 
 type SignupField = 'name' | 'email' | 'password' | 'confirmPassword' | 'phone' | 'cpf';
-
-const EMAIL_DOMAIN_SUGGESTIONS = [
-    'gmail.com',
-    'outlook.com',
-    'hotmail.com',
-    'icloud.com',
-    'live.com',
-    'me.com',
-];
 
 const validators: Record<SignupField, (value: string, data?: Record<SignupField, string>) => string> = {
     name: (value) => {
@@ -158,18 +150,7 @@ function CadastroPageContent() {
         setErrors((prev) => ({ ...prev, [field]: message }));
     };
 
-    const emailSuggestions = (() => {
-        const value = formData.email.trim();
-        const atIndex = value.indexOf('@');
-        if (atIndex === -1) return [] as string[];
-        const localPart = value.slice(0, atIndex);
-        const domainPart = value.slice(atIndex + 1);
-        if (!localPart || domainPart.includes('.com.br')) return [] as string[];
-        const matches = EMAIL_DOMAIN_SUGGESTIONS.filter((d) =>
-            d.startsWith(domainPart.toLowerCase())
-        );
-        return matches.slice(0, 5).map((d) => `${localPart}@${d}`);
-    })();
+    const emailSuggestions = useEmailSuggestions(formData.email);
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -345,12 +326,14 @@ function CadastroPageContent() {
                                                 key={suggestion}
                                                 type="button"
                                                 className="block w-full px-3 py-2 text-left text-xs text-[#6f6b63] hover:bg-[#f5f1e8]"
-                                                onClick={() =>
+                                                onClick={() => {
                                                     setFormData((prev) => ({
                                                         ...prev,
                                                         email: suggestion,
-                                                    }))
-                                                }
+                                                    }));
+                                                    setErrors((prev) => ({ ...prev, email: '' }));
+                                                    setFormMessage(null);
+                                                }}
                                             >
                                                 {suggestion}
                                             </button>

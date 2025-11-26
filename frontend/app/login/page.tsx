@@ -11,6 +11,7 @@ import Container from '@/components/shared/Container';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { sanitizeInput } from '@/utils/sanitize';
+import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
 
 type LoginFormFields = 'email' | 'password';
 
@@ -27,15 +28,6 @@ const validators: Record<LoginFormFields, (value: string) => string> = {
         return '';
     },
 };
-
-const EMAIL_DOMAIN_SUGGESTIONS = [
-    'gmail.com',
-    'outlook.com',
-    'hotmail.com',
-    'icloud.com',
-    'live.com',
-    'me.com',
-];
 
 // Função para formatar CPF
 const formatCPF = (value: string) => {
@@ -197,18 +189,7 @@ export default function LoginPage() {
         }
     };
 
-    const emailSuggestions = (() => {
-        const value = formData.email.trim();
-        const atIndex = value.indexOf('@');
-        if (atIndex === -1) return [] as string[];
-        const localPart = value.slice(0, atIndex);
-        const domainPart = value.slice(atIndex + 1);
-        if (!localPart || domainPart.includes('.com.br')) return [] as string[];
-        const matches = EMAIL_DOMAIN_SUGGESTIONS.filter((d) =>
-            d.startsWith(domainPart.toLowerCase())
-        );
-        return matches.slice(0, 5).map((d) => `${localPart}@${d}`);
-    })();
+    const emailSuggestions = useEmailSuggestions(formData.email);
 
     return (
         <main className="min-h-screen bg-[#faf7f0] py-12">
@@ -257,12 +238,14 @@ export default function LoginPage() {
                                                 key={suggestion}
                                                 type="button"
                                                 className="block w-full px-3 py-2 text-left text-xs text-[#6f6b63] hover:bg-[#f5f1e8]"
-                                                onClick={() =>
+                                                onClick={() => {
                                                     setFormData((prev) => ({
                                                         ...prev,
                                                         email: suggestion,
-                                                    }))
-                                                }
+                                                    }));
+                                                    setErrors((prev) => ({ ...prev, email: '' }));
+                                                    setFormMessage(null);
+                                                }}
                                             >
                                                 {suggestion}
                                             </button>

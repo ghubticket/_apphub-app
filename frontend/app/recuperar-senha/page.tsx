@@ -7,15 +7,7 @@ import AuthCard from '@/components/auth/AuthCard';
 import InputField from '@/components/forms/InputField';
 import Button from '@/components/shared/Button';
 import api from '@/lib/api';
-
-const EMAIL_DOMAIN_SUGGESTIONS = [
-    'gmail.com',
-    'outlook.com',
-    'hotmail.com',
-    'icloud.com',
-    'live.com',
-    'me.com',
-];
+import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
 
 export default function RecuperarSenhaPage() {
     const [email, setEmail] = useState('');
@@ -71,18 +63,7 @@ export default function RecuperarSenhaPage() {
         }
     };
 
-    const emailSuggestions = (() => {
-        const value = email.trim();
-        const atIndex = value.indexOf('@');
-        if (atIndex === -1) return [] as string[];
-        const localPart = value.slice(0, atIndex);
-        const domainPart = value.slice(atIndex + 1);
-        if (!localPart || domainPart.includes('.com.br')) return [] as string[];
-        const matches = EMAIL_DOMAIN_SUGGESTIONS.filter((d) =>
-            d.startsWith(domainPart.toLowerCase())
-        );
-        return matches.slice(0, 5).map((d) => `${localPart}@${d}`);
-    })();
+    const emailSuggestions = useEmailSuggestions(email);
 
     return (
         <main className="min-h-screen bg-[#faf7f0] py-12">
@@ -112,7 +93,11 @@ export default function RecuperarSenhaPage() {
                                             key={suggestion}
                                             type="button"
                                             className="block w-full px-3 py-2 text-left text-xs text-[#6f6b63] hover:bg-[#f5f1e8]"
-                                            onClick={() => setEmail(suggestion)}
+                                            onClick={() => {
+                                                setEmail(suggestion);
+                                                setError('');
+                                                setIsSuccess(false);
+                                            }}
                                         >
                                             {suggestion}
                                         </button>
