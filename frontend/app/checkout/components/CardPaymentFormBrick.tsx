@@ -311,17 +311,26 @@ export function CardPaymentFormBrick({
                                             Pagamento negado
                                         </h1>
                                         <div className="mt-4 space-y-2 text-sm leading-relaxed">
-                                            {errorMessages.length > 0 ? (
-                                                errorMessages.map((msg, index) => {
-                                                    const hasHTML = /<[^>]+>/.test(msg);
-                                                    if (hasHTML) {
-                                                        return <p key={`${msg}-${index}`} className="leading-relaxed" dangerouslySetInnerHTML={{ __html: msg }} />;
-                                                    }
-                                                    return <p key={`${msg}-${index}`} className="leading-relaxed">{msg}</p>;
-                                                })
-                                            ) : (
-                                                <p className="leading-relaxed">{overlayMessage}</p>
-                                            )}
+                                            {(() => {
+                                                // Exibir apenas UMA mensagem de erro, priorizando a primeira vinda do backend/Mercado Pago
+                                                const primaryMessage = errorMessages[0] || overlayMessage;
+
+                                                if (!primaryMessage) {
+                                                    return null;
+                                                }
+
+                                                const hasHTML = /<[^>]+>/.test(primaryMessage);
+                                                if (hasHTML) {
+                                                    return (
+                                                        <p
+                                                            className="leading-relaxed"
+                                                            dangerouslySetInnerHTML={{ __html: primaryMessage }}
+                                                        />
+                                                    );
+                                                }
+
+                                                return <p className="leading-relaxed">{primaryMessage}</p>;
+                                            })()}
                                         </div>
                                     </div>
                                     <div className="flex gap-3">
