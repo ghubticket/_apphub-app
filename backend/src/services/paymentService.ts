@@ -635,17 +635,26 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         const paymentTypeId = paymentMethodId === 'debit_card' ? 'debit_card' : 'credit_card';
 
         // OTIMIZAÇÃO: Converter email para sandbox se necessário
-        // CRÍTICO: Verificar se estamos usando sandbox pelo access token (começa com "TEST-")
-        // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
+        // CRÍTICO: Verificar se estamos usando sandbox por múltiplos sinais:
+        // 1. Variável de ambiente MP_SANDBOX=true (forçar sandbox mesmo com APP_USR)
+        // 2. Access token começa com "TEST-" (token de teste do MP)
+        // 3. NODE_ENV !== 'production' (ambiente local/dev)
         let payerEmail = cardholder?.email || customerData.email;
-        const isSandbox = currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
+        const forceSandbox =
+            process.env.MP_SANDBOX === 'true' || process.env.MP_SANDBOX === '1';
+        const isSandbox =
+            forceSandbox || currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
 
         if (isSandbox && !payerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = payerEmail.split('@')[0] || 'test';
             payerEmail = `${emailName}@testuser.com`;
             console.log(
-                `🔧 [paymentService] Email convertido para sandbox: "${cardholder?.email || customerData.email}" → "${payerEmail}"`
+                `🔧 [paymentService] Email convertido para sandbox: "${
+                    cardholder?.email || customerData.email
+                }" → "${payerEmail}" (isSandbox=${isSandbox}, forceSandbox=${forceSandbox}, nodeEnv=${
+                    process.env.NODE_ENV
+                })`
             );
         }
 
