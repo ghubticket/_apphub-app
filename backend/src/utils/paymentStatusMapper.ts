@@ -35,6 +35,35 @@ const TRANSACTION_STATUS_MAP: Record<
         },
     },
 
+    // Status legado: approved (alguns webhooks/payment API ainda utilizam)
+    approved: {
+        accredited: {
+            userMessage: 'Pagamento aprovado! Seu ingresso foi confirmado.',
+            adminMessage: 'Transação aprovada e valor creditado (status legado approved/accredited).',
+            color: 'success',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'paid',
+        },
+        // Fallback genérico quando não há detail específico
+        approved: {
+            userMessage: 'Pagamento aprovado! Seu ingresso foi confirmado.',
+            adminMessage: 'Transação aprovada (status legado approved).',
+            color: 'success',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'paid',
+        },
+        unknown: {
+            userMessage: 'Pagamento aprovado! Seu ingresso foi confirmado.',
+            adminMessage: 'Transação aprovada com detail desconhecido (status legado approved).',
+            color: 'success',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'paid',
+        },
+    },
+
     // Status: processed
     processed: {
         accredited: {
