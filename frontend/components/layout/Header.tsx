@@ -382,10 +382,11 @@ export default function Header() {
                             <div className="mt-4">
                                 <Link
                                     href="/checkout"
-                                    className={`inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-medium transition ${cartItems.length && isReady && isAuthenticated
+                                    className={`inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-medium transition ${
+                                        cartItems.length && isReady && isAuthenticated
                                             ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-[#1a1a1d]'
                                             : 'cursor-not-allowed border border-[#c9c3b8] bg-[#c9c3b8] text-white/70'
-                                        }`}
+                                    }`}
                                     onClick={(event) => {
                                         if (!cartItems.length) {
                                             event.preventDefault();
@@ -399,6 +400,18 @@ export default function Header() {
                                             const returnUrl = '/checkout';
                                             window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
                                             return;
+                                        }
+
+                                        // Início de um novo fluxo de checkout a partir do carrinho:
+                                        // limpar qualquer pedido/PIX pendente anterior para garantir novo pedido
+                                        if (typeof window !== 'undefined') {
+                                            try {
+                                                window.sessionStorage.removeItem('checkout:active-order-id');
+                                                window.sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
+                                                window.localStorage.removeItem('checkout:timer-start-time');
+                                            } catch {
+                                                // ignore storage errors
+                                            }
                                         }
 
                                         closeCartDrawer();
