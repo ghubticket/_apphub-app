@@ -21,29 +21,29 @@ export function PaymentTabs({ selectedTab, onTabChange, pixPaymentActive = false
                 }}
                 disabled={pixPaymentActive}
                 aria-disabled={pixPaymentActive}
-                className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.10em] transition disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none ${
+                className={`flex-1 flex-row md:flex-col rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-normal transition disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none ${
                     selectedTab === 'card'
-                        ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
+                        ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white md:shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
                         : 'border-[#ded7ca] bg-[#faf7f0] text-[#4c4c55] hover:border-[#a38f78]'
                 }`}
             >
-                <span className="flex items-center justify-center gap-2">
+                <span className="flex md:flex-row flex-col items-center justify-center gap-2">
                     <HiOutlineCreditCard className="text-base" />
-                    Cartão de crédito
+                    Via Cartão
                 </span>
             </button>
             <button
                 type="button"
                 onClick={() => onTabChange('pix')}
-                className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-[0.10em] transition ${
+                className={`flex-1 rounded-full border px-5 py-3 text-xs font-semibold uppercase tracking-normal transition ${
                     selectedTab === 'pix'
-                        ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
+                        ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white md:shadow-[0_20px_45px_-20px_rgba(20,20,32,0.45)]'
                         : 'border-[#ded7ca] bg-[#faf7f0] text-[#4c4c55] hover:border-[#a38f78]'
                 }`}
             >
-                <span className="flex items-center justify-center gap-2">
+                <span className="flex md:flex-row flex-col items-center justify-center gap-2">
                     <SiPix className="text-base" />
-                    Pagamento via PIX
+                    via PIX
                 </span>
             </button>
         </div>

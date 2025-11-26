@@ -94,13 +94,13 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
 
     return (
         <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] relative">
-            <header className="flex items-center justify-between">
+            <header className="flex md:flex-row flex-col gap-3 md:gap-0 md:items-center justify-between">
                 <div>
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">Resumo do pedido</h2>
                     <p className="text-xs text-[#7d796c]">Revise os ingressos antes de finalizar o pagamento.</p>
                 </div>
-                <span className="rounded-full border border-[#ded7ca] bg-[#f5f1e8] px-3 py-1 text-xs font-semibold uppercase tracking-normal text-[#6f6b63]">
-                    {totalTickets} ingresso(s)
+                <span className="rounded-full border border-[#ded7ca] bg-[#f5f1e8] md:px-3 md:py-1 px-4 py-2 text-xs font-semibold uppercase text-[#6f6b63]">
+                    Total de {totalTickets} ingressos
                 </span>
             </header>
 
@@ -135,7 +135,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                                 <button
                                     type="button"
                                     disabled={pixPaymentActive}
-                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${
+                                    className={`inline-flex h-8 w-12 md:w-8 items-center justify-center rounded-full border transition ${
                                         pixPaymentActive
                                             ? 'border-[#ded7ca] text-[#b5aa92] opacity-60 cursor-not-allowed'
                                             : 'border-[#ded7ca] text-[#7d796c] hover:border-rose-300 hover:text-rose-500'
@@ -150,7 +150,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                             <hr className="border-gray-200 mt-4 flex" />
                             <div className="mt-4 space-y-3">
                                 {/* Quantidade, Subtotal e Total na mesma linha */}
-                                <div className="grid grid-cols-3 gap-3 text-sm text-[#4c4c55]">
+                                <div className="flex flex-col justify-between md:flex-row gap-3 md:gap-0 text-sm text-[#4c4c55]">
                                     <div>
                                         <span className="text-xs font-semibold uppercase tracking-normal text-[#7d796c]">Quantidade</span>
                                         <p className="mt-1 text-sm font-semibold text-[#1a1a1d]">{item.quantity} ingresso(s)</p>

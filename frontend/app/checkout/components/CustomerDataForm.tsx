@@ -25,7 +25,7 @@ export function CustomerDataForm({
 
     return (
         <div className="relative rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
-            <div className="flex items-start justify-between gap-4">
+            <div className="pb-5 flex md:flex-row flex-col md:items-start md:justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
                         Dados do comprador
@@ -39,7 +39,7 @@ export function CustomerDataForm({
                     <button
                         type="button"
                         onClick={onEditClick}
-                        className="rounded-full border border-[#ded7ca] bg-white/70 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#6f6b63] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
+                        className="rounded-full border border-[#ded7ca] bg-white/70 p-2 text-[0.65rem] font-semibold uppercase tracking-normal text-[#6f6b63] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
                     >
                         {disabled ? 'Editar dados' : 'Concluir edição'}
                     </button>
@@ -47,7 +47,7 @@ export function CustomerDataForm({
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
+                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     Nome completo
                     <div className="relative">
                         <HiOutlineUser className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
@@ -62,7 +62,7 @@ export function CustomerDataForm({
                         />
                     </div>
                 </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
+                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     E-mail
                     <div className="relative">
                         <HiOutlineEnvelope className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
@@ -77,7 +77,7 @@ export function CustomerDataForm({
                         />
                     </div>
                 </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
+                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     CPF
                     <div className="relative">
                         <HiOutlineIdentification
@@ -96,7 +96,7 @@ export function CustomerDataForm({
                         />
                     </div>
                 </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
+                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     Celular
                     <div className="relative">
                         <HiOutlinePhone className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />

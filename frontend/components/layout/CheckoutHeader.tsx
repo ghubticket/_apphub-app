@@ -34,7 +34,7 @@ export default function CheckoutHeader() {
                     />
                 </Link>
 
-                <div className="flex items-center gap-2 rounded-full border border-[#ded7ca] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-[#4c4c55] shadow-[0_10px_25px_-18px_rgba(20,20,32,0.35)]">
+                <div className="flex items-center gap-2 rounded-full border border-[#ded7ca] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#4c4c55] shadow-[0_10px_25px_-18px_rgba(20,20,32,0.35)]">
                     <HiOutlineShieldCheck className="text-base text-emerald-500" />
                     Ambiente seguro
                 </div>

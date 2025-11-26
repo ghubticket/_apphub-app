@@ -19,7 +19,7 @@ export function CheckoutTimer({ isActive, onExpire, initialRemainingSeconds, exp
 
     return (
         <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex  items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex-shrink-0">
                         <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

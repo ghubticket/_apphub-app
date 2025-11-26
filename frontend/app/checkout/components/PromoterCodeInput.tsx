@@ -36,8 +36,8 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
 
     // Memoizar classes CSS condicionais
     const inputClassName = useMemo(() => {
-        const base = 'w-full rounded-2xl border px-4 py-2.5 text-sm transition';
-        const padding = isValidating ? 'pr-32' : 'pr-20';
+        const base = 'w-full rounded-2xl border md:px-4 md:py-2.5 p-3 text-sm transition';
+        const padding = isValidating ? 'md:pr-32' : 'md:pr-20';
 
         if (pixPaymentActive || isValidating) {
             return `${base} ${padding} border-[#ded7ca] bg-[#f5f1e8] text-[#7d796c] cursor-not-allowed`;
@@ -68,7 +68,7 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
     const placeholder = useMemo(() => {
         if (hasAppliedCode) return 'Cupom aplicado';
         if (hasInvalidCode) return 'Cupom inválido';
-        return 'Código de cupom ou promoter';
+        return 'Insira seu Codigo:';
     }, [hasAppliedCode, hasInvalidCode]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
