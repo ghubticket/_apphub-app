@@ -14,6 +14,8 @@ import {
     getSessionStats,
     getAllUsers,
     updateUserStatus,
+    forgotPassword,
+    resetPassword,
 } from '../controllers/authController';
 import { authenticate, authorize, isAdmin } from '../middleware/auth';
 import { validate } from '../middleware/validation';
@@ -22,6 +24,8 @@ import {
     loginSchema,
     updateProfileSchema,
     changePasswordSchema,
+    forgotPasswordSchema,
+    resetPasswordSchema,
 } from '../middleware/schemas';
 import { authRateLimit, refreshRateLimit, sensitiveRateLimit } from '../middleware/rateLimiting';
 
@@ -164,6 +168,90 @@ router.post('/register', authRateLimit, validate(registerSchema), register);
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/login', authRateLimit, validate(loginSchema), login);
+
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Iniciar redefinição de senha
+ *     description: Envia um email com link para redefinição de senha, se o email estiver cadastrado
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "usuario@email.com"
+ *     responses:
+ *       200:
+ *         description: Sempre retorna mensagem genérica para não expor se o email existe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ */
+router.post(
+    '/forgot-password',
+    sensitiveRateLimit,
+    validate(forgotPasswordSchema),
+    forgotPassword
+);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Redefinir senha usando token
+ *     description: Redefine a senha do usuário validando um token de redefinição enviado por email
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - newPassword
+ *               - confirmPassword
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: "bf9b1c7e0a2f4d819e6c5a7b3c9d0f12..."
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: "NovaSenhaSegura123"
+ *               confirmPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: "NovaSenhaSegura123"
+ *     responses:
+ *       200:
+ *         description: Senha redefinida com sucesso
+ *       400:
+ *         description: Token inválido ou expirado / dados inválidos
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.post(
+    '/reset-password',
+    sensitiveRateLimit,
+    validate(resetPasswordSchema),
+    resetPassword
+);
 
 /**
  * @swagger

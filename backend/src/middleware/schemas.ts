@@ -83,6 +83,31 @@ export const changePasswordSchema = Joi.object({
     }),
 });
 
+// Schema para esqueci minha senha (iniciar reset)
+export const forgotPasswordSchema = Joi.object({
+    email: Joi.string().email().lowercase().trim().required().messages({
+        'string.email': 'Email deve ter um formato válido',
+        'any.required': 'Email é obrigatório',
+    }),
+});
+
+// Schema para redefinir senha com token
+export const resetPasswordSchema = Joi.object({
+    token: Joi.string().min(16).max(256).required().messages({
+        'string.min': 'Token inválido',
+        'any.required': 'Token é obrigatório',
+    }),
+    newPassword: Joi.string().min(6).max(128).required().messages({
+        'string.min': 'Nova senha deve ter pelo menos 6 caracteres',
+        'string.max': 'Nova senha deve ter no máximo 128 caracteres',
+        'any.required': 'Nova senha é obrigatória',
+    }),
+    confirmPassword: Joi.string().valid(Joi.ref('newPassword')).required().messages({
+        'any.only': 'Confirmação de senha deve ser igual à nova senha',
+        'any.required': 'Confirmação de senha é obrigatória',
+    }),
+});
+
 // Schema para parâmetros de URL (ID)
 export const idParamSchema = Joi.object({
     id: Joi.string()

@@ -6,6 +6,7 @@ import { HiOutlineEnvelope } from 'react-icons/hi2';
 import AuthCard from '@/components/auth/AuthCard';
 import InputField from '@/components/forms/InputField';
 import Button from '@/components/shared/Button';
+import api from '@/lib/api';
 
 export default function RecuperarSenhaPage() {
     const [email, setEmail] = useState('');
@@ -43,8 +44,18 @@ export default function RecuperarSenhaPage() {
         setIsSuccess(false);
 
         try {
-            // TODO: integrar com backend
-            console.log('Enviar link de redefinição para:', email.trim());
+            // Chamar endpoint de esqueci minha senha
+            await api.post('/auth/forgot-password', {
+                email: email.trim(),
+            });
+            setIsSuccess(true);
+        } catch (err: any) {
+            // Mesmo em caso de erro, manter mensagem genérica para não expor existência de email
+            // Apenas logar em desenvolvimento
+            if (process.env.NODE_ENV !== 'production') {
+                // eslint-disable-next-line no-console
+                console.error('[recuperar-senha] Erro ao solicitar redefinição:', err?.response || err);
+            }
             setIsSuccess(true);
         } finally {
             setIsSubmitting(false);

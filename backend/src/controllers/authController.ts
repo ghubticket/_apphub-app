@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { User, IUser, Order } from '../models';
+import { User, IUser, Order, PasswordResetToken } from '../models';
 import Session from '../models/Session';
 import mongoose from 'mongoose';
-import { sendWelcomeEmail } from '../services/emailTemplates';
+import crypto from 'crypto';
+import { sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailTemplates';
 
 /**
  * Controller para registro de usuário
@@ -612,6 +613,16 @@ export const changePassword = async (req: Request, res: Response) => {
             });
         }
 
+        // Impedir reutilização da mesma senha
+        const isSamePassword = await user.comparePassword(newPassword);
+        if (isSamePassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'A nova senha não pode ser igual à senha atual.',
+                errors: ['Escolha uma senha diferente da anterior'],
+            });
+        }
+
         // Atualizar senha
         user.password = newPassword;
         await user.save();
@@ -640,6 +651,183 @@ export const changePassword = async (req: Request, res: Response) => {
             success: false,
             message: 'Erro interno do servidor',
             errors: ['Erro ao alterar senha'],
+        });
+    }
+};
+
+/**
+ * Inicia fluxo de esqueci minha senha
+ * - Não expõe se o email existe ou não
+ * - Gera token de reset de senha e envia email com link
+ */
+export const forgotPassword = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body as { email: string };
+
+        const normalizedEmail = (email || '').toLowerCase().trim();
+
+        // Mensagem sempre genérica para não expor existência do email
+        const genericResponse = () =>
+            res.json({
+                success: true,
+                message:
+                    'Se este email estiver cadastrado, você receberá um link para redefinir sua senha em instantes.',
+            });
+
+        if (!normalizedEmail) {
+            return genericResponse();
+        }
+
+        // Buscar usuário não deletado
+        const user = await User.findOne({
+            email: normalizedEmail,
+            deletedAt: null,
+        });
+
+        // Mesmo se não existir, responder genérico
+        if (!user) {
+            return genericResponse();
+        }
+
+        // Apagar tokens antigos deste usuário
+        await PasswordResetToken.deleteMany({
+            userId: user._id,
+        });
+
+        // Gerar token aleatório e hash
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+        const EXPIRATION_MINUTES = 30;
+        const expiresAt = new Date(Date.now() + EXPIRATION_MINUTES * 60 * 1000);
+
+        // Salvar token
+        await PasswordResetToken.create({
+            userId: user._id,
+            tokenHash,
+            expiresAt,
+            ipAddress: (req.ip || req.connection.remoteAddress || '').toString(),
+            userAgent: req.get('User-Agent') || 'Unknown',
+        });
+
+        // Construir link de reset apontando para o frontend
+        const frontendUrl =
+            process.env.DASHBOARD_URL ||
+            process.env.FRONTEND_URL ||
+            'http://localhost:3000';
+        const resetLink = `${frontendUrl.replace(/\/+$/, '')}/reset-password?token=${rawToken}`;
+
+        // Enviar email (não bloquear resposta se falhar)
+        try {
+            await sendPasswordResetEmail(user.email, {
+                customerName: user.name,
+                resetLink,
+                expirationMinutes: EXPIRATION_MINUTES,
+            });
+        } catch (emailError) {
+            console.error('Erro ao enviar email de redefinição de senha:', emailError);
+            // Mesmo que o email falhe, não revelar nada ao cliente
+        }
+
+        return genericResponse();
+    } catch (error: any) {
+        console.error('Erro no fluxo de esqueci minha senha:', error);
+        return res.json({
+            success: true,
+            message:
+                'Se este email estiver cadastrado, você receberá um link para redefinir sua senha em instantes.',
+        });
+    }
+};
+
+/**
+ * Conclui fluxo de redefinição de senha usando token
+ */
+export const resetPassword = async (req: Request, res: Response) => {
+    try {
+        const { token, newPassword } = req.body as {
+            token: string;
+            newPassword: string;
+        };
+
+        if (!token || typeof token !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'Token de redefinição é obrigatório',
+                errors: ['Token inválido ou ausente'],
+            });
+        }
+
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+        const resetDoc = await PasswordResetToken.findOne({
+            tokenHash,
+            usedAt: null,
+            expiresAt: { $gt: new Date() },
+        });
+
+        if (!resetDoc) {
+            return res.status(400).json({
+                success: false,
+                message: 'Link de redefinição inválido ou expirado',
+                errors: ['Token inválido ou expirado'],
+            });
+        }
+
+        const user = await User.findOne({
+            _id: resetDoc.userId,
+            deletedAt: null,
+        }).select('+password');
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Link de redefinição inválido ou expirado',
+                errors: ['Usuário não encontrado para este token'],
+            });
+        }
+
+        // Impedir reutilização da mesma senha (comparar nova senha com a atual)
+        const isSamePassword = await user.comparePassword(newPassword);
+        if (isSamePassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'A nova senha não pode ser igual à senha atual.',
+                errors: ['Escolha uma senha diferente da anterior'],
+            });
+        }
+
+        // Atualizar senha (middleware pre('save') cuida do hash)
+        user.password = newPassword;
+        await user.save();
+
+        // Marcar token como usado
+        resetDoc.usedAt = new Date();
+        await resetDoc.save();
+
+        // Opcional: invalidar sessões existentes do usuário por segurança
+        try {
+            await Session.updateMany(
+                { userId: user._id, isActive: true },
+                { isActive: false }
+            );
+        } catch (sessionError) {
+            console.error(
+                'Erro ao invalidar sessões após reset de senha (não bloqueante):',
+                sessionError
+            );
+        }
+
+        return res.json({
+            success: true,
+            message: 'Senha redefinida com sucesso. Faça login com sua nova senha.',
+        });
+    } catch (error: any) {
+        console.error('Erro ao redefinir senha com token:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor',
+            errors: ['Erro ao redefinir senha'],
         });
     }
 };

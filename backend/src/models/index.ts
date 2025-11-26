@@ -12,6 +12,7 @@ export { default as ValidationAttempt } from './ValidationAttempt';
 export { default as NewsletterSubscription } from './NewsletterSubscription';
 export { default as SuspiciousOrderAlert } from './SuspiciousOrderAlert';
 export { default as AuditLog } from './AuditLog';
+export { default as PasswordResetToken } from './PasswordResetToken';
 
 // Re-exportar tipos para facilitar importação
 export type { IUser } from './User';
@@ -27,3 +28,4 @@ export type { IValidationAttempt } from './ValidationAttempt';
 export type { INewsletterSubscription } from './NewsletterSubscription';
 export type { ISuspiciousOrderAlert } from './SuspiciousOrderAlert';
 export type { IAuditLog } from './AuditLog';
+export type { IPasswordResetToken } from './PasswordResetToken';
