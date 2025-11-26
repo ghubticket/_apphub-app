@@ -2,14 +2,28 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { MouseEvent, useCallback } from 'react';
 import { HiOutlineShieldCheck } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
+import { useCheckoutNavigation } from '@/app/checkout/hooks/useCheckoutNavigation';
 
 export default function CheckoutHeader() {
+    const navigation = useCheckoutNavigation();
+
+    const handleLogoClick = useCallback(
+        (event: MouseEvent<HTMLAnchorElement>) => {
+            // Impedir navegação padrão para usar a navegação centralizada
+            event.preventDefault();
+            // Usa navigateToHome, que já limpa pedido, carrinho e flags de navegação
+            navigation.navigateToHome();
+        },
+        [navigation]
+    );
+
     return (
         <header className="bg-[#F58A18]">
             <Container className="flex items-center justify-between py-6">
-                <Link href="/" className="flex items-center gap-3">
+                <Link href="/" className="flex items-center gap-3" onClick={handleLogoClick}>
                     <Image
                         src="/images/5521.avif"
                         alt="Logotipo 5521"
@@ -28,5 +42,4 @@ export default function CheckoutHeader() {
         </header>
     );
 }
-
 

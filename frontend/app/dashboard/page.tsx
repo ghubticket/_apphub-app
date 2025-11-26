@@ -976,7 +976,7 @@ export default function DashboardPage() {
                                 Área do Cliente
                             </span>
                             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                                <h1 className="text-3xl font-bold uppercase tracking-[0.25em] text-[#1a1a1d]">
+                                <h1 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d]">
                                     Dashboard 5521
                                 </h1>
                                 <p className="text-sm text-[#4c4c55]">
