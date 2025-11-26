@@ -138,15 +138,20 @@ export const createPixPayment = async (req: Request, res: Response) => {
         // Mock de email para sandbox
         // CRÍTICO: Verificar se estamos usando sandbox pelo access token (começa com "TEST-")
         // Não apenas pelo NODE_ENV, pois em produção na Vercel ainda pode ser sandbox
+        // ⚙️ CONTROLADO POR FLAG: MP_EMAIL_MOCK_ENABLED (default: true)
         let customerEmail = order.customerData.email;
-        const isSandbox = process.env.MP_ACCESS_TOKEN?.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
-        
-        if (isSandbox && !customerEmail.endsWith('@testuser.com')) {
+        const isSandbox =
+            process.env.MP_ACCESS_TOKEN?.startsWith('TEST-') ||
+            process.env.NODE_ENV !== 'production';
+        const emailMockEnabled =
+            (process.env.MP_EMAIL_MOCK_ENABLED || 'true').toLowerCase() === 'true';
+
+        if (isSandbox && emailMockEnabled && !customerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = customerEmail.split('@')[0] || 'test';
             customerEmail = `${emailName}@testuser.com`;
             console.log(
-                `🔧 MOCK: Email alterado de "${order.customerData.email}" para "${customerEmail}" (sandbox)`
+                `🔧 MOCK: Email alterado de "${order.customerData.email}" para "${customerEmail}" (sandbox, MP_EMAIL_MOCK_ENABLED=true)`
             );
         }
 
@@ -468,16 +473,22 @@ export const createCardPayment = async (req: Request, res: Response) => {
         // 1. Variável de ambiente MP_SANDBOX=true (forçar sandbox)
         // 2. Token começa com "TEST-" (token de teste do MP)
         // 3. NODE_ENV !== 'production' (ambiente de desenvolvimento)
+        // ⚙️ CONTROLADO POR FLAG: MP_EMAIL_MOCK_ENABLED (default: true)
         let customerEmail = order.customerData.email;
         const forceSandbox = process.env.MP_SANDBOX === 'true' || process.env.MP_SANDBOX === '1';
-        const isSandbox = forceSandbox || process.env.MP_ACCESS_TOKEN?.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
-        
-        if (isSandbox && !customerEmail.endsWith('@testuser.com')) {
+        const isSandbox =
+            forceSandbox ||
+            process.env.MP_ACCESS_TOKEN?.startsWith('TEST-') ||
+            process.env.NODE_ENV !== 'production';
+        const emailMockEnabled =
+            (process.env.MP_EMAIL_MOCK_ENABLED || 'true').toLowerCase() === 'true';
+
+        if (isSandbox && emailMockEnabled && !customerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = customerEmail.split('@')[0] || 'test';
             customerEmail = `${emailName}@testuser.com`;
             console.log(
-                `🔧 MOCK: Email alterado de "${order.customerData.email}" para "${customerEmail}" (sandbox)`
+                `🔧 MOCK: Email alterado de "${order.customerData.email}" para "${customerEmail}" (sandbox, MP_EMAIL_MOCK_ENABLED=true)`
             );
         }
 
@@ -495,8 +506,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
               }
             : undefined;
 
-        // Reutilizar isSandbox já declarado acima (linha 447)
-        if (isSandbox) {
+        // Reutilizar isSandbox já declarado acima
+        if (isSandbox && emailMockEnabled) {
             if (
                 normalizedCardholder?.email &&
                 !normalizedCardholder.email.endsWith('@testuser.com')
