@@ -142,12 +142,20 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
         'cardholder' in params && params.cardholder?.identification?.number
             ? params.cardholder.identification.number
             : params.customerData.cpf;
+
     if (identificationType === 'CPF' && docNumberRaw) {
         // Só validar CPF se foi fornecido (não vazio/null/undefined)
         const docNumber = normalizeCpfBackend(docNumberRaw);
         if (docNumber && docNumber.length > 0) {
-            if (!isValidCpfBackend(docNumber)) {
+            const isProd = (process.env.NODE_ENV || 'development') === 'production';
+            const isSandboxToken = (process.env.MP_ACCESS_TOKEN || '').startsWith('TEST-');
+
+            // Em produção com token real, aplicar validação completa do dígito verificador
+            // Em sandbox/dev, aceitar qualquer CPF com 11 dígitos para não bloquear testes
+            if (isProd && !isSandboxToken && !isValidCpfBackend(docNumber)) {
                 errors.push('CPF inválido');
+            } else if (docNumber.length !== 11) {
+                errors.push('CPF deve ter 11 dígitos');
             }
         }
     }
@@ -272,30 +280,40 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         const orderData = {
             type: 'online',
             processing_mode: 'automatic',
+            // Orders API aceita string em total_amount; manter como string normalizada
             total_amount: String(numericTotalAmount),
             external_reference: orderId,
             payer: {
                 email: payerEmail,
                 first_name: firstName,
                 last_name: lastName,
-                // CPF é opcional - só incluir se fornecido e válido
-                ...(customerData.cpf && normalizeCpfBackend(customerData.cpf || '').length === 11
-                    ? {
-                          identification: {
-                              type: 'CPF',
-                              number: normalizeCpfBackend(customerData.cpf),
-                          },
-                      }
-                    : {}),
+                // CPF é opcional - só incluir em PRODUÇÃO com token real e CPF válido
+                ...(() => {
+                    const digits = normalizeCpfBackend(customerData.cpf || '');
+                    const isProd = (process.env.NODE_ENV || 'development') === 'production';
+                    const token = getAccessToken();
+                    const isSandboxToken = token.startsWith('TEST-');
+
+                    if (isProd && !isSandboxToken && digits.length === 11 && isValidCpfBackend(digits)) {
+                        return {
+                            identification: {
+                                type: 'CPF',
+                                number: digits,
+                            },
+                        };
+                    }
+                    return {};
+                })(),
                 phone: customerData.phone
                     ? (() => {
-                          const phoneDigits = customerData.phone.replace(/\D/g, '');
-                          const areaCode = phoneDigits.substring(0, 2);
-                          const phoneNumber = phoneDigits.substring(2);
+                          // Normalizar telefone: manter apenas dígitos e limitar a 11 (DDD + número)
+                          const allDigits = customerData.phone.replace(/\D/g, '').slice(0, 11);
+                          const areaCode = allDigits.substring(0, 2);
+                          const phoneNumber = allDigits.substring(2);
 
                           // Validar telefone antes de incluir
-                          // area_code deve ter 2 dígitos, number deve ter pelo menos 8 dígitos
-                          if (areaCode.length === 2 && phoneNumber.length >= 8) {
+                          // area_code deve ter 2 dígitos, number deve ter entre 8 e 9 dígitos
+                          if (areaCode.length === 2 && phoneNumber.length >= 8 && phoneNumber.length <= 9) {
                               return {
                                   area_code: areaCode,
                                   number: phoneNumber,
@@ -303,7 +321,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                           }
                           // Se telefone inválido, não incluir (opcional no MP)
                           console.warn(
-                              `⚠️ [paymentService] Telefone inválido ignorado: ${customerData.phone} (area_code: ${areaCode}, number: ${phoneNumber})`
+                              `⚠️ [paymentService] Telefone inválido ignorado ao enviar para Orders API: ${customerData.phone} (digits=${allDigits})`
                           );
                           return undefined;
                       })()
@@ -312,6 +330,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             transactions: {
                 payments: [
                     {
+                        // amount também deve ser string na Orders API (alinhado com total_amount)
                         amount: String(numericTotalAmount),
                         payment_method: {
                             id: 'pix',

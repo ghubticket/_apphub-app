@@ -200,9 +200,10 @@ const orderSchema = new Schema<IOrder>(
             phone: {
                 type: String,
                 trim: true,
+                // Aceita telefone com máscara (11) 99999-9999 OU apenas dígitos (11999999999)
                 match: [
-                    /^\(\d{2}\)\s\d{4,5}-\d{4}$/,
-                    'Telefone deve estar no formato (11) 99999-9999',
+                    /^(\(\d{2}\)\s\d{4,5}-\d{4}|\d{10,11})$/,
+                    'Telefone deve estar no formato (11) 99999-9999 ou apenas dígitos (11999999999)',
                 ],
             },
             phoneHash: {

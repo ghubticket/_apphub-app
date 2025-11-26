@@ -735,23 +735,9 @@ export default function DashboardPage() {
                     const eventDate = formatEventDate(order.event?.date || undefined);
                     const eventLocation = order.event?.location || order.event?.address || '';
                     const createdAt = formatDate(order.createdAt);
-                    // Texto do status de pagamento exibido no card
-                    const paymentLabel = (() => {
-                        if (order.status === 'paid') {
-                            return 'Pagamento confirmado';
-                        }
-                        if (order.status === 'cancelled') {
-                            return 'Pagamento não realizado';
-                        }
-                        if (order.status === 'refunded') {
-                            return 'Pagamento estornado';
-                        }
-                        if (order.paymentMethod === 'pix' && order.status === 'pending') {
-                            return 'Pagamento pendente';
-                        }
-                        // Fallback genérico para outros casos (ex.: sem método definido)
-                        return 'Status de pagamento em atualização';
-                    })();
+                    const paymentLabel =
+                        (order.paymentMethod && paymentLabels[order.paymentMethod]) ||
+                        (order.status === 'paid' ? 'Pagamento confirmado' : 'Pagamento pendente');
 
                     const ticketsConfirmed = order.tickets.filter((ticket) => ticket?.status === 'confirmed').length;
 
@@ -1236,11 +1222,7 @@ const TicketModal = ({
                             className="flex snap-x snap-mandatory gap-6 overflow-x-auto pb-6"
                         >
                             {order.tickets.map((ticket, index) => {
-                                const ticketStatus = ticket.status;
-                                const ticketConfirmed = ticketStatus === 'confirmed';
-                                const ticketUsed = ticketStatus === 'used';
-                                const ticketCancelled =
-                                    ticketStatus === 'cancelled' || ticketStatus === 'refunded';
+                                const ticketConfirmed = ticket.status === 'confirmed';
                                 const ticketPrice = formatCurrency(ticket.price);
 
                                 return (
@@ -1248,6 +1230,7 @@ const TicketModal = ({
                                         key={ticket._id ?? ticket.code ?? index}
                                         className="flex min-w-full snap-center flex-col items-center gap-6 text-center"
                                     >
+
                                         <div className="rounded-3xl border border-[#ded7ca] bg-white p-4 shadow-[0_20px_45px_-25px_rgba(20,20,32,0.25)]">
                                             {ticketConfirmed && ticket.qrCode ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
@@ -1256,14 +1239,6 @@ const TicketModal = ({
                                                     alt={`QR Code do ingresso ${ticket.code ?? ''}`}
                                                     className="h-56 w-56 object-contain"
                                                 />
-                                            ) : ticketUsed ? (
-                                                <div className="flex h-56 w-56 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
-                                                    Ingresso já utilizado
-                                                </div>
-                                            ) : ticketCancelled ? (
-                                                <div className="flex h-56 w-56 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
-                                                    Ingresso cancelado
-                                                </div>
                                             ) : (
                                                 <div className="flex h-56 w-56 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
                                                     Aguardando confirmação do pagamento
