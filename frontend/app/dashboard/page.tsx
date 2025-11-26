@@ -735,9 +735,23 @@ export default function DashboardPage() {
                     const eventDate = formatEventDate(order.event?.date || undefined);
                     const eventLocation = order.event?.location || order.event?.address || '';
                     const createdAt = formatDate(order.createdAt);
-                    const paymentLabel =
-                        (order.paymentMethod && paymentLabels[order.paymentMethod]) ||
-                        (order.status === 'paid' ? 'Pagamento confirmado' : 'Pagamento pendente');
+                    // Texto do status de pagamento exibido no card
+                    const paymentLabel = (() => {
+                        if (order.status === 'paid') {
+                            return 'Pagamento confirmado';
+                        }
+                        if (order.status === 'cancelled') {
+                            return 'Pagamento não realizado';
+                        }
+                        if (order.status === 'refunded') {
+                            return 'Pagamento estornado';
+                        }
+                        if (order.paymentMethod === 'pix' && order.status === 'pending') {
+                            return 'Pagamento pendente';
+                        }
+                        // Fallback genérico para outros casos (ex.: sem método definido)
+                        return 'Status de pagamento em atualização';
+                    })();
 
                     const ticketsConfirmed = order.tickets.filter((ticket) => ticket?.status === 'confirmed').length;
 
