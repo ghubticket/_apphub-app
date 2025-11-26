@@ -27,7 +27,9 @@ export const authRateLimit = rateLimit({
  */
 export const generalRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: isDevelopment ? 5000 : 100, // máximo 5000 em dev, 100 em produção
+    // Durante o período de testes/demonstração, usar limite mais alto em produção
+    // TODO: reduzir para ~100 em produção quando o tráfego real começar
+    max: isDevelopment ? 5000 : 2000, // 5000 em dev, 2000 em produção (por IP / 15min)
     message: {
         success: false,
         message: 'Muitas requisições. Tente novamente em 15 minutos.',
