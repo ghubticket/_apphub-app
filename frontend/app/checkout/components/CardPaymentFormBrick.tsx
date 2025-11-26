@@ -279,13 +279,11 @@ export function CardPaymentFormBrick({
                                         </h1>
                                         <div className="mt-4 space-y-2 text-sm leading-relaxed">
                                             {successMessages.length > 0 ? (
-                                                successMessages.map((msg, index) => {
-                                                    const hasHTML = /<[^>]+>/.test(msg);
-                                                    if (hasHTML) {
-                                                        return <p key={`${msg}-${index}`} className="leading-relaxed" dangerouslySetInnerHTML={{ __html: msg }} />;
-                                                    }
-                                                    return <p key={`${msg}-${index}`} className="leading-relaxed">{msg}</p>;
-                                                })
+                                                successMessages.map((msg, index) => (
+                                                    <p key={`${msg}-${index}`} className="leading-relaxed">
+                                                        {msg}
+                                                    </p>
+                                                ))
                                             ) : (
                                                 <p className="leading-relaxed">{overlayMessage}</p>
                                             )}
@@ -319,16 +317,7 @@ export function CardPaymentFormBrick({
                                                     return null;
                                                 }
 
-                                                const hasHTML = /<[^>]+>/.test(primaryMessage);
-                                                if (hasHTML) {
-                                                    return (
-                                                        <p
-                                                            className="leading-relaxed"
-                                                            dangerouslySetInnerHTML={{ __html: primaryMessage }}
-                                                        />
-                                                    );
-                                                }
-
+                                                // Segurança: sempre tratar mensagem como texto simples para evitar XSS
                                                 return <p className="leading-relaxed">{primaryMessage}</p>;
                                             })()}
                                         </div>
