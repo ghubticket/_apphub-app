@@ -212,7 +212,12 @@ const orderSchema = new Schema<IOrder>(
             cpf: {
                 type: String,
                 trim: true,
-                match: [/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, 'CPF deve estar no formato 000.000.000-00'],
+                // Aceitar CPF tanto no formato 000.000.000-00 quanto apenas com dígitos (11 números).
+                // A normalização e formatação final são feitas em ordersController antes de salvar.
+                match: [
+                    /^(\d{3}\.\d{3}\.\d{3}-\d{2}|\d{11})$/,
+                    'CPF deve conter 11 dígitos válidos (ex: 000.000.000-00)',
+                ],
             },
             cpfHash: {
                 type: String,

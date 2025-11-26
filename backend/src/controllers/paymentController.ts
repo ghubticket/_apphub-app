@@ -425,6 +425,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
         }
 
         // Validar e buscar pedido
+        // IMPORTANTE: precisamos de um documento Mongoose real (sem .lean())
+        // para poder usar .save() com segurança neste fluxo.
         order = await validateAndGetOrder(orderId, userId, req);
 
         // Buscar tickets para descrição e items
@@ -527,7 +529,20 @@ export const createCardPayment = async (req: Request, res: Response) => {
             order.paymentMessage = 'Você excedeu o número máximo de tentativas para este pedido.';
             order.paymentAdminMessage = 'Limite de tentativas excedido (cartão).';
             order.isActive = false;
-            await order.save();
+            await Order.findByIdAndUpdate(
+                order._id,
+                {
+                    $set: {
+                        status: order.status,
+                        paymentStatus: order.paymentStatus,
+                        paymentStatusDetail: order.paymentStatusDetail,
+                        paymentMessage: order.paymentMessage,
+                        paymentAdminMessage: order.paymentAdminMessage,
+                        isActive: order.isActive,
+                    },
+                },
+                { new: true }
+            );
 
             // Devolver ingressos ao estoque quando limite de tentativas é excedido
             if (order.ticketType && order.totalTickets > 0) {
@@ -591,32 +606,34 @@ export const createCardPayment = async (req: Request, res: Response) => {
 
         // Atualizar pedido com informações completas
         // REGRA: MP é a fonte de verdade única - seguir o status do MP imediatamente
-        order.paymentId = cardPayment.paymentId;
-        order.paymentStatus = cardPayment.status;
-        order.paymentStatusDetail = cardPayment.statusDetail;
-        order.paymentMessage = statusInfo.userMessage;
-        order.paymentAdminMessage = statusInfo.adminMessage;
-        order.paymentMethod = paymentMethod;
+        const baseOrderUpdate: any = {
+            paymentId: cardPayment.paymentId,
+            paymentStatus: cardPayment.status,
+            paymentStatusDetail: cardPayment.statusDetail,
+            paymentMessage: statusInfo.userMessage,
+            paymentAdminMessage: statusInfo.adminMessage,
+            paymentMethod,
+        };
 
         // Seguir o status do MP imediatamente (100% alinhamento)
         if (paymentStatus === 'paid') {
-            order.status = 'paid';
-            order.paidAt = cardPayment.dateApproved
-                ? new Date(cardPayment.dateApproved)
-                : new Date();
-            order.isActive = true;
-            order.cardAttempts = 0;
+            Object.assign(baseOrderUpdate, {
+                status: 'paid',
+                paidAt: cardPayment.dateApproved
+                    ? new Date(cardPayment.dateApproved)
+                    : new Date(),
+                isActive: true,
+                cardAttempts: 0,
+            });
 
             // CRÍTICO: Confirmar APENAS tickets deste pedido específico
             // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
-            // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
+            // IMPORTANTE: NÃO usar .lean() aqui, pois precisamos das instâncias do Mongoose para chamar .save()
             const tickets = await Ticket.find({
                 _id: { $in: order.tickets },
                 order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
                 deletedAt: null,
-            })
-                .select('_id code qrCode status ticketType holder price')
-                .lean();
+            }).select('_id code qrCode status ticketType holder price order');
 
             console.log(
                 `💳 [createCardPayment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
@@ -646,22 +663,29 @@ export const createCardPayment = async (req: Request, res: Response) => {
             }
         } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
             // Se o MP cancelou/falhou, seguir o MP imediatamente
-            order.status = 'cancelled';
-            order.isActive = false;
+            Object.assign(baseOrderUpdate, {
+                status: 'cancelled',
+                isActive: false,
+            });
             // Incrementar tentativas apenas se falhou (não se foi cancelado manualmente)
             if (paymentStatus === 'failed') {
                 const previousAttempts = order.cardAttempts || 0;
-                order.cardAttempts = previousAttempts + 1;
+                const newAttempts = previousAttempts + 1;
+                Object.assign(baseOrderUpdate, {
+                    cardAttempts: newAttempts,
+                });
                 console.log(
-                    `📊 [createCardPayment] Tentativa falhou: cardAttempts ${previousAttempts} → ${order.cardAttempts}, orderNumber=${order.orderNumber}`
+                        `📊 [createCardPayment] Tentativa falhou: cardAttempts ${previousAttempts} → ${newAttempts}, orderNumber=${order.orderNumber}`
                 );
             }
         } else {
             // processing, pending, etc - manter como pending
-            order.status = 'pending';
+            Object.assign(baseOrderUpdate, {
+                status: 'pending',
+            });
         }
 
-        await order.save();
+        await Order.findByIdAndUpdate(order._id, { $set: baseOrderUpdate }, { new: true });
 
         // Log detalhado
         console.log(`💳 Pedido ${order.orderNumber} - Cartão processado:`, {
@@ -788,17 +812,25 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 const newAttempts = previousAttempts + 1;
                 const maxAttempts = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
 
+                const updateData: any = {
+                    paymentStatus: 'failed',
+                    paymentStatusDetail: 'rejected',
+                    paymentMessage: errorMessage,
+                    paymentAdminMessage: messages.join(', '),
+                    cardAttempts: newAttempts,
+                };
+
                 // Marcar como failed apenas se esgotou tentativas, senão manter pending para reutilização
                 if (newAttempts >= maxAttempts) {
-                    order.status = 'failed';
-                    order.isActive = false;
+                    updateData.status = 'failed';
+                    updateData.isActive = false;
                     console.log(
                         `📊 [createCardPayment] Tentativas esgotadas: cardAttempts ${previousAttempts} → ${newAttempts}/${maxAttempts}, orderNumber=${order.orderNumber}`
                     );
                 } else {
                     // Manter pending para permitir nova tentativa
-                    order.status = 'pending';
-                    order.isActive = true;
+                    updateData.status = 'pending';
+                    updateData.isActive = true;
                     // CRÍTICO: Manter expiresAt original, não renovar o tempo
                     // O tempo original deve ser preservado mesmo após falhas de pagamento
                     console.log(
@@ -806,12 +838,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
                     );
                 }
 
-                order.paymentStatus = 'failed';
-                order.paymentStatusDetail = 'rejected';
-                order.paymentMessage = errorMessage;
-                order.paymentAdminMessage = messages.join(', ');
-                order.cardAttempts = newAttempts;
-                await order.save();
+                await Order.findByIdAndUpdate(order._id, { $set: updateData }, { new: true });
 
                 // CRÍTICO: Devolver ingressos ao estoque APENAS quando esgotou tentativas
                 // Se ainda há tentativas disponíveis, manter estoque reservado
