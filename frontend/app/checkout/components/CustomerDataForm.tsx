@@ -84,7 +84,9 @@ export function CustomerDataForm({
                             className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${docTypeReady ? 'text-[#a38f78]' : 'text-[#d3c7b5]'}`}
                         />
                         <input
-                            type="text"
+                            type="tel"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             value={data.cpf}
                             onChange={(event) => onChange('cpf', event.target.value)}
                             readOnly={disabled}
@@ -100,6 +102,8 @@ export function CustomerDataForm({
                         <HiOutlinePhone className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
                         <input
                             type="tel"
+                            inputMode="tel"
+                            pattern="[0-9]*"
                             value={data.phone}
                             onChange={(event) => onChange('phone', event.target.value)}
                             readOnly={disabled}

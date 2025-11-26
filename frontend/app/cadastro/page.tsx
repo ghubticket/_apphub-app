@@ -338,7 +338,9 @@ function CadastroPageContent() {
                                 onBlur={handleBlur('cpf')}
                                 hint="Opcional"
                                 error={errors.cpf}
+                                type="tel"
                                 inputMode="numeric"
+                                pattern="[0-9]*"
                                 maxLength={14}
                             />
                         </div>
