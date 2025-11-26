@@ -117,13 +117,22 @@ export const createPixPayment = async (req: Request, res: Response) => {
                 .join(', ') || `Pedido ${order.orderNumber}`;
 
         // Preparar items para additional_info (melhora taxa de aprovação)
-        const items = tickets.map((ticket) => ({
-            title: `${(ticket as any).ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`,
-            description: `Ingresso para ${(order as any).event?.name || 'Evento'}`,
-            quantity: 1,
-            unit_price: (ticket as any).ticketType?.price || 0,
-            category: 'tickets', // Categoria para eventos/ingressos
-        }));
+        // Inclui todos os campos recomendados pelo Mercado Pago: id, title, description,
+        // quantity, unit_price, category_id.
+        const items = tickets.map((ticket) => {
+            const ticketType: any = (ticket as any).ticketType;
+            const ticketTypeId = ticketType?._id || ticketType;
+            const title = `${ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`;
+            return {
+                id: ticketTypeId ? String(ticketTypeId) : undefined,
+                title,
+                description: `Ingresso para ${(order as any).event?.name || 'Evento'}`,
+                quantity: 1,
+                unit_price: ticketType?.price || 0,
+                category: 'tickets', // compatibilidade interna
+                category_id: 'tickets', // recomendado pelo MP
+            };
+        });
 
         // Obter Device ID do header (X-meli-session-id) ou do body
         const deviceId = (req.headers['x-meli-session-id'] as string) || req.body.deviceId;
@@ -450,13 +459,20 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 .join(', ') || `Pedido ${order.orderNumber}`;
 
         // Preparar items para additional_info (melhora taxa de aprovação)
-        const items = tickets.map((ticket) => ({
-            title: `${(ticket as any).ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`,
-            description: `Ingresso para ${(order as any).event?.name || 'Evento'}`,
-            quantity: 1,
-            unit_price: (ticket as any).ticketType?.price || 0,
-            category: 'tickets', // Categoria para eventos/ingressos
-        }));
+        const items = tickets.map((ticket) => {
+            const ticketType: any = (ticket as any).ticketType;
+            const ticketTypeId = ticketType?._id || ticketType;
+            const title = `${ticketType?.name || 'Ingresso'} - ${(order as any).event?.name || 'Evento'}`;
+            return {
+                id: ticketTypeId ? String(ticketTypeId) : undefined,
+                title,
+                description: `Ingresso para ${(order as any).event?.name || 'Evento'}`,
+                quantity: 1,
+                unit_price: ticketType?.price || 0,
+                category: 'tickets',
+                category_id: 'tickets',
+            };
+        });
 
         // Obter Device ID do header (X-meli-session-id) ou do body
         const deviceId = (req.headers['x-meli-session-id'] as string) || req.body.deviceId;

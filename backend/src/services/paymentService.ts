@@ -275,7 +275,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         }
 
         // Criar Order usando Orders API (modo automático)
-        // Estrutura simplificada conforme documentação Orders API
+        // Estrutura alinhada com as recomendações de qualidade do MP
         // CRÍTICO: Usar numericTotalAmount validado em vez de totalAmount direto
         const orderData = {
             type: 'online',
@@ -327,6 +327,17 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                       })()
                     : undefined,
             },
+            // Detalhe dos itens - melhora aprovação e experiência na fatura/carrinho
+            items: Array.isArray(items)
+                ? items.map((item: any, index: number) => ({
+                      id: item.id || item.sku || String(index + 1),
+                      title: item.title,
+                      description: item.description,
+                      quantity: item.quantity ?? 1,
+                      unit_price: item.unit_price ?? 0,
+                      category_id: item.category_id || item.category || 'tickets',
+                  }))
+                : undefined,
             transactions: {
                 payments: [
                     {
@@ -339,6 +350,9 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                         // Orders API aceita expiration_time (ISO-8601 duration)
                         // Aqui fixamos em 30 minutos para alinhar com o comportamento oficial do MP
                         expiration_time: MP_PIX_EXPIRATION_ISO,
+                        // Descrição na fatura do cartão (quando aplicável)
+                        statement_descriptor:
+                            process.env.MP_STATEMENT_DESCRIPTOR || 'GHUBTECH*EVENTO',
                     },
                 ],
             },
