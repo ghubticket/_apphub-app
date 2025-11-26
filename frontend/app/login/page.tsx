@@ -28,6 +28,15 @@ const validators: Record<LoginFormFields, (value: string) => string> = {
     },
 };
 
+const EMAIL_DOMAIN_SUGGESTIONS = [
+    'gmail.com',
+    'outlook.com',
+    'hotmail.com',
+    'icloud.com',
+    'live.com',
+    'me.com',
+];
+
 // Função para formatar CPF
 const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, '');
@@ -188,6 +197,19 @@ export default function LoginPage() {
         }
     };
 
+    const emailSuggestions = (() => {
+        const value = formData.email.trim();
+        const atIndex = value.indexOf('@');
+        if (atIndex === -1) return [] as string[];
+        const localPart = value.slice(0, atIndex);
+        const domainPart = value.slice(atIndex + 1);
+        if (!localPart || domainPart.includes('.com.br')) return [] as string[];
+        const matches = EMAIL_DOMAIN_SUGGESTIONS.filter((d) =>
+            d.startsWith(domainPart.toLowerCase())
+        );
+        return matches.slice(0, 5).map((d) => `${localPart}@${d}`);
+    })();
+
     return (
         <main className="min-h-screen bg-[#faf7f0] py-12">
             <Container>
@@ -216,7 +238,8 @@ export default function LoginPage() {
                         </div>
 
                         <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-                            <InputField
+                            <div className="space-y-1">
+                                <InputField
                                     label="E-mail"
                                     type="email"
                                     placeholder="seu@email.com"
@@ -227,6 +250,26 @@ export default function LoginPage() {
                                     onBlur={handleBlur('email')}
                                     error={errors.email}
                                 />
+                                {emailSuggestions.length > 0 && (
+                                    <div className="mt-1 overflow-hidden rounded-xl border border-[#e1dbcf] bg-white shadow-sm">
+                                        {emailSuggestions.map((suggestion) => (
+                                            <button
+                                                key={suggestion}
+                                                type="button"
+                                                className="block w-full px-3 py-2 text-left text-xs text-[#6f6b63] hover:bg-[#f5f1e8]"
+                                                onClick={() =>
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        email: suggestion,
+                                                    }))
+                                                }
+                                            >
+                                                {suggestion}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                             <PasswordField
                                     label="Senha"

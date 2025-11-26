@@ -27,6 +27,15 @@ import {
 
 type SignupField = 'name' | 'email' | 'password' | 'confirmPassword' | 'phone' | 'cpf';
 
+const EMAIL_DOMAIN_SUGGESTIONS = [
+    'gmail.com',
+    'outlook.com',
+    'hotmail.com',
+    'icloud.com',
+    'live.com',
+    'me.com',
+];
+
 const validators: Record<SignupField, (value: string, data?: Record<SignupField, string>) => string> = {
     name: (value) => {
         if (!value.trim()) return 'Informe seu nome completo.';
@@ -148,6 +157,19 @@ function CadastroPageContent() {
         });
         setErrors((prev) => ({ ...prev, [field]: message }));
     };
+
+    const emailSuggestions = (() => {
+        const value = formData.email.trim();
+        const atIndex = value.indexOf('@');
+        if (atIndex === -1) return [] as string[];
+        const localPart = value.slice(0, atIndex);
+        const domainPart = value.slice(atIndex + 1);
+        if (!localPart || domainPart.includes('.com.br')) return [] as string[];
+        const matches = EMAIL_DOMAIN_SUGGESTIONS.filter((d) =>
+            d.startsWith(domainPart.toLowerCase())
+        );
+        return matches.slice(0, 5).map((d) => `${localPart}@${d}`);
+    })();
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -304,17 +326,38 @@ function CadastroPageContent() {
                                 error={errors.name}
                             />
 
-                            <InputField
-                                label="E-mail"
-                                type="email"
-                                placeholder="seu@email.com"
-                                startIcon={<HiOutlineEnvelope className="h-5 w-5" />}
-                                autoComplete="email"
-                                value={formData.email}
-                                onChange={handleChange('email')}
-                                onBlur={handleBlur('email')}
-                                error={errors.email}
-                            />
+                            <div className="space-y-1">
+                                <InputField
+                                    label="E-mail"
+                                    type="email"
+                                    placeholder="seu@email.com"
+                                    startIcon={<HiOutlineEnvelope className="h-5 w-5" />}
+                                    autoComplete="email"
+                                    value={formData.email}
+                                    onChange={handleChange('email')}
+                                    onBlur={handleBlur('email')}
+                                    error={errors.email}
+                                />
+                                {emailSuggestions.length > 0 && (
+                                    <div className="mt-1 overflow-hidden rounded-xl border border-[#e1dbcf] bg-white shadow-sm">
+                                        {emailSuggestions.map((suggestion) => (
+                                            <button
+                                                key={suggestion}
+                                                type="button"
+                                                className="block w-full px-3 py-2 text-left text-xs text-[#6f6b63] hover:bg-[#f5f1e8]"
+                                                onClick={() =>
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        email: suggestion,
+                                                    }))
+                                                }
+                                            >
+                                                {suggestion}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                             <InputField
                                 label="Telefone"

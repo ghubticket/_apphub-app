@@ -8,6 +8,15 @@ import InputField from '@/components/forms/InputField';
 import Button from '@/components/shared/Button';
 import api from '@/lib/api';
 
+const EMAIL_DOMAIN_SUGGESTIONS = [
+    'gmail.com',
+    'outlook.com',
+    'hotmail.com',
+    'icloud.com',
+    'live.com',
+    'me.com',
+];
+
 export default function RecuperarSenhaPage() {
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
@@ -62,37 +71,55 @@ export default function RecuperarSenhaPage() {
         }
     };
 
-    return (
-        <main
-            className="flex w-full items-center justify-center bg-gradient-to-br from-primary to-primary-dark"
-            style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
-        >
-            <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-10 px-4 text-white">
-                <div className="text-center">
-                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
-                        Recuperar acesso
-                    </span>
-                    <h1 className="mt-3 text-4xl font-bold uppercase tracking-[0.25em]">
-                        Esqueci minha senha
-                    </h1>
-                </div>
+    const emailSuggestions = (() => {
+        const value = email.trim();
+        const atIndex = value.indexOf('@');
+        if (atIndex === -1) return [] as string[];
+        const localPart = value.slice(0, atIndex);
+        const domainPart = value.slice(atIndex + 1);
+        if (!localPart || domainPart.includes('.com.br')) return [] as string[];
+        const matches = EMAIL_DOMAIN_SUGGESTIONS.filter((d) =>
+            d.startsWith(domainPart.toLowerCase())
+        );
+        return matches.slice(0, 5).map((d) => `${localPart}@${d}`);
+    })();
 
+    return (
+        <main className="min-h-screen bg-[#faf7f0] py-12">
+            <div className="flex justify-center items-center">
                 <AuthCard
                     title="Redefinir senha"
-                    description="Informe o e-mail cadastrado. Vamos enviar um link seguro para você escolher uma nova senha."
+                    description="Vamos enviar um link seguro para você escolher uma nova senha. Ele expira em 30 minutos por segurança."
+                    className="border-[#ded7ca] bg-white/80"
                 >
                     <form className="space-y-6" noValidate onSubmit={handleSubmit}>
-                        <InputField
-                            label="E-mail"
-                            type="email"
-                            placeholder="seu@email.com"
-                            startIcon={<HiOutlineEnvelope className="h-5 w-5" />}
-                            autoComplete="email"
-                            value={email}
-                            onChange={handleChange}
-                            onBlur={handleBlur}
-                            error={error}
-                        />
+                        <div className="space-y-1">
+                            <InputField
+                                label="E-mail"
+                                type="email"
+                                placeholder="seu@email.com"
+                                startIcon={<HiOutlineEnvelope className="h-5 w-5" />}
+                                autoComplete="email"
+                                value={email}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                error={error}
+                            />
+                            {emailSuggestions.length > 0 && (
+                                <div className="mt-1 overflow-hidden rounded-xl border border-[#e1dbcf] bg-white shadow-sm">
+                                    {emailSuggestions.map((suggestion) => (
+                                        <button
+                                            key={suggestion}
+                                            type="button"
+                                            className="block w-full px-3 py-2 text-left text-xs text-[#6f6b63] hover:bg-[#f5f1e8]"
+                                            onClick={() => setEmail(suggestion)}
+                                        >
+                                            {suggestion}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
 
                         {isSuccess ? (
                             <div className="rounded-xl border border-[#c1f1ce] bg-[#e9fbef] p-4 text-xs text-[#256b3f]">
@@ -118,7 +145,7 @@ export default function RecuperarSenhaPage() {
                             {isSubmitting ? 'Enviando...' : 'Enviar link de redefinição'}
                         </Button>
 
-                        <p className="text-center text-xs text-[#5b5866]">
+                        <p className="text-center text-xs text-[#6f6b63]">
                             Lembrou sua senha?{' '}
                             <Link
                                 href="/login"
