@@ -174,6 +174,21 @@ app.use(
             if (allowedOrigins.includes(normalizedOrigin)) {
                 return callback(null, true);
             }
+
+            // Permitir prévias do Vercel do frontend oficial em produção
+            // Ex.: https://apphub-app-front-xxxx-ghrenriques-projects.vercel.app
+            const vercelPreviewRegex =
+                /^https:\/\/apphub-app-front-[a-zA-Z0-9-]+-ghrenriques-projects\.vercel\.app$/;
+            if (
+                (process.env.NODE_ENV || 'development') === 'production' &&
+                vercelPreviewRegex.test(normalizedOrigin)
+            ) {
+                if (!warnedCorsOrigins.has(normalizedOrigin)) {
+                    warnedCorsOrigins.add(normalizedOrigin);
+                    console.warn(`[CORS] Permitindo origin Vercel preview: ${normalizedOrigin}`);
+                }
+                return callback(null, true);
+            }
             // Em dev, permitir
             if ((process.env.NODE_ENV || 'development') !== 'production') {
                 return callback(null, true);
