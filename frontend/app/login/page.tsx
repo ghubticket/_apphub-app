@@ -323,7 +323,9 @@ export default function LoginPage() {
                             <div>
                                 <InputField
                                     label="CPF"
-                                    type="text"
+                                    type="tel"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     placeholder="000.000.000-00"
                                     startIcon={<HiOutlineIdentification className="h-5 w-5" />}
                                     value={cpf}
