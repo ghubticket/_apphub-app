@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { HiOutlineLockClosed } from 'react-icons/hi2';
@@ -10,7 +10,7 @@ import Button from '@/components/shared/Button';
 import api from '@/lib/api';
 import Container from '@/components/shared/Container';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const token = searchParams.get('token') || '';
@@ -200,4 +200,23 @@ export default function ResetPasswordPage() {
     );
 }
 
+export default function ResetPasswordPage() {
+    return (
+        <Suspense
+            fallback={
+                <main className="min-h-screen bg-[#faf7f0] py-12">
+                    <Container>
+                        <div className="mx-auto max-w-lg animate-pulse space-y-6">
+                            <div className="h-8 w-2/3 rounded bg-[#e5dfd4]" />
+                            <div className="h-4 w-full rounded bg-[#e5dfd4]" />
+                            <div className="h-64 w-full rounded-3xl bg-[#e5dfd4]" />
+                        </div>
+                    </Container>
+                </main>
+            }
+        >
+            <ResetPasswordContent />
+        </Suspense>
+    );
+}
 
