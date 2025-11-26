@@ -97,6 +97,8 @@ export function CheckoutLayout() {
         pixResult: pixPayment.pixResult,
     });
 
+    const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+
     // Order cleanup hook
     const orderCleanup = useOrderCleanup({
         clearOrder,
@@ -388,9 +390,11 @@ export function CheckoutLayout() {
 
                         <CustomerDataForm
                             data={customerData}
-                            disabled={false}
+                            disabled={!isEditingCustomer}
                             onChange={handleCustomerChange}
                             docTypeReady={true}
+                            showEditToggle
+                            onEditClick={() => setIsEditingCustomer((prev) => !prev)}
                         />
                     </section>
 
