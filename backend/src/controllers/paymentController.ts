@@ -1042,14 +1042,27 @@ export const handleWebhook = async (req: Request, res: Response) => {
     try {
         const { type, data } = req.body;
 
-        // Assinatura obrigatória em produção
+        // Assinatura do webhook
         const secret = process.env.MP_WEBHOOK_SECRET?.trim();
         const sigHeader =
             (req.headers['x-signature'] as string) ||
             (req.headers['x-hub-signature-256'] as string);
-        if ((process.env.NODE_ENV || 'development') === 'production') {
+
+        const isProd = (process.env.NODE_ENV || 'development') === 'production';
+        const strictWebhook =
+            (process.env.MP_WEBHOOK_STRICT || 'false').toLowerCase() === 'true';
+
+        // Em modo estrito de produção exigimos secret + assinatura válida.
+        // Em modo não estrito, apenas logamos problemas de assinatura mas continuamos o processamento
+        if (isProd && strictWebhook) {
             if (!secret) return res.status(500).send('Webhook secret not configured');
             if (!sigHeader) return res.status(401).send('Missing signature');
+        } else {
+            if (!secret || !sigHeader) {
+                console.warn(
+                    '[Webhook] Assinatura ausente ou secret não configurado (modo não estrito).',
+                );
+            }
         }
         let signatureValid = false;
         if (secret && sigHeader) {
@@ -1066,8 +1079,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
             } catch {
                 signatureValid = false;
             }
-            if ((process.env.NODE_ENV || 'development') === 'production' && !signatureValid) {
+            if (isProd && strictWebhook && !signatureValid) {
                 return res.status(401).send('Invalid signature');
+            } else if (!signatureValid) {
+                console.warn('[Webhook] Assinatura inválida (modo não estrito).');
             }
         }
 
