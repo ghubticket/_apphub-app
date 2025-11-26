@@ -60,9 +60,15 @@ const replaceVariables = (html: string, variables: Record<string, any>): string 
  * @returns HTML renderizado completo
  */
 export const renderTemplate = (templateName: string, variables: Record<string, any>): string => {
-    const templatePath = path.join(__dirname, '../templates/email', `${templateName}.html`);
+    // Procurar template tanto no build (dist) quanto no src para ambientes de dev/prod
+    const candidatePaths = [
+        path.join(__dirname, '../templates/email', `${templateName}.html`), // dist
+        path.join(__dirname, '../../src/templates/email', `${templateName}.html`), // src (dev)
+    ];
 
-    if (!fs.existsSync(templatePath)) {
+    const templatePath = candidatePaths.find((p) => fs.existsSync(p));
+
+    if (!templatePath) {
         throw new Error(`Template não encontrado: ${templateName}.html`);
     }
 
@@ -83,9 +89,14 @@ export const renderBaseTemplate = (
     content: string,
     variables: Record<string, any> = {}
 ): string => {
-    const basePath = path.join(__dirname, '../templates/email/base.html');
+    const candidatePaths = [
+        path.join(__dirname, '../templates/email/base.html'), // dist
+        path.join(__dirname, '../../src/templates/email/base.html'), // src (dev)
+    ];
 
-    if (!fs.existsSync(basePath)) {
+    const basePath = candidatePaths.find((p) => fs.existsSync(p));
+
+    if (!basePath) {
         throw new Error('Template base não encontrado');
     }
 
