@@ -159,12 +159,6 @@ export function useCheckoutNavigation(): UseCheckoutNavigationReturn {
                     onCountdownUpdate(0);
                 }
 
-                // Limpar storage se necessário
-                if (clearStorage) {
-                    storage.clearOrderRelated();
-                    clearCartItems();
-                }
-
                 // Permitir navegação
                 allowNavigation();
 
@@ -173,10 +167,20 @@ export function useCheckoutNavigation(): UseCheckoutNavigationReturn {
                     // Usar requestAnimationFrame para garantir que não navegue durante render
                     requestAnimationFrame(() => {
                         setTimeout(() => {
+                            // Limpar storage e carrinho imediatamente antes da navegação
+                            if (clearStorage) {
+                                storage.clearOrderRelated();
+                                clearCartItems();
+                            }
                             window.location.replace(targetPath);
                         }, 0);
                     });
                 } else {
+                    // Limpar storage e carrinho imediatamente antes da navegação
+                    if (clearStorage) {
+                        storage.clearOrderRelated();
+                        clearCartItems();
+                    }
                     router.push(targetPath);
                 }
             }
