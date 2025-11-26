@@ -41,7 +41,7 @@ const formatCPF = (value: string) => {
 export default function LoginPage() {
     const router = useRouter();
     const { login: authLogin, isAuthenticated, isReady } = useAuth();
-    
+
     useEffect(() => {
         if (isReady && isAuthenticated) {
             router.replace('/dashboard');
@@ -195,18 +195,16 @@ export default function LoginPage() {
     const emailSuggestions = useEmailSuggestions(formData.email);
 
     return (
-        <main className="min-h-screen bg-[#faf7f0] py-12">
+        <main className="min-h-screen bg-[#faf7f0] md:py-10 py-10">
             <Container>
-                <div className="mb-12 text-center">
-                    <h1 className="text-4xl uppercase font-bold text-[#1a1a1d]">
-                        Bem-vindo à 5521
-                    </h1>
-                    <p className="mt-2 text-sm text-[#6f6b63]">
-                        Entre com sua conta ou crie uma nova
-                    </p>
-                </div>
+                <header className="mb-10 space-y-3">
+                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">Área do Cliente</span>
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <h1 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d]">Faça seu Login</h1>
+                        <p className="text-sm text-[#4c4c55]">Ou crie sua conta para continuar.</p></div>
+                    </header>
 
-                <div className="relative grid gap-24 md:grid-cols-2">
+                <div className="relative grid md:gap-24 gap-5 md:grid-cols-2">
                     {/* Divider vertical no meio */}
                     <div className="absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-[#ded7ca] md:block" />
 
@@ -258,32 +256,32 @@ export default function LoginPage() {
                             </div>
 
                             <PasswordField
-                                    label="Senha"
-                                    placeholder="Digite sua senha"
-                                    startIcon={<HiOutlineLockClosed className="h-5 w-5" />}
-                                    autoComplete="current-password"
-                                    value={formData.password}
-                                    onChange={handleChange('password')}
-                                    onBlur={handleBlur('password')}
-                                    error={errors.password}
-                                />
+                                label="Senha"
+                                placeholder="Digite sua senha"
+                                startIcon={<HiOutlineLockClosed className="h-5 w-5" />}
+                                autoComplete="current-password"
+                                value={formData.password}
+                                onChange={handleChange('password')}
+                                onBlur={handleBlur('password')}
+                                error={errors.password}
+                            />
 
                             <div className="flex items-center justify-between text-xs text-[#6f6b63]">
-                                    <label className="inline-flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            className="h-4 w-4 rounded border border-[#ded7ca] text-[#f97316] focus:ring-[#f97316]/40"
-                                            checked={formData.remember}
-                                            onChange={handleRememberToggle}
-                                        />
-                                        Lembrar-me
-                                    </label>
-                                    <Link
-                                        href="/recuperar-senha"
-                                        className="font-medium text-[#f97316] underline-offset-4 hover:underline"
-                                    >
-                                        Esqueci minha senha
-                                    </Link>
+                                <label className="inline-flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border border-[#ded7ca] text-[#f97316] focus:ring-[#f97316]/40"
+                                        checked={formData.remember}
+                                        onChange={handleRememberToggle}
+                                    />
+                                    Lembrar-me
+                                </label>
+                                <Link
+                                    href="/recuperar-senha"
+                                    className="font-medium text-[#f97316] underline-offset-4 hover:underline"
+                                >
+                                    Esqueci minha senha
+                                </Link>
                             </div>
 
                             <Button
@@ -296,11 +294,10 @@ export default function LoginPage() {
 
                             {formMessage && (
                                 <div
-                                    className={`rounded-xl border p-4 text-sm text-center ${
-                                        formMessage.type === 'error'
-                                            ? 'border-rose-200 bg-rose-50 text-rose-700'
-                                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                    }`}
+                                    className={`rounded-xl border p-4 text-sm text-center ${formMessage.type === 'error'
+                                        ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        }`}
                                 >
                                     {formMessage.text}
                                 </div>

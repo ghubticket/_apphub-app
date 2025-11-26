@@ -174,7 +174,7 @@ export default function Header() {
 
     return (
         <header ref={headerRef} className={`${styles.headerBackground} relative z-20 w-full`}>
-            <div className="overflow-hidden py-3 text-white" aria-hidden="true">
+            <div className="overflow-hidden md:py-3 py-2 text-white" aria-hidden="true">
                 <div
                     className={`${styles.marquee} flex gap-12 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-white/90 md:text-xs`}
                 >
@@ -198,14 +198,15 @@ export default function Header() {
             </div>
 
             <div className="border-t border-white/10 bg-transparent">
-                <Container className="flex py-7  items-center justify-between gap-6">
+                <Container className="flex md:py-7 py-5 items-center justify-between gap-6">
                     <Link href="/" className="flex items-center gap-3">
                         <Image
                             src="/images/5521.avif"
                             alt="Logotipo 5521"
                             width={120}
                             height={48}
-                            className=""
+                            // Responsivo: menor no mobile, maior em telas médias para cima
+                            className="h-auto w-20 md:w-28 lg:w-32"
                             priority
                         />
                     </Link>
@@ -222,12 +223,12 @@ export default function Header() {
                         ))}
                     </nav>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex gap-3 md:gap-4">
 
                         <button
                             type="button"
                             onClick={openCartDrawer}
-                            className="group relative flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition hover:border-[#f97316] hover:bg-[#f97316]/10"
+                            className="group relative flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition hover:border-[#f97316] hover:bg-[#f97316]/10"
                             aria-label="Ingressos"
                         >
                             <HiOutlineTicket className="text-xl drop-shadow-[0_0_12px_rgba(249,115,22,0.35)] group-hover:text-[#f97316]" />
@@ -242,10 +243,11 @@ export default function Header() {
                             <div className="flex items-center gap-3 text-white">
                                 <Link
                                     href="/dashboard"
-                                    className="inline-flex items-center rounded-full gap-2 bg-white text-black px-6 py-2 text-sm font-semibold uppercase  transition "
+                                    className="inline-flex items-center h-full rounded-full gap-2 bg-white text-black px-4 py-1.5 text-xs md:px-6 md:py-2 md:text-sm font-semibold uppercase transition"
                                 >
-                                    <HiOutlineUserCircle className="text-lg" />
-                                    <span>
+                                    <HiOutlineUserCircle className="text-base md:text-lg" />
+                                    <span className="md:hidden">Meu perfil</span>
+                                    <span className="hidden md:inline">
                                         Olá, <strong className="font-bold">{welcomeName}</strong>
                                     </span>
                                 </Link>
@@ -259,7 +261,7 @@ export default function Header() {
                                             window.location.href = '/';
                                         }
                                     }}
-                                    className="font-medium text-white/70 hover:text-white transition underline"
+                                    className="hidden md:inline font-medium text-white/70 hover:text-white transition underline"
                                 >
                                     Sair
                                 </button>
@@ -267,9 +269,9 @@ export default function Header() {
                         ) : (
                             <Link
                                 href="/login"
-                                className="inline-flex items-center gap-1 rounded-full border border-white/40 px-7 py-3 text-sm font-semibold uppercase text-white transition hover:border-[#f97316] lg:inline-flex"
+                                className="inline-flex items-center gap-1 rounded-full border border-white/40 px-4 py-2 text-xs md:px-7 md:py-3 md:text-sm font-semibold uppercase text-white transition hover:border-[#f97316] lg:inline-flex"
                             >
-                                <HiOutlineUserCircle className="text-lg" />
+                                <HiOutlineUserCircle className="text-base md:text-lg" />
                                 Entrar
                             </Link>
                         )}
@@ -296,21 +298,21 @@ export default function Header() {
                     >
                         <header className="flex items-start justify-between border-b border-[#e5dfd4] px-6 py-6">
                             <div>
-                                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
+                                <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
                                     Meus ingressos
                                 </span>
-                                <h2 className="mt-2 text-xl font-semibold uppercase tracking-[0.2em] text-[#1a1a1d]">
+                                <h2 className="mt-2 text-xl font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                     Carrinho
                                 </h2>
                                 <p className="mt-1 text-sm text-[#6f6b63]">
-                                    Revise seus ingressos antes de finalizar. Você pode editar quantidades ou
+                                    Revise seus ingressos antes de finalizar. <br /> Você pode editar quantidades ou
                                     seguir para o checkout.
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={closeCartDrawer}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
+                                className="inline-flex h-9 md:w-9 w-10 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
                                 aria-label="Fechar carrinho"
                             >
                                 <HiOutlineXMark className="text-xl" />

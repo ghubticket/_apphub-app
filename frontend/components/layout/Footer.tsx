@@ -111,10 +111,10 @@ export default function Footer() {
                 </div>
             </div>
 
-            <div className="py-16 md:py-20 lg:py-15">
+            <div className="py-5 md:py-20 lg:py-15">
                 <Container className="flex flex-col gap-12 items-center lg:flex-row lg:justify-between lg:gap-16">
-                    <div className="space-y-8 text-left lg:max-w-sm lg:text-center">
-                        <div>
+                    <div className="w-full space-y-8 text-left lg:max-w-sm lg:text-center">
+                        <div className='w-full'>
                             <Image
                                 src="/images/5521.avif"
                                 alt="Logomarca 5521"
@@ -154,7 +154,7 @@ export default function Footer() {
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-start gap-3 lg:justify-center">
+                        <div className="w-full flex flex-wrap items-center justify-start gap-3 lg:justify-center">
                             {socialLinks.map((social) => {
                                 const Icon = social.icon;
                                 return (
@@ -172,8 +172,8 @@ export default function Footer() {
                         </div>
                     </div>
 
-                    <div className="space-y-6 lg:max-w-md lg:text-center">
-                        <h1 className="text-4xl text-center font-black text-orange-400">5521</h1>
+                    <div className="w-full space-y-6 lg:max-w-md lg:text-center">
+                        <h1 className="text-4xl md:text-center font-black text-orange-400">5521</h1>
                         <div className="space-y-4">
                             <h2 className="text-3xl font-bold uppercase leading-tight sm:text-4xl">
                                 A mais<br />
@@ -196,8 +196,8 @@ export default function Footer() {
                         </div>
                     </div>
 
-                    <div className="space-y-6 lg:max-w-sm lg:text-right">
-                        <div className="space-y-4 lg:items-end lg:text-right">
+                    <div className="w-full space-y-6 lg:max-w-sm lg:text-right">
+                        <div className="md:space-y-4 lg:items-end lg:text-right">
                             <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-white">
                                 Suporte
                             </h3>
