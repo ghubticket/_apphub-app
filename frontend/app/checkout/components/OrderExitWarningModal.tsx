@@ -49,7 +49,7 @@ export function OrderExitWarningModal({ order, onStay, onLeave }: OrderExitWarni
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
             <div className="relative w-full max-w-md rounded-3xl border-2 border-rose-200 bg-rose-50/95 p-8 shadow-2xl backdrop-blur-sm animate-in fade-in zoom-in">
-                <div className="flex items-start gap-4 mb-6">
+                <div className="flex md:flex-row flex-col md:items-start md:justify-between gap-4 mb-6">
                     <div className="flex-shrink-0">
                         <svg
                             className="h-8 w-8 text-rose-600"
@@ -90,7 +90,7 @@ export function OrderExitWarningModal({ order, onStay, onLeave }: OrderExitWarni
                     </div>
                 </div>
 
-                <div className="flex gap-3 justify-end">
+                <div className="flex md:flex-row flex-col md:justify-end gap-3">
                     <button
                         type="button"
                         onClick={onLeave}

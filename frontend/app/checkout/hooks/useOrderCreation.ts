@@ -83,6 +83,20 @@ export function useOrderCreation({
             return;
         }
 
+        // Validação extra de CPF e telefone no frontend antes de chamar o backend
+        const normalizedCpf = (customerData.cpf || '').replace(/\D/g, '');
+        const normalizedPhone = (customerData.phone || '').replace(/\D/g, '');
+
+        if (normalizedCpf && normalizedCpf.length !== 11) {
+            setError('Informe um CPF válido com 11 dígitos.');
+            return;
+        }
+
+        if (normalizedPhone && normalizedPhone.length < 10) {
+            setError('Informe um telefone válido com DDD.');
+            return;
+        }
+
         // Evitar múltiplas criações simultâneas
         if (creatingRef.current) {
             console.log('[useOrderCreation] ⏸️ Já está criando pedido, ignorando chamada duplicada');

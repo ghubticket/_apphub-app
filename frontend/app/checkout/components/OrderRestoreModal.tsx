@@ -63,7 +63,7 @@ export function OrderRestoreModal({ order, onContinue, onCancel, onClose }: Orde
             }}
         >
             <div className="relative w-full max-w-md rounded-3xl border-2 border-amber-200 bg-amber-50/95 p-8 shadow-2xl backdrop-blur-sm animate-in fade-in zoom-in">
-                <div className="flex items-start gap-4 mb-6">
+                <div className="flex md:flex-row flex-col md:items-start md:justify-between gap-4 mb-6">
                     <div className="flex-shrink-0">
                         <svg
                             className="h-8 w-8 text-amber-600"
@@ -98,7 +98,7 @@ export function OrderRestoreModal({ order, onContinue, onCancel, onClose }: Orde
                     </div>
                 </div>
 
-                <div className="flex gap-3 justify-end">
+                <div className="flex md:flex-row flex-col md:justify-end gap-3">
                     <button
                         type="button"
                         onClick={onCancel}
