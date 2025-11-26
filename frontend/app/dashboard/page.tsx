@@ -625,10 +625,10 @@ export default function DashboardPage() {
                                         className="flex w-full flex-col gap-4 text-left transition hover:text-[#1a1a1d] md:flex-row md:items-center md:justify-between"
                                     >
                                         <div className="space-y-1">
-                                            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#a38f78]">
+                                            <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
                                                 {group.orders.length} Pedido{group.orders.length > 1 ? 's' : ''} Consolidado{group.orders.length > 1 ? 's' : ''}
                                             </span>
-                                            <h3 className="text-lg font-semibold uppercase tracking-[0.15em] text-[#1a1a1d]">
+                                            <h3 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                                 {group.eventName}
                                             </h3>
                                             <p className="text-xs text-[#7d796c]">
@@ -639,11 +639,11 @@ export default function DashboardPage() {
                                         <div className="flex items-center gap-10">
                                             <div className='flex flex-col gap-2'>
                                                 <span
-                                                    className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${statusConfig.paid.badgeClass}`}
+                                                    className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-normal ${statusConfig.paid.badgeClass}`}
                                                 >
                                                     {statusConfig.paid.label}
                                                 </span>
-                                                <span className="text-xs uppercase tracking-[0.2em] text-[#7d796c]">
+                                                <span className="text-xs uppercase tracking-normal text-[#7d796c]">
                                                     {group.orders.length > 1
                                                         ? `De ${earliestDate} até ${latestDate}`
                                                         : `Criado em ${latestDate}`
@@ -652,7 +652,7 @@ export default function DashboardPage() {
                                                 <span className="text-xs font-medium text-[#4c4c55]">
                                                     Valor total {currencyFormatter.format(group.totalAmount)}
                                                 </span>
-                                                <span className="text-[0.65rem] uppercase tracking-[0.2em] text-[#a38f78]">
+                                                <span className="text-[0.65rem] uppercase tracking-normal text-[#a38f78]">
                                                     {paymentLabelsList || 'Pagamento confirmado'}
                                                 </span>
                                                 <span className="text-xs text-[#7d796c]">
@@ -672,7 +672,7 @@ export default function DashboardPage() {
                                 >
                                     {/* Lista de pedidos do grupo */}
                                     <div className="mb-4 space-y-4">
-                                        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
+                                        <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
                                             Pedidos Consolidados ({group.orders.length})
                                         </span>
                                         {group.orders.map((order) => {
@@ -759,10 +759,10 @@ export default function DashboardPage() {
                                     className="flex w-full flex-col gap-4 text-left transition hover:text-[#1a1a1d] md:flex-row md:items-center md:justify-between"
                                 >
                                     <div className="space-y-1">
-                                        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#a38f78]">
+                                        <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
                                             Pedido {order.orderNumber ? `#${order.orderNumber}` : ''}
                                         </span>
-                                        <h3 className="text-lg font-semibold uppercase tracking-[0.15em] text-[#1a1a1d]">
+                                        <h3 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                             {eventName}
                                         </h3>
                                         <p className="text-xs text-[#7d796c]">
@@ -770,20 +770,20 @@ export default function DashboardPage() {
                                             {eventLocation ? ` • ${eventLocation}` : ''}
                                         </p>
                                     </div>
-                                    <div className="flex  items-center gap-10">
+                                    <div className="flex items-center gap-10">
                                         <div className='flex flex-col gap-2'>
                                             <span
-                                                className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${statusInfo.badgeClass}`}
+                                                className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-normal ${statusInfo.badgeClass}`}
                                             >
                                                 {statusInfo.label}
                                             </span>
-                                            <span className="text-xs uppercase tracking-[0.2em] text-[#7d796c]">
+                                            <span className="text-xs uppercase tracking-normal text-[#7d796c]">
                                                 Criado em {createdAt}
                                             </span>
                                             <span className="text-xs font-medium text-[#4c4c55]">
                                                 Valor total {currencyFormatter.format(order.totalAmount ?? 0)}
                                             </span>
-                                            <span className="text-[0.65rem] uppercase tracking-[0.2em] text-[#a38f78]">
+                                            <span className="text-[0.65rem] uppercase tracking-normal text-[#a38f78]">
                                                 {paymentLabel}
                                             </span>
                                         </div>
@@ -797,17 +797,17 @@ export default function DashboardPage() {
                             </header>
 
                             <div
-                                className={`overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[1200px] pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}
+                                className={`overflow-hidden gap-20 transition-all flex duration-500 ${isExpanded ? 'max-h-[1200px] pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}
                             >
                                 {/* Seção de PIX pendente */}
                                 {order.status === 'pending' && order.paymentMethod === 'pix' && (
                                     order.pixInfo ? (
-                                        <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                                        <div className="flex-1 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                                             <div className="mb-3 flex items-center gap-2">
                                                 <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
-                                                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">
+                                                <span className="text-xs font-semibold uppercase tracking-normal text-emerald-800">
                                                     Pagamento PIX Pendente
                                                 </span>
                                             </div>
@@ -821,7 +821,7 @@ export default function DashboardPage() {
                                                     <img
                                                         src={`data:image/png;base64,${order.pixInfo.qrCodeBase64}`}
                                                         alt="QR Code PIX"
-                                                        className="h-48 w-48 rounded-lg border-2 border-emerald-200 bg-white p-2"
+                                                        className="md:h-48 md:w-48 h-full w-full rounded-lg border-2 border-emerald-200 bg-white p-2"
                                                     />
                                                 </div>
                                             )}
@@ -829,7 +829,7 @@ export default function DashboardPage() {
                                             {/* Código PIX para copiar */}
                                             {(order.pixInfo.ticketUrl || order.pixInfo.qrCode) && (
                                                 <div className="mb-4">
-                                                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">
+                                                    <label className="mb-2 block text-xs font-semibold uppercase tracking-normal text-emerald-800">
                                                         Código PIX (Copiar e Colar)
                                                     </label>
                                                     <div className="flex gap-2">
@@ -865,12 +865,12 @@ export default function DashboardPage() {
                                             )}
                                         </div>
                                     ) : (
-                                        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                        <div className="flex-1 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                                             <div className="mb-3 flex items-center gap-2">
                                                 <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
-                                                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">
+                                                <span className="text-xs font-semibold uppercase tracking-normal text-amber-800">
                                                     Pagamento PIX Pendente
                                                 </span>
                                             </div>
@@ -884,37 +884,31 @@ export default function DashboardPage() {
                                     )
                                 )}
 
-                                <div className="rounded-2xl border border-[#ded7ca] bg-white/70 p-4">
-                                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
-                                        Ingressos
-                                    </span>
-                                    {order.status === 'cancelled' ? (
-                                        <p className="mt-3 text-xs font-medium text-[#a22d2d]">
-                                            Pedido cancelado. Os ingressos não ficam disponíveis neste status.
+                                {order.status === 'paid' && ticketsConfirmed > 0 && (
+                                    <div className="flex-1 rounded-2xl border border-[#ded7ca] bg-white/70 p-4">
+                                        <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
+                                            Ingressos
+                                        </span>
+                                        <p className="mt-2 text-2xl font-bold text-[#1a1a1d]">
+                                            {order.totalTickets}x
                                         </p>
-                                    ) : (
-                                        <>
-                                            <p className="mt-2 text-2xl font-bold text-[#1a1a1d]">
-                                                {order.totalTickets}x
-                                            </p>
-                                            <p className="mt-1 text-xs font-medium tracking-normal text-[#6a6760]">
-                                                {ticketsConfirmed} confirmados
-                                            </p>
+                                        <p className="mt-1 text-xs font-medium tracking-normal text-[#6a6760]">
+                                            {ticketsConfirmed} confirmados
+                                        </p>
 
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setModalSlideIndex(0);
-                                                    handleViewDetails(order._id);
-                                                }}
-                                                className="mt-4 flex gap-3 w-full md:w-fit text-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
-                                            >
-                                                <HiOutlineTicket className="text-base" />
-                                                Abrir ingressos
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setModalSlideIndex(0);
+                                                handleViewDetails(order._id);
+                                            }}
+                                            className="mt-4 flex gap-3 w-full md:w-fit text-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                        >
+                                            <HiOutlineTicket className="text-base" />
+                                            Abrir ingressos
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </article>
                     );
@@ -1010,7 +1004,7 @@ export default function DashboardPage() {
                                                 <Icon className="text-xl" />
                                             </span>
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-semibold uppercase tracking-[0.2em]">
+                                                <span className="text-sm font-semibold uppercase tracking-normal">
                                                     {tab.label}
                                                 </span>
                                                 <span
@@ -1066,7 +1060,7 @@ export default function DashboardPage() {
                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
                                 <HiOutlineExclamationTriangle className="h-6 w-6 text-amber-600" />
                             </div>
-                            <h3 className="text-lg font-semibold uppercase tracking-[0.15em] text-[#1a1a1d]">
+                            <h3 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                 Segurança e Comodidade
                             </h3>
                         </div>
@@ -1077,7 +1071,7 @@ export default function DashboardPage() {
                             </p>
 
                             <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800 mb-2">
+                                <p className="text-xs font-semibold uppercase tracking-normal text-amber-800 mb-2">
                                     Proteções Ativas:
                                 </p>
                                 <ul className="space-y-2 text-xs text-amber-700">
@@ -1108,7 +1102,7 @@ export default function DashboardPage() {
                         <button
                             type="button"
                             onClick={() => setShowSecurityModal(false)}
-                            className="mt-6 w-full rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                            className="mt-6 w-full rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-lg transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
                         >
                             Entendi
                         </button>
