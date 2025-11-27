@@ -9,6 +9,7 @@ import {
 } from '../controllers/ticketsController';
 import { authenticate, isAdmin } from '../middleware/auth';
 import { validateMobileDevice, validateUserAgent } from '../middleware/deviceValidation';
+import { ticketValidationUserRateLimit } from '../middleware/rateLimiting';
 
 const router = express.Router();
 
@@ -49,7 +50,14 @@ router.get('/my', authenticate, listMyTickets);
  *       404:
  *         description: Ingresso não encontrado
  */
-router.get('/code/:code', getTicketByCode);
+router.get(
+    '/code/:code',
+    validateUserAgent,
+    validateMobileDevice,
+    authenticate,
+    ticketValidationUserRateLimit,
+    getTicketByCode
+);
 
 /**
  * @swagger
@@ -91,6 +99,7 @@ router.post(
     validateUserAgent,
     validateMobileDevice,
     authenticate,
+    ticketValidationUserRateLimit,
     validateTicket
 );
 

@@ -118,3 +118,13 @@ export const criticalOperationsUserRateLimit = userRateLimit(
     isDevelopment ? 1000 : 20, // 20 operações por 15 minutos em produção
     'Muitas operações. Tente novamente em 15 minutos.'
 );
+
+/**
+ * Rate limiting específico para leitura/validação de ingressos via QR
+ * Limita tentativas por usuário autenticado (validador) em janela curta
+ */
+export const ticketValidationUserRateLimit = userRateLimit(
+    60 * 1000, // 1 minuto
+    isDevelopment ? 1000 : 60, // até 60 validações por minuto por usuário em produção
+    'Muitas tentativas de validação de ingressos. Aguarde alguns instantes e tente novamente.'
+);
