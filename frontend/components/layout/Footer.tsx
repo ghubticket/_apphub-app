@@ -103,7 +103,7 @@ export default function Footer() {
                             className={`${styles.marqueeItem} flex items-center gap-4`}
                         >
                             <span className="font-black text-[#f97316]">5521</span>
-                            <span className="tracking-[0.25em] text-white/90">
+                            <span className="tracking-normal text-white/90">
                                 {place.city} | {place.state}
                             </span>
                         </span>

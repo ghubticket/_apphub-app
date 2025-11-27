@@ -27,9 +27,10 @@ type ActionState = {
 type TicketCatalogProps = {
     tickets: TicketProduct[];
     className?: string;
+    variant?: 'default' | 'compact';
 };
 
-export default function TicketCatalog({ tickets, className }: TicketCatalogProps) {
+export default function TicketCatalog({ tickets, className, variant = 'default' }: TicketCatalogProps) {
     const router = useRouter();
     const { isAuthenticated, isReady, user } = useAuth();
     const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -317,7 +318,11 @@ export default function TicketCatalog({ tickets, className }: TicketCatalogProps
     }
 
     return (
-        <div className={`grid gap-6 md:grid-cols-2 xl:grid-cols-3 ${className ?? ''}`}>
+        <div
+            className={`grid gap-6 md:grid-cols-2 xl:grid-cols-3 ${
+                variant === 'compact' ? 'md:grid-cols-1 xl:grid-cols-1' : ''
+            } ${className ?? ''}`}
+        >
             {tickets.map((ticket) => {
                 const isVip = ticket.isVip ?? false;
                 const quantity = getQuantityForTicket(ticket);
@@ -337,6 +342,181 @@ export default function TicketCatalog({ tickets, className }: TicketCatalogProps
                 }
                 const feesLabel = feeParts.length ? feeParts.join(' + ') : null;
 
+                if (variant === 'compact') {
+                    return (
+                        <article
+                            key={ticket.id}
+                            className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-[#ede5d8] bg-white/90 p-4 shadow-[0_18px_35px_-25px_rgba(20,20,32,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_26px_40px_-28px_rgba(20,20,32,0.45)]"
+                        >
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="space-y-1">
+                                       
+                                        <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-[#1a1a1d]">
+                                            {ticket.name}
+                                        </h3>
+                                        
+                                        <span className="block text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-[#7d796c]">
+                                            {isVip ? 'Status' : 'Valor'}
+                                        </span>
+                                        {isVip ? (
+                                            <span className="mt-1 block text-xs font-semibold text-[#10b981]">
+                                                Cortesia
+                                            </span>
+                                        ) : (
+                                            <span className="mt-1 block text-sm font-semibold text-[#1a1a1d]">
+                                                {currencyFormatter.format(ticket.price)}
+                                            </span>
+                                        )}
+                                        {availableStock !== undefined && (
+                                            <span className="mt-1 block text-[0.65rem] uppercase text-[#a38f78]">
+                                                {availableStock > 0 ? `${availableStock} disp.` : 'Esgotado'}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="text-right">
+                                        
+                                    </div>
+                                </div>
+
+                                {!isVip && feesLabel ? (
+                                    <p className="text-[0.65rem] font-medium uppercase tracking-[0.14em] text-[#a38f78]">
+                                        Taxas: {feesLabel}
+                                    </p>
+                                ) : null}
+
+                                <div className="flex items-center justify-between gap-3 rounded-xl bg-[#faf7f0] px-3 py-2.5">
+                                    {!isVip ? (
+                                        <>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#7d796c]">
+                                                    Quantidade
+                                                </span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
+                                                        onClick={() => updateQuantity(ticket, -1)}
+                                                        aria-label={`Remover um ingresso de ${ticket.name}`}
+                                                        disabled={quantity <= 0}
+                                                    >
+                                                        <HiOutlineMinusSmall className="text-base" />
+                                                    </button>
+                                                    <span className="min-w-[28px] text-center text-xs font-semibold text-[#1a1a1d]">
+                                                        {quantity}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
+                                                        onClick={() => updateQuantity(ticket, 1)}
+                                                        aria-label={`Adicionar ingresso de ${ticket.name}`}
+                                                        disabled={isSoldOut || maxReached}
+                                                    >
+                                                        <HiOutlinePlusSmall className="text-base" />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {!(isVip && feedback?.isLimitExceeded) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAddToCart(ticket)}
+                                                    disabled={
+                                                        isSoldOut ||
+                                                        quantity <= 0 ||
+                                                        (isVip && !canPurchaseVip) ||
+                                                        (isVip && isCreatingVipOrder[ticket.id])
+                                                    }
+                                                    className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] transition ${
+                                                        isSoldOut ||
+                                                        quantity <= 0 ||
+                                                        (isVip && !canPurchaseVip) ||
+                                                        (isVip && isCreatingVipOrder[ticket.id])
+                                                            ? 'cursor-not-allowed border border-[#c9c3b8] text-[#c9c3b8]'
+                                                            : 'border border-[#a38f78] text-[#a38f78] hover:border-[#f97316] hover:text-[#f97316]'
+                                                    }`}
+                                                >
+                                                    {isVip && isCreatingVipOrder[ticket.id] ? (
+                                                        <>
+                                                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-[#a38f78] border-t-transparent" />
+                                                            Criando...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <HiOutlineBolt className="text-sm" />
+                                                            {isVip ? 'Solicitar VIP' : 'Comprar'}
+                                                        </>
+                                                    )}
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="flex w-full items-center justify-between gap-2">
+                                            <p className="text-[0.65rem] font-medium uppercase tracking-[0.14em] text-[#6f6b63]">
+                                                {isReady && !isAuthenticated
+                                                    ? 'Login necessário para solicitar VIP'
+                                                    : 'Limite: 1 ingresso por CPF'}
+                                            </p>
+                                            {!(isVip && feedback?.isLimitExceeded) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAddToCart(ticket)}
+                                                    disabled={
+                                                        isSoldOut ||
+                                                        (isVip && !canPurchaseVip) ||
+                                                        (isVip && isCreatingVipOrder[ticket.id])
+                                                    }
+                                                    className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] transition ${
+                                                        isSoldOut ||
+                                                        (isVip && !canPurchaseVip) ||
+                                                        (isVip && isCreatingVipOrder[ticket.id])
+                                                            ? 'cursor-not-allowed border border-[#c9c3b8] text-[#c9c3b8]'
+                                                            : 'border border-[#a38f78] text-[#a38f78] hover:border-[#f97316] hover:text-[#f97316]'
+                                                    }`}
+                                                >
+                                                    {isVip && isCreatingVipOrder[ticket.id] ? (
+                                                        <>
+                                                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-[#a38f78] border-t-transparent" />
+                                                            Criando...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <HiOutlineBolt className="text-sm" />
+                                                            Solicitar VIP
+                                                        </>
+                                                    )}
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {feedback ? (
+                                    <div
+                                        className={`mt-2 flex items-center gap-2 rounded-xl border px-3 py-2 text-[0.7rem] ${
+                                            feedback.type === 'success'
+                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                : feedback.type === 'warning'
+                                                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                  : 'border-rose-200 bg-rose-50 text-rose-700'
+                                        }`}
+                                    >
+                                        {feedback.type === 'success' ? (
+                                            <HiOutlineCheckCircle className="text-base" />
+                                        ) : (
+                                            <HiOutlineExclamationTriangle className="text-base" />
+                                        )}
+                                        <span className="text-[0.65rem] font-medium uppercase tracking-[0.14em]">
+                                            {feedback.message}
+                                        </span>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </article>
+                    );
+                }
+
                 return (
                     <article
                         key={ticket.id}
@@ -352,18 +532,9 @@ export default function TicketCatalog({ tickets, className }: TicketCatalogProps
                                     <h3 className="text-xl font-semibold uppercase  text-[#1a1a1d]">
                                         {ticket.name}
                                     </h3>
-                                    {ticket.eventName ? (
-                                        <p className="text-xs font-medium uppercase  text-[#7d796c]">
-                                            {ticket.eventName}
-                                        </p>
-                                    ) : null}
                                 </div>
 
                             </div>
-
-                            {ticket.description ? (
-                                <p className="text-sm leading-relaxed text-[#4c4c55]">{ticket.description}</p>
-                            ) : null}
 
                             <div className="rounded-2xl border border-[#ede5d8] bg-white px-4 py-3">
                                 <div className="flex items-center justify-between gap-4">
@@ -393,15 +564,6 @@ export default function TicketCatalog({ tickets, className }: TicketCatalogProps
                                     </>
                                 )}
                             </div>
-
-                            {(ticket.eventDate || ticket.location) && (
-                                <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs font-medium text-[#6f6b63]">
-                                    {ticket.eventDate ? <p className="uppercase ">{ticket.eventDate}</p> : null}
-                                    {ticket.location ? (
-                                        <p className="mt-1 uppercase  text-[#a38f78]">{ticket.location}</p>
-                                    ) : null}
-                                </div>
-                            )}
 
                             {!isVip ? (
                                 <div className="flex items-center justify-between rounded-2xl border border-[#ede5d8] bg-white px-4 py-3">

@@ -183,10 +183,10 @@ export default function Header() {
                             key={`${event.name}-${index}`}
                             className={`${styles.marqueeItem} flex items-center gap-5`}
                         >
-                            <span className="rounded-full border border-white/20 px-3 py-1 text-[0.6rem] font-bold tracking-[0.2em] text-[#f97316]">
+                            <span className="rounded-full border border-white/20 px-3 py-1 text-[0.6rem] font-bold tracking-normal text-[#f97316]">
                                 {formatDate(event.date)}
                             </span>
-                            <span className="tracking-[0.25em] text-white">
+                            <span className="tracking-normal text-white">
                                 {event.city} | {event.state}
                             </span>
                             <span className="hidden text-white/60 tracking-[0.25em] md:inline">

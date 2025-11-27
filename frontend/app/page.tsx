@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Container from '@/components/shared/Container';
-import TicketCatalog from '@/components/tickets/TicketCatalog';
 import AboutSection from '@/components/home/AboutSection';
-import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
-import type { TicketProduct } from '@/types/ticket';
+import EventCarousel from '@/components/home/EventCarousel';
+import { fetchEventsList, type EventSummary } from '@/lib/ticketsCatalog';
 
 export default function Home() {
     // Limpar qualquer estado de processamento de pagamento ao entrar na HOME
@@ -27,7 +26,7 @@ export default function Home() {
             }
         }
     }, []);
-    const [tickets, setTickets] = useState<TicketProduct[]>([]);
+    const [events, setEvents] = useState<EventSummary[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string>('');
 
@@ -44,14 +43,12 @@ export default function Home() {
         setLoading(true);
         setError('');
         try {
-            const catalog = await fetchTicketCatalog({
-                limitEvents: 6,
-                limitTicketsPerEvent: 2,
-                onlyWithAvailability: false,
+            const highlights = await fetchEventsList({
+                limitEvents: 10,
             });
-            setTickets(catalog.slice(0, 6));
+            setEvents(highlights);
         } catch (err: any) {
-            setError('Não foi possível carregar os destaques do momento. Tente novamente em instantes.');
+            setError('Não foi possível carregar os eventos disponíveis. Tente novamente em instantes.');
             hasLoadedRef.current = false; // Permitir retry em caso de erro
         } finally {
             setLoading(false);
@@ -62,7 +59,7 @@ export default function Home() {
         loadHighlights();
     }, [loadHighlights]);
 
-    const hasTickets = useMemo(() => tickets.length > 0, [tickets]);
+    const hasEvents = useMemo(() => events.length > 0, [events]);
 
     return (
         <main
@@ -88,7 +85,7 @@ export default function Home() {
 
                 {loading ? (
                     <div className="flex items-center justify-center rounded-3xl border border-[#ded7ca] bg-white/70 p-10 text-sm font-medium text-[#7d796c]">
-                        Carregando destaques...
+                        Carregando eventos...
                     </div>
                 ) : error ? (
                     <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
@@ -101,11 +98,11 @@ export default function Home() {
                             Tentar novamente
                         </button>
                     </div>
-                ) : hasTickets ? (
-                    <TicketCatalog tickets={tickets} />
+                ) : hasEvents ? (
+                    <EventCarousel events={events} />
                 ) : (
                     <div className="rounded-3xl border border-dashed border-[#ded7ca] bg-white/70 p-8 text-center text-sm text-[#7d796c]">
-                        No momento não há ingressos em destaque. Retorne em breve para novas experiências.
+                        No momento não há eventos disponíveis. Retorne em breve para novas experiências.
                     </div>
                 )}
             </Container>

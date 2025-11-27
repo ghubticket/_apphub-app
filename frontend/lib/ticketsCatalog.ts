@@ -28,6 +28,21 @@ type RawEvent = {
     platformFeePercentage?: number;
 };
 
+export type EventSummary = {
+    id: string;
+    name?: string;
+    description?: string;
+    date?: string;
+    formattedDate?: string;
+    location?: string;
+    city?: string;
+    state?: string;
+    coverImage?: string;
+    squareImage?: string;
+    status?: string;
+    isActive?: boolean;
+};
+
 type RawTicketType = {
     _id: string;
     id?: string;
@@ -135,6 +150,65 @@ const normalizeTicketType = (
 
 // Cache de promises em andamento para evitar chamadas duplicadas simultâneas
 const pendingRequests = new Map<string, Promise<TicketProduct[]>>();
+
+type FetchEventsListOptions = {
+    limitEvents?: number;
+    search?: string;
+};
+
+export const fetchEventsList = async (
+    options: FetchEventsListOptions = {},
+): Promise<EventSummary[]> => {
+    const { limitEvents = 12, search } = options;
+
+    const eventsCacheKey = `page_1_limit_${limitEvents}_search_${search || ''}`;
+    const cachedEvents = cacheEvents.get(eventsCacheKey);
+
+    let eventsRaw: RawEvent[];
+
+    if (cachedEvents && Array.isArray(cachedEvents)) {
+        eventsRaw = cachedEvents;
+    } else {
+        const eventsResponse = await api.get('/events', {
+            params: {
+                page: 1,
+                limit: limitEvents,
+                search,
+            },
+        });
+
+        eventsRaw = Array.isArray(eventsResponse.data?.data?.events)
+            ? eventsResponse.data.data.events
+            : Array.isArray(eventsResponse.data?.events)
+              ? eventsResponse.data.events
+              : Array.isArray(eventsResponse.data)
+                ? eventsResponse.data
+                : [];
+
+        if (eventsRaw.length > 0) {
+            cacheEvents.set(eventsCacheKey, eventsRaw, 5 * 60 * 1000);
+        }
+    }
+
+    const filteredEvents = eventsRaw.filter(
+        (event) => event && event.isActive !== false && (event.status ?? 'published') !== 'cancelled',
+    );
+
+    return filteredEvents.map((event) => ({
+        id: event._id ?? event.id ?? '',
+        name: event.name,
+        description: event.description,
+        date: event.date,
+        formattedDate: formatEventDate(event.date),
+        location: formatLocation(event),
+        city: event.city,
+        state: event.state,
+        coverImage: event.coverImage,
+        squareImage: event.squareImage,
+        status: event.status,
+        isActive: event.isActive,
+    }));
+};
 
 export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}): Promise<TicketProduct[]> => {
     const { limitEvents = 12, limitTicketsPerEvent, search, onlyWithAvailability = false } = options;
