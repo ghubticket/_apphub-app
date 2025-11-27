@@ -1232,14 +1232,12 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                     // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                     // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
-                    // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
+                    // IMPORTANTE: NÃO usar .lean() aqui, pois precisamos das instâncias do Mongoose para chamar .save()
                     const tickets = await Ticket.find({
                         _id: { $in: order.tickets },
                         order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
                         deletedAt: null,
-                    })
-                        .select('_id code qrCode status ticketType holder price')
-                        .lean();
+                    }).select('_id code qrCode status ticketType holder price');
 
                     console.log(
                         `🔔 [handleWebhook] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
@@ -1400,14 +1398,12 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                 // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                 // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
-                // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
+                // IMPORTANTE: NÃO usar .lean() aqui, pois precisamos das instâncias do Mongoose para chamar .save()
                 const tickets = await Ticket.find({
                     _id: { $in: order.tickets },
                     order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
                     deletedAt: null,
-                })
-                    .select('_id code qrCode status ticketType holder price')
-                    .lean();
+                }).select('_id code qrCode status ticketType holder price');
 
                 console.log(
                     `🔔 [handleWebhook-payment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
