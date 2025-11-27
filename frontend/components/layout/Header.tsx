@@ -269,9 +269,9 @@ export default function Header() {
                         ) : (
                             <Link
                                 href="/login"
-                                className="inline-flex items-center gap-1 rounded-full border border-white/40 px-4 py-2 text-xs md:px-7 md:py-3 md:text-sm font-semibold uppercase text-white transition hover:border-[#f97316] lg:inline-flex"
+                                className="group inline-flex items-center gap-1 rounded-full border border-white/40 bg-white px-4 py-2 text-xs md:px-7 md:py-3 md:text-sm font-semibold uppercase text-[#000] transition hover:bg-transparent hover:text-white hover:border-[#f97316] lg:inline-flex"
                             >
-                                <HiOutlineUserCircle className="text-base md:text-lg" />
+                                <HiOutlineUserCircle className="text-base md:text-lg text-[#000] group-hover:text-white" />
                                 Entrar
                             </Link>
                         )}

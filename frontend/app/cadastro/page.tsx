@@ -273,9 +273,9 @@ function CadastroPageContent() {
     };
 
     return (
-        <main className="min-h-screen bg-[#faf7f0] py-12">
+        <main className="bg-[#faf7f0] py-12">
             <Container>
-                <div className="mb-12 text-center">
+                <div className="mb-12 text-center hidden md:block">
                     <h1 className="text-4xl uppercase font-bold text-[#1a1a1d]">
                         Criar Conta
                     </h1>

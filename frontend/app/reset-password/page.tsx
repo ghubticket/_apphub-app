@@ -105,7 +105,7 @@ function ResetPasswordContent() {
     const isTokenMissing = !token;
 
     return (
-        <main className="min-h-screen bg-[#faf7f0] py-12">
+        <main className=" bg-[#faf7f0] py-12">
             <Container>
                 <div className="mx-auto max-w-lg">
                     <AuthCard

@@ -111,9 +111,9 @@ export default function Footer() {
                 </div>
             </div>
 
-            <div className="py-5 md:py-20 lg:py-15">
+            <div className="py-10 md:py-20 lg:py-15">
                 <Container className="flex flex-col gap-12 items-center lg:flex-row lg:justify-between lg:gap-16">
-                    <div className="w-full space-y-8 text-left lg:max-w-sm lg:text-center">
+                    <div className="w-full space-y-8 text-left lg:max-w-sm lg:text-center hidden md:block">
                         <div className='w-full'>
                             <Image
                                 src="/images/5521.avif"
@@ -198,7 +198,7 @@ export default function Footer() {
 
                     <div className="w-full space-y-6 lg:max-w-sm lg:text-right">
                         <div className="md:space-y-4 lg:items-end lg:text-right">
-                            <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-white">
+                            <h3 className="text-sm pb-5 font-semibold uppercase tracking-[0.3em] text-white">
                                 Suporte
                             </h3>
                             <ul className="space-y-3 text-sm text-white/70 lg:inline-flex lg:flex-col lg:items-end lg:[&>li>a]:inline-block">

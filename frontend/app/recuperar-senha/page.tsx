@@ -66,8 +66,8 @@ export default function RecuperarSenhaPage() {
     const emailSuggestions = useEmailSuggestions(email);
 
     return (
-        <main className="min-h-screen bg-[#faf7f0] py-12">
-            <div className="flex justify-center items-center">
+        <main className="bg-[#faf7f0] py-12">
+            <div className="container mx-auto w-full max-w-screen-xl px-4 sm:px-6 lg:px-8 ">
                 <AuthCard
                     title="Redefinir senha"
                     description="Vamos enviar um link seguro para você escolher uma nova senha. Ele expira em 30 minutos por segurança."

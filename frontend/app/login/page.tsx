@@ -195,9 +195,9 @@ export default function LoginPage() {
     const emailSuggestions = useEmailSuggestions(formData.email);
 
     return (
-        <main className="min-h-screen bg-[#faf7f0] md:py-10 py-10">
+        <main className="bg-[#faf7f0] md:py-10 py-10">
             <Container>
-                <header className="mb-10 space-y-3">
+                <header className="mb-10 space-y-3 hidden md:block">
                     <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">Área do Cliente</span>
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <h1 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d]">Faça seu Login</h1>
