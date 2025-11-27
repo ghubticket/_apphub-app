@@ -131,7 +131,14 @@ export function CardPaymentFormBrick({
     const handleError = useCallback((param: any) => {
         // Log apenas erros críticos
         if (param?.type === 'critical') {
-            console.error('[CardPaymentFormBrick] ⚠️ ERRO CRÍTICO NO BRICK:', param?.cause || param?.message);
+            console.error('[CardPaymentFormBrick] ⚠️ ERRO CRÍTICO NO BRICK:', {
+                type: param?.type,
+                message: param?.message,
+                cause: param?.cause,
+                detailed: param,
+            });
+        } else {
+            console.warn('[CardPaymentFormBrick] ⚠️ Erro não crítico no Brick:', param);
         }
     }, []);
 

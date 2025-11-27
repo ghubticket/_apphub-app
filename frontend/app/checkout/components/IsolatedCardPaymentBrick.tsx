@@ -151,6 +151,11 @@ export function IsolatedCardPaymentBrick({
 
         // Renderizar Brick no container persistente - APENAS UMA VEZ
         try {
+            console.log('[IsolatedCardPaymentBrick] 🚀 Renderizando CardPayment', {
+                hasPublicKey: !!publicKey,
+                publicKeyPrefix: publicKey ? publicKey.slice(0, 10) : null,
+                amount: Number(amountRef.current.toFixed(2)),
+            });
             root.render(
                 <CardPayment
                     initialization={{
@@ -179,6 +184,7 @@ export function IsolatedCardPaymentBrick({
                 />
             );
         } catch (error) {
+            console.error('[IsolatedCardPaymentBrick] ❌ Erro ao renderizar CardPayment:', error);
             // Limpar referências globais em caso de erro
             window.__MP_BRICK_CONTAINER__ = undefined;
             window.__MP_BRICK_ROOT__ = undefined;

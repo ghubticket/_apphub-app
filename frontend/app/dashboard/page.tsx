@@ -343,29 +343,16 @@ export default function DashboardPage() {
                 }))
                 : [];
 
-            // Filtrar pedidos pendentes expirados/cancelados (ex.: PIX expirado ou cancelado)
-            const now = Date.now();
-            const activeOrders = normalizedOrders.filter(order => {
-                if (order.status !== 'pending') return true;
-                if (!order.expiresAt) return true;
-
-                const expiresAtTime = new Date(order.expiresAt).getTime();
-                if (Number.isNaN(expiresAtTime)) return true;
-
-                // Se já expirou, não exibir no dashboard do cliente
-                return expiresAtTime > now;
-            });
-
-            // Agrupar pedidos pagos do mesmo evento
-            const groupedOrders = groupOrdersByEvent(activeOrders);
+            // Agrupar pedidos pagos do mesmo evento (sem filtro adicional de expiração)
+            const groupedOrders = groupOrdersByEvent(normalizedOrders);
 
             setOrders(groupedOrders);
             setOrdersPagination(
                 paginationRaw
                     ? {
                         page: Number(paginationRaw.page ?? 1),
-                        limit: Number(paginationRaw.limit ?? activeOrders.length ?? 10),
-                        total: Number(paginationRaw.total ?? activeOrders.length ?? 0),
+                        limit: Number(paginationRaw.limit ?? normalizedOrders.length ?? 10),
+                        total: Number(paginationRaw.total ?? normalizedOrders.length ?? 0),
                         totalPages: Number(paginationRaw.totalPages ?? 1),
                     }
                     : null,
