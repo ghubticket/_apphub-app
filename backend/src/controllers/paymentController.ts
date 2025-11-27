@@ -1166,10 +1166,12 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     paymentInfo.status_detail || ''
                 );
                 const paymentStatus = statusInfo.internalStatus;
-                const paymentMethod = mapPaymentMethod(
-                    paymentInfo.payment_type_id,
-                    paymentInfo.payment_method_id
-                );
+                // Orders API usa payment_method.{type,id} em vez de payment_type_id/payment_method_id
+                const paymentTypeId =
+                    paymentInfo.payment_type_id || paymentInfo.payment_method?.type;
+                const paymentMethodId =
+                    paymentInfo.payment_method_id || paymentInfo.payment_method?.id;
+                const paymentMethod = mapPaymentMethod(paymentTypeId, paymentMethodId);
 
                 // Atualizar pedido com informações completas
                 order.paymentId = paymentInfo.id;
