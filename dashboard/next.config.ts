@@ -15,17 +15,17 @@ if (process.env.NODE_ENV === 'development') {
 
 const nextConfig: NextConfig = {
   basePath: process.env.BASEPATH,
-  
+
   // Ignorar lint no build (performance)
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true
   },
-  
+
   // TypeScript: permitir erros no build (temporário)
   typescript: {
-    ignoreBuildErrors: false, // Manter validação TypeScript
+    ignoreBuildErrors: false // Manter validação TypeScript
   },
-  
+
   // Security Headers
   async headers() {
     return [
@@ -68,7 +68,8 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
               "font-src 'self' https://fonts.gstatic.com data:",
-              "connect-src 'self' https://localhost:3443 http://localhost:3001",
+              // Permitir chamadas à API em dev e produção
+              "connect-src 'self' https://localhost:3443 http://localhost:3001 https://api.ghubtech.com.br",
               "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self'"
@@ -78,7 +79,7 @@ const nextConfig: NextConfig = {
       }
     ]
   },
-  
+
   redirects: async () => {
     return [
       {
