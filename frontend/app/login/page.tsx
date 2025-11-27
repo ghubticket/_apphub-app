@@ -168,10 +168,7 @@ export default function LoginPage() {
                         'Não foi possível realizar o login. Tente novamente.',
                 });
             }
-            if (process.env.NODE_ENV !== 'production') {
-                // eslint-disable-next-line no-console
-                console.error('Erro no login', error?.response || error);
-            }
+            // Log omitido em produção
         } finally {
             setIsSubmitting(false);
         }

@@ -45,7 +45,6 @@ function CheckoutPageContent() {
                 const checkDeviceId = setInterval(() => {
                     if (window.MP_DEVICE_SESSION_ID) {
                         localStorage.setItem('mp-device-session-id', window.MP_DEVICE_SESSION_ID);
-                        console.log('[Checkout] ✅ DeviceId capturado após inicialização:', window.MP_DEVICE_SESSION_ID.substring(0, 15) + '...');
                         clearInterval(checkDeviceId);
                     }
                 }, 100);
@@ -55,7 +54,7 @@ function CheckoutPageContent() {
                     clearInterval(checkDeviceId);
                 }, 5000);
             } catch (error) {
-                console.error('[Checkout] Erro ao inicializar Mercado Pago:', error);
+                // Falha silenciosa na inicialização do Mercado Pago
             }
         }
     }, []);

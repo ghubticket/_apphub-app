@@ -166,7 +166,6 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
     // Gerar QR Code PIX
     const generatePix = useCallback(async (orderId: string) => {
         if (processingRef.current) {
-            console.log('[usePixPayment] ⏸️ PIX já está sendo gerado');
             return;
         }
 
@@ -190,12 +189,6 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
                 deviceId = getMercadoPagoDeviceId();
             }
             
-            console.log('[usePixPayment] 🚀 Gerando PIX:', {
-                orderId,
-                hasDeviceId: !!deviceId,
-                deviceIdPreview: deviceId?.substring(0, 20) + '...',
-            });
-
             const response = await api.post(
                 `/payments/${orderId}/pix`,
                 { deviceId },
@@ -208,13 +201,6 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
 
             const paymentResult = response.data?.data || response.data;
             
-            console.log('[usePixPayment] 📡 Resposta do backend:', {
-                success: response.data?.success,
-                hasQrCode: !!paymentResult?.qrCodeBase64,
-                hasTicketUrl: !!paymentResult?.ticketUrl,
-                status: paymentResult?.status,
-            });
-
             if (paymentResult && response.data?.success) {
                 const expiresAt = orderExpiresAtRef.current || orderExpiresAt || paymentResult.expiresAt;
                 let expirationDescription: string | null = null;
@@ -252,26 +238,16 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
                 setStatus('idle');
                 setStatusMessage('');
                 
-                console.log('[usePixPayment] ✅ QR code PIX gerado - mantendo orderId no storage para detecção ao recarregar');
-                
                 // Garantir que orderIdRef.current está atualizado antes de iniciar polling
                 orderIdRef.current = orderId;
-                console.log('[usePixPayment] 🔧 orderIdRef atualizado antes de iniciar polling:', {
-                    orderId,
-                    orderIdRefCurrent: orderIdRef.current,
-                });
-                
                 storage.setPixOrderActive(orderId);
                 navigation.allowNavigation();
                 
-                console.log('[usePixPayment] 🔄 Iniciando polling para verificar status do pagamento PIX');
                 startPolling(orderId);
             } else {
                 throw new Error('Resposta inválida do servidor');
             }
         } catch (err: any) {
-            console.error('[usePixPayment] ❌ Erro ao gerar PIX:', err);
-            
             const errorMessage = err?.response?.data?.message || 
                                 err?.message || 
                                 'Erro ao gerar QR Code PIX. Tente novamente.';

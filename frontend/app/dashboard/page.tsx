@@ -169,15 +169,7 @@ function groupOrdersByEvent(orders: OrderSummary[]): Array<OrderSummary | OrderG
             }
         }
 
-        // Log para debug (remover em produção se necessário)
-        if (eventId === 'unknown') {
-            console.warn('[groupOrdersByEvent] ⚠️ EventId não encontrado para pedido:', {
-                orderId: order._id,
-                orderNumber: order.orderNumber,
-                event: order.event,
-                eventType: typeof order.event,
-            });
-        }
+        // Se não encontrar eventId, ainda assim continua o fluxo normalmente
 
         if (!groupsMap.has(eventId)) {
             groupsMap.set(eventId, []);
@@ -1214,6 +1206,7 @@ const TicketModal = ({
                         >
                             {order.tickets.map((ticket, index) => {
                                 const ticketConfirmed = ticket.status === 'confirmed';
+                                const ticketUsed = ticket.status === 'used';
                                 const ticketPrice = formatCurrency(ticket.price);
 
                                 return (
@@ -1221,17 +1214,20 @@ const TicketModal = ({
                                         key={ticket._id ?? ticket.code ?? index}
                                         className="flex min-w-full snap-center flex-col items-center gap-6 text-center"
                                     >
-
                                         <div className="rounded-3xl border border-[#ded7ca] bg-white p-4 shadow-[0_20px_45px_-25px_rgba(20,20,32,0.25)]">
                                             {ticketConfirmed && ticket.qrCode ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img
                                                     src={ticket.qrCode}
                                                     alt={`QR Code do ingresso ${ticket.code ?? ''}`}
-                                                    className="h-56 w-56 object-contain"
+                                                    className="h-64 w-64 object-contain"
                                                 />
+                                            ) : ticketUsed ? (
+                                                <div className="flex h-64 w-64 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-[#a22d2d]">
+                                                    QR Code já utilizado
+                                                </div>
                                             ) : (
-                                                <div className="flex h-56 w-56 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
+                                                <div className="flex h-64 w-64 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
                                                     Aguardando confirmação do pagamento
                                                 </div>
                                             )}

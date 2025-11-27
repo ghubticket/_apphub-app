@@ -42,7 +42,6 @@ export function usePixPolling({
     const startPolling = useCallback((orderId: string) => {
         // Limpar polling anterior se existir
         if (pollingIntervalRef.current) {
-            console.log('[usePixPolling] 🧹 Limpando polling anterior antes de iniciar novo');
             clearInterval(pollingIntervalRef.current);
         }
 
@@ -50,22 +49,8 @@ export function usePixPolling({
         const maxAttempts = 180; // 180 tentativas = 15 minutos (5s * 180 = 900s = 15min)
         const pollingInterval = 5000; // 5 segundos
 
-        console.log('[usePixPolling] 🔄 Iniciando polling para pedido:', {
-            orderId,
-            orderIdRefCurrent: orderIdRef.current,
-            maxAttempts,
-            pollingIntervalSeconds: pollingInterval / 1000,
-        });
-
         pollingIntervalRef.current = setInterval(async () => {
             attempts++;
-            
-            console.log('[usePixPolling] 🔍 Verificando status do pagamento:', {
-                attempt: attempts,
-                orderId,
-                orderIdRefCurrent: orderIdRef.current,
-                maxAttempts,
-            });
             
             // Verificar se ainda temos o mesmo orderId
             if (orderIdRef.current !== orderId) {
@@ -81,30 +66,15 @@ export function usePixPolling({
                 const response = await api.get(`/orders/${orderId}`);
                 const order = response.data?.data || response.data?.data?.order;
                 
-                console.log('[usePixPolling] 📡 Resposta da API:', {
-                    hasOrder: !!order,
-                    orderStatus: order?.status,
-                    orderId: order?._id,
-                });
-                
                 if (order) {
                     // Se pedido foi pago, parar polling e mostrar sucesso
                     if (order.status === 'paid') {
-                        console.log('[usePixPolling] ✅ Pagamento PIX aprovado!', {
-                            orderId: order._id,
-                            attempts,
-                        });
                         stopPolling();
                         setStatus('success');
                         setStatusMessage('Pagamento aprovado com sucesso!');
                         onPaymentSuccess();
                     } else if (order.status === 'cancelled' || order.status === 'failed') {
                         // Pedido cancelado ou falhou, parar polling
-                        console.log('[usePixPolling] ⚠️ Pedido cancelado ou falhou:', {
-                            orderStatus: order.status,
-                            orderId: order._id,
-                            attempts,
-                        });
                         stopPolling();
                         setStatus('error');
                         const errorMessage = 'Pagamento não foi concluído. Tente gerar um novo QR Code.';
@@ -130,24 +100,11 @@ export function usePixPolling({
                         attempts,
                     });
                     stopPolling();
-                } else {
-                    // Outros erros: continuar tentando até maxAttempts
-                    console.log('[usePixPolling] ⚠️ Erro ao verificar status do pedido (continuando):', {
-                        statusCode,
-                        error: err?.message,
-                        attempts,
-                        remainingAttempts: maxAttempts - attempts,
-                    });
                 }
             }
 
             // Se excedeu tentativas, parar polling
             if (attempts >= maxAttempts) {
-                console.log('[usePixPolling] ⏰ Polling excedeu tentativas máximas, parando:', {
-                    attempts,
-                    maxAttempts,
-                    orderId,
-                });
                 stopPolling();
             }
         }, pollingInterval);

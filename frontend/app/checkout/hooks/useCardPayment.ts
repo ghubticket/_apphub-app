@@ -55,8 +55,8 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
         },
     });
 
-    // OTIMIZADO: Consolidar atualização de orderIdRef e reset de estado
-    useEffect(() => {
+        // OTIMIZADO: Consolidar atualização de orderIdRef e reset de estado
+        useEffect(() => {
         // Atualizar orderIdRef sempre
         console.log('[useCardPayment] 🔄 Atualizando orderIdRef:', { previous: orderIdRef.current, current: orderId });
         orderIdRef.current = orderId;
@@ -66,16 +66,9 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
         
         // Resetar estado apenas se orderId mudou
         if (orderIdChanged) {
-            console.log('[useCardPayment] 🔄 OrderId mudou:', {
-                previous: previousOrderIdRef.current,
-                current: orderId,
-                currentStatus: status,
-            });
-            
             const hasActiveError = status === 'error';
             
             if (!orderId) {
-                console.log('[useCardPayment] 🧹 Resetando tudo (sem orderId)');
                 setIsCheckoutReady(false);
                 setStatus('idle');
                 setStatusMessage('');
@@ -85,7 +78,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                 brickReset.resetBrick();
             } else {
                 if (hasActiveError) {
-                    console.log('[useCardPayment] ⚠️ Há erro ativo, NÃO resetando status - mantendo erro para exibição do modal');
                     setMaxAttemptsReached(false);
                     processingRef.current = false;
                     
@@ -94,7 +86,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                     }
                     
                     if (typeof window !== 'undefined' && window.__MP_BRICK_MOUNTED__) {
-                        console.log('[useCardPayment] ⏳ Brick já montado, resetando e aguardando onReady');
                         setIsCheckoutReady(false);
                         
                         const timer = setTimeout(() => {
@@ -105,12 +96,10 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                         previousOrderIdRef.current = orderId;
                         return () => clearTimeout(timer);
                     } else {
-                        console.log('[useCardPayment] ⏳ Aguardando Brick ser montado');
                         setIsCheckoutReady(false);
                         previousOrderIdRef.current = orderId;
                     }
                 } else {
-                    console.log('[useCardPayment] 🧹 Resetando estado do pagamento (novo orderId)');
                     setStatus('idle');
                     setStatusMessage('');
                     setStatusDetails([]);
@@ -122,8 +111,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                     }
                     
                     if (typeof window !== 'undefined' && window.__MP_BRICK_MOUNTED__) {
-                        console.log('[useCardPayment] ⏳ Brick já montado, resetando e aguardando onReady');
-                        
                         previousOrderIdRef.current = orderId;
                         const currentOrderId = orderId;
                         
@@ -131,45 +118,37 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                         
                         const timerIds: NodeJS.Timeout[] = [];
                         
-                        if (window.__MP_BRICK_RESET_VISIBILITY_REF__) {
-                            try {
-                                const resetVisibilityRef = window.__MP_BRICK_RESET_VISIBILITY_REF__;
-                                const timer1 = setTimeout(() => {
-                                    if (previousOrderIdRef.current !== currentOrderId) {
-                                        console.log('[useCardPayment] ⚠️ OrderId mudou durante o delay, cancelando reset');
-                                        return;
+                                if (window.__MP_BRICK_RESET_VISIBILITY_REF__) {
+                                    try {
+                                        const resetVisibilityRef = window.__MP_BRICK_RESET_VISIBILITY_REF__;
+                                        const timer1 = setTimeout(() => {
+                                            if (previousOrderIdRef.current !== currentOrderId) {
+                                                return;
+                                            }
+                                            
+                                            if (resetVisibilityRef) {
+                                                resetVisibilityRef();
+                                            }
+                                            
+                                            const timer2 = setTimeout(() => {
+                                                if (previousOrderIdRef.current === currentOrderId) {
+                                                    setIsCheckoutReady(true);
+                                                }
+                                            }, 100);
+                                            timerIds.push(timer2);
+                                        }, 50);
+                                        timerIds.push(timer1);
+                                    } catch (error) {
+                                        const fallbackTimer = setTimeout(() => {
+                                            if (previousOrderIdRef.current === currentOrderId) {
+                                                setIsCheckoutReady(true);
+                                            }
+                                        }, 150);
+                                        timerIds.push(fallbackTimer);
                                     }
-                                    
-                                    if (resetVisibilityRef) {
-                                        resetVisibilityRef();
-                                        console.log('[useCardPayment] ✅ previousIsVisibleRef resetado no IsolatedCardPaymentBrick');
-                                    }
-                                    
-                                    const timer2 = setTimeout(() => {
-                                        if (previousOrderIdRef.current === currentOrderId) {
-                                            console.log('[useCardPayment] ✅ Setando isCheckoutReady para true para permitir detecção de mudança');
-                                            setIsCheckoutReady(true);
-                                        } else {
-                                            console.log('[useCardPayment] ⚠️ OrderId mudou durante o delay, não setando isCheckoutReady');
-                                        }
-                                    }, 100);
-                                    timerIds.push(timer2);
-                                }, 50);
-                                timerIds.push(timer1);
-                            } catch (error) {
-                                console.warn('[useCardPayment] Erro ao resetar previousIsVisibleRef:', error);
-                                const fallbackTimer = setTimeout(() => {
-                                    if (previousOrderIdRef.current === currentOrderId) {
-                                        console.log('[useCardPayment] ✅ Setando isCheckoutReady para true (fallback após erro)');
-                                        setIsCheckoutReady(true);
-                                    }
-                                }, 150);
-                                timerIds.push(fallbackTimer);
-                            }
                         } else {
                             const noResetTimer = setTimeout(() => {
                                 if (previousOrderIdRef.current === currentOrderId) {
-                                    console.log('[useCardPayment] ✅ Setando isCheckoutReady para true (sem reset de ref)');
                                     setIsCheckoutReady(true);
                                 }
                             }, 200);
@@ -180,7 +159,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                             timerIds.forEach(timerId => clearTimeout(timerId));
                         };
                     } else {
-                        console.log('[useCardPayment] ⏳ Aguardando Brick ser montado (pode estar sendo renderizado)');
                         setIsCheckoutReady(false);
                         
                         previousOrderIdRef.current = orderId;
@@ -196,7 +174,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                             attempts++;
                             
                             if (typeof window !== 'undefined' && window.__MP_BRICK_MOUNTED__) {
-                                console.log('[useCardPayment] ✅ Brick montado detectado após', attempts, 'tentativas');
                                 clearInterval(checkInterval);
                                 
                                 setIsCheckoutReady(false);
@@ -212,12 +189,10 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                                             
                                             if (resetVisibilityRef) {
                                                 resetVisibilityRef();
-                                                console.log('[useCardPayment] ✅ previousIsVisibleRef resetado no IsolatedCardPaymentBrick');
                                             }
                                             
                                             const nestedTimer2 = setTimeout(() => {
                                                 if (previousOrderIdRef.current === currentOrderId) {
-                                                    console.log('[useCardPayment] ✅ Setando isCheckoutReady para true após detectar Brick montado');
                                                     setIsCheckoutReady(true);
                                                 }
                                             }, 100);
@@ -225,7 +200,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                                         }, 50);
                                         nestedTimersRef.current.push(nestedTimer1);
                                     } catch (error) {
-                                        console.warn('[useCardPayment] Erro ao resetar previousIsVisibleRef:', error);
                                         const errorTimer = setTimeout(() => {
                                             if (previousOrderIdRef.current === currentOrderId) {
                                                 setIsCheckoutReady(true);
@@ -236,14 +210,12 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                                 } else {
                                     const noResetTimer = setTimeout(() => {
                                         if (previousOrderIdRef.current === currentOrderId) {
-                                            console.log('[useCardPayment] ✅ Setando isCheckoutReady para true (sem reset de ref)');
                                             setIsCheckoutReady(true);
                                         }
                                     }, 150);
                                     nestedTimersRef.current.push(noResetTimer);
                                 }
                             } else if (attempts >= maxAttempts) {
-                                console.log('[useCardPayment] ⚠️ Brick não detectado após', maxAttempts, 'tentativas, aguardando onReady');
                                 clearInterval(checkInterval);
                             }
                         }, 50);
@@ -285,22 +257,14 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
         const currentOrderId = orderIdRef.current;
         
         if (!currentOrderId) {
-            console.error('[useCardPayment] ⚠️ handleFormSubmit chamado mas não há orderId atual');
             setStatus('error');
             setStatusMessage('Pedido não encontrado');
             setStatusDetails(['Por favor, recarregue a página e tente novamente.']);
             return;
         }
 
-        console.log('[useCardPayment] 📝 handleFormSubmit - usando orderId:', currentOrderId, '(orderId atual do hook:', orderId, ')');
-        
         if (currentOrderId !== orderId) {
-            console.warn('[useCardPayment] ⚠️ ATENÇÃO: orderIdRef está desatualizado!', {
-                refValue: currentOrderId,
-                currentValue: orderId,
-            });
             orderIdRef.current = orderId;
-            console.log('[useCardPayment] ✅ orderIdRef atualizado para:', orderId);
         }
 
         const form = event.currentTarget;

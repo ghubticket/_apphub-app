@@ -263,10 +263,7 @@ function CadastroPageContent() {
                 });
             }
 
-            if (process.env.NODE_ENV !== 'production') {
-                // eslint-disable-next-line no-console
-                console.error('Erro ao cadastrar usuário', error?.response || error);
-            }
+            // Log omitido em produção
         } finally {
             setIsSubmitting(false);
         }

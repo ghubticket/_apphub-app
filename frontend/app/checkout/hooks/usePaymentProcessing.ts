@@ -89,7 +89,6 @@ export function usePaymentProcessing({
     const processPayment = useCallback(async (orderId: string, paymentData: CardPaymentData) => {
         // Prevenir múltiplas execuções simultâneas
         if (processingRef.current) {
-            console.log('[usePaymentProcessing] ⏸️ Pagamento já está sendo processado');
             return;
         }
 
@@ -117,16 +116,6 @@ export function usePaymentProcessing({
             
             const isRealDeviceId = deviceId && !deviceId.startsWith('mp-') && deviceId !== 'ssr-device-id';
             
-            console.log('[usePaymentProcessing] 🚀 Processando pagamento:', {
-                orderId,
-                hasToken: !!paymentData.token,
-                paymentMethodId: paymentData.paymentMethodId,
-                installments: paymentData.installments,
-                hasDeviceId: !!deviceId,
-                deviceIdSource: isRealDeviceId ? 'SDK' : 'fallback',
-                deviceIdPreview: deviceId?.substring(0, 20) + '...',
-            });
-
             // Preparar payload da requisição
             const cardholderData = paymentData.cardholder && 
                 (paymentData.cardholder.name || paymentData.cardholder.email) 
@@ -145,17 +134,6 @@ export function usePaymentProcessing({
                 payload.cardholder = cardholderData;
             }
             
-            console.log('[usePaymentProcessing] 📤 Enviando requisição de pagamento:', {
-                url: `/payments/${orderId}/card`,
-                payload: {
-                    ...payload,
-                    token: payload.token?.substring(0, 20) + '...',
-                },
-                headers: {
-                    'X-meli-session-id': deviceId?.substring(0, 20) + '...',
-                },
-            });
-            
             // Enviar requisição com deviceId no body e header
             const response = await api.post(
                 `/payments/${orderId}/card`,
@@ -170,14 +148,6 @@ export function usePaymentProcessing({
             const paymentResult = response.data?.data || response.data;
             const statusInfo = paymentResult?.statusInfo;
             
-            console.log('[usePaymentProcessing] 📡 Resposta do backend:', {
-                success: response.data?.success,
-                status: paymentResult?.status,
-                paymentStatus: paymentResult?.paymentStatus,
-                paymentMessage: paymentResult?.paymentMessage,
-                statusInfo: statusInfo,
-            });
-
             // Verificar status do pagamento
             const paymentStatus = paymentResult?.paymentStatus || paymentResult?.status;
             const paymentMessage = statusInfo?.userMessage || paymentResult?.paymentMessage || paymentResult?.message;
@@ -191,7 +161,6 @@ export function usePaymentProcessing({
                              (response.data?.success && paymentStatus !== 'rejected' && paymentStatus !== 'cancelled' && paymentStatus !== 'failed');
             
             if (isSuccess) {
-                console.log('[usePaymentProcessing] ✅ Pagamento aprovado com sucesso!');
                 setStatus('success');
                 setStatusMessage(paymentMessage || 'Pagamento aprovado com sucesso!');
                 setStatusDetails([
@@ -343,12 +312,6 @@ export function usePaymentProcessing({
             setStatusDetails(finalFilteredDetails);
             
             // Log para debug
-            console.log('[usePaymentProcessing] 🔴 Status de erro definido:', {
-                status: 'error',
-                statusMessage: errorMessage,
-                statusDetails: finalFilteredDetails,
-                statusCode,
-            });
         } finally {
             processingRef.current = false;
         }

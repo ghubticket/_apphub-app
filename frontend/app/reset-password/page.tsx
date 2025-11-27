@@ -93,10 +93,7 @@ function ResetPasswordContent() {
                 text,
             });
 
-            if (process.env.NODE_ENV !== 'production') {
-                // eslint-disable-next-line no-console
-                console.error('[reset-password] Erro ao redefinir senha:', err?.response || err);
-            }
+            // Log omitido em produção
         } finally {
             setIsSubmitting(false);
         }

@@ -59,10 +59,11 @@ export const generateQRCode = async (ticketCode: string): Promise<string> => {
         // Gera payload seguro (AES-256-GCM + HMAC + timestamp/nonce)
         const securePayload = encryptPayload(ticketCode);
         // Gera QR Code como Data URL (base64)
+        // Aumentado para melhorar precisão de leitura em telas diversas
         const qrCodeDataUrl = await QRCode.toDataURL(securePayload, {
             errorCorrectionLevel: 'H', // Alto nível de correção de erro
-            margin: 1,
-            width: 256, // Tamanho da imagem
+            margin: 2, // Pequena borda branca (quiet zone)
+            width: 384, // Tamanho maior para melhor leitura em celular/câmera
             color: {
                 dark: '#000000', // Cor do QR code
                 light: '#FFFFFF', // Cor de fundo

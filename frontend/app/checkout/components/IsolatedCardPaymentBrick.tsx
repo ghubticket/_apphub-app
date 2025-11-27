@@ -56,22 +56,17 @@ export function IsolatedCardPaymentBrick({
     const createPersistentContainer = useCallback(() => {
         // CRÍTICO: Verificar se o componente ainda está montado antes de criar container
         if (!wrapperRef.current) {
-            console.log('[IsolatedCardPaymentBrick] ⏸️ wrapperRef.current não está disponível, aguardando...');
             return;
         }
         
         // CRÍTICO: Verificar se o wrapper ainda está no DOM (componente pode estar sendo desmontado)
         if (!document.body.contains(wrapperRef.current)) {
-            console.log('[IsolatedCardPaymentBrick] ⏸️ Wrapper não está no DOM, componente pode estar sendo desmontado');
             return;
         }
         
         if (window.__MP_BRICK_MOUNTED__) {
-            console.log('[IsolatedCardPaymentBrick] ⏸️ Brick já está montado, pulando criação');
             return;
         }
-        
-        console.log('[IsolatedCardPaymentBrick] 🏗️ Criando novo container para o Brick');
 
         // Criar container DOM que nunca será removido
         const container = document.createElement('div');
@@ -138,7 +133,6 @@ export function IsolatedCardPaymentBrick({
                 // Salvar no localStorage se encontrado
                 if (deviceId && deviceId.length > 10 && !deviceId.startsWith('mp-')) {
                     localStorage.setItem('mp-device-session-id', deviceId);
-                    console.log('[IsolatedCardPaymentBrick] ✅ DeviceId capturado quando Brick ficou pronto:', deviceId.substring(0, 15) + '...');
                 }
             }
             
@@ -152,7 +146,6 @@ export function IsolatedCardPaymentBrick({
         // CRÍTICO: Verificar novamente se o container ainda está no DOM antes de renderizar
         // Isso previne o erro "Could not find the Brick container ID" quando o componente é desmontado rapidamente
         if (!document.body.contains(container)) {
-            console.warn('[IsolatedCardPaymentBrick] ⚠️ Container não está mais no DOM antes da renderização, cancelando');
             return;
         }
 
@@ -185,9 +178,7 @@ export function IsolatedCardPaymentBrick({
                     onError={handleError}
                 />
             );
-            console.log('[IsolatedCardPaymentBrick] ✅ Brick renderizado com sucesso');
         } catch (error) {
-            console.error('[IsolatedCardPaymentBrick] ❌ Erro ao renderizar Brick:', error);
             // Limpar referências globais em caso de erro
             window.__MP_BRICK_CONTAINER__ = undefined;
             window.__MP_BRICK_ROOT__ = undefined;
@@ -210,13 +201,11 @@ export function IsolatedCardPaymentBrick({
         window.__MP_BRICK_RESET__ = () => {
             // CRÍTICO: Verificar se o container existe e está no DOM antes de resetar
             if (!window.__MP_BRICK_ROOT__ || !window.__MP_BRICK_CONTAINER__) {
-                console.warn('[Brick Reset] ⚠️ Container ou root não encontrado, não é possível resetar');
                 return;
             }
             
             // Verificar se o container está no DOM
             if (!document.body.contains(window.__MP_BRICK_CONTAINER__)) {
-                console.warn('[Brick Reset] ⚠️ Container não está no DOM, não é possível resetar');
                 return;
             }
             
@@ -249,9 +238,8 @@ export function IsolatedCardPaymentBrick({
                         onError={handleError}
                     />
                 );
-                console.log('[Brick Reset] ✅ Brick resetado com sucesso');
             } catch (error) {
-                console.error('[Brick Reset] ❌ Erro ao resetar Brick:', error);
+                // Erro silencioso no reset
             }
         };
     }, [isVisible, publicKey]);
@@ -268,8 +256,6 @@ export function IsolatedCardPaymentBrick({
             const containerExists = document.body.contains(window.__MP_BRICK_CONTAINER__);
             
             if (!containerExists) {
-                console.log('[IsolatedCardPaymentBrick] ⚠️ Container do Brick foi removido do DOM, limpando e recriando...');
-                
                 // CRÍTICO: Limpar completamente o Brick antigo antes de recriar
                 // Isso evita que o SDK tente inicializar múltiplas vezes
                 // IMPORTANTE: Desmontar de forma assíncrona para evitar race condition com React
@@ -284,10 +270,9 @@ export function IsolatedCardPaymentBrick({
                                 // Verificar se o root ainda existe antes de desmontar
                                 if (rootToUnmount) {
                                     rootToUnmount.unmount();
-                                    console.log('[IsolatedCardPaymentBrick] ✅ React Root desmontado');
                                 }
                             } catch (error) {
-                                console.warn('[IsolatedCardPaymentBrick] Erro ao desmontar React Root:', error);
+                                // Erro silencioso ao desmontar
                             }
                         }, 0);
                     });
@@ -305,7 +290,6 @@ export function IsolatedCardPaymentBrick({
                         // Continuar para recriar o container após um pequeno delay
                         // CRÍTICO: Verificar se o componente ainda está montado antes de recriar
                         if (!window.__MP_BRICK_MOUNTED__ && wrapperRef.current) {
-                            console.log('[IsolatedCardPaymentBrick] 🏗️ Recriando container após limpeza');
                             createPersistentContainer();
                         }
                         recreateTimeoutRef.current = null;
@@ -338,7 +322,6 @@ export function IsolatedCardPaymentBrick({
                     // Isso evita chamadas desnecessárias quando já está visível
                     const wasVisible = previousIsVisibleRef.current;
                     if (!wasVisible && handlersRef.current.onReady) {
-                        console.log('[IsolatedCardPaymentBrick] 🔄 Brick já montado e isVisible mudou para true, chamando onReady');
                         // Atualizar ref ANTES de chamar onReady
                         previousIsVisibleRef.current = isVisible;
                         // Pequeno delay para garantir que o DOM foi atualizado
@@ -418,17 +401,13 @@ export function IsolatedCardPaymentBrick({
         const wasVisible = previousIsVisibleRef.current;
         const hasChanged = wasVisible !== isVisible;
         
-        console.log('[IsolatedCardPaymentBrick] 🔍 Verificando isVisible:', { wasVisible, isVisible, hasChanged });
-        
         // Se isVisible mudou de false para true, chamar onReady
         if (!wasVisible && isVisible && handlersRef.current.onReady) {
-            console.log('[IsolatedCardPaymentBrick] 🔄 isVisible mudou de false para true, chamando onReady');
             // Atualizar ref ANTES de chamar onReady para evitar chamadas duplicadas
             previousIsVisibleRef.current = isVisible;
             
             // Pequeno delay para garantir que o DOM foi atualizado e o container está visível
             const readyTimeout = setTimeout(() => {
-                console.log('[IsolatedCardPaymentBrick] ✅ Chamando onReady após mudança de isVisible');
                 handlersRef.current.onReady();
             }, 150); // Delay um pouco maior para garantir que tudo está pronto
             

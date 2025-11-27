@@ -37,7 +37,6 @@ export default function Home() {
     const loadHighlights = useCallback(async () => {
         // Evitar chamadas duplicadas (React Strict Mode, re-renders)
         if (hasLoadedRef.current) {
-            console.log('[Home] ⏭️ loadHighlights já foi executado, pulando...');
             return;
         }
         
@@ -52,7 +51,6 @@ export default function Home() {
             });
             setTickets(catalog.slice(0, 6));
         } catch (err: any) {
-            console.error('Erro ao carregar destaques de ingressos', err);
             setError('Não foi possível carregar os destaques do momento. Tente novamente em instantes.');
             hasLoadedRef.current = false; // Permitir retry em caso de erro
         } finally {

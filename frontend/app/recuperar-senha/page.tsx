@@ -52,11 +52,6 @@ export default function RecuperarSenhaPage() {
             setIsSuccess(true);
         } catch (err: any) {
             // Mesmo em caso de erro, manter mensagem genérica para não expor existência de email
-            // Apenas logar em desenvolvimento
-            if (process.env.NODE_ENV !== 'production') {
-                // eslint-disable-next-line no-console
-                console.error('[recuperar-senha] Erro ao solicitar redefinição:', err?.response || err);
-            }
             setIsSuccess(true);
         } finally {
             setIsSubmitting(false);

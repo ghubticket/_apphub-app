@@ -74,10 +74,11 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
                 const qrCodeBase64 = ticket.qrCode.replace(/^data:image\/png;base64,/, '');
                 const qrCodeBuffer = Buffer.from(qrCodeBase64, 'base64');
 
-                // Adicionar QR Code (centralizado)
+                // Adicionar QR Code (centralizado e maior para melhor leitura)
                 doc.image(qrCodeBuffer, {
-                    fit: [250, 250],
+                    fit: [300, 300],
                     align: 'center',
+                    valign: 'center',
                 });
 
                 doc.moveDown(1);
@@ -118,12 +119,11 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
                 }
             }
 
-            // Footer
+            // Footer simplificado (sem data/hora de geração, a pedido do cliente)
             doc.moveDown(2);
             doc.fontSize(8)
                 .fillColor('#999999')
                 .text('EventHub - Sistema de Gestão de Eventos', { align: 'center' });
-            doc.text(`Gerado em ${formatDate(new Date())}`, { align: 'center' });
 
             doc.end();
         } catch (error) {
