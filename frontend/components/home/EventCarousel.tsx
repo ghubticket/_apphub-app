@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { EventSummary } from '@/lib/ticketsCatalog';
@@ -10,15 +11,23 @@ type EventCarouselProps = {
 };
 
 export default function EventCarousel({ events, className }: EventCarouselProps) {
+    const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+
     if (!events.length) {
         return null;
     }
+
+    const handleImageError = (eventId: string) => {
+        setImageErrors((prev) => new Set(prev).add(eventId));
+    };
 
     return (
         <div className={`relative ${className ?? ''}`}>
             <div className="flex gap-6 overflow-x-auto pb-20 pt-2">
                 {events.map((event) => {
                     const image = event.coverImage || event.squareImage;
+                    const hasError = imageErrors.has(event.id);
+                    const imageSrc = hasError || !image ? '/images/anita.jpg' : image;
 
                     return (
                         <article
@@ -26,20 +35,15 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
                             className="group relative flex min-w-[280px] max-w-sm flex-col overflow-hidden rounded-3xl border border-[#ded7ca] bg-white/80 shadow-[0_24px_45px_-30px_rgba(20,20,32,0.55)] transition hover:-translate-y-1 hover:shadow-[0_40px_60px_-35px_rgba(20,20,32,0.6)]"
                         >
                             <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#e7dfd2]">
-                                {image ? (
-                                    <Image
-                                        src={image}
-                                        alt={event.name || 'Evento'}
-                                        fill
-                                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                        sizes="(max-width: 768px) 80vw, 360px"
-                                        unoptimized={image.startsWith('http')}
-                                    />
-                                ) : (
-                                    <div className="flex h-full items-center justify-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
-                                        Evento 5521
-                                    </div>
-                                )}
+                                <Image
+                                    src={imageSrc}
+                                    alt={event.name || 'Evento'}
+                                    fill
+                                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                    sizes="(max-width: 768px) 80vw, 360px"
+                                    unoptimized={imageSrc.startsWith('http')}
+                                    onError={() => handleImageError(event.id)}
+                                />
                             </div>
 
                             <div className="flex flex-1 flex-col justify-between p-5">

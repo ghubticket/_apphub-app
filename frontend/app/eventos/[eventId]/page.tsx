@@ -25,6 +25,8 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
     const [eventData, setEventData] = useState<{ description?: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [imageError, setImageError] = useState(false);
+    const [compactImageError, setCompactImageError] = useState(false);
 
     const eventId = useMemo(() => params.eventId, [params.eventId]);
 
@@ -120,22 +122,14 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                         {/* Resumo compacto do evento */}
                         <div className="flex items-center gap-4 lg:justify-center">
                             <div className="relative h-20 w-20 overflow-hidden rounded-lg border border-[#ded7ca] bg-[#e7dfd2]">
-                                {primaryTicket?.image && primaryTicket.image.startsWith('http') ? (
-                                    <Image
-                                        src={primaryTicket.image}
-                                        alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                        fill
-                                        className="object-cover"
-                                        unoptimized
-                                    />
-                                ) : (
-                                    <Image
-                                        src={primaryTicket?.image || '/images/anita.jpg'}
-                                        alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                        fill
-                                        className="object-cover"
-                                    />
-                                )}
+                                <Image
+                                    src={compactImageError || !primaryTicket?.image ? '/images/anita.jpg' : primaryTicket.image}
+                                    alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                    fill
+                                    className="object-cover"
+                                    unoptimized={primaryTicket?.image?.startsWith('http')}
+                                    onError={() => setCompactImageError(true)}
+                                />
                             </div>
                             <div className="min-w-0 space-y-1">
                             <p className="truncate text-sm font-semibold text-[#1a1a1d]">
@@ -181,24 +175,15 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                     <section className="space-y-6 lg:col-span-2">
                         <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white/80 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
                             <div className="relative aspect-[16/9] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
-                                {primaryTicket?.image && primaryTicket.image.startsWith('http') ? (
-                                    <Image
-                                        src={primaryTicket.image}
-                                        alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                        fill
-                                        className="object-cover"
-                                        priority
-                                        unoptimized
-                                    />
-                                ) : (
-                                    <Image
-                                        src={primaryTicket?.image || '/images/anita.jpg'}
-                                        alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                        fill
-                                        className="object-cover"
-                                        priority
-                                    />
-                                )}
+                                <Image
+                                    src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : primaryTicket.image}
+                                    alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                    fill
+                                    className="object-cover"
+                                    priority
+                                    unoptimized={primaryTicket?.image?.startsWith('http')}
+                                    onError={() => setImageError(true)}
+                                />
                             </div>
 
                             <div className="space-y-5 p-6 lg:p-8">
