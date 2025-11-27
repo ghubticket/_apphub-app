@@ -10,6 +10,7 @@ import TicketCatalog from '@/components/tickets/TicketCatalog';
 import EventSelectionSummary from '@/components/tickets/EventSelectionSummary';
 import type { TicketProduct } from '@/types/ticket';
 import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
+import api from '@/lib/api';
 
 type EventTicketsPageProps = {
     params: {
@@ -21,6 +22,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [tickets, setTickets] = useState<TicketProduct[]>([]);
+    const [eventData, setEventData] = useState<{ description?: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +33,19 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
             try {
                 setLoading(true);
                 setError(null);
+
+                // Buscar dados do evento diretamente
+                try {
+                    const eventResponse = await api.get(`/events/${eventId}`);
+                    const event = eventResponse.data?.data || eventResponse.data;
+                    if (event) {
+                        setEventData({
+                            description: event.description,
+                        });
+                    }
+                } catch (eventErr) {
+                    console.warn('[EventTicketsPage] Erro ao buscar dados do evento:', eventErr);
+                }
 
                 // Reaproveita o catálogo existente e filtra por evento
                 const catalog = await fetchTicketCatalog({
@@ -189,7 +204,8 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                     </div>
                                     <hr />
                                     <p className="text-sm pt-5 pb-3 text-[#4c4c55]">
-                                        {primaryTicket?.description ??
+                                        {eventData?.description ||
+                                            primaryTicket?.description ||
                                             'Escolha seu ingresso e garanta sua experiência com poucos cliques.'}
                                     </p>
                                 </div>

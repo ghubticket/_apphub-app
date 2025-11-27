@@ -163,6 +163,22 @@ return }
     const [loadingReservations, setLoadingReservations] = useState(false)
     const [apiStats, setApiStats] = useState<{ capacityTotal: number; soldTotal: number; availableTotal: number; pendingCount: number; cancelledCount: number; vipsDistributed: number; totalRevenue?: number; revenueByDay?: number[] } | null>(null)
 
+    // Gerar labels dos últimos 7 dias para o gráfico
+    const getLast7DaysLabels = () => {
+        const labels: string[] = []
+        const now = new Date()
+        
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(now)
+            date.setDate(date.getDate() - i)
+            const day = date.getDate()
+            const month = date.toLocaleDateString('pt-BR', { month: 'short' })
+            labels.push(`${day}/${month.substring(0, 3)}`)
+        }
+        
+        return labels
+    }
+
     // Buscar quantidades disponíveis considerando reservas
     useEffect(() => {
         const fetchAvailableQuantities = async () => {
@@ -1205,7 +1221,7 @@ return
                                                     },
                                                     axisTicks: { show: false },
                                                     axisBorder: { show: false },
-                                                    categories: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul']
+                                                    categories: getLast7DaysLabels()
                                                 },
                                                 yaxis: {
                                                     show: true,
@@ -1218,7 +1234,12 @@ return
                                                     }
                                                 }
                                             }}
-                                            series={[{ name: 'Vendas', data: (apiStats?.revenueByDay || []).map((v: number) => Number(v)) }]}
+                                            series={[{ 
+                                                name: 'Vendas', 
+                                                data: (apiStats?.revenueByDay && Array.isArray(apiStats.revenueByDay) && apiStats.revenueByDay.length > 0 
+                                                    ? apiStats.revenueByDay.map((v: any) => Number(v) || 0)
+                                                    : [0, 0, 0, 0, 0, 0, 0]) // Fallback com zeros se não houver dados
+                                            }]}
                                         />
                                     </Box>
                                 </Box>
