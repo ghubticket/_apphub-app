@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 import * as paymentService from '../services/paymentService';
 import mongoose from 'mongoose';
 import { Order, Ticket, TicketType, Event, User, PromoterCode } from '../models';
-import { sendOrderCancelledEmail } from '../services/emailTemplates';
+import { sendOrderCancelledEmail, sendTicketConfirmationEmail } from '../services/emailTemplates';
 import { normalizeCPF, normalizeEmail } from '../utils/validationHelpers';
 import * as orderService from '../services/orderService';
 import { generateQRCode } from '../services/qrCodeService';
+import { generateTicketPDF } from '../services/pdfService';
 import { logAudit, createAuditContextFromRequest } from '../services/auditService';
 
 const MAX_CARD_PAYMENT_ATTEMPTS = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
@@ -1347,9 +1348,103 @@ export const getOrderById = async (req: Request, res: Response) => {
                             }
                         }
 
+                        // Enviar email de confirmação com PDF para pedidos PIX que viraram paid via sincronização
+                        if (isPixOrder) {
+                            try {
+                                const populatedOrder = await Order.findById(orderDoc._id)
+                                    .populate('event', 'name date location address')
+                                    .populate('tickets', 'code qrCode ticketType holder')
+                                    .populate('customer', 'name email')
+                                    .populate('tickets.ticketType', 'name')
+                                    .lean();
+
+                                if (populatedOrder && populatedOrder.customer) {
+                                    const event: any = populatedOrder.event;
+                                    const customer: any = populatedOrder.customer;
+                                    const ticketsWithQR = (populatedOrder.tickets as any[]).filter(
+                                        (t) => t.qrCode
+                                    );
+
+                                    if (ticketsWithQR.length > 0) {
+                                        const pdfBuffer = await generateTicketPDF({
+                                            event: {
+                                                name: event.name,
+                                                date: event.date,
+                                                location: event.location,
+                                                address: event.address,
+                                            },
+                                            orderNumber: populatedOrder.orderNumber,
+                                            customerName: customer.name,
+                                            tickets: ticketsWithQR.map((t) => ({
+                                                code: t.code,
+                                                qrCode: t.qrCode,
+                                                ticketType: (t.ticketType as any)?.name || 'Ingresso',
+                                                holderName: (t.holder as any)?.name || customer.name,
+                                            })),
+                                        });
+
+                                        const eventDate = new Date(event.date).toLocaleDateString(
+                                            'pt-BR',
+                                            {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                            }
+                                        );
+
+                                        const dashboardUrl =
+                                            process.env.DASHBOARD_URL || 'http://localhost:3000';
+
+                                        await sendTicketConfirmationEmail(
+                                            customer.email,
+                                            {
+                                                customerName: customer.name,
+                                                orderNumber: populatedOrder.orderNumber,
+                                                eventName: event.name,
+                                                eventDate,
+                                                eventLocation: event.location,
+                                                eventAddress: event.address,
+                                                totalTickets: ticketsWithQR.length,
+                                                ticketType:
+                                                    ticketsWithQR[0]?.ticketType?.name || 'Ingresso',
+                                                downloadLink: `${dashboardUrl}/orders/${populatedOrder._id}`,
+                                                qrCodes: ticketsWithQR.map((t) => ({
+                                                    code: t.code,
+                                                    qrCode: t.qrCode,
+                                                    holderName:
+                                                        (t.holder as any)?.name || customer.name,
+                                                })),
+                                            },
+                                            [
+                                                {
+                                                    filename: `ingressos-${populatedOrder.orderNumber}.pdf`,
+                                                    content: pdfBuffer,
+                                                    contentType: 'application/pdf',
+                                                },
+                                            ]
+                                        );
+
+                                        console.log(
+                                            `✅ [getOrderById] Email de confirmação (PIX) enviado para ${customer.email}`
+                                        );
+                                    }
+                                }
+                            } catch (emailError) {
+                                console.error(
+                                    '[getOrderById] Erro ao enviar email de confirmação (PIX):',
+                                    emailError
+                                );
+                            }
+                        }
+
                         if (process.env.NODE_ENV !== 'production') {
                             console.log(
-                                `[getOrderById] Pedido ${String(orderDoc._id)} (${isPixOrder ? 'PIX' : 'Cartão'}): MP aprovou. Atualizando para paid e gerando QR codes.`
+                                `[getOrderById] Pedido ${String(orderDoc._id)} (${
+                                    isPixOrder ? 'PIX' : 'Cartão'
+                                }): MP aprovou. Atualizando para paid e gerando QR codes.`
                             );
                         }
                     }

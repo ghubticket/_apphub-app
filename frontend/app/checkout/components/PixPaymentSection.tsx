@@ -86,7 +86,7 @@ export function PixPaymentSection({
                                 <button
                                     type="button"
                                     onClick={onNavigateToOrders}
-                                    className="rounded-full bg-[#1a1a1d] px-6 py-3 text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                    className="rounded-full bg-[#1a1a1d] px-6 py-3 text-[0.65rem] font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
                                 >
                                     Ver meus pedidos
                                 </button>
