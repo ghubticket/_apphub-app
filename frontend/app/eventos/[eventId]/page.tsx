@@ -105,21 +105,12 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                         {/* Resumo compacto do evento */}
                         <div className="flex items-center gap-4 lg:justify-center">
                             <div className="relative h-20 w-20 overflow-hidden rounded-lg border border-[#ded7ca] bg-[#e7dfd2]">
-                                {primaryTicket?.image ? (
-                                    <Image
-                                        src={primaryTicket.image}
-                                        alt={primaryTicket.eventName ?? primaryTicket.name}
-                                        fill
-                                        className="object-cover"
-                                    />
-                                ) : (
-                                    <Image
-                                        src="/images/anita.jpg"
-                                        alt="Imagem do evento"
-                                        fill
-                                        className="object-cover"
-                                    />
-                                )}
+                                <Image
+                                    src="/images/anita.jpg"
+                                    alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                    fill
+                                    className="object-cover"
+                                />
                             </div>
                             <div className="min-w-0 space-y-1">
                                 <p className="text-[0.7rem] font-semibold uppercase tracking-normal text-[#a38f78]">
@@ -162,36 +153,24 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                     {/* Coluna: Detalhes do evento */}
                     <section className="space-y-6 lg:col-span-2">
                         <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white/80 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
-                            {primaryTicket?.image ? (
-                                <div className="relative aspect-[16/9] w-full">
-                                    <Image
-                                        src={primaryTicket.image}
-                                        alt={primaryTicket.eventName ?? primaryTicket.name}
-                                        fill
-                                        className="object-cover"
-                                        priority
-                                    />
-                                </div>
-                            ) : (
-                                <div className="relative aspect-[16/9] w-full">
-                                    <Image
-                                        src="/images/anita.jpg"
-                                        alt="Imagem do evento"
-                                        fill
-                                        className="object-cover"
-                                        priority
-                                    />
-                                </div>
-                            )}
+                            <div className="relative aspect-[16/9] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
+                                <Image
+                                    src="/images/anita.jpg"
+                                    alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                    fill
+                                    className="object-cover"
+                                    priority
+                                    unoptimized={process.env.NODE_ENV === 'development'}
+                                />
+                            </div>
 
                             <div className="space-y-5 p-6 lg:p-8">
-
                                 <div className="space-y-2">
                                     <h1 className="text-xl font-bold tracking-normal text-[#1a1a1d]">
                                         {primaryTicket?.eventName ?? 'Evento'}
                                     </h1>
   
-                                    <div className="flex flex-wrap items-center gap-4 pb-4 text-sm text-[#4c4c55]">
+                                    <div className="flex flex-wrap items-center md:gap-4 gap-1 pb-4 text-sm text-[#4c4c55]">
                                         {primaryTicket?.eventDate && (
                                             <div className="flex items-center gap-2 ">
                                                 <HiOutlineCalendar className="text-base text-[#a38f78]" />
