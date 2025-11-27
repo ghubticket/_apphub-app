@@ -208,11 +208,20 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                         )}
                                     </div>
                                     <hr />
-                                    <p className="text-sm pt-5 pb-3 text-[#4c4c55]">
-                                        {eventData?.description ||
-                                            primaryTicket?.description ||
-                                            'Escolha seu ingresso e garanta sua experiência com poucos cliques.'}
-                                    </p>
+                                    <div 
+                                        className="text-sm pt-5 pb-3 text-[#4c4c55] prose prose-sm max-w-none 
+                                            prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
+                                            prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
+                                            prose-strong:text-[#1a1a1d] prose-strong:font-semibold
+                                            prose-ul:text-[#4c4c55] prose-ul:list-disc prose-ul:ml-5 prose-ul:mb-3 prose-ul:space-y-1
+                                            prose-ol:text-[#4c4c55] prose-ol:list-decimal prose-ol:ml-5 prose-ol:mb-3 prose-ol:space-y-1
+                                            prose-li:text-[#4c4c55] prose-li:leading-relaxed"
+                                        dangerouslySetInnerHTML={{
+                                            __html: eventData?.description ||
+                                                primaryTicket?.description ||
+                                                'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
+                                        }}
+                                    />
                                 </div>
                                     
                                 <hr />

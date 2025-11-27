@@ -73,7 +73,7 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
                                 <div className="mt-5 flex items-center justify-between gap-3">
                                     <Link
                                         href={`/eventos/${event.id}?from=/`}
-                                        className="inline-flex flex-1 items-center justify-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] px-5 py-2.5 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-white transition group-hover:bg-[#f97316] group-hover:border-[#f97316] group-hover:text-[#1a1a1d]"
+                                        className="inline-flex flex-1 items-center justify-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] px-5 py-2.5 text-[0.7rem] font-semibold uppercase tracking-normal text-white transition group-hover:bg-[#f97316] group-hover:border-[#f97316] group-hover:text-[#1a1a1d]"
                                     >
                                         Ver ingressos
                                     </Link>
