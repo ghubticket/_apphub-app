@@ -135,7 +135,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                                 <button
                                     type="button"
                                     disabled={pixPaymentActive}
-                                    className={`inline-flex h-8 w-12 md:w-8 items-center justify-center rounded-full border transition ${
+                                    className={`hidden h-8 w-12 md:w-8 items-center justify-center rounded-full border transition ${
                                         pixPaymentActive
                                             ? 'border-[#ded7ca] text-[#b5aa92] opacity-60 cursor-not-allowed'
                                             : 'border-[#ded7ca] text-[#7d796c] hover:border-rose-300 hover:text-rose-500'

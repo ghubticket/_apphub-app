@@ -413,6 +413,11 @@ export default function DashboardPage() {
         }
     }, [activeTab, fetchOrders, hasFetchedOrders, isAuthenticated, isReady]);
 
+    // Evitar exibir tela "Redirecionando": enquanto não estiver pronto ou autenticado, não renderiza conteúdo
+    if (!isReady || !isAuthenticated) {
+        return null;
+    }
+
     // Helper para verificar se é um grupo
     const isOrderGroup = (item: OrderSummary | OrderGroup): item is OrderGroup => {
         return 'orders' in item && Array.isArray((item as OrderGroup).orders);
@@ -961,20 +966,8 @@ export default function DashboardPage() {
 
     return (
         <>
-            <main
-                className="bg-[#f5f1e8]"
-            >
-                {!isReady || (!isAuthenticated && isReady) ? (
-                    <Container className="flex min-h-[60vh] items-center justify-center py-12">
-                        <div className="flex flex-col items-center gap-3 text-[#7d796c]">
-                            <span className="text-xs font-semibold uppercase tracking-[0.3em]">
-                                Redirecionando
-                            </span>
-                            <span className="h-3 w-3 animate-ping rounded-full bg-[#f97316]" />
-                        </div>
-                    </Container>
-                ) : (
-                    <Container className="py-12">
+            <main className="bg-[#f5f1e8]">
+                <Container className="py-12">
                         <header className="mb-10 space-y-3 hidden md:block">
                             <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
                                 Área do Cliente
@@ -1034,7 +1027,6 @@ export default function DashboardPage() {
                             </section>
                         </section>
                     </Container>
-                )}
             </main>
 
             {activeOrder ? (
