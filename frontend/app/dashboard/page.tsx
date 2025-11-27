@@ -400,11 +400,6 @@ export default function DashboardPage() {
         }
     }, [activeTab, fetchOrders, hasFetchedOrders, isAuthenticated, isReady]);
 
-    // Evitar exibir tela "Redirecionando": enquanto não estiver pronto ou autenticado, não renderiza conteúdo
-    if (!isReady || !isAuthenticated) {
-        return null;
-    }
-
     // Helper para verificar se é um grupo
     const isOrderGroup = (item: OrderSummary | OrderGroup): item is OrderGroup => {
         return 'orders' in item && Array.isArray((item as OrderGroup).orders);
