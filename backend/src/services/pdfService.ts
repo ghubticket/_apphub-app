@@ -102,9 +102,9 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
                 // Instruções
                 doc.fontSize(9)
                     .fillColor('#999999')
-                    .text('Apresente este QR Code na entrada do evento', { align: 'center' });
-                doc.text('Pode ser no celular ou impresso', { align: 'center' });
-                doc.text('⚠️ Não compartilhe este QR Code (uso único)', { align: 'center' });
+                    .text('Apresente este QR Code na entrada do evento.', { align: 'center' });
+                doc.text('Pode ser no celular ou impresso.', { align: 'center' });
+                doc.text('Não compartilhe este QR Code (uso único).', { align: 'center' });
 
                 // Linha divisória (se não for o último)
                 if (i < data.tickets.length - 1) {

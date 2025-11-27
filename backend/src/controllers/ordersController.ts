@@ -1396,7 +1396,9 @@ export const getOrderById = async (req: Request, res: Response) => {
                                         );
 
                                         const dashboardUrl =
-                                            process.env.DASHBOARD_URL || 'http://localhost:3000';
+                                            process.env.FRONTEND_URL ||
+                                            process.env.DASHBOARD_URL ||
+                                            'http://localhost:3000';
 
                                         await sendTicketConfirmationEmail(
                                             customer.email,

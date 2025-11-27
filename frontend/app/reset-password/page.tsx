@@ -108,15 +108,6 @@ function ResetPasswordContent() {
         <main className="min-h-screen bg-[#faf7f0] py-12">
             <Container>
                 <div className="mx-auto max-w-lg">
-                    <div className="mb-8 text-center">
-                        <h1 className="text-3xl font-semibold uppercase tracking-[0.25em] text-[#1a1a1d]">
-                            Redefinir senha
-                        </h1>
-                        <p className="mt-2 text-sm text-[#6f6b63]">
-                            Escolha uma nova senha para continuar acessando sua conta com segurança.
-                        </p>
-                    </div>
-
                     <AuthCard
                         title="Nova senha"
                         description={

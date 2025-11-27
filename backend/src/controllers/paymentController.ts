@@ -285,7 +285,10 @@ export const createPixPayment = async (req: Request, res: Response) => {
                         minute: '2-digit',
                     });
 
-                    const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+                    const dashboardUrl =
+                        process.env.FRONTEND_URL ||
+                        process.env.DASHBOARD_URL ||
+                        'http://localhost:3000';
                     await sendPaymentPendingEmail(customerEmail, {
                         customerName: customerName || 'Cliente',
                         orderNumber: order.orderNumber,
@@ -971,8 +974,9 @@ async function sendPaymentApprovedEmail(order: any) {
             holderName: (t.holder as any)?.name || customer.name,
         }));
 
-        // Enviar email com PDF anexo e QR codes inline
-        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+        // Enviar email com PDF anexo
+        const dashboardUrl =
+            process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
         await sendTicketConfirmationEmail(
             customer.email,
             {
