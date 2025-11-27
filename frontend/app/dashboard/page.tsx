@@ -237,7 +237,7 @@ export default function DashboardPage() {
     const router = useRouter();
     const { user, isAuthenticated, isReady } = useAuth();
     const [activeTab, setActiveTab] = useState<TabKey>('orders');
-    
+
     // IMPORTANTE: Limpar flag de PIX ativo ao carregar dashboard
     // Isso permite que quando o usuário voltar ao carrinho, possa criar novo pedido
     useEffect(() => {
@@ -425,11 +425,11 @@ export default function DashboardPage() {
                     }
                     return [];
                 });
-                
+
                 // CRÍTICO: Usar o número real de tickets coletados ao invés do totalTickets calculado
                 // Isso resolve discrepâncias causadas por tickets deletados ou não populados
                 const realTotalTickets = allTickets.length;
-                
+
                 // Criar um objeto "virtual" que representa o grupo consolidado
                 const firstOrder = group.orders[0];
                 return {
@@ -442,7 +442,7 @@ export default function DashboardPage() {
                 } as OrderSummary;
             }
         }
-        
+
         if (openOrderId) {
             // Buscar pedido individual
             for (const item of orders) {
@@ -454,7 +454,7 @@ export default function DashboardPage() {
                 }
             }
         }
-        
+
         return null;
     }, [orders, openGroupId, openOrderId]);
 
@@ -517,10 +517,6 @@ export default function DashboardPage() {
 
     const renderProfileContent = () => (
         <div className="space-y-6">
-            <p className="text-sm text-[#4c4c55]">
-                Aqui você poderá atualizar suas informações pessoais, preferências de contato e
-                documentos necessários para o acesso aos eventos.
-            </p>
             <div className="rounded-2xl border border-[#ded7ca] bg-white/70 p-6">
                 <p className="text-sm text-[#1a1a1d]">
                     Em breve adicionaremos o formulário completo de edição de perfil. Por enquanto,
@@ -586,7 +582,7 @@ export default function DashboardPage() {
                         // CRÍTICO: Usar o número real de tickets coletados ao invés do totalTickets calculado
                         // Isso resolve discrepâncias causadas por tickets deletados ou não populados
                         const realTotalTickets = allTickets.length;
-                        
+
                         // Log para debug apenas se houver discrepância (qualquer diferença)
                         // Isso ajuda a identificar quando tickets foram deletados ou não foram criados corretamente
                         if (realTotalTickets !== group.totalTickets) {
@@ -603,7 +599,7 @@ export default function DashboardPage() {
                                     ticketsArrayLength: Array.isArray(o.tickets) ? o.tickets.length : 0,
                                     status: o.status,
                                 })),
-                                observacao: missingTickets > 0 
+                                observacao: missingTickets > 0
                                     ? `⚠️ ATENÇÃO: ${missingTickets} ticket(s) podem ter sido deletados ou não foram criados corretamente. Verifique no banco de dados.`
                                     : 'Tickets adicionais podem ter sido criados manualmente.',
                             });
@@ -827,7 +823,7 @@ export default function DashboardPage() {
                                             )}
 
                                             {/* Código PIX para copiar */}
-                                        {(order.pixInfo.qrCode || order.pixInfo.ticketUrl) && (
+                                            {(order.pixInfo.qrCode || order.pixInfo.ticketUrl) && (
                                                 <div className="mb-4">
                                                     <label className="mb-2 block text-xs font-semibold uppercase tracking-normal text-emerald-800">
                                                         Código PIX (Copiar e Colar)
@@ -925,10 +921,6 @@ export default function DashboardPage() {
 
     const renderRequestsContent = () => (
         <div className="space-y-6">
-            <p className="text-sm text-[#4c4c55]">
-                Acompanhe chamados abertos com o suporte, solicitações de upgrade e qualquer pedido
-                administrativo relacionado à sua conta.
-            </p>
             <div className="rounded-2xl border border-dashed border-[#ded7ca] bg-white/50 p-6 text-center text-sm text-[#7d796c]">
                 Você ainda não possui solicitações abertas. Use nossos canais oficiais para iniciar
                 um atendimento quando precisar.
@@ -952,7 +944,6 @@ export default function DashboardPage() {
         <>
             <main
                 className="bg-[#f5f1e8]"
-                style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
             >
                 {!isReady || (!isAuthenticated && isReady) ? (
                     <Container className="flex min-h-[60vh] items-center justify-center py-12">
@@ -965,7 +956,7 @@ export default function DashboardPage() {
                     </Container>
                 ) : (
                     <Container className="py-12">
-                        <header className="mb-10 space-y-3">
+                        <header className="mb-10 space-y-3 hidden md:block">
                             <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
                                 Área do Cliente
                             </span>
