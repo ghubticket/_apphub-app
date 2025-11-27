@@ -74,14 +74,23 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
                 const qrCodeBase64 = ticket.qrCode.replace(/^data:image\/png;base64,/, '');
                 const qrCodeBuffer = Buffer.from(qrCodeBase64, 'base64');
 
-                // Adicionar QR Code (centralizado e maior para melhor leitura)
-                doc.image(qrCodeBuffer, {
-                    fit: [300, 300],
-                    align: 'center',
-                    valign: 'center',
+                // Dimensão desejada do QR
+                const qrSize = 300;
+
+                // Calcular posição central na página
+                const pageWidth = doc.page.width;
+                const pageHeight = doc.page.height;
+                const x = (pageWidth - qrSize) / 2;
+                const y = (pageHeight - qrSize) / 2;
+
+                // Desenhar QR code centralizado na página
+                doc.image(qrCodeBuffer, x, y, {
+                    width: qrSize,
+                    height: qrSize,
                 });
 
-                doc.moveDown(1);
+                // Posicionar cursor logo abaixo do QR para o texto
+                doc.y = y + qrSize + 40;
 
                 // Informações do ingresso
                 doc.fontSize(14)

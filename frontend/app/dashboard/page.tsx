@@ -53,6 +53,7 @@ type OrderSummary = {
     totalTickets: number;
     paymentMethod?: string;
     createdAt?: string;
+    expiresAt?: string;
     customerData?: {
         name?: string;
         email?: string;
@@ -334,6 +335,7 @@ export default function DashboardPage() {
                     totalTickets: Number(order.totalTickets ?? 0),
                     paymentMethod: order.paymentMethod,
                     createdAt: order.createdAt,
+                    expiresAt: order.expiresAt,
                     customerData: order.customerData ?? {},
                     event: order.event ?? null,
                     tickets: Array.isArray(order.tickets) ? order.tickets : [],
@@ -341,16 +343,29 @@ export default function DashboardPage() {
                 }))
                 : [];
 
+            // Filtrar pedidos pendentes expirados/cancelados (ex.: PIX expirado ou cancelado)
+            const now = Date.now();
+            const activeOrders = normalizedOrders.filter(order => {
+                if (order.status !== 'pending') return true;
+                if (!order.expiresAt) return true;
+
+                const expiresAtTime = new Date(order.expiresAt).getTime();
+                if (Number.isNaN(expiresAtTime)) return true;
+
+                // Se já expirou, não exibir no dashboard do cliente
+                return expiresAtTime > now;
+            });
+
             // Agrupar pedidos pagos do mesmo evento
-            const groupedOrders = groupOrdersByEvent(normalizedOrders);
+            const groupedOrders = groupOrdersByEvent(activeOrders);
 
             setOrders(groupedOrders);
             setOrdersPagination(
                 paginationRaw
                     ? {
                         page: Number(paginationRaw.page ?? 1),
-                        limit: Number(paginationRaw.limit ?? normalizedOrders.length ?? 10),
-                        total: Number(paginationRaw.total ?? normalizedOrders.length ?? 0),
+                        limit: Number(paginationRaw.limit ?? activeOrders.length ?? 10),
+                        total: Number(paginationRaw.total ?? activeOrders.length ?? 0),
                         totalPages: Number(paginationRaw.totalPages ?? 1),
                     }
                     : null,
@@ -622,7 +637,11 @@ export default function DashboardPage() {
                                             <p className="text-xs text-[#7d796c]">
                                                 {eventDate ? `${eventDate}` : 'Data a confirmar'}
                                                 {group.eventLocation ? ` • ${group.eventLocation}` : ''}
+                                                {statusConfig.paid.label}
                                             </p>
+                                            <span className="text-xs font-medium text-[#4c4c55]">
+                                                    Valor total {currencyFormatter.format(group.totalAmount)}
+                                                </span>
                                         </div>
                                         <div className="flex items-center gap-10">
                                             <div className='flex flex-col gap-2'>
@@ -637,9 +656,7 @@ export default function DashboardPage() {
                                                         : `Criado em ${latestDate}`
                                                     }
                                                 </span>
-                                                <span className="text-xs font-medium text-[#4c4c55]">
-                                                    Valor total {currencyFormatter.format(group.totalAmount)}
-                                                </span>
+                                                
                                                 <span className="text-[0.65rem] uppercase tracking-normal text-[#a38f78]">
                                                     {paymentLabelsList || 'Pagamento confirmado'}
                                                 </span>
