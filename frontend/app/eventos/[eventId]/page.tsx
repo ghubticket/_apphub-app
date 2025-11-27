@@ -106,22 +106,24 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                         <div className="flex items-center gap-4 lg:justify-center">
                             <div className="relative h-20 w-20 overflow-hidden rounded-lg border border-[#ded7ca] bg-[#e7dfd2]">
                                 <Image
-                                    src="/images/anita.jpg"
+                                    src={primaryTicket?.image || '/images/anita.jpg'}
                                     alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
                                     fill
                                     className="object-cover"
                                 />
                             </div>
                             <div className="min-w-0 space-y-1">
-                                <p className="text-[0.7rem] font-semibold uppercase tracking-normal text-[#a38f78]">
-                                    {primaryTicket?.location ?? 'Experiências 5521'}
-                                </p>
-                                <p className="truncate text-sm font-semibold text-[#1a1a1d]">
+                            <p className="truncate text-sm font-semibold text-[#1a1a1d]">
                                     {primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento'}
                                 </p>
+
+                                <p className="text-[0.7rem] font-semibold uppercase tracking-normal text-[#a38f78]">
+                                    Local: {primaryTicket?.location ?? 'Experiências 5521'}
+                                </p>
+                               
                                 {primaryTicket?.eventDate && (
                                     <p className="text-[0.7rem] text-[#6f6b63]">
-                                        {primaryTicket.eventDate}
+                                        Data:{primaryTicket.eventDate}
                                     </p>
                                 )}
                             </div>
@@ -155,7 +157,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                         <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white/80 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
                             <div className="relative aspect-[16/9] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
                                 <Image
-                                    src="/images/anita.jpg"
+                                    src={primaryTicket?.image || '/images/anita.jpg'}
                                     alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
                                     fill
                                     className="object-cover"
