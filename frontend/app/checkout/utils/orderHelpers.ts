@@ -4,10 +4,23 @@
 
 /**
  * Converte expiresAt para Date (aceita string ou Date)
+ * CRÍTICO: Sempre trata como UTC para evitar problemas de timezone do dispositivo
  */
 export function parseExpiresAt(expiresAt: string | Date | null | undefined): Date | null {
     if (!expiresAt) return null;
-    return typeof expiresAt === 'string' ? new Date(expiresAt) : expiresAt;
+    
+    if (typeof expiresAt === 'string') {
+        // Se for string ISO sem timezone, adicionar 'Z' para forçar UTC
+        // Exemplo: "2025-11-27T21:30:00" -> "2025-11-27T21:30:00Z"
+        let isoString = expiresAt.trim();
+        if (isoString && !isoString.endsWith('Z') && !isoString.includes('+') && !isoString.includes('-', 10)) {
+            // Não tem timezone, assumir UTC
+            isoString = isoString.endsWith('Z') ? isoString : isoString + 'Z';
+        }
+        return new Date(isoString);
+    }
+    
+    return expiresAt;
 }
 
 /**
@@ -22,11 +35,45 @@ export function isOrderExpired(expiresAt: string | Date | null | undefined, now:
 /**
  * Calcula o tempo restante em milissegundos até a expiração
  * Retorna 0 se já expirou
+ * CRÍTICO: Usa sempre UTC timestamps para evitar problemas de timezone do dispositivo
  */
 export function getRemainingTime(expiresAt: string | Date | null | undefined, now: number = Date.now()): number {
     const expiresAtDate = parseExpiresAt(expiresAt);
-    if (!expiresAtDate) return 0;
-    return Math.max(0, expiresAtDate.getTime() - now);
+    if (!expiresAtDate) {
+        console.warn('[getRemainingTime] ⚠️ expiresAt é null/undefined');
+        return 0;
+    }
+    
+    // getTime() sempre retorna UTC timestamp (milissegundos desde epoch)
+    // Date.now() também sempre retorna UTC timestamp
+    // Então a diferença sempre será correta, independente do timezone do dispositivo
+    const expiresAtTimestamp = expiresAtDate.getTime();
+    const remaining = expiresAtTimestamp - now;
+    
+    // Log para debug em caso de valores negativos ou muito grandes
+    if (remaining < 0) {
+        console.warn('[getRemainingTime] ⚠️ Tempo restante negativo (já expirou):', {
+            expiresAt: expiresAtDate.toISOString(),
+            expiresAtTimestamp,
+            now,
+            nowISO: new Date(now).toISOString(),
+            remaining,
+            deviceTimeOffset: new Date().getTimezoneOffset(), // offset em minutos
+        });
+    } else if (remaining > 31 * 60 * 1000) {
+        // Mais de 31 minutos (suspeito se deveria ser 30)
+        console.warn('[getRemainingTime] ⚠️ Tempo restante muito grande (suspeito):', {
+            expiresAt: expiresAtDate.toISOString(),
+            expiresAtTimestamp,
+            now,
+            nowISO: new Date(now).toISOString(),
+            remaining,
+            remainingMinutes: Math.floor(remaining / 60000),
+            deviceTimeOffset: new Date().getTimezoneOffset(),
+        });
+    }
+    
+    return Math.max(0, remaining);
 }
 
 /**

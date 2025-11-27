@@ -286,6 +286,9 @@ export function useOrderCreation({
                     orderNumber: orderData.orderNumber,
                     status: orderData.status,
                     expiresAt: orderData.expiresAt,
+                    expiresAtType: typeof orderData.expiresAt,
+                    expiresAtParsed: orderData.expiresAt ? new Date(orderData.expiresAt).toISOString() : null,
+                    now: new Date().toISOString(),
                     totalAmount: orderData.totalAmount,
                     totalTickets: orderData.totalTickets,
                 });
@@ -337,22 +340,78 @@ export function useOrderCreation({
                 
                 // IMPORTANTE: Se o pedido tem expiresAt, salvar o timer no localStorage para usar como fallback
                 if (orderData.status === 'pending' && orderData.expiresAt) {
-                    const remaining = getRemainingTime(orderData.expiresAt);
-                    if (remaining > 0) {
-                        // Calcular startTime baseado no expiresAt para salvar no localStorage
-                        const now = Date.now();
+                    const expiresAtDate = parseExpiresAt(orderData.expiresAt);
+                    const now = Date.now();
+                    const expiresAtTimestamp = expiresAtDate?.getTime() || 0;
+                    const remaining = expiresAtTimestamp > 0 ? Math.max(0, expiresAtTimestamp - now) : 0;
+                    
+                    console.log('[useOrderCreation] ⏰ Calculando timer do pedido:', {
+                        expiresAt: orderData.expiresAt,
+                        expiresAtParsed: expiresAtDate?.toISOString(),
+                        expiresAtTimestamp,
+                        remainingMs: remaining,
+                        remainingMinutes: Math.floor(remaining / 60000),
+                        remainingSeconds: Math.floor(remaining / 1000),
+                        now,
+                        nowISO: new Date(now).toISOString(),
+                        deviceTimeOffset: new Date().getTimezoneOffset(), // offset em minutos
+                    });
+                    
+                    // CRÍTICO: Validar se o tempo restante faz sentido
+                    // Se o dispositivo está dessincronizado, o remaining pode estar negativo ou muito grande
+                    const expectedMin = 25 * 60 * 1000; // Mínimo esperado: 25 minutos (permite 5min de tolerância)
+                    const expectedMax = 35 * 60 * 1000; // Máximo esperado: 35 minutos (permite 5min de tolerância)
+                    
+                    if (remaining > 0 && remaining >= expectedMin && remaining <= expectedMax) {
+                        // Tempo válido, salvar normalmente
                         const startTime = now - (30 * 60 * 1000 - remaining); // 30 minutos
                         storage.saveTimer(startTime);
                         console.log('[useOrderCreation] 💾 Timer salvo no localStorage baseado no expiresAt do pedido criado:', {
-                            expiresAt: parseExpiresAt(orderData.expiresAt)?.toISOString(),
+                            expiresAt: expiresAtDate?.toISOString(),
                             startTime: new Date(startTime).toISOString(),
+                            startTimeMs: startTime,
                             remainingMinutes: Math.floor(remaining / 60000),
+                            remainingSeconds: Math.floor(remaining / 1000),
+                        });
+                    } else if (remaining <= 0) {
+                        // Tempo já expirou ou é negativo (dispositivo à frente)
+                        console.warn('[useOrderCreation] ⚠️ Pedido criado mas expiresAt já expirou ou dispositivo está à frente:', {
+                            expiresAt: orderData.expiresAt,
+                            expiresAtParsed: expiresAtDate?.toISOString(),
+                            remaining,
+                            remainingMinutes: Math.floor(remaining / 60000),
+                            deviceTimeOffset: new Date().getTimezoneOffset(),
+                        });
+                        // Usar fallback: assumir que faltam 30 minutos (mais seguro)
+                        const fallbackStartTime = now;
+                        storage.saveTimer(fallbackStartTime);
+                        console.log('[useOrderCreation] 💾 Timer salvo com fallback (30min a partir de agora):', {
+                            startTime: new Date(fallbackStartTime).toISOString(),
+                        });
+                    } else {
+                        // Tempo muito grande (dispositivo atrás) ou muito pequeno
+                        console.warn('[useOrderCreation] ⚠️ Tempo restante fora do esperado (dispositivo dessincronizado?):', {
+                            expiresAt: orderData.expiresAt,
+                            expiresAtParsed: expiresAtDate?.toISOString(),
+                            remaining,
+                            remainingMinutes: Math.floor(remaining / 60000),
+                            expectedRange: `${Math.floor(expectedMin / 60000)}-${Math.floor(expectedMax / 60000)} minutos`,
+                            deviceTimeOffset: new Date().getTimezoneOffset(),
+                        });
+                        // Usar fallback: assumir que faltam 30 minutos (mais seguro)
+                        const fallbackStartTime = now;
+                        storage.saveTimer(fallbackStartTime);
+                        console.log('[useOrderCreation] 💾 Timer salvo com fallback (30min a partir de agora):', {
+                            startTime: new Date(fallbackStartTime).toISOString(),
                         });
                     }
                 } else {
                     // Limpar timer antigo do localStorage se pedido não tem expiresAt
                     storage.clearTimer();
-                    console.log('[useOrderCreation] 🧹 Timer antigo do localStorage limpo (novo pedido criado sem expiresAt)');
+                    console.log('[useOrderCreation] 🧹 Timer antigo do localStorage limpo (novo pedido criado sem expiresAt)', {
+                        status: orderData.status,
+                        hasExpiresAt: !!orderData.expiresAt,
+                    });
                 }
             }
         } catch (err: any) {

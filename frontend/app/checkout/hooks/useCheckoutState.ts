@@ -85,7 +85,15 @@ export function useCheckoutState({
 
     const remainingSeconds = useMemo(() => {
         if (order?.expiresAt) {
-            return getRemainingSeconds(order.expiresAt);
+            const remaining = getRemainingSeconds(order.expiresAt);
+            console.log('[useCheckoutState] ⏰ Calculando remainingSeconds do pedido:', {
+                expiresAt: order.expiresAt,
+                expiresAtType: typeof order.expiresAt,
+                expiresAtParsed: new Date(order.expiresAt).toISOString(),
+                remaining,
+                now: new Date().toISOString(),
+            });
+            return remaining;
         }
 
         // Fallback: usar timer do localStorage se não temos pedido carregado
@@ -94,10 +102,23 @@ export function useCheckoutState({
             if (savedStartTime) {
                 const elapsed = Date.now() - savedStartTime;
                 const remaining = Math.max(0, 30 * 60 * 1000 - elapsed); // 30 minutos
-                return Math.floor(remaining / 1000);
+                const remainingSecs = Math.floor(remaining / 1000);
+                console.log('[useCheckoutState] ⏰ Calculando remainingSeconds do localStorage:', {
+                    savedStartTime: new Date(savedStartTime).toISOString(),
+                    elapsed,
+                    remaining,
+                    remainingSecs,
+                    now: new Date().toISOString(),
+                });
+                return remainingSecs;
             }
         }
 
+        console.log('[useCheckoutState] ⚠️ Nenhum timer disponível:', {
+            hasOrderExpiresAt: !!order?.expiresAt,
+            hasPendingOrderInStorage,
+            hasValidTimerInStorage,
+        });
         return null;
     }, [order?.expiresAt, hasPendingOrderInStorage, hasValidTimerInStorage, storage]);
 

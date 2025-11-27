@@ -226,16 +226,35 @@ export function useCheckoutTimer(
                 // Se temos expiresAt, calcular baseado nele (fonte de verdade)
                 // Isso funciona tanto para pedidos normais quanto para PIX
                 remaining = getRemainingTime(expiresAt);
+                if (remaining <= 0) {
+                    console.warn('[useCheckoutTimer] ⏰ Timer calculado com expiresAt está zerado ou negativo:', {
+                        expiresAt: parseExpiresAt(expiresAt)?.toISOString(),
+                        remaining,
+                        now: new Date().toISOString(),
+                    });
+                }
             } else {
                 // Se não temos expiresAt, usar cálculo baseado em startTimeRef
                 const elapsed = Date.now() - startTimeRef.current;
                 remaining = Math.max(0, CHECKOUT_TIMEOUT_MS - elapsed);
+                if (remaining <= 0) {
+                    console.warn('[useCheckoutTimer] ⏰ Timer calculado sem expiresAt está zerado:', {
+                        startTime: new Date(startTimeRef.current).toISOString(),
+                        elapsed,
+                        remaining,
+                        now: new Date().toISOString(),
+                    });
+                }
             }
             
             setTimeRemaining(remaining);
 
             if (remaining === 0) {
-                console.warn('[useCheckoutTimer] ⏰ Timer expirado!');
+                console.warn('[useCheckoutTimer] ⏰ Timer expirado! Chamando onExpire:', {
+                    expiresAt: expiresAt ? parseExpiresAt(expiresAt)?.toISOString() : null,
+                    hasOnExpire: !!onExpire,
+                    now: new Date().toISOString(),
+                });
                 storageHelpers.clearTimerStartTime();
                 if (intervalRef.current) {
                     clearInterval(intervalRef.current);

@@ -374,13 +374,25 @@ export function CheckoutLayout() {
                 <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr]">
                     <section className="space-y-6">
                         {checkoutState.timerActive && (
-                            <CheckoutTimer
-                                isActive={checkoutState.timerActive}
-                                onExpire={handleTimerExpire}
-                                expiresAt={timerExpiresAt}
-                                initialRemainingSeconds={checkoutState.remainingSeconds}
-                                key={order?.expiresAt ? String(order.expiresAt) : 'no-expires'}
-                            />
+                            <>
+                                {console.log('[CheckoutLayout] ⏰ Renderizando CheckoutTimer:', {
+                                    timerActive: checkoutState.timerActive,
+                                    expiresAt: timerExpiresAt,
+                                    expiresAtType: typeof timerExpiresAt,
+                                    expiresAtParsed: timerExpiresAt ? new Date(timerExpiresAt).toISOString() : null,
+                                    remainingSeconds: checkoutState.remainingSeconds,
+                                    orderId: order?._id,
+                                    orderStatus: order?.status,
+                                    now: new Date().toISOString(),
+                                })}
+                                <CheckoutTimer
+                                    isActive={checkoutState.timerActive}
+                                    onExpire={handleTimerExpire}
+                                    expiresAt={timerExpiresAt}
+                                    initialRemainingSeconds={checkoutState.remainingSeconds}
+                                    key={order?.expiresAt ? String(order.expiresAt) : 'no-expires'}
+                                />
+                            </>
                         )}
 
                         <CheckoutCartSummary
