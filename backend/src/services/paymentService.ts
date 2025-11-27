@@ -277,11 +277,14 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         // Criar Order usando Orders API (modo automático)
         // Estrutura simplificada conforme documentação Orders API
         // CRÍTICO: Usar numericTotalAmount validado em vez de totalAmount direto
+        // e normalizar para DUAS casas decimais (ex.: 6.300000000000001 -> 6.30)
+        const normalizedAmount = Number(numericTotalAmount.toFixed(2));
+
         const orderData = {
             type: 'online',
             processing_mode: 'automatic',
             // Orders API aceita string em total_amount; manter como string normalizada
-            total_amount: String(numericTotalAmount),
+            total_amount: String(normalizedAmount),
             external_reference: orderId,
             payer: {
                 email: payerEmail,
@@ -331,7 +334,7 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                 payments: [
                     {
                         // amount também deve ser string na Orders API (alinhado com total_amount)
-                        amount: String(numericTotalAmount),
+                        amount: String(normalizedAmount),
                         payment_method: {
                             id: 'pix',
                             type: 'bank_transfer',
