@@ -1485,7 +1485,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
         } catch {}
         // Não retornar erro para o Mercado Pago (já respondemos 200)
     }
-};
+};   
 
 /**
  * Verifica status de um pagamento
@@ -1509,7 +1509,7 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
             paymentInfo.status,
             paymentInfo.status_detail || ''
         );
-
+   
         return res.json({
             success: true,
             data: {
