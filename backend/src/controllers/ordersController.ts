@@ -1293,7 +1293,14 @@ export const getOrderById = async (req: Request, res: Response) => {
 
                     // REGRA: MP é a fonte de verdade única - seguir o status do MP imediatamente
                     // Se o pagamento foi aprovado no MP, atualizar o pedido
-                    if (mpStatus === 'approved') {
+                    // IMPORTANTE: na Orders API, PIX aprovado vem como status "processed" + status_detail "accredited"
+                    const isProcessedAccredited =
+                        mpStatus === 'processed' &&
+                        String(paymentInfo?.status_detail || '')
+                            .toLowerCase()
+                            .includes('accredited');
+
+                    if (mpStatus === 'approved' || isProcessedAccredited) {
                         orderDoc.status = 'paid';
                         orderDoc.paymentStatus = 'approved';
                         orderDoc.paymentStatusDetail = paymentInfo?.status_detail || 'accredited';
