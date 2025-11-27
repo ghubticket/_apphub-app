@@ -122,8 +122,14 @@ export function CheckoutLayout() {
     }, []);
 
     // Navigation guard
+    // Regra: só bloquear navegação enquanto ainda NÃO há PIX gerado nem pagamento aprovado.
+    // Após gerar o QR Code PIX (hasGeneratedPix=true), o usuário pode sair livremente e o pedido
+    // será cancelado somente pelas regras de expiração do backend.
     useNavigationGuard({
-        enabled: (!checkoutState.isPaymentApproved && (!!(order && order.status === 'pending') || checkoutState.hasPendingOrderInStorage)),
+        enabled:
+            !checkoutState.isPaymentApproved &&
+            !checkoutState.hasGeneratedPix &&
+            (!!(order && order.status === 'pending') || checkoutState.hasPendingOrderInStorage),
         onNavigationAttempt: () => {
             checkoutState.setShowExitWarning(true);
         },

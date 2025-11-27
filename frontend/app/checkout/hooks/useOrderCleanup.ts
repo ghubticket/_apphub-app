@@ -50,9 +50,18 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
             console.log('[useOrderCleanup] ✅ Pedido cancelado com sucesso no backend');
             return true;
         } catch (err: any) {
-            // Se pedido não encontrado (404), tratar como sucesso - pedido já foi cancelado/expirado
-            if (err?.response?.status === 404) {
-                console.log('[useOrderCleanup] ⚠️ Pedido já não existe (404), tratando como sucesso:', orderId);
+            const status = err?.response?.status;
+            const backendMessage: string | undefined = err?.response?.data?.message;
+
+            // Se pedido não encontrado (404) OU não está mais pendente (400), tratar como sucesso.
+            // Isso significa que o backend já cancelou/atualizou o pedido (ex: expirado, pago, etc.).
+            if (status === 404 || (status === 400 && backendMessage)) {
+                console.log(
+                    '[useOrderCleanup] ⚠️ Pedido já não pode ser cancelado no backend (status=%s, message=%s), tratando como sucesso: %s',
+                    status,
+                    backendMessage,
+                    orderId
+                );
                 return true;
             }
 

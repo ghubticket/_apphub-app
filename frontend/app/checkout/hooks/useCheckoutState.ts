@@ -26,6 +26,7 @@ interface UseCheckoutStateReturn {
     timerActive: boolean;
     remainingSeconds: number | null;
     isPaymentApproved: boolean;
+    hasGeneratedPix: boolean;
 }
 
 /**
@@ -65,13 +66,17 @@ export function useCheckoutState({
         return !!(order?.status === 'pending' && order?._id);
     }, [order?.status, order?._id]);
 
+    const hasGeneratedPix = useMemo(() => {
+        return !!pixResult;
+    }, [pixResult]);
+
     const isPaymentApproved = useMemo(() => {
-        return cardPaymentStatus === 'success' || 
-               cardPaymentRedirectCountdown !== null || 
-               pixPaymentStatus === 'success' || 
+        return cardPaymentStatus === 'success' ||
+               cardPaymentRedirectCountdown !== null ||
+               pixPaymentStatus === 'success' ||
                pixPaymentRedirectCountdown !== null ||
-               !!pixResult;
-    }, [cardPaymentStatus, cardPaymentRedirectCountdown, pixPaymentStatus, pixPaymentRedirectCountdown, pixResult]);
+               false; // manter aprovado apenas por sucesso, não por ter gerado PIX
+    }, [cardPaymentStatus, cardPaymentRedirectCountdown, pixPaymentStatus, pixPaymentRedirectCountdown]);
 
     const timerActive = useMemo(() => {
         return !!(order?.status === 'pending' && order.expiresAt) || 
@@ -159,6 +164,7 @@ export function useCheckoutState({
         timerActive,
         remainingSeconds,
         isPaymentApproved,
+        hasGeneratedPix,
     };
 }
 
