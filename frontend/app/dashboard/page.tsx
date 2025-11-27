@@ -827,7 +827,7 @@ export default function DashboardPage() {
                                             )}
 
                                             {/* Código PIX para copiar */}
-                                            {(order.pixInfo.ticketUrl || order.pixInfo.qrCode) && (
+                                        {(order.pixInfo.qrCode || order.pixInfo.ticketUrl) && (
                                                 <div className="mb-4">
                                                     <label className="mb-2 block text-xs font-semibold uppercase tracking-normal text-emerald-800">
                                                         Código PIX (Copiar e Colar)
@@ -836,7 +836,7 @@ export default function DashboardPage() {
                                                         <input
                                                             type="text"
                                                             readOnly
-                                                            value={order.pixInfo.ticketUrl || order.pixInfo.qrCode || ''}
+                                                            value={order.pixInfo.qrCode || order.pixInfo.ticketUrl || ''}
                                                             className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                                             onClick={(e) => (e.target as HTMLInputElement).select()}
                                                         />
@@ -844,7 +844,7 @@ export default function DashboardPage() {
                                                             type="button"
                                                             onClick={async () => {
                                                                 try {
-                                                                    const codeToCopy = order.pixInfo!.ticketUrl || order.pixInfo!.qrCode || '';
+                                                                    const codeToCopy = order.pixInfo!.qrCode || order.pixInfo!.ticketUrl || '';
                                                                     await navigator.clipboard.writeText(codeToCopy);
                                                                     alert('Código PIX copiado!');
                                                                 } catch (error) {

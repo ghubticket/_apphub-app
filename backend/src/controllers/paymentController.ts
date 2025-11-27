@@ -1157,6 +1157,9 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     return;
                 }
 
+                // Guardar status anterior para evitar disparar e-mail/aprovação duplicados
+                const wasPaidBefore = order.status === 'paid';
+
                 // Obter informações completas do status
                 const statusInfo = getPaymentStatusInfo(
                     paymentInfo.status,
@@ -1266,8 +1269,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
                         }
                     }
 
-                    // Enviar email de confirmação com PDF
-                    await sendPaymentApprovedEmail(order);
+                    // Enviar email de confirmação com PDF apenas na primeira transição para "paid"
+                    if (!wasPaidBefore) {
+                        await sendPaymentApprovedEmail(order);
+                    }
                 } else if (paymentStatus === 'failed') {
                     // Enviar email de pagamento recusado
                     await sendPaymentRejectedEmailHelper(order, statusInfo.userMessage);
@@ -1318,6 +1323,9 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 console.error('Pedido não encontrado:', orderId);
                 return;
             }
+
+            // Guardar status anterior para evitar disparar e-mail/aprovação duplicados
+            const wasPaidBefore = order.status === 'paid';
 
             // Obter informações completas do status
             const statusInfo = getPaymentStatusInfo(
@@ -1429,8 +1437,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     }
                 }
 
-                // Enviar email de confirmação com PDF
-                await sendPaymentApprovedEmail(order);
+                // Enviar email de confirmação com PDF apenas na primeira transição para "paid"
+                if (!wasPaidBefore) {
+                    await sendPaymentApprovedEmail(order);
+                }
             } else if (paymentStatus === 'failed') {
                 // Enviar email de pagamento recusado
                 await sendPaymentRejectedEmailHelper(order, statusInfo.userMessage);

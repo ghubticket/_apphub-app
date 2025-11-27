@@ -239,7 +239,8 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
                     paymentId: paymentResult.paymentId || paymentResult.id,
                     qrCode: paymentResult.qrCode,
                     qrCodeBase64: paymentResult.qrCodeBase64,
-                    ticketUrl: paymentResult.ticketUrl || paymentResult.qrCode,
+                    // Priorizar o código PIX puro; usar ticketUrl apenas como fallback
+                    ticketUrl: paymentResult.qrCode || paymentResult.ticketUrl,
                     expiresAt: paymentResult.expiresAt,
                     expirationMinutes: paymentResult.expirationMinutes || pixGenerationDeadlineMinutes,
                     status: paymentResult.status || 'pending',
@@ -299,8 +300,9 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
 
     // Handler para copiar código PIX
     const handleCopyCode = useCallback(() => {
-        if (pixResult?.ticketUrl) {
-            navigator.clipboard.writeText(pixResult.ticketUrl).then(() => {
+        const codeToCopy = pixResult?.qrCode || pixResult?.ticketUrl;
+        if (codeToCopy) {
+            navigator.clipboard.writeText(codeToCopy).then(() => {
                 setPixCopySuccess(true);
                 setTimeout(() => {
                     setPixCopySuccess(false);
