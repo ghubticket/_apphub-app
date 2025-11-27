@@ -63,11 +63,8 @@ export function PaymentSection({
             <header className="flex items-center justify-between">
                 <div className="space-y-1">
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
-                        Formas de pagamento
+                        Aceitamos Cartões, e o PIX!
                     </h2>
-                    <p className="text-xs text-[#7d796c]">
-                        Utilize cartão de crédito ou gere um PIX instantâneo via Mercado Pago.
-                    </p>
                 </div>
             </header>
 

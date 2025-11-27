@@ -99,7 +99,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">Resumo do pedido</h2>
                     <p className="text-xs text-[#7d796c]">Revise os ingressos antes de finalizar o pagamento.</p>
                 </div>
-                <span className="rounded-full border border-[#ded7ca] bg-[#f5f1e8] md:px-3 md:py-1 px-4 py-2 text-xs font-semibold uppercase text-[#6f6b63]">
+                <span className="hidden md:block rounded-full border border-[#ded7ca] bg-[#f5f1e8] md:px-3 md:py-1 px-4 py-2 text-xs font-semibold uppercase text-[#6f6b63]">
                     Total de {totalTickets} ingressos
                 </span>
             </header>

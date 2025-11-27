@@ -639,7 +639,7 @@ export default function DashboardPage() {
                                                 {group.eventLocation ? ` • ${group.eventLocation}` : ''}
                                                 {statusConfig.paid.label}
                                             </p>
-                                          
+
                                         </div>
                                         <div className="flex items-center gap-10">
                                             <div className='flex flex-col gap-2'>
@@ -654,7 +654,7 @@ export default function DashboardPage() {
                                                         : `Criado em ${latestDate}`
                                                     }
                                                 </span>
-                                                
+
                                                 <span className="text-[0.65rem] uppercase tracking-normal text-[#a38f78]">
                                                     {paymentLabelsList || 'Pagamento confirmado'}
                                                 </span>
@@ -772,31 +772,43 @@ export default function DashboardPage() {
                                             {eventDate ? `${eventDate}` : 'Data a confirmar'}
                                             {eventLocation ? ` • ${eventLocation}` : ''}
                                         </p>
+
                                     </div>
-                                    <div className="flex items-center gap-10">
-                                        <div className='flex flex-col gap-2'>
+                                    <div className="flex items-center gap-10 w-full md:w-auto">
+                                        <div className="flex gap-3 w-full md:w-auto justify-between">
+                                            <p className="text-black">
+                                                Seu pedido foi:
+                                                <span> {currencyFormatter.format(order.totalAmount ?? 0)}</span>
+                                            </p>
                                             <span
                                                 className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-normal ${statusInfo.badgeClass}`}
                                             >
                                                 {statusInfo.label}
                                             </span>
-                                            <span className="text-xs uppercase tracking-normal text-[#7d796c]">
-                                                Criado em {createdAt}
-                                            </span>
-                                            <span className="text-xs font-medium text-[#4c4c55]">
-                                                Valor total {currencyFormatter.format(order.totalAmount ?? 0)}
-                                            </span>
-                                            <span className="text-[0.65rem] uppercase tracking-normal text-[#a38f78]">
-                                                {paymentLabel}
-                                            </span>
                                         </div>
 
+                                        {/* Ícone de seta apenas no desktop */}
                                         <HiOutlineChevronDown
-                                            className={`text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                                            className={`hidden md:block text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
                                             aria-hidden
                                         />
                                     </div>
                                 </button>
+
+                                {/* Botão dedicado para expandir no mobile */}
+                                <div className="mt-4 flex md:hidden">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setExpandedOrderId((current) =>
+                                                current === order._id ? null : order._id,
+                                            )
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316]"
+                                    >
+                                        {isExpanded ? 'Recolher pedido' : 'Expandir pedido'}
+                                    </button>
+                                </div>
                             </header>
 
                             <div
