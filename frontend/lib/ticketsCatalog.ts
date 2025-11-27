@@ -4,6 +4,40 @@ import api from './api';
 import type { TicketProduct } from '@/types/ticket';
 import { cacheEvents, cacheTicketTypes, cacheCatalog, generateCacheKey } from './cache';
 
+/**
+ * Normaliza URLs de imagem para garantir que sempre usem a URL completa da API
+ * @param imageUrl - URL da imagem (pode ser completa, relativa ou apenas filename)
+ * @returns URL completa normalizada ou undefined se não houver URL
+ */
+const normalizeImageUrl = (imageUrl?: string | null): string | undefined => {
+    if (!imageUrl || typeof imageUrl !== 'string') return undefined;
+    
+    const trimmed = imageUrl.trim();
+    if (!trimmed) return undefined;
+    
+    // Se já for uma URL completa (http:// ou https://), retornar como está
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return trimmed;
+    }
+    
+    // Obter a base URL da API
+    const apiBaseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    // Remover /api do final se existir, pois vamos adicionar /uploads/events/
+    const baseUrl = apiBaseURL.replace(/\/api\/?$/, '');
+    
+    // Se começar com /, é um caminho relativo
+    if (trimmed.startsWith('/')) {
+        // Remover / duplicado se baseUrl já terminar com /
+        const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+        return `${baseUrl}${cleanPath}`;
+    }
+    
+    // Caso contrário, assumir que é apenas o filename e construir o caminho completo
+    // Remover qualquer /uploads/events/ que possa estar no início do filename
+    const cleanFilename = trimmed.replace(/^\/?uploads\/events\//, '');
+    return `${baseUrl}/uploads/events/${cleanFilename}`;
+};
+
 type FetchTicketCatalogOptions = {
     limitEvents?: number;
     limitTicketsPerEvent?: number;
@@ -133,7 +167,7 @@ const normalizeTicketType = (
         lotNumber: ticket.lotNumber,
         price: effectivePrice,
         currency: 'BRL',
-        image: event.coverImage || event.squareImage,
+        image: normalizeImageUrl(event.coverImage || event.squareImage),
         stock: availableQuantity,
         maxPerOrder: ticket.maxPerPurchase ?? undefined,
         isVip: ticket.isVIP ?? false,
@@ -203,8 +237,8 @@ export const fetchEventsList = async (
         location: formatLocation(event),
         city: event.city,
         state: event.state,
-        coverImage: event.coverImage,
-        squareImage: event.squareImage,
+        coverImage: normalizeImageUrl(event.coverImage),
+        squareImage: normalizeImageUrl(event.squareImage),
         status: event.status,
         isActive: event.isActive,
     }));
