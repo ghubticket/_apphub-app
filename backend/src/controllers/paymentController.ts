@@ -298,10 +298,12 @@ export const createPixPayment = async (req: Request, res: Response) => {
                         totalAmount: `R$ ${order.totalAmount.toFixed(2).replace('.', ',')}`,
                         paymentMethod: 'PIX',
                         expirationMinutes: pixPayment.expirationMinutes || 15,
+                        // QR code em imagem (base64 se disponível)
                         pixQrCode: pixPayment.qrCodeBase64
                             ? `data:image/png;base64,${pixPayment.qrCodeBase64}`
                             : pixPayment.qrCode,
-                        pixCode: pixPayment.ticketUrl, // Código PIX para copiar e colar
+                        // Código PIX para copiar/colar deve ser o qrCode "bruto", não o ticket_url
+                        pixCode: pixPayment.qrCode || pixPayment.ticketUrl || null,
                         paymentLink: `${dashboardUrl}/orders/${order._id}`,
                     });
 

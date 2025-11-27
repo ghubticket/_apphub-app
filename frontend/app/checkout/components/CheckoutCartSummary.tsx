@@ -88,8 +88,16 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
     }, [eventId, pixPaymentActive, validateCode, onPromoterCodeApplied, promoterCodeState]);
 
     const handleRemoveCode = useCallback(() => {
+        const { appliedCode, invalidCode } = promoterCodeState.state;
+
+        // Sempre limpar o estado local do input/cupom
         promoterCodeState.clearAll();
-        onPromoterCodeApplied?.(null);
+
+        // Só avisar o backend (remover cupom do pedido) se havia um código realmente aplicado.
+        // Quando era apenas inválido, não precisamos tocar no pedido nem disparar loaders.
+        if (appliedCode && !invalidCode) {
+            onPromoterCodeApplied?.(null);
+        }
     }, [onPromoterCodeApplied, promoterCodeState]);
 
     return (

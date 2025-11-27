@@ -20,19 +20,12 @@
         <li><strong>Método:</strong> {{paymentMethod}}</li>
         <li><strong>Status:</strong> Pendente</li>
     </ul>
-    {{#if pixQrCode}}
-    <p style="margin-top: 20px;">
-        <strong>Escaneie o QR Code ou copie o código PIX para realizar o pagamento:</strong>
-    </p>
-    <div style="text-align: center; margin: 24px 0;">
-        <img src="{{pixQrCode}}" alt="QR Code PIX" style="max-width: 300px; border: 2px solid #1a1a1a; padding: 16px; background: white; display: block; margin: 0 auto;" />
-    </div>
+   
     {{#if pixCode}}
     <p style="margin-top: 20px;">
         <strong>Código PIX (copiar e colar):</strong>
     </p>
     <code style="margin-top: 12px;">{{pixCode}}</code>
-    {{/if}}
     {{/if}}
 </div>
 
