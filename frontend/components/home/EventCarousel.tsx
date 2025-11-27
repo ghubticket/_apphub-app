@@ -16,7 +16,7 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
 
     return (
         <div className={`relative ${className ?? ''}`}>
-            <div className="flex gap-6 overflow-x-auto pb-4 pt-2">
+            <div className="flex gap-6 overflow-x-auto pb-20 pt-2">
                 {events.map((event) => {
                     const image = event.coverImage || event.squareImage;
 
@@ -33,6 +33,7 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
                                         fill
                                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                                         sizes="(max-width: 768px) 80vw, 360px"
+                                        unoptimized={image.startsWith('http')}
                                     />
                                 ) : (
                                     <div className="flex h-full items-center justify-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#a38f78]">
@@ -46,7 +47,7 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
                                     <span className="text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a38f78]">
                                         Experiências 5521
                                     </span>
-                                    <h3 className="text-lg font-semibold uppercase tracking-[0.08em] text-[#1a1a1d]">
+                                    <h3 className="lh-0 font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                         {event.name ?? 'Evento em destaque'}
                                     </h3>
                                     {event.location && (
