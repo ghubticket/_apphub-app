@@ -13,7 +13,6 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout'
 
 // Component Imports
 import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
-import { ClientRedirect } from '@/components/ClientRedirect'
 
 type LayoutWrapperProps = {
   systemMode: SystemMode
@@ -34,9 +33,6 @@ const LayoutWrapper = (props: LayoutWrapperProps) => {
   // Return the layout based on the layout context
   return (
     <>
-      {/* Client Redirect - redireciona CLIENTE para front-end */}
-      <ClientRedirect />
-      
       <div className='flex flex-col flex-auto' data-skin={settings.skin}>
         {settings.layout === 'horizontal' ? horizontalLayout : verticalLayout}
       </div>

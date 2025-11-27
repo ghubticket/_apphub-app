@@ -15,8 +15,18 @@ import CustomAvatar from '@core/components/mui/Avatar'
 
 const CardStatsVertical = (props: CardStatsVerticalProps) => {
   // Props
-  const { stats, title, subtitle, avatarIcon, avatarColor, avatarSize, avatarSkin, chipText, chipColor, chipVariant } =
-    props
+  const {
+    stats,
+    title,
+    subtitle,
+    avatarIcon,
+    avatarColor,
+    avatarSize,
+    avatarSkin,
+    chipText,
+    chipColor,
+    chipVariant
+  } = props
 
   return (
     <Card>
@@ -29,7 +39,9 @@ const CardStatsVertical = (props: CardStatsVerticalProps) => {
           <Typography color='text.disabled'>{subtitle}</Typography>
           <Typography color='text.primary'>{stats}</Typography>
         </div>
-        <Chip label={chipText} color={chipColor} variant={chipVariant} size='small' />
+        {chipText && (
+          <Chip label={chipText} color={chipColor} variant={chipVariant} size='small' />
+        )}
       </CardContent>
     </Card>
   )

@@ -23,12 +23,9 @@ export const ClientRedirect: React.FC<ClientRedirectProps> = ({
     }
   }, [isAuthenticated, userRole, frontendUrl])
 
+  // Enquanto autenticação/carregamento estiver acontecendo, não mostra nada
   if (!isAuthenticated) {
-    return (
-      <Box className="flex items-center justify-center min-h-[400px]">
-        <Typography>Verificando permissões...</Typography>
-      </Box>
-    )
+    return null
   }
 
   if (userRole === 'CLIENTE') {

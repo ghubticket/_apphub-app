@@ -28,7 +28,7 @@ const ENV_VARS: EnvVar[] = [
     name: 'NEXTAUTH_URL',
     required: false,
     description: 'URL base do NextAuth',
-    defaultValue: 'http://localhost:3000/api/auth'
+    defaultValue: 'https://localhost:3443//api/auth'
   },
   
   // API
@@ -50,7 +50,7 @@ const ENV_VARS: EnvVar[] = [
     name: 'NEXT_PUBLIC_APP_URL',
     required: false,
     description: 'URL pública do dashboard',
-    defaultValue: 'http://localhost:3000'
+    defaultValue: 'https://localhost:3443/'
   },
   
   // Google OAuth (opcional)
