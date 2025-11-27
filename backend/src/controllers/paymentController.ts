@@ -1558,159 +1558,412 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
 };
 
 /**
- * Busca status de pagamento de um pedido
- * GET /api/payments/order/:orderId/status
+ * IMPORTS PRESUMIDOS (mantenha as mesmas do seu projeto):
+ * - enqueueOrGet, WebhookEvent
+ * - paymentService, Order, Ticket
+ * - getPaymentStatusInfo, mapPaymentMethod
+ * - sendPaymentApprovedEmail, sendPaymentRejectedEmailHelper
+ *
+ * Ajuste caminhos de import conforme necessário.
  */
-export const getOrderPaymentStatus = async (req: Request, res: Response) => {
+
+export const handleWebhook = async (req: Request, res: Response) => {
+    // Responder 200 rápido e processar em background sempre que possível
+    // (mas só depois de enfileirar)
     try {
-        const { orderId } = req.params;
-        const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
+        // rawBody: middleware express.raw deve ter sido usado na rota
+        const rawBodyBuffer: Buffer =
+            (req as any).rawBody && Buffer.isBuffer((req as any).rawBody)
+                ? (req as any).rawBody
+                : Buffer.from(JSON.stringify(req.body || {}), 'utf8');
 
-        const order = await Order.findOne({ _id: orderId, deletedAt: null });
-
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Pedido não encontrado',
-            });
-        }
-
-        // Verificar permissão
-        const isAdmin = (req as any).user?.role === 'ADMIN';
-        const isOwner = String(order.customer) === String(userId);
-
-        if (!isAdmin && !isOwner) {
-            return res.status(403).json({
-                success: false,
-                message: 'Você não tem permissão para acessar este pedido',
-            });
-        }
-
-        // Se não tem paymentId, retornar status do pedido
-        if (!order.paymentId) {
-            return res.json({
-                success: true,
-                data: {
-                    orderStatus: order.status,
-                    paymentStatus: null,
-                    paymentId: null,
-                },
-            });
-        }
-
-        // Buscar status do pagamento no Mercado Pago
+        // Tentar parse seguro do body (alguns webhooks podem enviar formatos diferentes)
+        let parsedBody: any;
         try {
-            const paymentInfo = (await paymentService.getPaymentById(order.paymentId)) as any;
+            parsedBody = req.body && Object.keys(req.body).length ? req.body : JSON.parse(rawBodyBuffer.toString('utf8'));
+        } catch {
+            parsedBody = req.body || {};
+        }
 
-            // Obter informações completas do status
-            const statusInfo = getPaymentStatusInfo(
-                paymentInfo.status,
-                paymentInfo.status_detail || ''
-            );
+        // Extrair type e data com fallback para query params
+        const type =
+            parsedBody.type ||
+            parsedBody.topic ||
+            (req.query && (req.query.type as string)) ||
+            undefined;
+        const dataObj =
+            parsedBody.data ||
+            parsedBody.payload ||
+            (req.query && (req.query.data || req.query['data.id'])) ||
+            {};
 
-            // Atualizar pedido com informações mais recentes se necessário
-            if (
-                order.paymentStatus !== paymentInfo.status ||
-                order.paymentStatusDetail !== paymentInfo.status_detail
-            ) {
+        const dataId =
+            (dataObj && (dataObj.id || dataObj?.payment_id || dataObj?.order_id)) ||
+            parsedBody.id ||
+            (req.query && (req.query.id || req.query['data.id'])) ||
+            undefined;
+
+        // Assinatura do webhook — aceitar vários nomes de header
+        const secret = process.env.MP_WEBHOOK_SECRET?.trim();
+        const sigHeader =
+            (req.headers['x-signature'] as string) ||
+            (req.headers['x-hub-signature-256'] as string) ||
+            (req.headers['x-signature-sha256'] as string) ||
+            (req.headers['x-signature-sha256-256'] as string) ||
+            (req.headers['x_hub_signature'] as string) ||
+            undefined;
+
+        const isProd = (process.env.NODE_ENV || 'development') === 'production';
+        const strictWebhook = (process.env.MP_WEBHOOK_STRICT || 'false').toLowerCase() === 'true';
+
+        // Validar assinatura de forma segura e robusta
+        let signatureValid = false;
+        let signatureProvided = sigHeader || undefined;
+
+        if (secret && sigHeader) {
+            // Normalize provided signature: remover prefixos como "sha256=" e espaço
+            const providedRaw = String(sigHeader).trim().replace(/^sha256=/i, '');
+
+            // Calcular HMAC SHA256 sobre o raw body (utf8)
+            const hmac = crypto.createHmac('sha256', secret);
+            hmac.update(rawBodyBuffer);
+            const expectedHex = hmac.digest('hex');
+            const expectedBase64 = Buffer.from(expectedHex, 'hex').toString('base64');
+
+            try {
+                const providedBuf = Buffer.from(providedRaw);
+                const expectedHexBuf = Buffer.from(expectedHex);
+                const expectedBase64Buf = Buffer.from(expectedBase64);
+
+                // timingSafeEqual requires same length; testar ambas representações
+                if (providedBuf.length === expectedHexBuf.length) {
+                    signatureValid = crypto.timingSafeEqual(providedBuf, expectedHexBuf);
+                } else if (providedBuf.length === expectedBase64Buf.length) {
+                    signatureValid = crypto.timingSafeEqual(providedBuf, expectedBase64Buf);
+                } else {
+                    // última tentativa: comparar stringmente (menos seguro, só para debug)
+                    signatureValid = providedRaw === expectedHex || providedRaw === expectedBase64;
+                }
+            } catch {
+                signatureValid = false;
+            }
+        } else {
+            // sem secret ou sem header
+            signatureValid = false;
+        }
+
+        // Regras de bloqueio: em produção + modo estrito, exigir secret + assinatura válida
+        if (isProd && strictWebhook) {
+            if (!secret) {
+                console.error('[Webhook] MP_WEBHOOK_SECRET não configurado (modo estrito).');
+                return res.status(500).send('Webhook secret not configured');
+            }
+            if (!signatureProvided) {
+                console.error('[Webhook] Assinatura ausente (modo estrito).');
+                return res.status(401).send('Missing signature');
+            }
+            if (!signatureValid) {
+                console.error('[Webhook] Assinatura inválida (modo estrito).');
+                return res.status(401).send('Invalid signature');
+            }
+        } else {
+            if (!secret || !signatureProvided) {
+                console.warn('[Webhook] Assinatura ausente ou secret não configurado (modo não estrito).');
+            } else if (!signatureValid) {
+                // Log detalhado em ambiente não-prod para debugging
+                console.warn('[Webhook] Assinatura inválida (modo não estrito).');
+                if (!isProd) {
+                    console.warn('[Webhook] Raw body for debug:', rawBodyBuffer.toString('utf8').substring(0, 2000));
+                }
+            }
+        }
+
+        // Gerar eventId consistente
+        const eventId = `${type || 'unknown'}:${dataId ?? Date.now()}`;
+
+        // Enfileirar o evento (persistência e idempotência)
+        const queued = await enqueueOrGet(
+            eventId,
+            type,
+            parsedBody,
+            req.headers as any,
+            signatureProvided,
+            !!signatureValid
+        );
+
+        // Se já foi processado, retorna OK
+        if (queued && queued.status === 'processed') {
+            return res.status(200).send('OK');
+        }
+
+        // Responder 200 rapidamente ao Mercado Pago
+        res.status(200).send('OK');
+
+        // --- processar em background (mantive sua lógica de Order / Payment) ---
+        // Orders
+        if (type === 'order') {
+            const mpOrderId = dataId;
+            try {
+                const orderInfo = (await paymentService.getOrderById(mpOrderId)) as any;
+                if (!orderInfo) {
+                    console.error('Order não encontrada:', mpOrderId);
+                    return;
+                }
+
+                const orderId = orderInfo.external_reference || orderInfo.metadata?.order_id;
+                if (!orderId) {
+                    console.error('Order ID não encontrado na order do MP:', mpOrderId);
+                    return;
+                }
+
+                const order = await Order.findOne({ _id: orderId, deletedAt: null });
+                if (!order) {
+                    console.error('Pedido não encontrado:', orderId);
+                    return;
+                }
+
+                const paymentInfo = orderInfo.transactions?.payments?.[0];
+                if (!paymentInfo) {
+                    console.error('Nenhum pagamento encontrado na order:', mpOrderId);
+                    return;
+                }
+
+                const wasPaidBefore = order.status === 'paid';
+                const statusInfo = getPaymentStatusInfo(paymentInfo.status, paymentInfo.status_detail || '');
+                const paymentStatus = statusInfo.internalStatus;
+
+                const paymentTypeId = paymentInfo.payment_type_id || paymentInfo.payment_method?.type;
+                const paymentMethodId = paymentInfo.payment_method_id || paymentInfo.payment_method?.id;
+                const paymentMethod = mapPaymentMethod(paymentTypeId, paymentMethodId);
+
+                order.paymentId = paymentInfo.id;
                 order.paymentStatus = paymentInfo.status;
                 order.paymentStatusDetail = paymentInfo.status_detail;
                 order.paymentMessage = statusInfo.userMessage;
                 order.paymentAdminMessage = statusInfo.adminMessage;
 
-                if (paymentInfo.error_code) {
-                    order.paymentErrorCode = paymentInfo.error_code;
+                const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
+
+                if (paymentStatus === 'paid') {
+                    order.status = 'paid';
+                } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
+                    order.status = 'cancelled';
+                    if (isPixOrder && process.env.NODE_ENV !== 'production') {
+                        const mpExpiration = paymentInfo.date_of_expiration ? new Date(paymentInfo.date_of_expiration) : null;
+                        const now = new Date();
+                        if (mpExpiration && now < mpExpiration) {
+                            console.log(`[webhook-order] PIX pedido ${order.orderNumber}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min).`);
+                        } else {
+                            console.log(`[webhook-order] PIX pedido ${order.orderNumber}: MP cancelou (status: ${paymentInfo.status}).`);
+                        }
+                    }
+                } else if (paymentStatus === 'refunded') {
+                    order.status = 'refunded';
+                } else {
+                    order.status = 'pending';
                 }
-                if (paymentInfo.error_description) {
-                    order.paymentErrorDescription = paymentInfo.error_description;
+
+                order.paymentMethod = paymentMethod;
+
+                if (paymentInfo.error_code) order.paymentErrorCode = paymentInfo.error_code;
+                if (paymentInfo.error_description) order.paymentErrorDescription = paymentInfo.error_description;
+
+                if (paymentStatus === 'paid') {
+                    order.paidAt = paymentInfo.date_approved ? new Date(paymentInfo.date_approved) : new Date();
+
+                    const tickets = await Ticket.find({
+                        _id: { $in: order.tickets },
+                        order: order._id,
+                        deletedAt: null,
+                    }).select('_id code qrCode status ticketType holder price');
+
+                    console.log(`🔔 [handleWebhook] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`);
+
+                    for (const ticket of tickets) {
+                        if (String(ticket.order) !== String(order._id)) {
+                            console.error(`⚠️ [handleWebhook] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`);
+                            continue;
+                        }
+
+                        if (ticket.status === 'pending' && !ticket.qrCode) {
+                            const { generateQRCode } = await import('../services/qrCodeService');
+                            ticket.status = 'confirmed';
+                            ticket.qrCode = await generateQRCode(ticket.code);
+                            await ticket.save();
+                            console.log(`✅ [handleWebhook] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
+                        } else if (ticket.status === 'pending') {
+                            ticket.status = 'confirmed';
+                            await ticket.save();
+                            console.log(`✅ [handleWebhook] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
+                        }
+                    }
+
+                    if (!wasPaidBefore) {
+                        await sendPaymentApprovedEmail(order);
+                    }
+                } else if (paymentStatus === 'failed') {
+                    await sendPaymentRejectedEmailHelper(order, statusInfo.userMessage);
                 }
 
                 await order.save();
-            }
 
-            return res.json({
-                success: true,
-                data: {
-                    orderStatus: order.status,
-                    paymentStatus: paymentInfo.status,
+                console.log(`✅ Pedido ${order.orderNumber} atualizado via webhook (Order):`, {
+                    orderId: mpOrderId,
+                    paymentId: paymentInfo.id,
+                    status: paymentInfo.status,
                     statusDetail: paymentInfo.status_detail,
-                    paymentMethod: mapPaymentMethod(
-                        paymentInfo.payment_type_id,
-                        paymentInfo.payment_method_id
-                    ),
-                    transactionAmount: paymentInfo.transaction_amount,
-                    dateApproved: paymentInfo.date_approved,
-                    // Para PIX, verificar expiração
-                    isExpired:
-                        paymentInfo.payment_method_id === 'pix' && paymentInfo.date_of_expiration
-                            ? paymentService.isPixPaymentExpired(paymentInfo.date_of_expiration)
-                            : false,
-                    expiresAt: paymentInfo.date_of_expiration,
-                    // Informações completas do status (do banco ou atualizadas)
-                    statusInfo: {
-                        userMessage: order.paymentMessage || statusInfo.userMessage,
-                        adminMessage: order.paymentAdminMessage || statusInfo.adminMessage,
-                        color: statusInfo.color,
-                        requiresAction: statusInfo.requiresAction,
-                        canRetry: statusInfo.canRetry,
-                        internalStatus: statusInfo.internalStatus,
-                    },
-                    // Informações de erro se houver
-                    error:
-                        paymentInfo.error_code || order.paymentErrorCode
-                            ? {
-                                  code: paymentInfo.error_code || order.paymentErrorCode,
-                                  description:
-                                      paymentInfo.error_description ||
-                                      order.paymentErrorDescription,
-                                  message: paymentInfo.message,
-                              }
-                            : null,
-                },
-            });
-        } catch (error: any) {
-            // Se não conseguir buscar no MP, retornar status do pedido (com informações salvas)
-            const savedStatusInfo =
-                order.paymentStatus && order.paymentStatusDetail
-                    ? getPaymentStatusInfo(order.paymentStatus, order.paymentStatusDetail)
-                    : null;
+                    internalStatus: paymentStatus,
+                    userMessage: statusInfo.userMessage,
+                    requiresAction: statusInfo.requiresAction,
+                    canRetry: statusInfo.canRetry,
+                });
+            } catch (error: any) {
+                console.error('Erro ao processar notificação de Order:', error);
+            }
+            return;
+        }
 
-            return res.json({
-                success: true,
-                data: {
-                    orderStatus: order.status,
-                    paymentStatus: order.paymentStatus || 'unknown',
-                    statusDetail: order.paymentStatusDetail,
-                    paymentId: order.paymentId,
-                    // Informações salvas do status
-                    statusInfo: savedStatusInfo
-                        ? {
-                              userMessage: order.paymentMessage || savedStatusInfo.userMessage,
-                              adminMessage:
-                                  order.paymentAdminMessage || savedStatusInfo.adminMessage,
-                              color: savedStatusInfo.color,
-                              requiresAction: savedStatusInfo.requiresAction,
-                              canRetry: savedStatusInfo.canRetry,
-                              internalStatus: savedStatusInfo.internalStatus,
-                          }
-                        : null,
-                    // Informações de erro se houver
-                    error: order.paymentErrorCode
-                        ? {
-                              code: order.paymentErrorCode,
-                              description: order.paymentErrorDescription,
-                          }
-                        : null,
-                    note: 'Não foi possível buscar status atualizado do Mercado Pago. Exibindo informações salvas.',
-                },
-            });
+        // Payments
+        if (type === 'payment') {
+            const paymentId = dataId;
+            try {
+                const paymentInfo = (await paymentService.getPaymentById(paymentId)) as any;
+                if (!paymentInfo) {
+                    console.error('Pagamento não encontrado:', paymentId);
+                    return;
+                }
+
+                const orderId = paymentInfo.external_reference || paymentInfo.metadata?.order_id;
+                if (!orderId) {
+                    console.error('Order ID não encontrado no pagamento:', paymentId);
+                    return;
+                }
+
+                const order = await Order.findOne({ _id: orderId, deletedAt: null });
+                if (!order) {
+                    console.error('Pedido não encontrado:', orderId);
+                    return;
+                }
+
+                const wasPaidBefore = order.status === 'paid';
+                const statusInfo = getPaymentStatusInfo(paymentInfo.status, paymentInfo.status_detail || '');
+                const paymentStatus = statusInfo.internalStatus;
+                const paymentMethod = mapPaymentMethod(paymentInfo.payment_type_id, paymentInfo.payment_method_id);
+
+                order.paymentId = paymentId;
+                order.paymentStatus = paymentInfo.status;
+                order.paymentStatusDetail = paymentInfo.status_detail;
+                order.paymentMessage = statusInfo.userMessage;
+                order.paymentAdminMessage = statusInfo.adminMessage;
+
+                const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
+
+                if (paymentStatus === 'paid') {
+                    order.status = 'paid';
+                } else if (paymentStatus === 'cancelled' || paymentStatus === 'failed') {
+                    order.status = 'cancelled';
+                    if (isPixOrder && process.env.NODE_ENV !== 'production') {
+                        const mpExpiration = paymentInfo.date_of_expiration ? new Date(paymentInfo.date_of_expiration) : null;
+                        const now = new Date();
+                        if (mpExpiration && now < mpExpiration) {
+                            console.log(`[webhook-payment] PIX pedido ${order.orderNumber}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min).`);
+                        } else {
+                            console.log(`[webhook-payment] PIX pedido ${order.orderNumber}: MP cancelou (status: ${paymentInfo.status}).`);
+                        }
+                    }
+                } else if (paymentStatus === 'refunded') {
+                    order.status = 'refunded';
+                } else {
+                    order.status = 'pending';
+                }
+
+                order.paymentMethod = paymentMethod;
+
+                if (paymentInfo.error_code) order.paymentErrorCode = paymentInfo.error_code;
+                if (paymentInfo.error_description) order.paymentErrorDescription = paymentInfo.error_description;
+
+                if (paymentStatus === 'paid') {
+                    order.paidAt = paymentInfo.date_approved ? new Date(paymentInfo.date_approved) : new Date();
+
+                    const tickets = await Ticket.find({
+                        _id: { $in: order.tickets },
+                        order: order._id,
+                        deletedAt: null,
+                    }).select('_id code qrCode status ticketType holder price');
+
+                    console.log(`🔔 [handleWebhook-payment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`);
+
+                    for (const ticket of tickets) {
+                        if (String(ticket.order) !== String(order._id)) {
+                            console.error(`⚠️ [handleWebhook-payment] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${order._id}! Pulando...`);
+                            continue;
+                        }
+
+                        if (ticket.status === 'pending' && !ticket.qrCode) {
+                            const { generateQRCode } = await import('../services/qrCodeService');
+                            ticket.status = 'confirmed';
+                            ticket.qrCode = await generateQRCode(ticket.code);
+                            await ticket.save();
+                            console.log(`✅ [handleWebhook-payment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
+                        } else if (ticket.status === 'pending') {
+                            ticket.status = 'confirmed';
+                            await ticket.save();
+                            console.log(`✅ [handleWebhook-payment] Ticket ${ticket._id} confirmado para pedido ${order.orderNumber}`);
+                        }
+                    }
+
+                    if (!wasPaidBefore) {
+                        await sendPaymentApprovedEmail(order);
+                    }
+                } else if (paymentStatus === 'failed') {
+                    await sendPaymentRejectedEmailHelper(order, statusInfo.userMessage);
+                }
+
+                await order.save();
+
+                console.log(`✅ Pedido ${order.orderNumber} atualizado via webhook:`, {
+                    paymentId,
+                    status: paymentInfo.status,
+                    statusDetail: paymentInfo.status_detail,
+                    internalStatus: paymentStatus,
+                    userMessage: statusInfo.userMessage,
+                    requiresAction: statusInfo.requiresAction,
+                    canRetry: statusInfo.canRetry,
+                    errorCode: paymentInfo.error_code,
+                    errorDescription: paymentInfo.error_description,
+                });
+
+                // Marcar como processado no WebhookEvent (se enfileirado)
+                try {
+                    await WebhookEvent.updateOne(
+                        { eventId },
+                        { status: 'processed', processedAt: new Date(), attempts: queued?.attempts || 0 }
+                    );
+                } catch (err) {
+                    console.warn('[Webhook] Falha ao marcar WebhookEvent como processed:', err);
+                }
+            } catch (error: any) {
+                console.error('Erro ao processar webhook (payment):', error);
+            }
         }
     } catch (error: any) {
-        console.error('Erro ao buscar status do pagamento do pedido:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Erro ao buscar status do pagamento',
-            errors: [error.message || 'Erro desconhecido'],
-        });
+        console.error('Erro ao processar webhook (geral):', error);
+
+        // tentar marcar falha no WebhookEvent (se possível)
+        try {
+            const parsed = req.body || {};
+            const type = parsed.type || parsed.topic;
+            const data = parsed.data || {};
+            const eventId = `${type}:${data?.id || 'unknown'}`;
+            await WebhookEvent.updateOne(
+                { eventId },
+                {
+                    $set: { status: 'failed', lastError: error?.message || 'unknown' },
+                    $inc: { attempts: 1 },
+                },
+                { upsert: false }
+            );
+        } catch {}
+        // Não retornamos erro para o Mercado Pago porque já respondemos 200 OK anteriormente
     }
 };
