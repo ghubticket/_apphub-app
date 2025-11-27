@@ -899,12 +899,27 @@ export const listMyOrders = async (req: Request, res: Response) => {
                                     (mpPayment?.payment_method && !mpPayment?.payment_method_id); // Se tem payment_method mas não payment_method_id, provavelmente é PIX
 
                                 if (mpPayment && isPix) {
-                                    // Na Orders API, os dados do PIX estão em payment_method, não em point_of_interaction
+                                    // Na Orders API, os dados do PIX podem estar em payment_method OU em point_of_interaction.transaction_data
+                                    const txData: any =
+                                        (mpPayment as any).point_of_interaction?.transaction_data || {};
+
+                                    const qrCode =
+                                        mpPayment.payment_method?.qr_code ||
+                                        txData.qr_code ||
+                                        null;
+                                    const qrCodeBase64 =
+                                        mpPayment.payment_method?.qr_code_base64 ||
+                                        txData.qr_code_base64 ||
+                                        null;
+                                    const ticketUrl =
+                                        mpPayment.payment_method?.ticket_url ||
+                                        txData.ticket_url ||
+                                        null;
+
                                     pixInfo = {
-                                        qrCode: mpPayment.payment_method?.qr_code || null,
-                                        qrCodeBase64:
-                                            mpPayment.payment_method?.qr_code_base64 || null,
-                                        ticketUrl: mpPayment.payment_method?.ticket_url || null,
+                                        qrCode,
+                                        qrCodeBase64,
+                                        ticketUrl,
                                         expiresAt: mpPayment.date_of_expiration
                                             ? new Date(mpPayment.date_of_expiration).toISOString()
                                             : null,

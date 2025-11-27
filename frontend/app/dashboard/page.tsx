@@ -639,9 +639,7 @@ export default function DashboardPage() {
                                                 {group.eventLocation ? ` • ${group.eventLocation}` : ''}
                                                 {statusConfig.paid.label}
                                             </p>
-                                            <span className="text-xs font-medium text-[#4c4c55]">
-                                                    Valor total {currencyFormatter.format(group.totalAmount)}
-                                                </span>
+                                          
                                         </div>
                                         <div className="flex items-center gap-10">
                                             <div className='flex flex-col gap-2'>

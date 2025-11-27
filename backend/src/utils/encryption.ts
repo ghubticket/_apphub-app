@@ -18,10 +18,7 @@ function getEncryptionKey(): Buffer {
                 'ENCRYPTION_KEY é obrigatório em produção. Configure uma chave de 32 bytes (64 caracteres hex ou base64).'
             );
         }
-        // Em desenvolvimento, gerar chave temporária (volátil)
-        console.warn(
-            '⚠️ ENCRYPTION_KEY não configurado. Usando chave temporária (dados não serão persistentes entre reinicializações).'
-        );
+        // Em desenvolvimento, gerar chave temporária (volátil) sem logar para evitar ruído
         return crypto.randomBytes(32);
     }
 
@@ -41,9 +38,7 @@ function getEncryptionKey(): Buffer {
                 `ENCRYPTION_KEY deve ser 32 bytes. Recebido: ${keyBuffer.length} bytes. Use 64 caracteres hex ou base64.`
             );
         }
-        console.warn(
-            `⚠️ ENCRYPTION_KEY tem tamanho incorreto (${keyBuffer.length} bytes). Usando chave temporária.`
-        );
+        // Em desenvolvimento, usar chave temporária silenciosamente
         return crypto.randomBytes(32);
     }
 
@@ -93,9 +88,6 @@ export function decryptSensitiveData(encryptedData: string): string {
     // Verificar se já está descriptografado (dados antigos ou migração)
     // Se não contém ':', assume que é texto plano (backward compatibility)
     if (!encryptedData.includes(':')) {
-        console.warn(
-            '⚠️ Dados não parecem estar criptografados. Retornando como texto plano (backward compatibility).'
-        );
         return encryptedData;
     }
 
@@ -117,11 +109,9 @@ export function decryptSensitiveData(encryptedData: string): string {
         decrypted += decipher.final('utf8');
 
         return decrypted;
-    } catch (error) {
-        console.error('Erro ao descriptografar dados sensíveis:', error);
-        // Em caso de erro, tentar retornar como texto plano (backward compatibility)
-        // Isso permite migração gradual
-        console.warn('⚠️ Tentando retornar como texto plano (backward compatibility).');
+    } catch (_error) {
+        // Em desenvolvimento, não logar erro de descriptografia para evitar ruído.
+        // Se falhar, retornamos o valor original (compatibilidade com dados antigos).
         return encryptedData;
     }
 }
