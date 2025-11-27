@@ -63,11 +63,13 @@ export interface CreatePixPaymentParams {
     };
     description: string;
     items: Array<{
+        id?: string;
         title: string;
         description?: string;
         quantity: number;
         unit_price: number;
         category?: string;
+        category_id?: string;
     }>;
     deviceId?: string; // Device ID do frontend (X-meli-session-id)
 }
@@ -102,11 +104,13 @@ export interface CreateCardPaymentParams {
         };
     };
     items: Array<{
+        id?: string;
         title: string;
         description?: string;
         quantity: number;
         unit_price: number;
         category?: string;
+        category_id?: string;
     }>;
     issuerId?: string; // ID do banco emissor (para cartão)
     deviceId?: string; // Device ID do frontend (X-meli-session-id)
@@ -286,6 +290,15 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             // Orders API aceita string em total_amount; manter como string normalizada
             total_amount: String(normalizedAmount),
             external_reference: orderId,
+            // Enviar detalhe dos itens para melhorar aprovação (quality score)
+            items: items.map((item, index) => ({
+                id: item.id || String(index + 1),
+                title: item.title,
+                description: item.description || description,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                category_id: item.category_id || item.category || 'tickets',
+            })),
             payer: {
                 email: payerEmail,
                 first_name: firstName,
@@ -717,6 +730,15 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                       })()
                     : undefined,
             },
+            // Enviar detalhe dos itens para melhorar aprovação (quality score)
+            items: items.map((item, index) => ({
+                id: item.id || String(index + 1),
+                title: item.title,
+                description: item.description || description,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                category_id: item.category_id || item.category || 'tickets',
+            })),
             transactions: {
                 payments: [
                     {
@@ -726,6 +748,12 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                             type: paymentTypeId, // credit_card ou debit_card
                             token,
                             installments,
+                            // Código do emissor do meio de pagamento (melhora aprovação)
+                            ...(issuerId
+                                ? {
+                                      issuer_id: issuerId,
+                                  }
+                                : {}),
                         },
                     },
                 ],
