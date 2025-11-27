@@ -1237,7 +1237,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                         _id: { $in: order.tickets },
                         order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
                         deletedAt: null,
-                    }).select('_id code qrCode status ticketType holder price');
+                    }).select('_id code qrCode status ticketType holder price order');
 
                     console.log(
                         `🔔 [handleWebhook] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
@@ -1403,7 +1403,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     _id: { $in: order.tickets },
                     order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
                     deletedAt: null,
-                }).select('_id code qrCode status ticketType holder price');
+                }).select('_id code qrCode status ticketType holder price order');
 
                 console.log(
                     `🔔 [handleWebhook-payment] Confirmando ${tickets.length} ticket(s) do pedido ${order.orderNumber} (${order._id})`
