@@ -178,7 +178,7 @@ export default function Footer() {
 
                             <img className='w-40' src='/images/pagode-do-principe-branco.png' alt='Festa do Branco' />
                             
-                            <h2 className="text-3xl  font-bold uppercase leading-tight sm:text-3xl">
+                            <h2 className="text-2xl  font-bold uppercase leading-tight sm:text-3xl">
                                 Festa do Branco com Suel, Bruno Diegues, BG e Davi Quaresma
                             </h2>
                             <div>
@@ -198,7 +198,7 @@ export default function Footer() {
 
                     <div className="w-full space-y-6 lg:max-w-sm lg:text-right">
                         <div className="md:space-y-4 lg:items-end lg:text-right">
-                            <h3 className="text-sm pb-0 font-semibold uppercase tracking-[0.3em] text-white">
+                            <h3 className="text-sm pb-3 md:pb-0 font-semibold uppercase tracking-[0.3em] text-white">
                                 Suporte
                             </h3>
                             <ul className="space-y-3 text-sm text-white/70 lg:inline-flex lg:flex-col lg:items-end lg:[&>li>a]:inline-block">
