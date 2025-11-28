@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Container from '@/components/shared/Container';
 import AboutSection from '@/components/home/AboutSection';
 import EventCarousel from '@/components/home/EventCarousel';
+import HeroVideo from '@/components/home/HeroVideo';
 import { fetchEventsList, type EventSummary } from '@/lib/ticketsCatalog';
 import { APP_NAME } from '@/lib/config';
 
@@ -16,7 +17,7 @@ export default function Home() {
             if (form) {
                 delete (form as any).__brickData;
             }
-            
+
             // Limpar qualquer flag de processamento no sessionStorage/localStorage
             // (se houver algum estado persistido)
             try {
@@ -33,13 +34,13 @@ export default function Home() {
 
     // OTIMIZAÇÃO: Usar useRef para evitar chamadas duplicadas
     const hasLoadedRef = useRef(false);
-    
+
     const loadHighlights = useCallback(async () => {
         // Evitar chamadas duplicadas (React Strict Mode, re-renders)
         if (hasLoadedRef.current) {
             return;
         }
-        
+
         hasLoadedRef.current = true;
         setLoading(true);
         setError('');
@@ -63,12 +64,15 @@ export default function Home() {
     const hasEvents = useMemo(() => events.length > 0, [events]);
 
     return (
-        <main
-            className="h-full pt-36 bg-[#f5f1e8]"
-        >
+        <main className="bg-[#f5f1e8]">
+            {/* Hero com vídeo de fundo - ocupa 100% da tela */}
+            <HeroVideo
+                videoId="9uSf0U4hbvI"
+                ctaLink="/ingressos"
+                overlayOpacity={0.5}
+            />
+
             {/* Seção Institucional Sobre a {APP_NAME} */}
-
-
             <Container className="py-16">
                 <div className="mb-12 space-y-3 text-center md:text-left"><h1>teste</h1></div>
             </Container>
