@@ -219,16 +219,6 @@ export default function PhotosCarousel({
                         ))}
                     </div>
                 )}
-
-                {/* Ver Fotos Button */}
-                <div className="mt-8 flex justify-center">
-                    <Link
-                        href={viewAllLink}
-                        className="inline-flex items-center justify-center rounded-lg border-2 border-white bg-white px-8 py-3 text-sm font-semibold uppercase tracking-wide text-black transition-all hover:bg-transparent hover:text-white"
-                    >
-                        Ver Fotos
-                    </Link>
-                </div>
             </div>
         </section>
     );
