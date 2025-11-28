@@ -249,7 +249,7 @@ export default function HeroCarousel({
                         ) : null}
 
                         {/* Overlay escuro tipo fumaça - gradiente de cima para baixo */}
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/70 to-black/40" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/90 " />
                     </div>
                 ))}
             </div>
