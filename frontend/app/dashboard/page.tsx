@@ -512,11 +512,9 @@ export default function DashboardPage() {
 
     const renderProfileContent = () => (
         <div className="space-y-6">
-            <div className="rounded-2xl border border-[#ded7ca] bg-white/70 p-6">
-                <p className="text-sm text-[#1a1a1d]">
-                    Em breve adicionaremos o formulário completo de edição de perfil. Por enquanto,
-                    revise seus dados e mantenha-os atualizados junto ao suporte.
-                </p>
+            <div className="rounded-2xl border border-dashed border-[#ded7ca] bg-white/50 p-6 text-center text-sm text-[#7d796c]">
+                Em breve adicionaremos o formulário completo de edição de perfil. Por enquanto,
+                revise seus dados e mantenha-os atualizados junto ao suporte.
             </div>
         </div>
     );
@@ -603,7 +601,7 @@ export default function DashboardPage() {
                         return (
                             <article
                                 key={groupId}
-                                className="rounded-2xl border border-[#ded7ca] bg-white/80 p-6 shadow-[0_25px_45px_-25px_rgba(20,20,32,0.25)] transition hover:shadow-[0_30px_60px_-25px_rgba(20,20,32,0.35)]"
+                                className="rounded-2xl border border-[#ded7ca] bg-white/80 p-6 transition"
                             >
                                 <header>
                                     <button
@@ -619,7 +617,7 @@ export default function DashboardPage() {
                                             <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
                                                 {group.orders.length} Pedido{group.orders.length > 1 ? 's' : ''} Consolidado{group.orders.length > 1 ? 's' : ''}
                                             </span>
-                                            <h3 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                                            <h3 className="text-lg leading-none font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                                 {group.eventName}
                                             </h3>
                                             <p className="text-xs text-[#7d796c]">
@@ -651,12 +649,27 @@ export default function DashboardPage() {
                                                 </span>
                                             </div>
                                             <HiOutlineChevronDown
-                                                className={`text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                                                className={`hidden md:block text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
                                                 aria-hidden
                                             />
                                         </div>
                                     </button>
                                 </header>
+
+                                {/* Botão dedicado para expandir */}
+                                <div className="mt-4 flex">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setExpandedOrderId((current) =>
+                                                current === groupId ? null : groupId,
+                                            )
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/10"
+                                    >
+                                        {isExpanded ? 'Recolher pedido' : 'Expandir pedido'}
+                                    </button>
+                                </div>
 
                                 <div
                                     className={`overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[2000px] pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}
@@ -737,7 +750,7 @@ export default function DashboardPage() {
                     return (
                         <article
                             key={order._id}
-                            className="rounded-2xl border border-[#ded7ca] bg-white/80 p-6 shadow-[0_25px_45px_-25px_rgba(20,20,32,0.25)] transition hover:shadow-[0_30px_60px_-25px_rgba(20,20,32,0.35)]"
+                            className="rounded-2xl border border-[#ded7ca] bg-white/80 p-6 transition"
                         >
                             <header>
                                 <button
@@ -753,7 +766,7 @@ export default function DashboardPage() {
                                         <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
                                             Pedido {order.orderNumber ? `#${order.orderNumber}` : ''}
                                         </span>
-                                        <h3 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                                        <h3 className="text-lg leading-none font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                             {eventName}
                                         </h3>
                                         <p className="text-xs text-[#7d796c]">
@@ -774,17 +787,12 @@ export default function DashboardPage() {
                                                 {statusInfo.label}
                                             </span>
                                         </div>
-
-                                        {/* Ícone de seta apenas no desktop */}
-                                        <HiOutlineChevronDown
-                                            className={`hidden md:block text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
-                                            aria-hidden
-                                        />
+                                       
                                     </div>
                                 </button>
 
-                                {/* Botão dedicado para expandir no mobile */}
-                                <div className="mt-4 flex md:hidden">
+                                {/* Botão dedicado para expandir */}
+                                <div className="mt-4 flex">
                                     <button
                                         type="button"
                                         onClick={() =>
@@ -792,7 +800,7 @@ export default function DashboardPage() {
                                                 current === order._id ? null : order._id,
                                             )
                                         }
-                                        className="inline-flex items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316]"
+                                        className="inline-flex  items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/10"
                                     >
                                         {isExpanded ? 'Recolher pedido' : 'Expandir pedido'}
                                     </button>
@@ -916,12 +924,6 @@ export default function DashboardPage() {
                         </article>
                     );
                 })}
-
-                {ordersPagination && ordersPagination.total > orders.length && (
-                    <p className="text-center text-xs uppercase tracking-[0.3em] text-[#7d796c]">
-                        Exibindo {orders.length} de {ordersPagination.total} pedido{ordersPagination.total > 1 ? 's' : ''} recente{ordersPagination.total > 1 ? 's' : ''}.
-                    </p>
-                )}
             </div>
         );
     };
@@ -951,65 +953,65 @@ export default function DashboardPage() {
         <>
             <main className="bg-[#faf7f0] pt-32 pb-20">
                 <Container>
-                        <header className="mb-10 space-y-3 hidden md:block">
-                            <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
-                                Área do Cliente
-                            </span>
-                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                                <h1 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d]">
-                                    Dashboard {APP_NAME}
-                                </h1>
-                                <p className="text-sm text-[#4c4c55]">
-                                    {greetingName}, gerencie sua conta, pedidos e solicitações em um só
-                                    lugar.
-                                </p>
-                            </div>
-                        </header>
+                    <header className="mb-10 space-y-3 hidden md:block">
+                        <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
+                            Área do Cliente
+                        </span>
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <h1 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d]">
+                                Dashboard {APP_NAME}
+                            </h1>
+                            <p className="text-sm text-[#4c4c55]">
+                                {greetingName}, gerencie sua conta, pedidos e solicitações em um só
+                                lugar.
+                            </p>
+                        </div>
+                    </header>
 
-                        <section className="space-y-10">
-                            <nav className="flex w-full flex-wrap gap-4 rounded-3xl border border-[#ded7ca] bg-white/40 p-3">
-                                {tabs.map((tab) => {
-                                    const Icon = tab.icon;
-                                    const isActive = activeTab === tab.key;
-                                    return (
-                                        <button
-                                            key={tab.key}
-                                            type="button"
-                                            onClick={() => setActiveTab(tab.key)}
-                                            className={`group flex flex-1 min-w-[180px] items-center gap-3 rounded-2xl px-5 py-4 text-left transition ${isActive
-                                                ? 'bg-[#1a1a1d] text-white shadow-[0_20px_45px_-18px_rgba(12,12,24,0.45)]'
-                                                : 'bg-transparent text-[#4c4c55] hover:bg-white hover:text-[#1a1a1d]'
-                                                }`}
+                    <section className="space-y-10">
+                        <nav className="flex w-full flex-wrap gap-4 rounded-3xl border border-[#ded7ca] bg-white/40 p-3">
+                            {tabs.map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = activeTab === tab.key;
+                                return (
+                                    <button
+                                        key={tab.key}
+                                        type="button"
+                                        onClick={() => setActiveTab(tab.key)}
+                                        className={`group flex flex-1 min-w-[180px] items-center gap-3 rounded-2xl px-5 py-4 text-left transition ${isActive
+                                            ? 'bg-[#1a1a1d] text-white shadow-[0_20px_45px_-18px_rgba(12,12,24,0.45)]'
+                                            : 'bg-transparent text-[#4c4c55] hover:bg-white hover:text-[#1a1a1d]'
+                                            }`}
+                                    >
+                                        <span
+                                            className={`flex p-3 items-center justify-center rounded-full ${isActive
+                                                ? 'bg-white/10 text-white'
+                                                : 'bg-[#f5f1e8] text-[#a38f78]'
+                                                } transition`}
                                         >
-                                            <span
-                                                className={`flex h-10 w-10 items-center justify-center rounded-full ${isActive
-                                                    ? 'bg-white/10 text-white'
-                                                    : 'bg-[#f5f1e8] text-[#a38f78]'
-                                                    } transition`}
-                                            >
-                                                <Icon className="text-xl" />
+                                            <Icon className="text-xl" />
+                                        </span>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-semibold uppercase tracking-normal">
+                                                {tab.label}
                                             </span>
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-semibold uppercase tracking-normal">
-                                                    {tab.label}
-                                                </span>
-                                                <span
-                                                    className={`text-xs ${isActive ? 'text-white/70' : 'text-[#7d796c]'
-                                                        }`}
-                                                >
-                                                    {tab.description}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </nav>
+                                            <span
+                                                className={`text-xs ${isActive ? 'text-white/70' : 'text-[#7d796c]'
+                                                    }`}
+                                            >
+                                                {tab.description}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </nav>
 
-                            <section>
-                                {renderActiveTabContent()}
-                            </section>
+                        <section>
+                            {renderActiveTabContent()}
                         </section>
-                    </Container>
+                    </section>
+                </Container>
             </main>
 
             {activeOrder ? (
@@ -1045,7 +1047,7 @@ export default function DashboardPage() {
                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
                                 <HiOutlineExclamationTriangle className="h-6 w-6 text-amber-600" />
                             </div>
-                            <h3 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                            <h3 className="text-lg  leading-0 font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                 Segurança e Comodidade
                             </h3>
                         </div>

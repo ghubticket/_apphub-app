@@ -27,7 +27,7 @@ const DEFAULT_PHOTOS = [
 
 export default function PhotosCarousel({
     photos = DEFAULT_PHOTOS,
-    title = 'FOTOS.COM.VC',
+    title = 'Fotos do Rolê',
     subtitle = 'Navegue pela galeria para reviver esses momentos e compartilhar o espírito dos nossos eventos!',
     viewAllLink = '/fotos',
     className = '',

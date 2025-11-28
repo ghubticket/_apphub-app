@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { HiArrowRight, HiChevronLeft, HiChevronRight, HiOutlineCalendar, HiOutlineMapPin } from 'react-icons/hi2';
+import { HiArrowRight, HiChevronLeft, HiChevronRight, HiOutlineCalendar, HiOutlineMapPin, HiOutlineTicket } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 
 export type SlideType = 'video' | 'image';
@@ -248,18 +248,16 @@ export default function HeroCarousel({
                             </div>
                         ) : null}
 
-                        {/* Overlay escuro tipo fumaça - gradiente do rodapé para cima */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
-                        {/* Camada de fumaça mais intensa na área do texto (lado esquerdo) */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
+                        {/* Overlay escuro tipo fumaça - gradiente de cima para baixo */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/70 to-black/40" />
                     </div>
                 ))}
             </div>
 
             {/* Conteúdo sobreposto */}
-            <div className="relative z-10 flex h-full items-center ">
+            <div className="relative z-10 flex h-full items-center">
                 <Container className="w-full">
-                    <div className={`text-white transition-opacity duration-500 ease-in-out ${isTextTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+                    <div className={`flex flex-col text-white transition-opacity duration-500 ease-in-out ${isTextTransitioning ? 'opacity-0' : 'opacity-100'}`}>
                         {/* Nome do evento */}
                         {currentSlideData.content.title && (
                             <h1 className="text-2xl font-bold uppercase leading-tight sm:text-3xl pb-4">
@@ -280,7 +278,7 @@ export default function HeroCarousel({
                             )}
                             {/* Data */}
                             {(currentSlideData.formattedDate || currentSlideData.date) && (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 mt-0">
                                     <HiOutlineCalendar className="h-5 w-5 flex-shrink-0" />
                                     <span>
                                         {currentSlideData.formattedDate ||
@@ -300,12 +298,10 @@ export default function HeroCarousel({
                         {currentSlideData.ctaLink && (
                             <Link
                                 href={currentSlideData.ctaLink}
-                                className="group inline-flex items-center gap-2 rounded-full border-2 border-green-400 bg-green-600 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-white transition-all hover:bg-green-700 hover:border-green-300 md:px-6 md:py-3 md:text-sm"
+                                className="group flex max-w-fit items-center gap-2 rounded-full border-2 border-[#f97316]/30 bg-[#f97316] px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#ea580c] hover:border-[#f97316]/50 md:px-6 md:py-3 md:text-sm"
                             >
+                                <HiOutlineTicket className="h-4 w-4 md:h-5 md:w-5" />
                                 <span>Comprar Ingresso</span>
-                                <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-green-500 bg-green-500 transition-all group-hover:bg-green-400 group-hover:border-green-300 md:h-10 md:w-10">
-                                    <HiArrowRight className="h-4 w-4 text-white md:h-5 md:w-5" />
-                                </span>
                             </Link>
                         )}
                     </div>
@@ -314,7 +310,7 @@ export default function HeroCarousel({
 
             {/* Navegação - Setas e Indicadores */}
             {slides.length > 1 && (
-                <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 md:bottom-8">
+                <div className="absolute bottom-6 right-6 z-20 flex items-center gap-4 md:bottom-8 md:right-8">
                     {/* Indicadores de slide (bullets) - estilo bullseye */}
                     <div className="flex items-center gap-2">
                         {slides.map((_, index) => (

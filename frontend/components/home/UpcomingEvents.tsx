@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { HiOutlineCalendar, HiOutlineMapPin } from 'react-icons/hi2';
+import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineTicket } from 'react-icons/hi2';
 import type { EventSummary } from '@/lib/ticketsCatalog';
 
 type UpcomingEventsProps = {
@@ -26,7 +26,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
     };
 
     return (
-        <section className="bg-white py-16">
+        <section className="py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-12 flex items-center justify-between">
@@ -95,7 +95,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                     <div className="mb-6 space-y-3 text-sm text-[#6f6b63]">
                                         {/* Local com ícone */}
                                         {event.location || (event.city && event.state) ? (
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 mt-0">
                                                 <HiOutlineMapPin className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
                                                 <p>
                                                     {event.location || `${event.city}, ${event.state}`}
@@ -104,7 +104,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                         ) : null}
                                         {/* Data com ícone */}
                                         {event.formattedDate || event.date ? (
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 mt-0">
                                                 <HiOutlineCalendar className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
                                                 <p>
                                                     {event.formattedDate ||
@@ -122,9 +122,10 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
 
                                     {/* Botão CTA */}
                                     <Link
-                                        href={`/eventos/${event.id}?from=/`}
-                                        className="mt-auto inline-flex items-center justify-center rounded-lg bg-[#1a1a1d] px-5 py-3 text-sm font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#f97316]"
+                                        href={`/eventos/${event.id}`}
+                                        className="mt-auto inline-flex items-center gap-2 rounded-full border-2 border-[#f97316]/30 bg-[#f97316] justify-center py-2 text-xs font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#ea580c] hover:border-[#f97316]/50"
                                     >
+                                        <HiOutlineTicket className="h-4 w-4 md:h-5 md:w-5" />
                                         Comprar Ingresso
                                     </Link>
                                 </div>

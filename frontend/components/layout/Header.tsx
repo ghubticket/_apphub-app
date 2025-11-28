@@ -319,10 +319,6 @@ export default function Header() {
                                 <h2 className="mt-2 text-xl font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                     Carrinho
                                 </h2>
-                                <p className="mt-1 text-sm text-[#6f6b63]">
-                                    Revise seus ingressos antes de finalizar. <br /> Você pode editar quantidades ou
-                                    seguir para o checkout.
-                                </p>
                             </div>
                             <button
                                 type="button"
