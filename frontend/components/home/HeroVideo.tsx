@@ -177,7 +177,7 @@ export default function HeroCarousel({
 
     return (
         <section
-            className="relative h-screen w-full overflow-hidden"
+            className="relative md:hidden h-screen w-full overflow-hidden"
             onMouseEnter={pauseAutoplay}
             onMouseLeave={resumeAutoplay}
             onTouchStart={onTouchStart}
@@ -244,7 +244,7 @@ export default function HeroCarousel({
             </div>
 
             {/* Conteúdo sobreposto */}
-            <div className="relative z-10 flex h-full items-center">
+            <div className="relative z-10 flex h-full items-center ">
                 <Container className="w-full">
                     <div className="text-white">
                         {/* Nome do evento */}
@@ -253,18 +253,9 @@ export default function HeroCarousel({
                                 {currentSlideData.content.title}
                             </h1>
                         )}
-
-                        {/* Descrição do evento */}
-                        {currentSlideData.content.description && (
-                            <p className="mb-6 leading-none text-sm text-white drop-shadow-md md:text-base lg:text-lg">
-                                {typeof currentSlideData.content.description === 'string'
-                                    ? currentSlideData.content.description.replace(/<[^>]*>/g, '').trim()
-                                    : currentSlideData.content.description}
-                            </p>
-                        )}
-
+                        
                         {/* Data e Local com ícones */}
-                        <div className="mb-6 flex flex-wrap items-center gap-4 text-sm text-white drop-shadow-md md:text-base">
+                        <div className="mb-6 flex flex-wrap items-center gap-1 text-sm text-white drop-shadow-md md:text-base">
                             {/* Local */}
                             {(currentSlideData.location || (currentSlideData.city && currentSlideData.state)) && (
                                 <div className="flex items-center gap-2">

@@ -26,12 +26,38 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
     };
 
     return (
-        <section className="py-10">
+        <section className="bg-white py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* Header */}
+                <div className="mb-12 flex items-center justify-between">
+                    <h2 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d] md:text-4xl">
+                        Próximos Eventos
+                    </h2>
+                    {events.length > 4 && (
+                        <Link
+                            href="/ingressos"
+                            className="hidden items-center text-sm font-semibold uppercase tracking-wide text-[#1a1a1d] transition-colors hover:text-[#f97316] md:inline-flex"
+                        >
+                            Todos Eventos R2
+                            <svg
+                                className="ml-2 h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                />
+                            </svg>
+                        </Link>
+                    )}
+                </div>
 
                 {/* Grid de eventos */}
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     {displayEvents.map((event) => {
                         // Priorizar coverImage, depois squareImage, depois fallback
                         const image = event.coverImage || event.squareImage;
@@ -43,35 +69,35 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                         return (
                             <article
                                 key={event.id}
-                                className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-sm transition-all hover:shadow-lg"
+                                className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-md transition-all hover:shadow-xl"
                             >
                                 {/* Imagem do evento */}
-                                <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
+                                <div className="relative aspect-[16/10] w-full overflow-hidden bg-gray-100">
                                     <Image
                                         src={imageSrc}
                                         alt={event.name || 'Evento'}
                                         fill
                                         className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                        sizes="(max-width: 768px) 100vw, 50vw"
                                         unoptimized={imageSrc.startsWith('http') || imageSrc.startsWith('https')}
                                         onError={() => handleImageError(event.id)}
                                     />
                                 </div>
 
                                 {/* Conteúdo do card */}
-                                <div className="flex flex-1 flex-col p-4">
+                                <div className="flex flex-1 flex-col p-6">
                                     {/* Nome do evento */}
-                                    <h3 className="mb-3 leading-none text-lg font-bold text-[#1a1a1d]">
+                                    <h3 className="mb-4 text-xl font-bold leading-tight text-[#1a1a1d]">
                                         {event.name ?? 'Evento em destaque'}
                                     </h3>
 
                                     {/* Local e data - sempre exibir com ícones */}
-                                    <div className="mb-4 space-y-2 text-sm text-[#6f6b63]">
+                                    <div className="mb-6 space-y-3 text-sm text-[#6f6b63]">
                                         {/* Local com ícone */}
                                         {event.location || (event.city && event.state) ? (
                                             <div className="flex items-center gap-2">
-                                                <HiOutlineMapPin className="h-5 w-5 flex-shrink-0 text-[#a38f78]" />
-                                                <p className="font-medium">
+                                                <HiOutlineMapPin className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
+                                                <p>
                                                     {event.location || `${event.city}, ${event.state}`}
                                                 </p>
                                             </div>
@@ -79,7 +105,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                         {/* Data com ícone */}
                                         {event.formattedDate || event.date ? (
                                             <div className="flex items-center gap-2">
-                                                <HiOutlineCalendar className="h-5 w-5 flex-shrink-0 text-[#a38f78]" />
+                                                <HiOutlineCalendar className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
                                                 <p>
                                                     {event.formattedDate ||
                                                         (event.date
@@ -97,7 +123,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                     {/* Botão CTA */}
                                     <Link
                                         href={`/eventos/${event.id}?from=/`}
-                                        className="mt-auto inline-flex items-center justify-center rounded-lg bg-[#1a1a1d] px-4 py-2.5 text-sm font-semibold uppercase tracking-normal text-white transition-all hover:bg-[#f97316]"
+                                        className="mt-auto inline-flex items-center justify-center rounded-lg bg-[#1a1a1d] px-5 py-3 text-sm font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#f97316]"
                                     >
                                         Comprar Ingresso
                                     </Link>
@@ -107,9 +133,9 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                     })}
                 </div>
 
-                {/* Link para ver todos os eventos */}
+                {/* Link para ver todos os eventos (mobile) */}
                 {events.length > 4 && (
-                    <div className="mt-12 text-center">
+                    <div className="mt-12 text-center md:hidden">
                         <Link
                             href="/ingressos"
                             className="inline-flex items-center text-sm font-semibold uppercase tracking-wide text-[#1a1a1d] transition-colors hover:text-[#f97316]"
