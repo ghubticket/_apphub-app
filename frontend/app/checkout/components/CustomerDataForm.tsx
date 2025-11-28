@@ -24,7 +24,7 @@ export function CustomerDataForm({
     const sharedClass = `${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${disabled ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''}`;
 
     return (
-        <div className="relative rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
+        <div className="relative rounded-3xl border border-[#ded7ca] bg-white p-6">
             <div className="pb-5 flex md:flex-row flex-col md:items-start md:justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">

@@ -101,7 +101,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
     }, [onPromoterCodeApplied, promoterCodeState]);
 
     return (
-        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] relative">
+        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 relative">
             <header className="flex md:flex-row flex-col gap-3 md:gap-0 md:items-center justify-between">
                 <div>
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">Resumo do pedido</h2>
@@ -122,7 +122,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                     return (
                         <div
                             key={item.id}
-                            className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] p-5 shadow-[0_15px_35px_-30px_rgba(20,20,32,0.35)]"
+                            className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] p-5"
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div className="space-y-1">

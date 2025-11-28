@@ -70,7 +70,7 @@ export function PaymentSection({
     };
 
     return (
-        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] relative">
+        <div className="rounded-2xl border border-[#ded7ca] bg-white p-6  relative">
             <header className="flex items-center justify-between">
                 <div className="space-y-1">
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">

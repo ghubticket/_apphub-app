@@ -33,7 +33,7 @@ export function CheckoutTimer({ isActive, onExpire, initialRemainingSeconds, exp
                     </div>
                     <div>
                         <p className="text-sm font-semibold text-amber-800">Tempo restante para finalizar</p>
-                        <p className="text-xs text-amber-700">Sua reserva será cancelada automaticamente</p>
+                        <p className="text-xs text-amber-700">Depois disso, será cancelado.</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
