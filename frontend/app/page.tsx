@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Container from '@/components/shared/Container';
 import AboutSection from '@/components/home/AboutSection';
 import EventCarousel from '@/components/home/EventCarousel';
+import UpcomingEvents from '@/components/home/UpcomingEvents';
 import HeroCarousel, { type HeroSlide } from '@/components/home/HeroVideo';
 import { fetchEventsList, type EventSummary } from '@/lib/ticketsCatalog';
 import { APP_NAME } from '@/lib/config';
@@ -119,6 +120,9 @@ export default function Home() {
         <main className="bg-[#f5f1e8]">
             {/* Hero com carrossel - ocupa 100% da tela */}
             <HeroCarousel slides={heroSlides} autoplayInterval={6000} />
+
+            {/* Seção Próximos Eventos */}
+            {!loading && !error && hasEvents && <UpcomingEvents events={events} />}
 
             {/* Seção Institucional Sobre a {APP_NAME} */}
             <Container className="py-16">

@@ -138,7 +138,7 @@ export default function HeroCarousel({
     const overlayOpacity = currentSlideData.overlayOpacity ?? 0.5;
 
     return (
-        <section 
+        <section
             className="relative h-screen w-full overflow-hidden"
             onMouseEnter={pauseAutoplay}
             onMouseLeave={resumeAutoplay}
@@ -148,9 +148,8 @@ export default function HeroCarousel({
                 {slides.map((slide, index) => (
                     <div
                         key={index}
-                        className={`absolute inset-0 transition-opacity duration-1000 ${
-                            index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
-                        }`}
+                        className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                            }`}
                     >
                         {slide.type === 'video' && slide.videoId ? (
                             <iframe
@@ -197,28 +196,28 @@ export default function HeroCarousel({
                 <Container className="w-full">
                     <div className="text-white">
                         {currentSlideData.content.header && (
-                            <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-yellow-400 drop-shadow-md md:text-base">
+                            <p className="mb-2 text-xl font-semibold uppercase tracking-wide text-yellow-400 drop-shadow-md md:text-base">
                                 {currentSlideData.content.header}
                             </p>
                         )}
-                        <h1 className="leading-none mb-0 text-4xl font-bold uppercase pb-5 tracking-wide drop-shadow-lg md:text-6xl lg:text-6xl">
+                        <h1 className="leading-none mb-0 text-2xl font-bold uppercase pb-5 tracking-wide drop-shadow-lg md:text-6xl lg:text-6xl">
                             {currentSlideData.content.title}
                         </h1>
 
                         {currentSlideData.content.subtitle && (
-                            <p className="leading-none mb-8 text-lg drop-shadow-md md:text-xl lg:text-2xl">
+                            <p className="leading-none mb-8 text-sm drop-shadow-md md:text-xl lg:text-2xl">
                                 {currentSlideData.content.subtitle}
                             </p>
                         )}
 
                         {currentSlideData.content.description && (
-                            <p className="leading-none pb-5 text-base md:text-lg drop-shadow-md font-light">
+                            <p className="leading-none pb-5 text-sm md:text-lg drop-shadow-md font-light">
                                 {currentSlideData.content.description}
                             </p>
                         )}
 
                         {currentSlideData.content.ctaText && (
-                            <p className="mb-8 text-base md:text-lg drop-shadow-md font-light">
+                            <p className="mb-8 text-sm md:text-lg drop-shadow-md font-light">
                                 {currentSlideData.content.ctaText}
                             </p>
                         )}
@@ -226,7 +225,7 @@ export default function HeroCarousel({
                         {currentSlideData.ctaLink && (
                             <Link
                                 href={currentSlideData.ctaLink}
-                                className="group inline-flex mt-0 items-center gap-2 rounded-full border-2 border-green-400 bg-green-600 px-5 py-2 text-base font-semibold uppercase tracking-wide text-white transition-all hover:bg-green-700 hover:border-green-300 md:px-10 md:py-5 md:text-lg"
+                                className="group inline-flex mt-0 items-center gap-2 rounded-full border-2 border-green-400 bg-green-600 px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white transition-all hover:bg-green-700 hover:border-green-300 md:px-10 md:py-5 md:text-lg"
                             >
                                 <span>Comprar Ingresso</span>
                                 <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-green-500 bg-green-500 transition-all group-hover:bg-green-400 group-hover:border-green-300">
@@ -266,11 +265,10 @@ export default function HeroCarousel({
                                     pauseAutoplay();
                                     setTimeout(resumeAutoplay, 5000);
                                 }}
-                                className={`rounded-full transition-all ${
-                                    index === currentSlide
+                                className={`rounded-full transition-all ${index === currentSlide
                                         ? 'h-2 w-8 bg-white'
                                         : 'h-2 w-2 bg-black border-2 border-white/50 hover:border-white hover:bg-white/30'
-                                }`}
+                                    }`}
                                 aria-label={`Ir para slide ${index + 1}`}
                             />
                         ))}
