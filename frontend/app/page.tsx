@@ -5,6 +5,7 @@ import Container from '@/components/shared/Container';
 import AboutSection from '@/components/home/AboutSection';
 import EventCarousel from '@/components/home/EventCarousel';
 import { fetchEventsList, type EventSummary } from '@/lib/ticketsCatalog';
+import { APP_NAME } from '@/lib/config';
 
 export default function Home() {
     // Limpar qualquer estado de processamento de pagamento ao entrar na HOME
@@ -63,15 +64,19 @@ export default function Home() {
 
     return (
         <main
-            className="bg-[#f5f1e8]"
-            style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
+            className="h-full pt-36 bg-[#f5f1e8]"
         >
-            {/* Seção Institucional Sobre a 5521 */}
+            {/* Seção Institucional Sobre a {APP_NAME} */}
+
 
             <Container className="py-16">
+                <div className="mb-12 space-y-3 text-center md:text-left"><h1>teste</h1></div>
+            </Container>
+
+            <Container className="py-16 hidden">
                 <div className="mb-12 space-y-3 text-center md:text-left">
                     <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
-                        Experiências 5521
+                        {APP_NAME}
                     </span>
                     <div className="flex flex-col items-center gap-3 md:flex-row md:items-end md:justify-between">
                         <h1 className="text-4xl font-bold uppercase tracking-[0.25em] text-[#1a1a1d]">

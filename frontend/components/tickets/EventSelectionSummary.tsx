@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { HiOutlineTicket, HiOutlineShoppingCart, HiOutlineMinusSmall, HiOutlinePlusSmall, HiOutlineLockClosed } from 'react-icons/hi2';
+import { HiOutlineTicket, HiOutlineShoppingCart, HiOutlineMinusSmall, HiOutlinePlusSmall, HiOutlineLockClosed, HiOutlineInformationCircle } from 'react-icons/hi2';
 import { addCartItem } from '@/lib/cart';
 import type { TicketProduct } from '@/types/ticket';
 import { useAuth } from '@/context/AuthContext';
@@ -155,7 +155,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false }:
             // Adicionar todos os ingressos não-VIP com quantidade > 0 ao carrinho
             for (const ticket of tickets) {
                 const quantity = getQuantityForTicket(ticket);
-                
+
                 if (quantity > 0 && !ticket.isVip) {
                     const itemId = ticket.ticketTypeId ?? ticket.id;
                     const maxAllowed = resolveMaxAllowed(ticket);
@@ -199,14 +199,14 @@ export default function EventSelectionSummary({ tickets = [], loading = false }:
                     </span>
                     <div>
                         <h2 className="text-sm font-semibold uppercase tracking-normal text-[#1a1a1d]">
-                            Meus ingressos
+                            Ingressos Disponíveis
                         </h2>
                         <p className="text-[0.75rem] text-[#7d796c]">
-                            Revise os ingressos selecionados antes de prosseguir.
+                            Selecione o setor e a quantidade
                         </p>
                     </div>
                 </div>
-                
+
             </header>
 
             <div className="mt-6 space-y-3">
@@ -228,36 +228,70 @@ export default function EventSelectionSummary({ tickets = [], loading = false }:
                                 key={ticket.id}
                                 className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3"
                             >
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[0.85rem] font-semibold text-[#1a1a1d] truncate">
-                                            {ticket.name}
-                                        </p>
-                                        <p className="mt-1 text-[0.7rem]  text-[#1a1a1d]">
-                                           Valor Unitario: {currencyFormatter.format(ticket.price)}
-                                        </p>
-                                      
+                                <div className="flex flex-col justify-between gap-3">
+                                    <div className='flex gap-3'>
+                                        {/* Tooltip com informações do ingresso */}
+                                        <div className="relative inline-flex items-center group mt-0.5 mb-0.5">
+                                            <HiOutlineInformationCircle className="text-[1rem] text-[#a38f78] cursor-help hover:text-[#8b7a6a] transition-colors" />
+                                            <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-50 pointer-events-none">
+                                                <div className="bg-[#1a1a1d] text-white text-[0.7rem] rounded-lg px-3 py-2 shadow-xl max-w-[220px] whitespace-normal">
+                                                    <div className="space-y-1.5">
+                                                        {ticket.description && (
+                                                            <p className="font-medium leading-snug">{ticket.description}</p>
+                                                        )}
+                                                        {availableStock !== undefined && (
+                                                            <p className="text-[#e5e5e5] text-[0.65rem]">
+                                                                Disponível: {availableStock} {availableStock === 1 ? 'ingresso' : 'ingressos'}
+                                                            </p>
+                                                        )}
+                                                        {maxAllowed !== undefined && (
+                                                            <p className="text-[#e5e5e5] text-[0.65rem]">
+                                                                Máximo por pedido: {maxAllowed}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    {/* Seta do tooltip */}
+                                                    <div className="absolute bottom-full left-3 -mb-1">
+                                                        <div className="border-4 border-transparent border-b-[#1a1a1d]"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[0.9rem] font-semibold text-[#1a1a1d] truncate">
+                                                {ticket.name}
+                                            </p>
+
+                                            <p className="text-[0.75rem]  text-[#1a1a1d]">
+                                                Valor Unitario: {currencyFormatter.format(ticket.price)}
+                                            </p>
+
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5 rounded-[100rem] bg-white px-[0.8rem] py-[0.5rem]">
-                                        <button
-                                            type="button"
-                                            onClick={() => updateQuantity(ticket, -1)}
-                                            disabled={quantity <= 0}
-                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d] disabled:opacity-40 disabled:cursor-not-allowed"
-                                        >
-                                            <HiOutlineMinusSmall className="text-sm" />
-                                        </button>
-                                        <span className="min-w-[24px] text-center text-[0.75rem] font-semibold text-[#1a1a1d]">
-                                            {quantity}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => updateQuantity(ticket, 1)}
-                                            disabled={isSoldOut || maxReached}
-                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d] disabled:opacity-40 disabled:cursor-not-allowed"
-                                        >
-                                            <HiOutlinePlusSmall className="text-sm" />
-                                        </button>
+
+                                    <div className='flex gap-2 items-center'>
+                                        <div className="flex items-center rounded-[100rem] bg-white px-[0.8rem] py-[0.5rem]">
+                                            <button
+                                                type="button"
+                                                onClick={() => updateQuantity(ticket, -1)}
+                                                disabled={quantity <= 0}
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d] disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                <HiOutlineMinusSmall className="text-sm" />
+                                            </button>
+                                            <span className="min-w-[24px] text-center text-[0.75rem] font-semibold text-[#1a1a1d]">
+                                                {quantity}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateQuantity(ticket, 1)}
+                                                disabled={isSoldOut || maxReached}
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d] disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                <HiOutlinePlusSmall className="text-sm" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 {/* Botão VIP - criar pedido direto */}
@@ -308,11 +342,10 @@ export default function EventSelectionSummary({ tickets = [], loading = false }:
                 type="button"
                 onClick={handleProceed}
                 disabled={!hasSelectedTickets || isProcessing}
-                className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-normal transition ${
-                    hasSelectedTickets && !isProcessing
-                        ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-[#1a1a1d]'
-                        : 'cursor-not-allowed bg-[#f3f3f5] text-[#b5b1aa]'
-                }`}
+                className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-normal transition ${hasSelectedTickets && !isProcessing
+                    ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-[#1a1a1d]'
+                    : 'cursor-not-allowed bg-[#f3f3f5] text-[#b5b1aa]'
+                    }`}
             >
                 <HiOutlineShoppingCart className="text-sm" />
                 {isProcessing ? 'Processando...' : 'Prosseguir'}

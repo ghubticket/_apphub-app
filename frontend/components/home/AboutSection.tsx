@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { APP_NAME } from '@/lib/config';
 
 interface AboutSectionProps {
     images?: Array<{
@@ -37,13 +38,13 @@ export default function AboutSection({ images = [] }: AboutSectionProps) {
                     <div className="flex flex-col justify-center space-y-6">
                         <div className="space-y-4">
                             <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
-                                Sobre a 5521
+                                Sobre a {APP_NAME}
                             </span>
                             <h2 className="text-4xl font-bold uppercase tracking-[0.05em] text-[#1a1a1d] lg:text-5xl">
                                 A mais carioca do mundo
                             </h2>
                             <p className="text-base leading-relaxed text-[#6f6b63] lg:text-lg">
-                                Nascida no coração do Rio de Janeiro, a 5521 é muito mais que uma banda. É um movimento cultural que celebra a música, a festa e o estilo de vida carioca. Com eventos que vão desde pool parties até bailes de carnaval, criamos experiências únicas que conectam pessoas através da música e da alegria.
+                                Nascida no coração do Rio de Janeiro, a {APP_NAME} é muito mais que uma banda. É um movimento cultural que celebra a música, a festa e o estilo de vida carioca. Com eventos que vão desde pool parties até bailes de carnaval, criamos experiências únicas que conectam pessoas através da música e da alegria.
                             </p>
                             <p className="text-base leading-relaxed text-[#6f6b63] lg:text-lg">
                                 Nossa missão é levar a energia contagiante do Rio para o Brasil e o mundo, criando momentos inesquecíveis em cada evento. Vem com a gente viver essa experiência!

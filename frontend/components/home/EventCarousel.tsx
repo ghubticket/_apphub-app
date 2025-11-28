@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { EventSummary } from '@/lib/ticketsCatalog';
+import { APP_NAME } from '@/lib/config';
 
 type EventCarouselProps = {
     events: EventSummary[];
@@ -49,7 +50,7 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
                             <div className="flex flex-1 flex-col justify-between p-5">
                                 <div className="space-y-2">
                                     <span className="text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a38f78]">
-                                        Experiências 5521
+                                        {APP_NAME}
                                     </span>
                                     <h3 className="lh-0 font-semibold uppercase tracking-normal text-[#1a1a1d]">
                                         {event.name ?? 'Evento em destaque'}

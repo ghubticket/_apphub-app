@@ -6,6 +6,7 @@ import { MouseEvent, useCallback } from 'react';
 import { HiOutlineShieldCheck } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import { useCheckoutNavigation } from '@/app/checkout/hooks/useCheckoutNavigation';
+import { APP_LOGO, APP_LOGO_ALT } from '@/lib/config';
 
 export default function CheckoutHeader() {
     const navigation = useCheckoutNavigation();
@@ -25,8 +26,8 @@ export default function CheckoutHeader() {
             <Container className="flex items-center justify-between py-6">
                 <Link href="/" className="flex items-center gap-3" onClick={handleLogoClick}>
                     <Image
-                        src="/images/5521.avif"
-                        alt="Logotipo 5521"
+                        src={APP_LOGO}
+                        alt={APP_LOGO_ALT}
                         width={120}
                         height={48}
                         className="h-10 w-auto"

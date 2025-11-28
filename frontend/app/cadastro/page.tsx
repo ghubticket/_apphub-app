@@ -16,6 +16,7 @@ import Button from '@/components/shared/Button';
 import Container from '@/components/shared/Container';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { APP_NAME } from '@/lib/config';
 import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
 import { useRouter } from 'next/navigation';
 import {
@@ -52,13 +53,13 @@ const validators: Record<SignupField, (value: string, data?: Record<SignupField,
         return '';
     },
     phone: (value) => {
-        if (!value) return '';
+        if (!value || !value.trim()) return 'Informe seu telefone.';
         const digits = value.replace(/\D/g, '');
         if (digits.length < 10 || digits.length > 11) return 'Informe um telefone válido.';
         return '';
     },
     cpf: (value) => {
-        if (!value) return '';
+        if (!value || !value.trim()) return 'Informe seu CPF.';
         const digits = value.replace(/\D/g, '');
         if (digits.length !== 11) return 'CPF deve ter 11 dígitos.';
         return '';
@@ -112,6 +113,9 @@ function CadastroPageContent() {
         } else if (field === 'cpf') {
             const normalized = normalizeCpf(value);
             value = formatCpfDisplay(normalized);
+        } else if (field === 'name') {
+            // Para o campo nome, apenas remove caracteres de controle e <>, mas mantém espaços
+            value = value.replace(/[\u0000-\u001F\u007F<>]/g, '');
         } else {
             value = sanitizeInput(value);
         }
@@ -139,6 +143,10 @@ function CadastroPageContent() {
             normalizedValue = normalizePhone(formData[field]);
         } else if (field === 'cpf') {
             normalizedValue = normalizeCpf(formData[field]);
+        } else if (field === 'name') {
+            // Para o campo nome, apenas remove caracteres de controle e <>, mas mantém espaços
+            // Apenas faz trim no início e fim para validação
+            normalizedValue = formData[field].replace(/[\u0000-\u001F\u007F<>]/g, '').trim();
         } else {
             normalizedValue = sanitizeInput(formData[field]);
         }
@@ -154,8 +162,10 @@ function CadastroPageContent() {
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        // Para validação, fazemos trim apenas no início e fim do nome, mas mantemos espaços internos
+        const nameForValidation = formData.name.replace(/[\u0000-\u001F\u007F<>]/g, '').trim();
         const fieldErrors = {
-            name: validators.name(sanitizeInput(formData.name)),
+            name: validators.name(nameForValidation),
             email: validators.email(sanitizeInput(formData.email)),
             password: validators.password(formData.password),
             confirmPassword: validators.confirmPassword(formData.confirmPassword, {
@@ -173,7 +183,8 @@ function CadastroPageContent() {
         setIsSubmitting(true);
         setFormMessage(null);
         try {
-            const nameSanitized = sanitizeInput(formData.name);
+            // Para envio, fazemos trim apenas no início e fim, mas mantemos espaços internos
+            const nameSanitized = formData.name.replace(/[\u0000-\u001F\u007F<>]/g, '').trim();
             const emailSanitized = sanitizeInput(formData.email).toLowerCase();
             const phoneDigits = normalizePhone(formData.phone);
             const cpfDigits = normalizeCpf(formData.cpf);
@@ -181,8 +192,8 @@ function CadastroPageContent() {
                 name: nameSanitized,
                 email: emailSanitized,
                 password: formData.password,
-                phone: phoneDigits ? formatPhoneDisplay(phoneDigits) : undefined,
-                cpf: cpfDigits ? formatCpfDisplay(cpfDigits) : undefined,
+                phone: formatPhoneDisplay(phoneDigits),
+                cpf: formatCpfDisplay(cpfDigits),
             };
 
             const response = await api.post('/auth/register', payload);
@@ -270,7 +281,7 @@ function CadastroPageContent() {
     };
 
     return (
-        <main className="bg-[#faf7f0] py-12">
+        <main className="bg-[#faf7f0] pt-32 pb-20">
             <Container>
                 <div className="mb-12 text-center hidden md:block">
                     <h1 className="text-4xl uppercase font-bold text-[#1a1a1d]">
@@ -288,7 +299,7 @@ function CadastroPageContent() {
                                 Nova Conta
                             </h2>
                             <p className="mt-1 text-sm text-[#6f6b63]">
-                                Para liberar acessos, precisamos de algumas informações básicas. Seus dados são protegidos e usados apenas para sua experiência dentro da 5521.
+                                Para liberar acessos, precisamos de algumas informações básicas. Seus dados são protegidos e usados apenas para sua experiência dentro da {APP_NAME}.
                             </p>
                         </div>
 
@@ -302,6 +313,7 @@ function CadastroPageContent() {
                                 onChange={handleChange('name')}
                                 onBlur={handleBlur('name')}
                                 error={errors.name}
+                                required
                             />
 
                             <div className="space-y-1">
@@ -315,6 +327,7 @@ function CadastroPageContent() {
                                     onChange={handleChange('email')}
                                     onBlur={handleBlur('email')}
                                     error={errors.email}
+                                    required
                                 />
                                 {emailSuggestions.length > 0 && (
                                     <div className="mt-1 overflow-hidden rounded-xl border border-[#e1dbcf] bg-white shadow-sm">
@@ -341,15 +354,15 @@ function CadastroPageContent() {
 
                             <InputField
                                 label="Telefone"
-                                placeholder="(21) 99999-9999"
+                                placeholder="(XX) 99999-9999"
                                 startIcon={<HiOutlinePhone className="h-5 w-5" />}
                                 value={formData.phone}
                                 onChange={handleChange('phone')}
                                 onBlur={handleBlur('phone')}
-                                hint="Opcional"
                                 error={errors.phone}
                                 inputMode="tel"
                                 maxLength={15}
+                                required
                             />
 
                             <InputField
@@ -359,12 +372,12 @@ function CadastroPageContent() {
                                 value={formData.cpf}
                                 onChange={handleChange('cpf')}
                                 onBlur={handleBlur('cpf')}
-                                hint="Opcional"
                                 error={errors.cpf}
                                 type="tel"
                                 inputMode="numeric"
                                 pattern="[0-9]*"
                                 maxLength={14}
+                                required
                             />
                         </div>
 
@@ -378,6 +391,7 @@ function CadastroPageContent() {
                                 onChange={handleChange('password')}
                                 onBlur={handleBlur('password')}
                                 error={errors.password}
+                                required
                             />
 
                             <PasswordField
@@ -389,6 +403,7 @@ function CadastroPageContent() {
                                 onChange={handleChange('confirmPassword')}
                                 onBlur={handleBlur('confirmPassword')}
                                 error={errors.confirmPassword}
+                                required
                             />
                         </div>
 
@@ -402,7 +417,7 @@ function CadastroPageContent() {
                                 <Link href="/privacidade" className="font-medium text-[#f97316] underline-offset-4 hover:underline">
                                     Política de Privacidade
                                 </Link>
-                                {' '}da 5521. Usamos os dados para personalizar sua experiência, emitir comprovantes fiscais e garantir segurança nos acessos.
+                                {' '}da {APP_NAME}. Usamos os dados para personalizar sua experiência, emitir comprovantes fiscais e garantir segurança nos acessos.
                             </p>
                         </div>
 

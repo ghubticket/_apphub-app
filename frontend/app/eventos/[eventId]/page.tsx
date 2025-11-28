@@ -11,6 +11,7 @@ import EventSelectionSummary from '@/components/tickets/EventSelectionSummary';
 import type { TicketProduct } from '@/types/ticket';
 import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
 import api from '@/lib/api';
+import { APP_NAME } from '@/lib/config';
 
 type EventTicketsPageProps = {
     params: {
@@ -137,7 +138,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                 </p>
 
                                 <p className="text-[0.7rem] font-semibold uppercase tracking-normal text-[#a38f78]">
-                                    Local: {primaryTicket?.location ?? 'Experiências 5521'}
+                                    Local: {primaryTicket?.location ?? APP_NAME}
                                 </p>
                                
                                 {primaryTicket?.eventDate && (

@@ -16,6 +16,7 @@ import {
     loadCartItems,
     removeCartItem,
 } from '@/lib/cart';
+import { APP_LOGO, APP_LOGO_ALT } from '@/lib/config';
 
 const upcomingEvents = [
     { name: '5521 Summer Vibes', city: 'Rio de Janeiro', state: 'RJ', date: '2025-11-15', venue: 'Morro da Urca' },
@@ -173,110 +174,124 @@ export default function Header() {
     );
 
     return (
-        <header ref={headerRef} className={`${styles.headerBackground} relative z-20 w-full`}>
-            <div className="overflow-hidden md:py-3 py-2 text-white" aria-hidden="true">
-                <div
-                    className={`${styles.marquee} flex gap-12 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-white/90 md:text-xs`}
-                >
-                    {[...upcomingEvents, ...upcomingEvents].map((event, index) => (
-                        <span
-                            key={`${event.name}-${index}`}
-                            className={`${styles.marqueeItem} flex items-center gap-5`}
+        <header ref={headerRef} className="relative z-20 w-full">
+            {/* Header antigo - oculto temporariamente */}
+            <div className="hidden">
+                <div className={`${styles.headerBackground} relative z-20 w-full`}>
+                    <div className="overflow-hidden md:py-3 py-2 text-white" aria-hidden="true">
+                        <div
+                            className={`${styles.marquee} flex gap-12 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-white/90 md:text-xs`}
                         >
-                            <span className="rounded-full border border-white/20 px-3 py-1 text-[0.6rem] font-bold tracking-normal text-[#f97316]">
-                                {formatDate(event.date)}
-                            </span>
-                            <span className="tracking-normal text-white">
-                                {event.city} | {event.state}
-                            </span>
-                            <span className="hidden text-white/60 tracking-[0.25em] md:inline">
-                                {event.venue.toUpperCase()}
-                            </span>
-                        </span>
-                    ))}
+                            {[...upcomingEvents, ...upcomingEvents].map((event, index) => (
+                                <span
+                                    key={`${event.name}-${index}`}
+                                    className={`${styles.marqueeItem} flex items-center gap-5`}
+                                >
+                                    <span className="rounded-full border border-white/20 px-3 py-1 text-[0.6rem] font-bold tracking-normal text-[#f97316]">
+                                        {formatDate(event.date)}
+                                    </span>
+                                    <span className="tracking-normal text-white">
+                                        {event.city} | {event.state}
+                                    </span>
+                                    <span className="hidden text-white/60 tracking-[0.25em] md:inline">
+                                        {event.venue.toUpperCase()}
+                                    </span>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="border-t border-white/10 bg-transparent">
+                        <Container>
+                            <div className="flex md:py-7 py-5 items-center justify-between gap-6"></div>
+                        </Container>
+                    </div>
                 </div>
             </div>
 
-            <div className="border-t border-white/10 bg-transparent">
-                <Container className="flex md:py-7 py-5 items-center justify-between gap-6">
-                    <Link href="/" className="flex items-center gap-3">
-                        <Image
-                            src="/images/5521.avif"
-                            alt="Logotipo 5521"
-                            width={120}
-                            height={48}
-                            // Responsivo: menor no mobile, maior em telas médias para cima
-                            className="h-auto w-20 md:w-28 lg:w-32"
-                            priority
-                        />
-                    </Link>
-
-                    <nav className="hidden items-center gap-7  text-white/70 lg:flex">
-                        {navigationLinks.map((link) => (
-                            <Link
-                                key={link.label}
-                                href={link.href}
-                                className={`${styles.navItem} text-white uppercase font-bold relative text-xl `}
-                            >
-                                {link.label}
+            {/* Novo header com efeito blur/glassmorphism */}
+            <div ref={headerRef as any} className="fixed top-0 left-0 right-0 z-20 pt-4">
+                {/* Conteúdo do header com blur apenas no container */}
+                <Container>
+                    <div className="relative">
+                        {/* Backdrop blur com fundo semi-transparente apenas no container */}
+                        <div className="absolute inset-0 bg-white/80 backdrop-blur-md border border-white/20 rounded-full shadow-sm"></div>
+                        
+                        {/* Conteúdo do header */}
+                        <div className="relative flex md:py-4 py-3 items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
+                            <Link href="/" className="flex items-center gap-3">
+                                <Image
+                                    src={APP_LOGO}
+                                    alt={APP_LOGO_ALT}
+                                    width={120}
+                                    height={48}
+                                    className="h-auto w-20 md:w-28 lg:w-20"
+                                    priority
+                                />
                             </Link>
-                        ))}
-                    </nav>
 
-                    <div className="flex gap-3 md:gap-4">
+                            <nav className="hidden items-center gap-3 text-[#1a1a1d] lg:flex">
+                                {navigationLinks.map((link) => (
+                                    <Link
+                                        key={link.label}
+                                        href={link.href}
+                                        className="text-[#1a1a1d] relative ttransition text-xl hover:text-[#f97316]"
+                                    >
+                                        {link.label}
+                                    </Link>
+                                ))}
+                            </nav>
 
-                        <button
-                            type="button"
-                            onClick={openCartDrawer}
-                            className="group relative flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition hover:border-[#f97316] hover:bg-[#f97316]/10"
-                            aria-label="Ingressos"
-                        >
-                            <HiOutlineTicket className="text-xl drop-shadow-[0_0_12px_rgba(249,115,22,0.35)] group-hover:text-[#f97316]" />
-                            {cartItems.length ? (
-                                <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#f97316] px-1 text-[0.6rem] font-semibold text-black">
-                                    {cartItems.length}
-                                </span>
-                            ) : null}
-                        </button>
-
-                        {isAuthenticated && welcomeName ? (
-                            <div className="flex items-center gap-3 text-white">
-                                <Link
-                                    href="/dashboard"
-                                    className="inline-flex items-center h-full rounded-full gap-2 bg-white text-black px-4 py-1.5 text-xs md:px-6 md:py-2 md:text-sm font-semibold uppercase transition"
-                                >
-                                    <HiOutlineUserCircle className="text-base md:text-lg" />
-                                    <span className="md:hidden">Meu perfil</span>
-                                    <span className="hidden md:inline">
-                                        Olá, <strong className="font-bold">{welcomeName}</strong>
-                                    </span>
-                                </Link>
+                            <div className="flex gap-3 md:gap-4">
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        // Logout limpa apenas autenticação, mantém carrinho
-                                        logout();
-                                        // Redirecionar para home após logout
-                                        if (typeof window !== 'undefined') {
-                                            window.location.href = '/';
-                                        }
-                                    }}
-                                    className="hidden md:inline font-medium text-white/70 hover:text-white transition underline"
+                                    onClick={openCartDrawer}
+                                    className="group relative flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border border-[#ded7ca] bg-white/60 backdrop-blur-sm text-[#1a1a1d] transition hover:border-[#f97316] hover:bg-[#f97316]/10 hover:text-[#f97316]"
+                                    aria-label="Ingressos"
                                 >
-                                    Sair
+                                    <HiOutlineTicket className="text-xl" />
+                                    {cartItems.length ? (
+                                        <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#f97316] px-1 text-[0.6rem] font-semibold text-white">
+                                            {cartItems.length}
+                                        </span>
+                                    ) : null}
                                 </button>
+
+                                {isAuthenticated && welcomeName ? (
+                                    <div className="flex items-center gap-3 text-[#1a1a1d]">
+                                        <Link
+                                            href="/dashboard"
+                                            className="inline-flex items-center h-full rounded-full gap-2 bg-[#1a1a1d] text-white px-4 py-1.5 text-xs md:px-6 md:py-2 md:text-sm font-semibold uppercase transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                        >
+                                            <HiOutlineUserCircle className="text-base md:text-lg" />
+                                            <span className="md:hidden">Meu perfil</span>
+                                            <span className="hidden md:inline">
+                                                Olá, <strong className="font-bold">{welcomeName}</strong>
+                                            </span>
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                logout();
+                                                if (typeof window !== 'undefined') {
+                                                    window.location.href = '/';
+                                                }
+                                            }}
+                                            className="hidden md:inline font-medium text-[#4c4c55] hover:text-[#1a1a1d] transition underline"
+                                        >
+                                            Sair
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <Link
+                                        href="/login"
+                                        className="group inline-flex items-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] text-xs h-9 w-9 md:h-11 md:w-11 justify-center md:text-sm font-semibold uppercase text-white transition hover:bg-[#f97316] hover:border-[#f97316] lg:inline-flex"
+                                    >
+                                        <HiOutlineUserCircle className="text-xl" />
+                                        
+                                    </Link>
+                                )}
                             </div>
-                        ) : (
-                            <Link
-                                href="/login"
-                                className="group inline-flex items-center gap-1 rounded-full border border-white/40 bg-white px-4 py-2 text-xs md:px-7 md:py-3 md:text-sm font-semibold uppercase text-[#000] transition hover:bg-transparent hover:text-white hover:border-[#f97316] lg:inline-flex"
-                            >
-                                <HiOutlineUserCircle className="text-base md:text-lg text-[#000] group-hover:text-white" />
-                                Entrar
-                            </Link>
-                        )}
-
-
+                        </div>
                     </div>
                 </Container>
             </div>

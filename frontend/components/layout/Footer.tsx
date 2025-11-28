@@ -7,6 +7,7 @@ import { FaInstagram, FaYoutube, FaSpotify } from 'react-icons/fa';
 import Container from '@/components/shared/Container';
 import api from '@/lib/api';
 import styles from './Footer.module.scss';
+import { APP_NAME, APP_LOGO, APP_LOGO_ALT, APP_CONFIG } from '@/lib/config';
 
 const marqueeLocations = [
     { city: 'Rio de Janeiro', state: 'RJ' },
@@ -21,7 +22,7 @@ const marqueeLocations = [
 ];
 
 const institutionalLinks = [
-    { label: '5521', href: '/5521' },
+    { label: APP_NAME, href: '/5521' },
     { label: 'Banda', href: '/banda' },
     { label: 'DJ Crias', href: '/dj-crias' },
     { label: 'Agenda', href: '/agenda' },
@@ -102,7 +103,7 @@ export default function Footer() {
                             key={`${place.city}-${index}`}
                             className={`${styles.marqueeItem} flex items-center gap-4`}
                         >
-                            <span className="font-black text-[#f97316]">5521</span>
+                            <span className="tracking-normal font-black text-[#f97316]">{APP_NAME}</span>
                             <span className="tracking-normal text-white/90">
                                 {place.city} | {place.state}
                             </span>
@@ -113,14 +114,14 @@ export default function Footer() {
 
             <div className="py-10 md:py-20 lg:py-15">
                 <Container className="flex flex-col gap-12 items-center lg:flex-row lg:justify-between lg:gap-16">
-                    <div className="w-full space-y-8 text-left lg:max-w-sm lg:text-center hidden md:block">
+                    <div className="hidden w-full space-y-8 text-left lg:max-w-sm lg:text-center ">
                         <div className='w-full'>
                             <Image
-                                src="/images/5521.avif"
-                                alt="Logomarca 5521"
+                                src={APP_LOGO}
+                                alt={APP_LOGO_ALT}
                                 width={250}
                                 height={80}
-                                className="h-16 w-auto lg:mx-auto"
+                                className=""
                                 priority
                             />
                             <h3 className="mt-5 text-xl font-semibold uppercase text-white lg:text-center">
@@ -172,26 +173,25 @@ export default function Footer() {
                         </div>
                     </div>
 
-                    <div className="w-full space-y-6 lg:max-w-md lg:text-center">
-                        <h1 className="text-4xl md:text-center font-black text-orange-400">5521</h1>
+                    <div className="w-full space-y-6 lg:max-w-md">
                         <div className="space-y-4">
-                            <h2 className="text-3xl font-bold uppercase leading-tight sm:text-4xl">
-                                A mais<br />
-                                Carioca do Mundo
+
+                            <img className='w-40' src='/images/pagode-do-principe-branco.png' alt='Festa do Branco' />
+                            
+                            <h2 className="text-3xl  font-bold uppercase leading-tight sm:text-4xl">
+                                Festa do Branco com Suel, Bruno Diegues, BG e Davi Quaresma
                             </h2>
                             <div>
-                                <span className="text-xs font-semibold uppercase tracking-[0.4em] text-white">
-                                    Vem com a gente
+                                <span className="text-xs font-semibold uppercase tracking-normal text-[#f97316]">
+                                    Vem com a gente no dia 23 de Dezembro
                                 </span>
-                                <p className="mt-4 text-sm text-white/70">
-                                    Eventos, casamentos, formaturas e confraternizações.
-                                </p>
+                              
                             </div>
                             <Link
-                                href="mailto:comercial@somos5521.com"
+                                href="mailto:falecom@oprincipe.com.br"
                                 className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-xs font-semibold uppercase  text-black transition hover:bg-orange-100"
                             >
-                                comercial@somos5521.com
+                                falecom@oprincipe.com.br
                             </Link>
                         </div>
                     </div>
@@ -250,9 +250,8 @@ export default function Footer() {
                             <div aria-live="polite" className="min-h-[1.5rem]">
                                 {feedback && (
                                     <p
-                                        className={`text-xs ${
-                                            feedback.type === 'success' ? 'text-emerald-300' : 'text-orange-300'
-                                        }`}
+                                        className={`text-xs ${feedback.type === 'success' ? 'text-emerald-300' : 'text-orange-300'
+                                            }`}
                                     >
                                         {feedback.message}
                                     </p>
@@ -270,7 +269,7 @@ export default function Footer() {
                 <Container className="flex flex-col gap-4 text-xs text-white/60">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div className="flex flex-col gap-2">
-                            <span>© {new Date().getFullYear()} 5521 © Todos os direitos reservados</span>
+                            <span>© {new Date().getFullYear()} {APP_NAME} © Todos os direitos reservados</span>
                             <span>CNPJ: 45.380.558/0001-88</span>
                             <span className="text-white/50">
                                 Em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)
