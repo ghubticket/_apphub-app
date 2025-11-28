@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { HiOutlineCalendar, HiOutlineMapPin } from 'react-icons/hi2';
 import type { EventSummary } from '@/lib/ticketsCatalog';
 
 type UpcomingEventsProps = {
@@ -17,31 +18,26 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
         return null;
     }
 
+    // Usar eventos da API (máximo 4)
+    const displayEvents = events.slice(0, 4);
+
     const handleImageError = (eventId: string) => {
         setImageErrors((prev) => new Set(prev).add(eventId));
     };
 
     return (
-        <section className={`bg-white py-16 ${className ?? ''}`}>
+        <section className="py-10">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mb-12">
-                    <h2 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d] md:text-4xl">
-                        Próximos Eventos
-                    </h2>
-                    <p className="mt-2 text-sm text-[#6f6b63]">
-                        Prepare-se para momentos inesquecíveis que estão logo ali, esperando por você!
-                    </p>
-                </div>
 
                 {/* Grid de eventos */}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {events.slice(0, 4).map((event) => {
+                    {displayEvents.map((event) => {
+                        // Priorizar coverImage, depois squareImage, depois fallback
                         const image = event.coverImage || event.squareImage;
                         const hasError = imageErrors.has(event.id);
-                        // Usar a imagem fornecida como fallback se houver erro ou não houver imagem
-                        const imageSrc = hasError || !image 
-                            ? '/images/31809-20250922180915.webp' 
+                        const imageSrc = hasError || !image
+                            ? '/images/31809-20250922180915.webp'
                             : image;
 
                         return (
@@ -65,24 +61,43 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                 {/* Conteúdo do card */}
                                 <div className="flex flex-1 flex-col p-4">
                                     {/* Nome do evento */}
-                                    <h3 className="mb-2 line-clamp-2 text-lg font-bold text-[#1a1a1d]">
+                                    <h3 className="mb-3 leading-none text-lg font-bold text-[#1a1a1d]">
                                         {event.name ?? 'Evento em destaque'}
                                     </h3>
 
-                                    {/* Local e data */}
-                                    <div className="mb-4 space-y-1 text-sm text-[#6f6b63]">
-                                        {event.location && (
-                                            <p className="font-medium">{event.location}</p>
-                                        )}
-                                        {event.formattedDate && (
-                                            <p>{event.formattedDate}</p>
-                                        )}
+                                    {/* Local e data - sempre exibir com ícones */}
+                                    <div className="mb-4 space-y-2 text-sm text-[#6f6b63]">
+                                        {/* Local com ícone */}
+                                        {event.location || (event.city && event.state) ? (
+                                            <div className="flex items-center gap-2">
+                                                <HiOutlineMapPin className="h-5 w-5 flex-shrink-0 text-[#a38f78]" />
+                                                <p className="font-medium">
+                                                    {event.location || `${event.city}, ${event.state}`}
+                                                </p>
+                                            </div>
+                                        ) : null}
+                                        {/* Data com ícone */}
+                                        {event.formattedDate || event.date ? (
+                                            <div className="flex items-center gap-2">
+                                                <HiOutlineCalendar className="h-5 w-5 flex-shrink-0 text-[#a38f78]" />
+                                                <p>
+                                                    {event.formattedDate ||
+                                                        (event.date
+                                                            ? new Date(event.date).toLocaleDateString('pt-BR', {
+                                                                day: 'numeric',
+                                                                month: 'long',
+                                                                year: 'numeric'
+                                                            })
+                                                            : '')}
+                                                </p>
+                                            </div>
+                                        ) : null}
                                     </div>
 
                                     {/* Botão CTA */}
                                     <Link
                                         href={`/eventos/${event.id}?from=/`}
-                                        className="mt-auto inline-flex items-center justify-center rounded-lg bg-[#1a1a1d] px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#f97316]"
+                                        className="mt-auto inline-flex items-center justify-center rounded-lg bg-[#1a1a1d] px-4 py-2.5 text-sm font-semibold uppercase tracking-normal text-white transition-all hover:bg-[#f97316]"
                                     >
                                         Comprar Ingresso
                                     </Link>

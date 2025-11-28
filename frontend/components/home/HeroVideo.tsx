@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { HiArrowRight, HiChevronLeft, HiChevronRight } from 'react-icons/hi2';
+import { HiArrowRight, HiChevronLeft, HiChevronRight, HiOutlineCalendar, HiOutlineMapPin } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 
 export type SlideType = 'video' | 'image';
@@ -19,6 +19,11 @@ export interface HeroSlide {
         description?: string | React.ReactNode;
         ctaText?: string | React.ReactNode;
     };
+    date?: string;
+    formattedDate?: string;
+    location?: string;
+    city?: string;
+    state?: string;
     ctaLink?: string;
     overlayOpacity?: number;
 }
@@ -47,6 +52,11 @@ export default function HeroCarousel({
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isLoaded, setIsLoaded] = useState(false);
     const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
+    
+    // Estados para touch/swipe
+    const touchStartX = useRef<number | null>(null);
+    const touchEndX = useRef<number | null>(null);
+    const minSwipeDistance = 50; // Distância mínima para considerar um swipe
 
     const currentSlideData = slides[currentSlide];
 
@@ -103,6 +113,34 @@ export default function HeroCarousel({
         }, autoplayInterval);
     }, [autoplayInterval, goToNext, pauseAutoplay, slides.length]);
 
+    // Handlers para touch/swipe
+    const onTouchStart = useCallback((e: React.TouchEvent) => {
+        touchEndX.current = null;
+        touchStartX.current = e.targetTouches[0].clientX;
+    }, []);
+
+    const onTouchMove = useCallback((e: React.TouchEvent) => {
+        touchEndX.current = e.targetTouches[0].clientX;
+    }, []);
+
+    const onTouchEnd = useCallback(() => {
+        if (!touchStartX.current || !touchEndX.current) return;
+        
+        const distance = touchStartX.current - touchEndX.current;
+        const isLeftSwipe = distance > minSwipeDistance;
+        const isRightSwipe = distance < -minSwipeDistance;
+
+        if (isLeftSwipe) {
+            goToNext();
+            pauseAutoplay();
+            setTimeout(resumeAutoplay, 5000);
+        } else if (isRightSwipe) {
+            goToPrevious();
+            pauseAutoplay();
+            setTimeout(resumeAutoplay, 5000);
+        }
+    }, [goToNext, goToPrevious, pauseAutoplay, resumeAutoplay]);
+
     useEffect(() => {
         // Marcar como carregado após um pequeno delay
         const timer = setTimeout(() => setIsLoaded(true), 500);
@@ -142,13 +180,16 @@ export default function HeroCarousel({
             className="relative h-screen w-full overflow-hidden"
             onMouseEnter={pauseAutoplay}
             onMouseLeave={resumeAutoplay}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
         >
             {/* Slides */}
             <div className="absolute inset-0 z-0">
                 {slides.map((slide, index) => (
                     <div
                         key={index}
-                        className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                        className={`absolute inset-0 transition-opacity ease-in-out duration-700 ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                             }`}
                     >
                         {slide.type === 'video' && slide.videoId ? (
@@ -166,11 +207,24 @@ export default function HeroCarousel({
                             />
                         ) : slide.type === 'image' && slide.imageUrl ? (
                             <div className="absolute inset-0">
+                                {/* Imagem para mobile */}
+                                <Image
+                                    src="/images/Banner-3-624x1000-5.png"
+                                    alt={`Slide ${index + 1}`}
+                                    fill
+                                    className="object-cover md:hidden"
+                                    priority={index === currentSlide}
+                                    sizes="100vw"
+                                    onError={(e) => {
+                                        console.error('Erro ao carregar imagem do slide mobile:', e);
+                                    }}
+                                />
+                                {/* Imagem para desktop */}
                                 <Image
                                     src={slide.imageUrl}
                                     alt={`Slide ${index + 1}`}
                                     fill
-                                    className="object-cover"
+                                    className="hidden object-cover md:block"
                                     priority={index === currentSlide}
                                     unoptimized={slide.imageUrl.startsWith('http') || slide.imageUrl.startsWith('https')}
                                     sizes="100vw"
@@ -181,10 +235,8 @@ export default function HeroCarousel({
                             </div>
                         ) : null}
 
-                        {/* Overlay escuro tipo fumaça para destacar textos */}
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
-                        {/* Overlay adicional com blur para mais refinamento */}
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
+                        {/* Overlay escuro tipo fumaça - gradiente do rodapé para cima */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
                         {/* Camada de fumaça mais intensa na área do texto (lado esquerdo) */}
                         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
                     </div>
@@ -195,41 +247,60 @@ export default function HeroCarousel({
             <div className="relative z-10 flex h-full items-center">
                 <Container className="w-full">
                     <div className="text-white">
-                        {currentSlideData.content.header && (
-                            <p className="mb-2 text-xl font-semibold uppercase tracking-wide text-yellow-400 drop-shadow-md md:text-base">
-                                {currentSlideData.content.header}
-                            </p>
-                        )}
-                        <h1 className="leading-none mb-0 text-2xl font-bold uppercase pb-5 tracking-wide drop-shadow-lg md:text-6xl lg:text-6xl">
-                            {currentSlideData.content.title}
-                        </h1>
-
-                        {currentSlideData.content.subtitle && (
-                            <p className="leading-none mb-8 text-sm drop-shadow-md md:text-xl lg:text-2xl">
-                                {currentSlideData.content.subtitle}
-                            </p>
+                        {/* Nome do evento */}
+                        {currentSlideData.content.title && (
+                            <h1 className="mb-4 leading-none text-2xl font-bold uppercase tracking-wide text-[#f97316] drop-shadow-lg md:text-4xl lg:text-5xl">
+                                {currentSlideData.content.title}
+                            </h1>
                         )}
 
+                        {/* Descrição do evento */}
                         {currentSlideData.content.description && (
-                            <p className="leading-none pb-5 text-sm md:text-lg drop-shadow-md font-light">
-                                {currentSlideData.content.description}
+                            <p className="mb-6 leading-none text-sm text-white drop-shadow-md md:text-base lg:text-lg">
+                                {typeof currentSlideData.content.description === 'string'
+                                    ? currentSlideData.content.description.replace(/<[^>]*>/g, '').trim()
+                                    : currentSlideData.content.description}
                             </p>
                         )}
 
-                        {currentSlideData.content.ctaText && (
-                            <p className="mb-8 text-sm md:text-lg drop-shadow-md font-light">
-                                {currentSlideData.content.ctaText}
-                            </p>
-                        )}
+                        {/* Data e Local com ícones */}
+                        <div className="mb-6 flex flex-wrap items-center gap-4 text-sm text-white drop-shadow-md md:text-base">
+                            {/* Local */}
+                            {(currentSlideData.location || (currentSlideData.city && currentSlideData.state)) && (
+                                <div className="flex items-center gap-2">
+                                    <HiOutlineMapPin className="h-5 w-5 flex-shrink-0" />
+                                    <span>
+                                        {currentSlideData.location || `${currentSlideData.city}, ${currentSlideData.state}`}
+                                    </span>
+                                </div>
+                            )}
+                            {/* Data */}
+                            {(currentSlideData.formattedDate || currentSlideData.date) && (
+                                <div className="flex items-center gap-2">
+                                    <HiOutlineCalendar className="h-5 w-5 flex-shrink-0" />
+                                    <span>
+                                        {currentSlideData.formattedDate ||
+                                            (currentSlideData.date
+                                                ? new Date(currentSlideData.date).toLocaleDateString('pt-BR', {
+                                                      day: 'numeric',
+                                                      month: 'long',
+                                                      year: 'numeric',
+                                                  })
+                                                : '')}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
 
+                        {/* Botão para ingressos */}
                         {currentSlideData.ctaLink && (
                             <Link
                                 href={currentSlideData.ctaLink}
-                                className="group inline-flex mt-0 items-center gap-2 rounded-full border-2 border-green-400 bg-green-600 px-5 py-2 text-sm font-semibold uppercase tracking-wide text-white transition-all hover:bg-green-700 hover:border-green-300 md:px-10 md:py-5 md:text-lg"
+                                className="group inline-flex items-center gap-2 rounded-full border-2 border-green-400 bg-green-600 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-white transition-all hover:bg-green-700 hover:border-green-300 md:px-6 md:py-3 md:text-sm"
                             >
                                 <span>Comprar Ingresso</span>
-                                <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-green-500 bg-green-500 transition-all group-hover:bg-green-400 group-hover:border-green-300">
-                                    <HiArrowRight className="h-5 w-5 text-white" />
+                                <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-green-500 bg-green-500 transition-all group-hover:bg-green-400 group-hover:border-green-300 md:h-10 md:w-10">
+                                    <HiArrowRight className="h-4 w-4 text-white md:h-5 md:w-5" />
                                 </span>
                             </Link>
                         )}
@@ -239,22 +310,8 @@ export default function HeroCarousel({
 
             {/* Navegação - Setas e Indicadores */}
             {slides.length > 1 && (
-                <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 md:bottom-8">
-                    {/* Seta esquerda */}
-                    <button
-                        type="button"
-                        onClick={() => {
-                            goToPrevious();
-                            pauseAutoplay();
-                            setTimeout(resumeAutoplay, 5000);
-                        }}
-                        className="rounded-full border-2 border-white/50 bg-transparent p-2 text-white transition-all hover:border-white hover:bg-white/10"
-                        aria-label="Slide anterior"
-                    >
-                        <HiChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
-                    </button>
-
-                    {/* Indicadores de slide (bullets) */}
+                <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 md:bottom-8">
+                    {/* Indicadores de slide (bullets) - estilo bullseye */}
                     <div className="flex items-center gap-2">
                         {slides.map((_, index) => (
                             <button
@@ -265,28 +322,45 @@ export default function HeroCarousel({
                                     pauseAutoplay();
                                     setTimeout(resumeAutoplay, 5000);
                                 }}
-                                className={`rounded-full transition-all ${index === currentSlide
-                                        ? 'h-2 w-8 bg-white'
-                                        : 'h-2 w-2 bg-black border-2 border-white/50 hover:border-white hover:bg-white/30'
-                                    }`}
+                                className="relative h-3 w-3 rounded-full border-2 border-white bg-white transition-all hover:scale-110"
                                 aria-label={`Ir para slide ${index + 1}`}
-                            />
+                            >
+                                {/* Centro branco (bullseye) */}
+                                <span className="absolute top-1/2 left-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+                            </button>
                         ))}
                     </div>
 
-                    {/* Seta direita */}
-                    <button
-                        type="button"
-                        onClick={() => {
-                            goToNext();
-                            pauseAutoplay();
-                            setTimeout(resumeAutoplay, 5000);
-                        }}
-                        className="rounded-full border-2 border-white/50 bg-transparent p-2 text-white transition-all hover:border-white hover:bg-white/10"
-                        aria-label="Próximo slide"
-                    >
-                        <HiChevronRight className="h-4 w-4 md:h-5 md:w-5" />
-                    </button>
+                    {/* Setas de navegação */}
+                    <div className="flex items-center gap-2">
+                        {/* Seta esquerda */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                goToPrevious();
+                                pauseAutoplay();
+                                setTimeout(resumeAutoplay, 5000);
+                            }}
+                            className="rounded-full border-2 border-white bg-transparent p-2 text-white transition-all hover:bg-white/20"
+                            aria-label="Slide anterior"
+                        >
+                            <HiChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
+                        </button>
+
+                        {/* Seta direita */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                goToNext();
+                                pauseAutoplay();
+                                setTimeout(resumeAutoplay, 5000);
+                            }}
+                            className="rounded-full border-2 border-white bg-transparent p-2 text-white transition-all hover:bg-white/20"
+                            aria-label="Próximo slide"
+                        >
+                            <HiChevronRight className="h-4 w-4 md:h-5 md:w-5" />
+                        </button>
+                    </div>
                 </div>
             )}
 

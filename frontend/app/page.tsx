@@ -64,57 +64,46 @@ export default function Home() {
 
     const hasEvents = useMemo(() => events.length > 0, [events]);
 
-    // Slides do carrossel hero
-    const heroSlides: HeroSlide[] = [
-        {
-            type: 'video',
-            videoId: '9uSf0U4hbvI',
-            content: {
-                header: 'VERÃO R2 APRESENTA',
-                title: 'BLOQUINHO NA PRAIA – NATTAN + LEO FOGUETE + FELIPE AMORIM',
-                subtitle: (
-                    <>
-                        <span className="font-bold">Festa do Branco</span> com <span className="font-light">Suel,</span> <br /> 
-                        <span className="font-light">Bruno Diegues, BG e Davi Quaresma</span> 😍
-                    </>
-                ),
-                description: (
-                    <>
-                        Só quem viveu o 1º Bloquinho sabe!
-                        Agora imagina <span className="font-bold">Nattan, Felipe Amorim e Léo Foguete</span> no mesmo palco?
-                        Dia 31 de janeiro, o caos tá liberado, diversão, energia e aquela baguncinha boa que a gente ama.
-                    </>
-                ),
-                ctaText: 'Garante teu ingresso e vem pro Bloquinho 😎',
-            },
-            ctaLink: '/ingressos',
-            overlayOpacity: 0.5,
-        },
-        {
-            type: 'image',
-            imageUrl: '/images/Banner-4-1600x838-5.png',
-            content: {
-                header: 'VERÃO R2 APRESENTA',
-                title: 'BLOQUINHO NA PRAIA – NATTAN + LEO FOGUETE + FELIPE AMORIM',
-                subtitle: (
-                    <>
-                        <span className="font-bold">Festa do Branco</span> com <span className="font-light">Suel,</span> <br /> 
-                        <span className="font-light">Bruno Diegues, BG e Davi Quaresma</span> 😍
-                    </>
-                ),
-                description: (
-                    <>
-                        Só quem viveu o 1º Bloquinho sabe!
-                        Agora imagina <span className="font-bold">Nattan, Felipe Amorim e Léo Foguete</span> no mesmo palco?
-                        Dia 31 de janeiro, o caos tá liberado, diversão, energia e aquela baguncinha boa que a gente ama.
-                    </>
-                ),
-                ctaText: 'Garante teu ingresso e vem pro Bloquinho 😎',
-            },
-            ctaLink: '/ingressos',
-            overlayOpacity: 0.5,
-        },
-    ];
+    // Gerar slides do carrossel hero a partir dos eventos da API
+    const heroSlides: HeroSlide[] = useMemo(() => {
+        if (!hasEvents) {
+            // Fallback: slides padrão se não houver eventos
+            return [
+                {
+                    type: 'image',
+                    imageUrl: '/images/Banner-4-1600x838-5.png',
+                    content: {
+                        title: 'Próximos Eventos',
+                        description: 'Aguarde, em breve teremos novidades incríveis para você!',
+                    },
+                    ctaLink: '/ingressos',
+                    overlayOpacity: 0.5,
+                },
+            ];
+        }
+
+        // Criar slides a partir dos eventos da API (máximo 4)
+        return events.slice(0, 4).map((event) => {
+            // Sempre usar a imagem estática
+            return {
+                type: 'image',
+                imageUrl: '/images/Banner-4-1600x838-5.png',
+                content: {
+                    title: event.name || 'Evento',
+                    description: event.description
+                        ? event.description.replace(/<[^>]*>/g, '').trim()
+                        : undefined,
+                },
+                date: event.date,
+                formattedDate: event.formattedDate,
+                location: event.location,
+                city: event.city,
+                state: event.state,
+                ctaLink: `/eventos/${event.id}?from=/`,
+                overlayOpacity: 0.5,
+            } as HeroSlide;
+        });
+    }, [events, hasEvents]);
 
     return (
         <main className="bg-[#f5f1e8]">
@@ -122,51 +111,9 @@ export default function Home() {
             <HeroCarousel slides={heroSlides} autoplayInterval={6000} />
 
             {/* Seção Próximos Eventos */}
-            {!loading && !error && hasEvents && <UpcomingEvents events={events} />}
+            {!loading && <UpcomingEvents events={events} />}
 
-            {/* Seção Institucional Sobre a {APP_NAME} */}
-            <Container className="py-16">
-                <div className="mb-12 space-y-3 text-center md:text-left"><h1>teste</h1></div>
-            </Container>
-
-            <Container className="py-16 hidden">
-                <div className="mb-12 space-y-3 text-center md:text-left">
-                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
-                        {APP_NAME}
-                    </span>
-                    <div className="flex flex-col items-center gap-3 md:flex-row md:items-end md:justify-between">
-                        <h1 className="text-4xl font-bold uppercase tracking-[0.25em] text-[#1a1a1d]">
-                            Explore nossos ingressos
-                        </h1>
-                        <p className="max-w-xl text-sm text-[#4c4c55]">
-                            Veja os ingressos em destaque e acompanhe disponibilidade em tempo real diretamente da nossa API.
-                        </p>
-                    </div>
-                </div>
-
-                {loading ? (
-                    <div className="flex items-center justify-center rounded-3xl border border-[#ded7ca] bg-white/70 p-10 text-sm font-medium text-[#7d796c]">
-                        Carregando eventos...
-                    </div>
-                ) : error ? (
-                    <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
-                        {error}
-                        <button
-                            type="button"
-                            className="mt-4 inline-flex items-center justify-center rounded-full border border-rose-400 px-5 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-700 transition hover:border-[#f97316] hover:text-[#f97316]"
-                            onClick={loadHighlights}
-                        >
-                            Tentar novamente
-                        </button>
-                    </div>
-                ) : hasEvents ? (
-                    <EventCarousel events={events} />
-                ) : (
-                    <div className="rounded-3xl border border-dashed border-[#ded7ca] bg-white/70 p-8 text-center text-sm text-[#7d796c]">
-                        No momento não há eventos disponíveis. Retorne em breve para novas experiências.
-                    </div>
-                )}
-            </Container>
+ 
         </main>
     );
 }
