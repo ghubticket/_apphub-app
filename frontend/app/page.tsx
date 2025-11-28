@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Container from '@/components/shared/Container';
 import AboutSection from '@/components/home/AboutSection';
 import EventCarousel from '@/components/home/EventCarousel';
-import HeroVideo from '@/components/home/HeroVideo';
+import HeroCarousel, { type HeroSlide } from '@/components/home/HeroVideo';
 import { fetchEventsList, type EventSummary } from '@/lib/ticketsCatalog';
 import { APP_NAME } from '@/lib/config';
 
@@ -63,14 +63,62 @@ export default function Home() {
 
     const hasEvents = useMemo(() => events.length > 0, [events]);
 
+    // Slides do carrossel hero
+    const heroSlides: HeroSlide[] = [
+        {
+            type: 'video',
+            videoId: '9uSf0U4hbvI',
+            content: {
+                header: 'VERÃO R2 APRESENTA',
+                title: 'BLOQUINHO NA PRAIA – NATTAN + LEO FOGUETE + FELIPE AMORIM',
+                subtitle: (
+                    <>
+                        <span className="font-bold">Festa do Branco</span> com <span className="font-light">Suel,</span> <br /> 
+                        <span className="font-light">Bruno Diegues, BG e Davi Quaresma</span> 😍
+                    </>
+                ),
+                description: (
+                    <>
+                        Só quem viveu o 1º Bloquinho sabe!
+                        Agora imagina <span className="font-bold">Nattan, Felipe Amorim e Léo Foguete</span> no mesmo palco?
+                        Dia 31 de janeiro, o caos tá liberado, diversão, energia e aquela baguncinha boa que a gente ama.
+                    </>
+                ),
+                ctaText: 'Garante teu ingresso e vem pro Bloquinho 😎',
+            },
+            ctaLink: '/ingressos',
+            overlayOpacity: 0.5,
+        },
+        {
+            type: 'image',
+            imageUrl: '/images/Banner-4-1600x838-5.png',
+            content: {
+                header: 'VERÃO R2 APRESENTA',
+                title: 'BLOQUINHO NA PRAIA – NATTAN + LEO FOGUETE + FELIPE AMORIM',
+                subtitle: (
+                    <>
+                        <span className="font-bold">Festa do Branco</span> com <span className="font-light">Suel,</span> <br /> 
+                        <span className="font-light">Bruno Diegues, BG e Davi Quaresma</span> 😍
+                    </>
+                ),
+                description: (
+                    <>
+                        Só quem viveu o 1º Bloquinho sabe!
+                        Agora imagina <span className="font-bold">Nattan, Felipe Amorim e Léo Foguete</span> no mesmo palco?
+                        Dia 31 de janeiro, o caos tá liberado, diversão, energia e aquela baguncinha boa que a gente ama.
+                    </>
+                ),
+                ctaText: 'Garante teu ingresso e vem pro Bloquinho 😎',
+            },
+            ctaLink: '/ingressos',
+            overlayOpacity: 0.5,
+        },
+    ];
+
     return (
         <main className="bg-[#f5f1e8]">
-            {/* Hero com vídeo de fundo - ocupa 100% da tela */}
-            <HeroVideo
-                videoId="9uSf0U4hbvI"
-                ctaLink="/ingressos"
-                overlayOpacity={0.5}
-            />
+            {/* Hero com carrossel - ocupa 100% da tela */}
+            <HeroCarousel slides={heroSlides} autoplayInterval={6000} />
 
             {/* Seção Institucional Sobre a {APP_NAME} */}
             <Container className="py-16">

@@ -12,10 +12,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
       },
-      {
-        protocol: 'https',
-        hostname: 'api.ghubtech.com.br',
-      },
+                {
+                    protocol: 'https',
+                    hostname: 'api.ghubtech.com.br',
+                },
+                {
+                    protocol: 'https',
+                    hostname: 'media.r2.com.vc',
+                },
     ],
     formats: ['image/avif', 'image/webp'],
   },
