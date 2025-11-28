@@ -51,6 +51,7 @@ export default function HeroCarousel({
 }: HeroCarouselProps) {
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isTextTransitioning, setIsTextTransitioning] = useState(false);
     const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
     
     // Estados para touch/swipe
@@ -68,17 +69,29 @@ export default function HeroCarousel({
 
     // Navegação para slide anterior
     const goToPrevious = useCallback(() => {
-        setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+        setIsTextTransitioning(true);
+        setTimeout(() => {
+            setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+            setTimeout(() => setIsTextTransitioning(false), 50);
+        }, 300);
     }, [slides.length]);
 
     // Navegação para próximo slide
     const goToNext = useCallback(() => {
-        setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+        setIsTextTransitioning(true);
+        setTimeout(() => {
+            setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+            setTimeout(() => setIsTextTransitioning(false), 50);
+        }, 300);
     }, [slides.length]);
 
     // Ir para slide específico
     const goToSlide = useCallback((index: number) => {
-        setCurrentSlide(index);
+        setIsTextTransitioning(true);
+        setTimeout(() => {
+            setCurrentSlide(index);
+            setTimeout(() => setIsTextTransitioning(false), 50);
+        }, 300);
     }, []);
 
     // Autoplay
@@ -246,10 +259,10 @@ export default function HeroCarousel({
             {/* Conteúdo sobreposto */}
             <div className="relative z-10 flex h-full items-center ">
                 <Container className="w-full">
-                    <div className="text-white">
+                    <div className={`text-white transition-opacity duration-500 ease-in-out ${isTextTransitioning ? 'opacity-0' : 'opacity-100'}`}>
                         {/* Nome do evento */}
                         {currentSlideData.content.title && (
-                            <h1 className="mb-4 leading-none text-2xl font-bold uppercase tracking-wide text-[#f97316] drop-shadow-lg md:text-4xl lg:text-5xl">
+                            <h1 className="text-2xl font-bold uppercase leading-tight sm:text-3xl pb-4">
                                 {currentSlideData.content.title}
                             </h1>
                         )}
@@ -258,7 +271,7 @@ export default function HeroCarousel({
                         <div className="mb-6 flex flex-wrap items-center gap-1 text-sm text-white drop-shadow-md md:text-base">
                             {/* Local */}
                             {(currentSlideData.location || (currentSlideData.city && currentSlideData.state)) && (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 mt-0">
                                     <HiOutlineMapPin className="h-5 w-5 flex-shrink-0" />
                                     <span>
                                         {currentSlideData.location || `${currentSlideData.city}, ${currentSlideData.state}`}

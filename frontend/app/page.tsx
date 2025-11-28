@@ -5,6 +5,7 @@ import Container from '@/components/shared/Container';
 import AboutSection from '@/components/home/AboutSection';
 import EventCarousel from '@/components/home/EventCarousel';
 import UpcomingEvents from '@/components/home/UpcomingEvents';
+import PhotosCarousel from '@/components/home/PhotosCarousel';
 import HeroCarousel, { type HeroSlide } from '@/components/home/HeroVideo';
 import { fetchEventsList, type EventSummary } from '@/lib/ticketsCatalog';
 import { APP_NAME } from '@/lib/config';
@@ -113,7 +114,9 @@ export default function Home() {
             {/* Seção Próximos Eventos */}
             {!loading && <UpcomingEvents events={events} />}
 
- 
+            {/* Seção Fotos */}
+            <PhotosCarousel />
+
         </main>
     );
 }
