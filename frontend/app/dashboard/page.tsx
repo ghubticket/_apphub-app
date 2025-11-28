@@ -949,8 +949,8 @@ export default function DashboardPage() {
 
     return (
         <>
-            <main className="bg-[#f5f1e8]">
-                <Container className="py-12">
+            <main className="bg-[#faf7f0] pt-32 pb-20">
+                <Container>
                         <header className="mb-10 space-y-3 hidden md:block">
                             <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
                                 Área do Cliente

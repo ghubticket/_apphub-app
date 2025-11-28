@@ -102,7 +102,7 @@ function ResetPasswordContent() {
     const isTokenMissing = !token;
 
     return (
-        <main className=" bg-[#faf7f0] py-12">
+        <main className=" bg-[#faf7f0] pt-32 pb-20">
             <Container>
                 <div className="mx-auto max-w-lg">
                     <AuthCard
@@ -192,7 +192,7 @@ export default function ResetPasswordPage() {
     return (
         <Suspense
             fallback={
-                <main className="min-h-screen bg-[#faf7f0] py-12">
+                <main className="min-h-screen bg-[#faf7f0] pt-32 pb-20">
                     <Container>
                         <div className="mx-auto max-w-lg animate-pulse space-y-6">
                             <div className="h-8 w-2/3 rounded bg-[#e5dfd4]" />

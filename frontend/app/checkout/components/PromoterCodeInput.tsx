@@ -36,7 +36,7 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
 
     // Memoizar classes CSS condicionais
     const inputClassName = useMemo(() => {
-        const base = 'w-full rounded-2xl border md:px-4 md:py-2.5 p-3 text-sm transition';
+        const base = 'w-full rounded-2xl border md:px-4 md:py-2.5 p-3 text-base md:text-sm transition';
         const padding = isValidating ? 'md:pr-32' : 'md:pr-20';
 
         if (pixPaymentActive || isValidating) {

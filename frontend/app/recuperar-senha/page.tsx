@@ -61,7 +61,7 @@ export default function RecuperarSenhaPage() {
     const emailSuggestions = useEmailSuggestions(email);
 
     return (
-        <main className="bg-[#faf7f0] py-12">
+        <main className="bg-[#faf7f0] pt-32 pb-12">
             <div className="container mx-auto w-full max-w-screen-xl px-4 sm:px-6 lg:px-8 ">
                 <AuthCard
                     title="Redefinir senha"

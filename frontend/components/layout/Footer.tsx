@@ -231,7 +231,7 @@ export default function Footer() {
                                 className="flex w-full my-3 max-w-md items-center rounded-md border border-white/20 bg-white/5 pl-4 pr-1"
                             >
                                 <input
-                                    className="flex-1 bg-transparent py-3 text-sm text-white placeholder:text-white/40 focus:outline-none"
+                                    className="flex-1 bg-transparent py-3 text-base md:text-sm text-white placeholder:text-white/40 focus:outline-none"
                                     type="email"
                                     placeholder="Seu e-mail"
                                     aria-label="E-mail para newsletter"
