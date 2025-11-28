@@ -178,7 +178,7 @@ export default function Footer() {
 
                             <img className='w-40' src='/images/pagode-do-principe-branco.png' alt='Festa do Branco' />
                             
-                            <h2 className="text-3xl  font-bold uppercase leading-tight sm:text-4xl">
+                            <h2 className="text-3xl  font-bold uppercase leading-tight sm:text-3xl">
                                 Festa do Branco com Suel, Bruno Diegues, BG e Davi Quaresma
                             </h2>
                             <div>
@@ -198,7 +198,7 @@ export default function Footer() {
 
                     <div className="w-full space-y-6 lg:max-w-sm lg:text-right">
                         <div className="md:space-y-4 lg:items-end lg:text-right">
-                            <h3 className="text-sm pb-5 font-semibold uppercase tracking-[0.3em] text-white">
+                            <h3 className="text-sm pb-0 font-semibold uppercase tracking-[0.3em] text-white">
                                 Suporte
                             </h3>
                             <ul className="space-y-3 text-sm text-white/70 lg:inline-flex lg:flex-col lg:items-end lg:[&>li>a]:inline-block">
@@ -276,7 +276,7 @@ export default function Footer() {
                             </span>
                         </div>
                         <div className="flex flex-wrap gap-4">
-                            <p>Feito com <span className="text-orange-400">❤️</span> por <Link href="https://www.instagram.com/5521/" target="_blank" className="text-orange-400 hover:text-orange-300 transition-colors">Vicente</Link></p>
+                            <p>Feito com <span className="text-orange-400">❤️</span> por <Link href="https://www.instagram.com/5521/" target="_blank" className="text-orange-400 hover:text-orange-300 transition-colors">Guilherme Henrique</Link></p>
                         </div>
                     </div>
                     <div className="pt-2 border-t border-white/5 flex flex-wrap gap-x-4 gap-y-2 text-white/50">
