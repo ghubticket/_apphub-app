@@ -128,19 +128,20 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                     alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
                                     fill
                                     className="object-cover"
+                                    sizes="80px"
                                     unoptimized={primaryTicket?.image?.startsWith('http')}
                                     onError={() => setCompactImageError(true)}
                                 />
                             </div>
                             <div className="min-w-0 space-y-1">
-                            <p className="truncate text-sm font-semibold text-[#1a1a1d]">
+                                <p className="truncate text-sm font-semibold text-[#1a1a1d]">
                                     {primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento'}
                                 </p>
 
                                 <p className="text-[0.7rem] font-semibold uppercase tracking-normal text-[#a38f78]">
                                     Local: {primaryTicket?.location ?? APP_NAME}
                                 </p>
-                               
+
                                 {primaryTicket?.eventDate && (
                                     <p className="text-[0.7rem] text-[#6f6b63]">
                                         Data:{primaryTicket.eventDate}
@@ -154,10 +155,10 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                             <div className="flex items-center gap-3 text-[0.7rem] font-semibold uppercase tracking-normal">
                                 <div className="flex items-center gap-1.5 text-[#1a1a1d]">
                                     <span className={`flex items-center justify-center rounded-full bg-[#1a1a1d] font-semibold text-white ${totalAvailableTickets >= 100
-                                            ? 'h-7 w-7 text-[0.65rem]'
-                                            : totalAvailableTickets >= 10
-                                                ? 'h-6 w-6 text-[0.70rem]'
-                                                : 'h-6 w-6 text-[0.70rem]'
+                                        ? 'h-7 w-7 text-[0.65rem]'
+                                        : totalAvailableTickets >= 10
+                                            ? 'h-6 w-6 text-[0.70rem]'
+                                            : 'h-6 w-6 text-[0.70rem]'
                                         }`}>
                                         {loading ? '...' : totalAvailableTickets > 0 ? totalAvailableTickets : '0'}
                                     </span>
@@ -182,6 +183,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                     fill
                                     className="object-cover"
                                     priority
+                                    sizes="(max-width: 768px) 100vw, 66vw"
                                     unoptimized={primaryTicket?.image?.startsWith('http')}
                                     onError={() => setImageError(true)}
                                 />
@@ -192,7 +194,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                     <h1 className="text-xl font-bold tracking-normal text-[#1a1a1d]">
                                         {primaryTicket?.eventName ?? 'Evento'}
                                     </h1>
-  
+
                                     <div className="flex flex-wrap items-center md:gap-4 gap-1 pb-4 text-sm text-[#4c4c55]">
                                         {primaryTicket?.eventDate && (
                                             <div className="flex items-center gap-2 ">
@@ -209,7 +211,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                         )}
                                     </div>
                                     <hr />
-                                    <div 
+                                    <div
                                         className="text-sm pt-5 pb-3 text-[#4c4c55] prose prose-sm max-w-none 
                                             prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
                                             prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
@@ -224,7 +226,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                         }}
                                     />
                                 </div>
-                                    
+
                                 <hr />
                                 {/* Botão de compartilhar no WhatsApp */}
                                 <button

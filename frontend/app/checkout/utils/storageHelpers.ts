@@ -1,6 +1,7 @@
 import type { CheckoutCustomerData } from '../types';
 
 const CHECKOUT_CUSTOMER_STORAGE_KEY = 'checkout:customer-data';
+const CHECKOUT_CUSTOMER_USER_ID_KEY = 'checkout:customer-user-id';
 const CHECKOUT_DEVICE_STORAGE_KEY = 'checkout:mp-device';
 const CHECKOUT_ACTIVE_ORDER_KEY = 'checkout:active-order-id';
 const CHECKOUT_TIMER_START_KEY = 'checkout:timer-start-time';
@@ -15,10 +16,22 @@ export type CreatedOrder = {
 
 export const storageHelpers = {
     // Customer Data
-    loadCustomerData: (): CheckoutCustomerData => {
+    loadCustomerData: (userId?: string | null): CheckoutCustomerData => {
         if (typeof window === 'undefined') {
             return { name: '', email: '', cpf: '', phone: '' };
         }
+        
+        // Se houver userId, verificar se os dados salvos pertencem a esse usuário
+        if (userId) {
+            const savedUserId = window.localStorage.getItem(CHECKOUT_CUSTOMER_USER_ID_KEY);
+            if (savedUserId && savedUserId !== userId) {
+                // Usuário diferente - limpar dados antigos
+                window.localStorage.removeItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
+                window.localStorage.removeItem(CHECKOUT_CUSTOMER_USER_ID_KEY);
+                return { name: '', email: '', cpf: '', phone: '' };
+            }
+        }
+        
         const raw = window.localStorage.getItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
         if (raw) {
             try {
@@ -36,14 +49,18 @@ export const storageHelpers = {
         return { name: '', email: '', cpf: '', phone: '' };
     },
 
-    saveCustomerData: (data: CheckoutCustomerData): void => {
+    saveCustomerData: (data: CheckoutCustomerData, userId?: string | null): void => {
         if (typeof window === 'undefined') return;
         window.localStorage.setItem(CHECKOUT_CUSTOMER_STORAGE_KEY, JSON.stringify(data));
+        if (userId) {
+            window.localStorage.setItem(CHECKOUT_CUSTOMER_USER_ID_KEY, userId);
+        }
     },
 
     clearCustomerData: (): void => {
         if (typeof window === 'undefined') return;
         window.localStorage.removeItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
+        window.localStorage.removeItem(CHECKOUT_CUSTOMER_USER_ID_KEY);
     },
 
     // Order

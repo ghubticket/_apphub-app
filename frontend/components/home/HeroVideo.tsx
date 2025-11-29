@@ -227,7 +227,7 @@ export default function HeroCarousel({
                                     fill
                                     className="object-cover md:hidden"
                                     priority={index === currentSlide}
-                                    sizes="100vw"
+                                    sizes="(max-width: 768px) 100vw, 0vw"
                                     onError={(e) => {
                                         console.error('Erro ao carregar imagem do slide mobile:', e);
                                     }}
@@ -240,7 +240,7 @@ export default function HeroCarousel({
                                     className="hidden object-cover md:block"
                                     priority={index === currentSlide}
                                     unoptimized={slide.imageUrl.startsWith('http') || slide.imageUrl.startsWith('https')}
-                                    sizes="100vw"
+                                    sizes="(min-width: 768px) 100vw, 0vw"
                                     onError={(e) => {
                                         console.error('Erro ao carregar imagem do slide:', slide.imageUrl, e);
                                     }}
