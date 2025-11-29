@@ -43,7 +43,7 @@ export const CheckoutErrorDisplay = React.memo(function CheckoutErrorDisplay({
     return (
         <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
             <Container className="py-12">
-                <CheckoutHeader />
+             
                 <div className="rounded-3xl border border-rose-200 bg-rose-50 p-10 text-center text-sm text-rose-700">
                     <p className="font-semibold">Erro ao criar pedido</p>
                     <p className="mt-2">{error}</p>
