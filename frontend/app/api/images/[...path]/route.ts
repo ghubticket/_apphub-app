@@ -45,7 +45,17 @@ export async function GET(
         // Garantir que não haja dupla barra
         const cleanBaseUrl = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
         const cleanImagePath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-        const imageUrl = `${cleanBaseUrl}${cleanImagePath}`;
+        
+        // Construir a URL - o path já vem decodificado do Next.js
+        // Precisamos codificar cada segmento do path, mas manter as barras
+        // Dividir o path em segmentos, codificar cada um, e juntar novamente
+        const pathSegments = cleanImagePath.split('/').filter(Boolean);
+        const encodedPath = '/' + pathSegments.map(segment => {
+            // Codificar o segmento, mas preservar barras se houver
+            return encodeURIComponent(segment);
+        }).join('/');
+        
+        const imageUrl = `${cleanBaseUrl}${encodedPath}`;
         
         // Log para debug (sempre, para ajudar a debugar em produção)
         console.log('[Image Proxy] Fetching image:', {
@@ -67,14 +77,17 @@ export async function GET(
         
         // Buscar a imagem da API
         // Adicionar Referer para passar pela proteção de hotlink do backend
-        // Tentar obter do header primeiro, depois construir a partir da URL da requisição
+        // O backend verifica o referer apenas em produção e se ele existir
+        // Se não houver referer, o backend permite (não bloqueia)
+        // Mas vamos enviar o referer do frontend para garantir
         let refererUrl = request.headers.get('referer');
         if (!refererUrl) {
             try {
                 const requestUrl = new URL(request.url);
                 refererUrl = `${requestUrl.protocol}//${requestUrl.host}`;
             } catch {
-                refererUrl = 'https://ghubtech.com.br';
+                // Usar o FRONTEND_URL da env ou fallback
+                refererUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || 'https://ghubtech.com.br';
             }
         }
         
@@ -82,11 +95,18 @@ export async function GET(
             method: 'GET',
             headers: {
                 'Accept': 'image/*',
-                'Referer': refererUrl,
+                // Só enviar Referer se tivermos uma URL válida
+                ...(refererUrl ? { 'Referer': refererUrl } : {}),
             },
             // Timeout de 10 segundos
             signal: AbortSignal.timeout(10000),
         };
+        
+        console.log('[Image Proxy] Fetch options:', {
+            refererUrl,
+            hasReferer: !!refererUrl,
+            imageUrl,
+        });
 
         // Em desenvolvimento com localhost HTTPS, usar módulo https diretamente
         if (isDevelopment && isLocalhost && isHttps) {
@@ -102,7 +122,7 @@ export async function GET(
                         method: 'GET',
                         headers: { 
                             'Accept': 'image/*',
-                            'Referer': refererUrl,
+                            ...(refererUrl ? { 'Referer': refererUrl } : {}),
                         },
                         rejectUnauthorized: false, // Desabilitar verificação SSL apenas em dev localhost
                     };
@@ -170,20 +190,67 @@ export async function GET(
             }
 
             if (!response.ok) {
+                // Tentar ler o corpo da resposta para debug
+                // IMPORTANTE: Não podemos ler o body duas vezes, então precisamos clonar a resposta
+                const responseClone = response.clone();
+                const errorText = await responseClone.text().catch(() => 'Unable to read error response');
+                
+                // Verificar se a resposta é HTML (pode ser uma página de erro do Next.js)
+                const contentType = response.headers.get('content-type') || '';
+                const isHtml = contentType.includes('text/html') || errorText.trim().startsWith('<!');
+                
                 console.error(`[Image Proxy] Failed to fetch image: ${imageUrl}`, {
                     status: response.status,
                     statusText: response.statusText,
+                    contentType,
+                    isHtml,
                     headers: Object.fromEntries(response.headers.entries()),
                     imagePath,
                     cleanBaseUrl,
                     userAgent: request.headers.get('user-agent'),
+                    errorBody: isHtml ? 'HTML response (likely Next.js error page)' : errorText.substring(0, 200),
                 });
-                return new NextResponse('Image not found', { status: response.status });
+                
+                // Se for 404, retornar 404, caso contrário retornar 500
+                const errorStatus = response.status === 404 ? 404 : 500;
+                return new NextResponse('Image not found', { 
+                    status: errorStatus,
+                    headers: {
+                        'Content-Type': 'text/plain',
+                    }
+                });
             }
 
             // Obter o tipo de conteúdo da imagem
             const contentType = response.headers.get('content-type') || 'image/jpeg';
+            
+            // Verificar se realmente é uma imagem
+            if (!contentType.startsWith('image/')) {
+                const bodyText = await response.text().catch(() => 'Unable to read response');
+                console.error(`[Image Proxy] Response is not an image: ${imageUrl}`, {
+                    contentType,
+                    bodyPreview: bodyText.substring(0, 200),
+                });
+                return new NextResponse('Invalid image response', { 
+                    status: 500,
+                    headers: {
+                        'Content-Type': 'text/plain',
+                    }
+                });
+            }
+            
             const imageBuffer = await response.arrayBuffer();
+            
+            // Verificar se o buffer não está vazio
+            if (imageBuffer.byteLength === 0) {
+                console.error(`[Image Proxy] Empty image buffer: ${imageUrl}`);
+                return new NextResponse('Empty image', { 
+                    status: 500,
+                    headers: {
+                        'Content-Type': 'text/plain',
+                    }
+                });
+            }
 
             // Log de sucesso
             console.log('[Image Proxy] Image fetched successfully:', {
