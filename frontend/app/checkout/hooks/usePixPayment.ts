@@ -371,6 +371,11 @@ export function usePixPayment(
                 navigation.allowNavigation();
                 
                 // CRÍTICO: Iniciar polling com o orderId real, que já está no orderIdRef
+                console.log('[usePixPayment] 🚀 Iniciando polling após gerar PIX:', {
+                    finalOrderId,
+                    orderIdRefCurrent: orderIdRef.current,
+                    timestamp: new Date().toISOString(),
+                });
                 startPolling(finalOrderId);
             } else {
                 throw new Error('Resposta inválida do servidor');
