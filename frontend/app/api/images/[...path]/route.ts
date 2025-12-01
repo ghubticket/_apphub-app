@@ -22,32 +22,26 @@ export async function GET(
         // Prioridade: API_URL (server-side) > NEXT_PUBLIC_API_URL > fallback
         let apiBaseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api';
         
-        // Se o caminho já começa com uploads/, não adicionar /api/ (imagens podem estar diretamente em /uploads/)
-        // Se o apiBaseUrl termina com /api, remover para evitar duplicação quando o caminho não precisa de /api/
-        if (imagePath.startsWith('uploads/')) {
-            // Imagens em /uploads/ não precisam de /api/ no caminho
-            // Remover /api do final do apiBaseUrl se existir
-            if (apiBaseUrl.endsWith('/api')) {
-                apiBaseUrl = apiBaseUrl.replace(/\/api$/, '');
-            } else if (apiBaseUrl.endsWith('/api/')) {
-                apiBaseUrl = apiBaseUrl.replace(/\/api\/$/, '');
-            }
-        } else {
-            // Para outros caminhos, manter /api/ se estiver no apiBaseUrl
-            // Mas garantir que não haja duplicação
-            if (apiBaseUrl.endsWith('/api/')) {
-                apiBaseUrl = apiBaseUrl.replace(/\/api\/$/, '/api');
-            }
+        // SEMPRE remover /api do final do apiBaseUrl, pois as imagens estão diretamente em /uploads/
+        // As imagens não estão em /api/uploads/, estão em /uploads/
+        if (apiBaseUrl.endsWith('/api')) {
+            apiBaseUrl = apiBaseUrl.replace(/\/api$/, '');
+        } else if (apiBaseUrl.endsWith('/api/')) {
+            apiBaseUrl = apiBaseUrl.replace(/\/api\/$/, '');
         }
         
         // Construir URL completa da imagem
-        const imageUrl = `${apiBaseUrl}/${imagePath}`;
+        // Garantir que não haja dupla barra
+        const cleanBaseUrl = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
+        const cleanImagePath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+        const imageUrl = `${cleanBaseUrl}${cleanImagePath}`;
         
         // Log para debug (apenas em desenvolvimento)
         if (process.env.NODE_ENV === 'development') {
             console.log('[Image Proxy] Fetching image:', {
                 imagePath,
-                apiBaseUrl,
+                originalApiBaseUrl: process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api',
+                cleanedApiBaseUrl: cleanBaseUrl,
                 imageUrl,
                 env: {
                     API_URL: process.env.API_URL ? 'set' : 'not set',
