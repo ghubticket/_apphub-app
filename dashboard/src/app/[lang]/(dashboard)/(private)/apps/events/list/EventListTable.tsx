@@ -37,6 +37,7 @@ import OptionMenu from '@core/components/option-menu'
 import tableStyles from '@core/styles/table.module.css'
 
 import { useEvents } from '@/hooks/useEvents'
+import { getProxiedImageUrl } from '@/utils/imageProxy'
 
 const columnHelper = createColumnHelper<any>()
 
@@ -86,16 +87,19 @@ const EventListTable = () => {
             {
                 accessorKey: 'name',
                 header: 'Evento',
-                cell: ({ row }) => (
-                    <div className='flex items-center gap-4'>
-                        <CustomAvatar src={row.original.squareImage || row.original.coverImage} alt={row.original.name} />
-                        <div className='flex flex-col'>
-                            <Typography color='text.primary' className='font-medium'>
-                                {row.original.name}
-                            </Typography>
+                cell: ({ row }) => {
+                    const imageUrl = row.original.squareImage || row.original.coverImage;
+                    return (
+                        <div className='flex items-center gap-4'>
+                            <CustomAvatar src={getProxiedImageUrl(imageUrl)} alt={row.original.name} />
+                            <div className='flex flex-col'>
+                                <Typography color='text.primary' className='font-medium'>
+                                    {row.original.name}
+                                </Typography>
+                            </div>
                         </div>
-                    </div>
-                )
+                    );
+                }
             },
             {
                 accessorKey: 'isActive',

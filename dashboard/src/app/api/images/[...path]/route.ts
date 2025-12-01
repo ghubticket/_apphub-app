@@ -36,8 +36,8 @@ export async function GET(
         const cleanImagePath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
         const imageUrl = `${cleanBaseUrl}${cleanImagePath}`;
         
-        // Log para debug (sempre, para ajudar a debugar em produção)
-        console.log('[Image Proxy] Fetching image:', {
+        // Log para debug
+        console.log('[Dashboard Image Proxy] Fetching image:', {
             imagePath,
             originalApiBaseUrl: process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api',
             cleanedApiBaseUrl: cleanBaseUrl,
@@ -95,6 +95,7 @@ export async function GET(
                     });
 
                     req.on('error', (error) => {
+                        console.error('[Dashboard Image Proxy] HTTPS request stream error:', error);
                         reject(error);
                     });
 
@@ -115,11 +116,11 @@ export async function GET(
                         },
                     });
                 } else {
-                    console.error(`[Image Proxy] Failed to fetch image: ${imageUrl}`, response.status);
+                    console.error(`[Dashboard Image Proxy] Failed to fetch image (HTTPS custom): ${imageUrl}`, response.status);
                     return new NextResponse('Image not found', { status: response.status });
                 }
             } catch (httpsError: any) {
-                console.error('[Image Proxy] HTTPS request error:', httpsError);
+                console.error('[Dashboard Image Proxy] HTTPS custom fetch error:', httpsError);
                 // Fallback para fetch normal
             }
         }
@@ -129,7 +130,7 @@ export async function GET(
             const response = await fetch(imageUrl, fetchOptions);
 
             if (!response.ok) {
-                console.error(`[Image Proxy] Failed to fetch image: ${imageUrl}`, {
+                console.error(`[Dashboard Image Proxy] Failed to fetch image: ${imageUrl}`, {
                     status: response.status,
                     statusText: response.statusText,
                     headers: Object.fromEntries(response.headers.entries()),
@@ -144,7 +145,7 @@ export async function GET(
             const imageBuffer = await response.arrayBuffer();
 
             // Log de sucesso
-            console.log('[Image Proxy] Image fetched successfully:', {
+            console.log('[Dashboard Image Proxy] Image fetched successfully:', {
                 imageUrl,
                 contentType,
                 size: imageBuffer.byteLength,
@@ -162,7 +163,7 @@ export async function GET(
                 },
             });
         } catch (fetchError: any) {
-            console.error('[Image Proxy] Fetch error:', {
+            console.error('[Dashboard Image Proxy] Fetch error:', {
                 imageUrl,
                 error: fetchError.message,
                 name: fetchError.name,
@@ -171,7 +172,7 @@ export async function GET(
             throw fetchError; // Re-throw para ser capturado pelo catch externo
         }
     } catch (error: any) {
-        console.error('[Image Proxy] Error:', error);
+        console.error('[Dashboard Image Proxy] Error:', error);
         
         // Retornar erro 500 ou 404 dependendo do tipo de erro
         if (error.name === 'AbortError' || error.name === 'TimeoutError') {

@@ -45,6 +45,7 @@ import { locationService, type UF, type City } from '@/services/locationService'
 import { useTicketTypes } from '@/hooks/useTicketTypes'
 import type { TicketTypeItem } from '@/services/ticketTypeService'
 import { getAvailableQuantities } from '@/services/reservationService'
+import { getProxiedImageUrl } from '@/utils/imageProxy'
 
 import '@/libs/styles/tiptapEditor.css'
 import dynamic from 'next/dynamic'
@@ -968,10 +969,17 @@ return
                                     }}
                                 >
                                     <img
-                                        src={event.coverImage}
+                                        src={getProxiedImageUrl(event.coverImage)}
                                         alt={event.name}
                                         className='w-full h-full object-cover'
                                         style={{ objectFit: 'cover' }}
+                                        onError={(e) => {
+                                            console.error('[Dashboard] Erro ao carregar imagem do evento:', {
+                                                originalUrl: event.coverImage,
+                                                proxiedUrl: getProxiedImageUrl(event.coverImage),
+                                                error: e
+                                            });
+                                        }}
                                     />
                                 </Box>
                             )}

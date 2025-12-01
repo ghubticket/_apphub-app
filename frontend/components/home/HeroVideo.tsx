@@ -52,7 +52,8 @@ export default function HeroCarousel({
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isLoaded, setIsLoaded] = useState(false);
     const [isTextTransitioning, setIsTextTransitioning] = useState(false);
-    const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
+    // Usar array em vez de Set para evitar problemas de hidratação
+    const [imageErrors, setImageErrors] = useState<number[]>([]);
     const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
     
     // Estados para touch/swipe
@@ -219,9 +220,9 @@ export default function HeroCarousel({
                                 title={`Vídeo de fundo - Slide ${index + 1}`}
                                 loading={index === currentSlide ? 'eager' : 'lazy'}
                             />
-                        ) : slide.type === 'image' && slide.imageUrl ? (
+                        ) : slide.type === 'image' ? (
                             <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
-                                {imageErrors.has(index) || !slide.imageUrl ? (
+                                {!slide.imageUrl || imageErrors.includes(index) ? (
                                     <p className="text-center text-sm text-[#a38f78] px-4">
                                         IMAGEM em construção.
                                     </p>
@@ -241,7 +242,9 @@ export default function HeroCarousel({
                                                 slideIndex: index,
                                                 error: e
                                             });
-                                            setImageErrors((prev) => new Set(prev).add(index));
+                                            setImageErrors((prev) => 
+                                                prev.includes(index) ? prev : [...prev, index]
+                                            );
                                         }}
                                     />
                                 )}
