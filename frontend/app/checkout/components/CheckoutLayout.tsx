@@ -20,6 +20,7 @@ import { useCheckoutState } from '../hooks/useCheckoutState';
 import { useOrderCleanup } from '../hooks/useOrderCleanup';
 import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { useCheckoutNavigation } from '../hooks/useCheckoutNavigation';
+import { useCheckoutStorage } from '../hooks/useCheckoutStorage';
 import { useCardPayment } from '../hooks/useCardPayment';
 import { usePixPayment } from '../hooks/usePixPayment';
 import { clearCartItems } from '@/lib/cart';
@@ -84,14 +85,42 @@ export function CheckoutLayout() {
     }, [order?._id, promoterCode, refreshOrder]);
 
     // Hooks de pagamento
+    // NOVO: Passar dados do carrinho e cliente para criar pedido real quando pagar com cartão
     const cardPayment = useCardPayment(order?._id ?? null);
-    const pixPayment = usePixPayment(order?._id ?? null, order?.expiresAt ?? null);
+    
+    // Adicionar dados do carrinho e cliente ao processPayment quando orderId for fake
+    const originalProcessPayment = cardPayment.processPayment;
+    const enhancedProcessPayment = useCallback(async (orderId: string, paymentData: any) => {
+        const isFakeOrder = orderId.startsWith('fake-');
+        if (isFakeOrder) {
+            // Adicionar dados do carrinho e cliente ao paymentData
+            paymentData.cartItems = summarizedCart;
+            paymentData.customerData = customerData;
+            if (promoterCode) {
+                paymentData.promoterCode = promoterCode;
+            }
+        }
+        return originalProcessPayment(orderId, paymentData);
+    }, [originalProcessPayment, summarizedCart, customerData, promoterCode]);
+    
+    // Substituir processPayment
+    const cardPaymentWithData = {
+        ...cardPayment,
+        processPayment: enhancedProcessPayment,
+    };
+    const pixPayment = usePixPayment(
+        order?._id ?? null, 
+        order?.expiresAt ?? null,
+        summarizedCart,
+        customerData,
+        promoterCode
+    );
 
     // Estado consolidado do checkout
     const checkoutState = useCheckoutState({
         order,
-        cardPaymentStatus: cardPayment.status,
-        cardPaymentRedirectCountdown: cardPayment.redirectCountdown,
+        cardPaymentStatus: cardPaymentWithData.status,
+        cardPaymentRedirectCountdown: cardPaymentWithData.redirectCountdown,
         pixPaymentStatus: pixPayment.status,
         pixPaymentRedirectCountdown: pixPayment.redirectCountdown,
         pixResult: pixPayment.pixResult,
@@ -104,6 +133,18 @@ export function CheckoutLayout() {
         clearOrder,
         refreshCart,
     });
+
+    // Hook de storage para verificar flag PIX
+    const storage = useCheckoutStorage();
+
+    // Restaurar flag de navegação se houver flag PIX ativa (após reload)
+    useEffect(() => {
+        const pixOrderId = storage.getPixOrderActive();
+        if (pixOrderId) {
+            console.log('[CheckoutLayout] 🔓 Flag PIX ativa detectada, liberando navegação:', pixOrderId);
+            navigation.allowNavigation();
+        }
+    }, [storage, navigation]);
 
     // Escutar mudanças no storage para sincronizar entre abas
     useEffect(() => {
@@ -125,10 +166,16 @@ export function CheckoutLayout() {
     // Regra: só bloquear navegação enquanto ainda NÃO há PIX gerado nem pagamento aprovado.
     // Após gerar o QR Code PIX (hasGeneratedPix=true), o usuário pode sair livremente e o pedido
     // será cancelado somente pelas regras de expiração do backend.
+    // CRÍTICO: Também verificar flag PIX no sessionStorage para garantir navegação liberada após reload
+    const hasPixActiveFlag = useMemo(() => {
+        return storage.getPixOrderActive() !== null;
+    }, [storage]);
+
     useNavigationGuard({
         enabled:
             !checkoutState.isPaymentApproved &&
             !checkoutState.hasGeneratedPix &&
+            !hasPixActiveFlag && // CRÍTICO: Se há flag PIX ativa, não bloquear navegação
             (!!(order && order.status === 'pending') || checkoutState.hasPendingOrderInStorage),
         onNavigationAttempt: () => {
             checkoutState.setShowExitWarning(true);
@@ -200,6 +247,15 @@ export function CheckoutLayout() {
             status: order.status,
         });
 
+        // NOVO: Se pedido é fake, apenas limpar estado local (não chamar backend)
+        const isFakeOrder = order._id.startsWith('fake-');
+        if (isFakeOrder) {
+            console.log('[CheckoutLayout] 🎭 Pedido fake detectado, apenas limpando estado local');
+            orderCleanup.cleanupAll(order._id, { skipBackend: true });
+            router.refresh();
+            return;
+        }
+
         try {
             await api.post(`/orders/${order._id}/cancel`);
             console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso no backend');
@@ -227,14 +283,20 @@ export function CheckoutLayout() {
 
         try {
             if (order?._id) {
-                try {
-                    console.log('[CheckoutLayout] 🗑️ Cancelando pedido antes de limpar carrinho:', order._id);
-                    await api.post(`/orders/${order._id}/cancel`);
-                    console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso');
-                } catch (cancelErr: any) {
-                    if (cancelErr?.response?.status !== 404) {
-                        console.error('[CheckoutLayout] ⚠️ Erro ao cancelar pedido:', cancelErr);
+                // NOVO: Se pedido é fake, não chamar backend
+                const isFakeOrder = order._id.startsWith('fake-');
+                if (!isFakeOrder) {
+                    try {
+                        console.log('[CheckoutLayout] 🗑️ Cancelando pedido antes de limpar carrinho:', order._id);
+                        await api.post(`/orders/${order._id}/cancel`);
+                        console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso');
+                    } catch (cancelErr: any) {
+                        if (cancelErr?.response?.status !== 404) {
+                            console.error('[CheckoutLayout] ⚠️ Erro ao cancelar pedido:', cancelErr);
+                        }
                     }
+                } else {
+                    console.log('[CheckoutLayout] 🎭 Pedido fake detectado, pulando cancelamento no backend');
                 }
             }
 
@@ -263,6 +325,14 @@ export function CheckoutLayout() {
         if (!orderId) {
             console.log('[CheckoutLayout] ⚠️ Nenhum pedido encontrado, apenas saindo');
             orderCleanup.cleanupAll(null, { skipBackend: true, redirectTo: '/' });
+            return;
+        }
+
+        // NOVO: Se pedido é fake, apenas limpar estado local (não chamar backend)
+        const isFakeOrder = orderId.startsWith('fake-');
+        if (isFakeOrder) {
+            console.log('[CheckoutLayout] 🎭 Pedido fake detectado, apenas limpando estado local e saindo');
+            orderCleanup.cleanupAll(orderId, { skipBackend: true, redirectTo: '/' });
             return;
         }
 

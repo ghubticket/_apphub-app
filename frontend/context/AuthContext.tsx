@@ -154,6 +154,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window !== 'undefined') {
       removeAuthData(window.localStorage);
       removeAuthData(window.sessionStorage);
+      
+      // CRÍTICO: Limpar dados do checkout ao fazer logout para evitar vazamento de dados entre usuários
+      try {
+        const { storageHelpers } = require('@/app/checkout/utils/storageHelpers');
+        storageHelpers.clearCustomerData();
+      } catch (err) {
+        // Ignorar erro se módulo não estiver disponível
+        console.warn('[AuthContext] Não foi possível limpar dados do checkout:', err);
+      }
     }
     setState({ ...DEFAULT_STATE });
     setIsReady(true);

@@ -2,10 +2,12 @@
 
 import { useCallback } from 'react';
 import api from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import { getMercadoPagoDeviceId, waitForMercadoPagoDeviceId } from '../utils/deviceIdHelper';
 import { useCheckoutNavigation } from './useCheckoutNavigation';
 import { useCheckoutStorage } from './useCheckoutStorage';
-import { clearCartItems } from '@/lib/cart';
+import { clearCartItems, loadCartItems } from '@/lib/cart';
+import { storageHelpers } from '../utils/storageHelpers';
 
 export interface CardPaymentData {
     token: string;
@@ -49,6 +51,8 @@ export function usePaymentProcessing({
     processingRef,
     onCountdownUpdate,
 }: UsePaymentProcessingOptions): UsePaymentProcessingReturn {
+    const { user } = useAuth();
+    const userId = user?._id || user?.id || null;
     const navigation = useCheckoutNavigation();
     const storage = useCheckoutStorage();
 
@@ -134,6 +138,102 @@ export function usePaymentProcessing({
                 payload.cardholder = cardholderData;
             }
             
+            // NOVO: Se orderId é fake, enviar dados do carrinho e cliente para criar pedido real
+            const isFakeOrder = orderId.startsWith('fake-');
+            if (isFakeOrder) {
+                // Obter dados do carrinho e cliente - tentar múltiplas fontes
+                let currentCartItems = (paymentData as any).cartItems;
+                let currentCustomerData = (paymentData as any).customerData;
+                let currentPromoterCode = (paymentData as any).promoterCode;
+                
+                // Se não temos dados do paymentData, tentar obter do storage/cart diretamente
+                if (!currentCartItems || currentCartItems.length === 0) {
+                    try {
+                        const rawCartItems = loadCartItems().filter((item) => item.quantity > 0);
+                        if (rawCartItems.length > 0) {
+                            // Calcular valores como no useCheckoutCart
+                            currentCartItems = rawCartItems.map((item: any) => {
+                                const subtotal = item.price * item.quantity;
+                                const platformFeeValue = item.platformFeePercentage ? (subtotal * item.platformFeePercentage) / 100 : 0;
+                                const fixedFeeValue = item.ticketFee ? item.ticketFee * item.quantity : 0;
+                                return {
+                                    ...item,
+                                    subtotal,
+                                    platformFeeValue,
+                                    fixedFeeValue,
+                                    total: subtotal + platformFeeValue + fixedFeeValue,
+                                };
+                            });
+                            console.log('[usePaymentProcessing] 📦 Carrinho carregado do storage:', currentCartItems.length, 'itens');
+                        }
+                    } catch (err) {
+                        console.error('[usePaymentProcessing] ❌ Erro ao carregar carrinho do storage:', err);
+                    }
+                }
+                
+                if (!currentCustomerData || !currentCustomerData.name || !currentCustomerData.email) {
+                    try {
+                        // CRÍTICO: Passar userId para validar que os dados pertencem ao usuário atual
+                        const storedCustomerData = storageHelpers.loadCustomerData(userId);
+                        if (storedCustomerData && storedCustomerData.name && storedCustomerData.email) {
+                            currentCustomerData = storedCustomerData;
+                            console.log('[usePaymentProcessing] 👤 Dados do cliente carregados do storage');
+                        }
+                    } catch (err) {
+                        console.error('[usePaymentProcessing] ❌ Erro ao carregar dados do cliente do storage:', err);
+                    }
+                }
+                
+                console.log('[usePaymentProcessing] 🎭 Pedido fake detectado, preparando dados do carrinho:', {
+                    hasCartItems: !!currentCartItems,
+                    cartItemsLength: currentCartItems?.length,
+                    hasCustomerData: !!currentCustomerData,
+                });
+                
+                if (!currentCartItems || currentCartItems.length === 0) {
+                    setStatus('error');
+                    setStatusMessage('Carrinho vazio. Por favor, adicione itens ao carrinho antes de pagar.');
+                    setStatusDetails(['Carrinho vazio']);
+                    processingRef.current = false;
+                    return;
+                }
+                
+                if (!currentCustomerData || !currentCustomerData.name || !currentCustomerData.email) {
+                    setStatus('error');
+                    setStatusMessage('Dados do cliente incompletos. Por favor, preencha nome e email.');
+                    setStatusDetails(['Dados do cliente incompletos']);
+                    processingRef.current = false;
+                    return;
+                }
+                
+                // Garantir que os dados estão no formato correto
+                payload.cartItems = currentCartItems.map((item: any) => ({
+                    eventId: item.eventId,
+                    id: item.id, // ticketTypeId
+                    quantity: item.quantity,
+                    price: item.price,
+                    name: item.name,
+                }));
+                
+                payload.customerData = {
+                    name: currentCustomerData.name,
+                    email: currentCustomerData.email,
+                    cpf: currentCustomerData.cpf || undefined,
+                    phone: currentCustomerData.phone || undefined,
+                };
+                
+                if (currentPromoterCode) {
+                    payload.promoterCode = currentPromoterCode;
+                }
+                
+                console.log('[usePaymentProcessing] 📦 Dados preparados para criar pedido real:', {
+                    cartItemsCount: payload.cartItems.length,
+                    firstItem: payload.cartItems[0],
+                    customerName: payload.customerData.name,
+                    customerEmail: payload.customerData.email,
+                });
+            }
+            
             // Enviar requisição com deviceId no body e header
             const response = await api.post(
                 `/payments/${orderId}/card`,
@@ -147,6 +247,14 @@ export function usePaymentProcessing({
 
             const paymentResult = response.data?.data || response.data;
             const statusInfo = paymentResult?.statusInfo;
+            
+            // NOVO: Se pedido real foi criado, atualizar orderId
+            const realOrderId = paymentResult.createdOrderId || orderId;
+            if (realOrderId !== orderId && realOrderId) {
+                console.log(`[usePaymentProcessing] ✅ Pedido real criado: ${realOrderId} (era fake: ${orderId})`);
+                // Atualizar storage com orderId real
+                storage.saveOrderId(realOrderId);
+            }
             
             // Verificar status do pagamento
             const paymentStatus = paymentResult?.paymentStatus || paymentResult?.status;

@@ -579,7 +579,7 @@ export const createOrder = async (req: Request, res: Response) => {
             // Capturar IP do cliente para detecção de padrões suspeitos
             const ipAddress = (
                 req.ip ||
-                req.connection.remoteAddress ||
+                req.socket?.remoteAddress ||
                 req.headers['x-forwarded-for'] ||
                 'unknown'
             ).toString();

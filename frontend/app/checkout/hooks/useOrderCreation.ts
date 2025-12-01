@@ -68,6 +68,24 @@ export function useOrderCreation({
         }
     }, []);
 
+    // Função helper para gerar número de pedido fake
+    const generateFakeOrderNumber = useCallback((): string => {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        return Array.from({ length: 10 })
+            .map(() => characters.charAt(Math.floor(Math.random() * characters.length)))
+            .join('');
+    }, []);
+
+    // Função helper para calcular total do pedido fake
+    const calculateFakeOrderTotal = useCallback((cartItems: CheckoutCartItem[]): number => {
+        return cartItems.reduce((acc, item) => acc + item.total, 0);
+    }, []);
+
+    // Função helper para calcular total de tickets do pedido fake
+    const calculateFakeOrderTotalTickets = useCallback((cartItems: CheckoutCartItem[]): number => {
+        return cartItems.reduce((acc, item) => acc + item.quantity, 0);
+    }, []);
+
     const createOrder = useCallback(async (
         cartItems: CheckoutCartItem[],
         customerData: { name: string; email: string; cpf: string; phone: string }
@@ -83,7 +101,7 @@ export function useOrderCreation({
             return;
         }
 
-        // Validação extra de CPF e telefone no frontend antes de chamar o backend
+        // Validação extra de CPF e telefone no frontend
         const normalizedCpf = (customerData.cpf || '').replace(/\D/g, '');
         const normalizedPhone = (customerData.phone || '').replace(/\D/g, '');
 
@@ -103,391 +121,140 @@ export function useOrderCreation({
             return;
         }
         
-        // CRÍTICO: Proteção contra loop infinito - evitar criar pedidos muito rapidamente
-        const now = Date.now();
-        const lastCreateTime = lastCreateTimeRef.current;
-        
-        // Se lastCreateTime está no futuro, significa que há um bloqueio ativo (ex: após rate limit)
-        if (lastCreateTime > now) {
-            const remainingBlockTime = Math.ceil((lastCreateTime - now) / 1000); // segundos restantes
-            const remainingMinutes = Math.ceil(remainingBlockTime / 60);
-            const remainingSeconds = remainingBlockTime % 60;
-            
-            console.warn(`[useOrderCreation] ⚠️ Criação de pedido bloqueada. Aguarde ${remainingBlockTime} segundos.`);
-            
-            if (remainingMinutes > 0) {
-                setError(`Muitas tentativas de criar pedido. Aguarde ${remainingMinutes} minuto${remainingMinutes > 1 ? 's' : ''} antes de tentar novamente. Ou recarregue a página para resetar.`);
-            } else {
-                setError(`Muitas tentativas de criar pedido. Aguarde ${remainingSeconds} segundo${remainingSeconds > 1 ? 's' : ''} antes de tentar novamente.`);
-            }
-            return;
-        }
-        
-        // Verificar se passou tempo mínimo desde última criação
-        const timeSinceLastCreate = now - lastCreateTime;
-        if (timeSinceLastCreate < 2000 && lastCreateTime > 0) { // Mínimo de 2 segundos entre criações
-            console.warn('[useOrderCreation] ⚠️ Tentativa de criar pedido muito rapidamente após última criação, ignorando para evitar loop infinito');
-            return;
-        }
-        
-        // OTIMIZADO: Cancelar requisição anterior se existir
-        if (createOrderAbortControllerRef.current) {
-            console.log('[useOrderCreation] 🛑 Cancelando requisição anterior de createOrder');
-            createOrderAbortControllerRef.current.abort();
-        }
-        
-        // Criar novo AbortController para esta requisição
-        const abortController = new AbortController();
-        createOrderAbortControllerRef.current = abortController;
-        
         creatingRef.current = true;
-        lastCreateTimeRef.current = now; // Registrar timestamp da criação
 
         try {
             console.log('[useOrderCreation] 🔄 setLoading(true) - ATIVANDO loading');
             setLoading(true);
             setError(null);
 
-            // IMPORTANTE: Se há orderId no storage, primeiro verificar se o pedido ainda é válido
-            // OTIMIZADO: Usar cache primeiro
+            // IMPORTANTE: Se há orderId no storage, verificar se é um pedido real (não fake)
             const existingOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current || storage.loadOrderId();
-            if (existingOrderId && !order) {
-                console.log('[useOrderCreation] 🔍 Encontrado orderId no storage antes de criar, verificando se pedido ainda é válido:', existingOrderId);
+            if (existingOrderId && !existingOrderId.startsWith('fake-') && !order) {
+                console.log('[useOrderCreation] 🔍 Encontrado orderId real no storage, verificando se pedido ainda é válido:', existingOrderId);
                 try {
-                    const checkResponse = await api.get(`/orders/${existingOrderId}`, {
-                        signal: abortController.signal,
-                    });
+                    const checkResponse = await api.get(`/orders/${existingOrderId}`);
                     const existingOrder = checkResponse.data?.data?.order;
                     
                     if (existingOrder && existingOrder.status === 'pending' && existingOrder.expiresAt) {
                         const hasExpired = isOrderExpired(existingOrder.expiresAt);
                         
                         if (!hasExpired) {
-                            // Pedido ainda válido, usar ele ao invés de criar novo
+                            // Pedido ainda válido, usar ele
                             const remainingMinutes = Math.floor(getRemainingTime(existingOrder.expiresAt) / 60000);
-                            console.log('[useOrderCreation] ✅ Pedido existente ainda válido, usando ao invés de criar novo:', {
+                            console.log('[useOrderCreation] ✅ Pedido existente ainda válido, usando:', {
                                 orderId: existingOrder._id,
                                 remainingMinutes,
                             });
                             setOrder(existingOrder);
                             orderIdRef.current = existingOrder._id;
-                            cachedOrderIdFromStorageRef.current = existingOrder._id; // OTIMIZADO: Atualizar cache
+                            cachedOrderIdFromStorageRef.current = existingOrder._id;
                             storage.saveOrderId(existingOrder._id);
                             console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido existente válido encontrado');
                             setLoading(false);
                             creatingRef.current = false;
-                            return; // Não criar novo pedido
+                            return;
                         } else {
-                            // Pedido expirado, cancelar, limpar e mostrar modal
-                            console.log('[useOrderCreation] ⏰ Pedido existente expirado, cancelando e limpando:', existingOrderId);
-                            try {
-                                await cancelOrderInBackend(existingOrderId);
-                            } catch (cancelErr: any) {
-                                // Ignorar erro 404 (já foi cancelado)
-                                if (cancelErr?.response?.status !== 404) {
-                                    console.error('[useOrderCreation] ❌ Erro ao cancelar pedido expirado:', cancelErr);
-                                }
-                            }
-                            
-                            // Limpar estado
+                            // Pedido expirado, limpar
+                            console.log('[useOrderCreation] ⏰ Pedido existente expirado, limpando:', existingOrderId);
                             storage.clearOrderRelated();
                             orderIdRef.current = null;
-                            cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
+                            cachedOrderIdFromStorageRef.current = null;
                             setOrder(null);
                             console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido expirado');
                             setLoading(false);
                             creatingRef.current = false;
                             
-                            // Mostrar modal de expiração
                             if (!hasShownExpiredModalRef.current) {
                                 console.log('[useOrderCreation] 🔔 Mostrando modal de pedido expirado');
                                 setShowExpiredModal(true);
                                 hasShownExpiredModalRef.current = true;
                             }
-                            
-                            return; // Não criar novo pedido automaticamente
-                        }
-                    } else {
-                        // Pedido não é PENDING ou não tem expiresAt, limpar
-                        const orderStatus = existingOrder?.status || 'undefined';
-                        console.log('[useOrderCreation] 🗑️ Pedido existente não é válido (status:', orderStatus, '), limpando');
-                        storage.clearOrderRelated();
-                        orderIdRef.current = null;
-                        cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
-                        
-                        // CRÍTICO: Se o pedido tem status 'failed', não criar novo automaticamente
-                        // Isso evita loop infinito quando o backend retorna pedidos com status 'failed'
-                        if (orderStatus === 'failed' || orderStatus === 'cancelled') {
-                            console.warn('[useOrderCreation] ⚠️ Pedido com status inválido detectado, abortando criação de novo pedido para evitar loop infinito');
-                            console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido com status inválido');
-                            setLoading(false);
-                            creatingRef.current = false;
-                            setError('Não foi possível criar um pedido válido. Por favor, tente novamente.');
-                            return; // CRÍTICO: Retornar para evitar criar novo pedido
+                            return;
                         }
                     }
                 } catch (checkErr: any) {
-                    // OTIMIZADO: Ignorar erros de cancelamento intencional
-                    if (checkErr.name === 'AbortError' || checkErr.name === 'CanceledError' || (checkErr.code === 'ERR_CANCELED')) {
-                        console.log('[useOrderCreation] ⏸️ Requisição de verificação cancelada intencionalmente');
-                        return;
-                    }
-                    
-                    // Se pedido não encontrado (404/403), limpar e criar novo
+                    // Se pedido não encontrado (404/403), limpar e criar fake
                     if (checkErr?.response?.status === 404 || checkErr?.response?.status === 403) {
-                        console.log('[useOrderCreation] ⚠️ Pedido existente não encontrado ou sem acesso, limpando e criando novo');
+                        console.log('[useOrderCreation] ⚠️ Pedido existente não encontrado, limpando e criando fake');
                         storage.clearOrderRelated();
                         orderIdRef.current = null;
-                        cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
-                    } else {
-                        // Outro erro, logar mas continuar tentando criar
-                        console.error('[useOrderCreation] ❌ Erro ao verificar pedido existente:', checkErr);
+                        cachedOrderIdFromStorageRef.current = null;
                     }
                 }
             }
 
-            // O backend agrupa automaticamente itens do mesmo evento em um único pedido
-            // Criar pedido com o primeiro item - o backend vai adicionar outros itens ao mesmo pedido
-            // se forem do mesmo evento/cliente
+            // NOVO: Criar pedido "fake" local ao invés de chamar backend
+            // O pedido real será criado apenas quando PIX for gerado ou cartão for pago
             const firstItem = cartItems[0];
-
             if (!firstItem.eventId) {
                 throw new Error('Item do carrinho sem eventId');
             }
 
-            const orderPayload = {
-                eventId: firstItem.eventId,
-                ticketTypeId: firstItem.id,
-                quantity: firstItem.quantity,
+            const now = Date.now();
+            const fakeOrderId = `fake-${now}`;
+            const fakeOrderNumber = generateFakeOrderNumber();
+            const totalAmount = calculateFakeOrderTotal(cartItems);
+            const totalTickets = calculateFakeOrderTotalTickets(cartItems);
+            const CHECKOUT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos
+            const expiresAt = new Date(now + CHECKOUT_TIMEOUT_MS);
+
+            const fakeOrder = {
+                _id: fakeOrderId,
+                orderNumber: fakeOrderNumber,
+                status: 'pending' as const,
+                expiresAt: expiresAt.toISOString(),
+                totalAmount,
+                totalTickets,
+                paymentMethod: undefined,
+                createdAt: new Date(now).toISOString(),
+                discountAmount: 0,
+                promoterCode: promoterCode || null,
                 customerData: {
                     name: customerData.name,
                     email: customerData.email,
                     cpf: customerData.cpf || undefined,
                     phone: customerData.phone || undefined,
                 },
-                ...(promoterCode ? { promoterCode: promoterCode.toUpperCase().trim() } : {}),
+                event: firstItem.eventId,
+                isFake: true, // Flag para identificar pedido fake
             };
 
-            console.log('[useOrderCreation] 🚀 Criando novo pedido no backend:', {
-                eventId: orderPayload.eventId,
-                ticketTypeId: orderPayload.ticketTypeId,
-                quantity: orderPayload.quantity,
-                customerEmail: orderPayload.customerData.email,
+            console.log('[useOrderCreation] 🎭 Criando pedido FAKE local:', {
+                orderId: fakeOrderId,
+                orderNumber: fakeOrderNumber,
+                totalAmount,
+                totalTickets,
+                expiresAt: expiresAt.toISOString(),
             });
 
-            const response = await api.post('/orders', orderPayload, {
-                signal: abortController.signal,
-            });
-            const orderData = response.data?.data?.order;
+            // Salvar pedido fake no estado
+            setOrder(fakeOrder);
+            orderIdRef.current = fakeOrderId;
+            cachedOrderIdFromStorageRef.current = fakeOrderId;
+            storage.saveOrderId(fakeOrderId);
+            
+            // Salvar timer para o pedido fake
+            storage.saveTimer(now);
+            console.log('[useOrderCreation] 💾 Timer salvo no localStorage para pedido fake');
 
-            if (orderData) {
-                console.log('[useOrderCreation] ✅ Pedido criado com sucesso:', {
-                    orderId: orderData._id,
-                    orderNumber: orderData.orderNumber,
-                    status: orderData.status,
-                    expiresAt: orderData.expiresAt,
-                    expiresAtType: typeof orderData.expiresAt,
-                    expiresAtParsed: orderData.expiresAt ? new Date(orderData.expiresAt).toISOString() : null,
-                    now: new Date().toISOString(),
-                    totalAmount: orderData.totalAmount,
-                    totalTickets: orderData.totalTickets,
-                });
-                
-                // CRÍTICO: Validar se o pedido foi criado com status válido
-                // Se o backend retornar 'failed', não salvar no storage para evitar loop infinito
-                if (orderData.status === 'failed' || orderData.status === 'cancelled') {
-                    console.error('[useOrderCreation] ❌ Pedido criado com status inválido:', orderData.status);
-                    console.error('[useOrderCreation] 📋 Detalhes do pedido inválido:', {
-                        orderId: orderData._id,
-                        orderNumber: orderData.orderNumber,
-                        status: orderData.status,
-                        totalAmount: orderData.totalAmount,
-                        eventId: orderData.event,
-                        ticketTypeId: orderData.tickets?.[0]?.ticketType,
-                    });
-                    
-                    console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido criado com status inválido (failed/cancelled)');
-                    setLoading(false);
-                    creatingRef.current = false;
-                    
-                    // CRÍTICO: Limpar qualquer pedido inválido do storage para evitar loops
-                    storage.clearOrderRelated();
-                    orderIdRef.current = null;
-                    cachedOrderIdFromStorageRef.current = null;
-                    
-                    // Mensagem de erro mais amigável
-                    setError(`Não foi possível criar um pedido válido. Status: ${orderData.status}. Por favor, tente novamente.`);
-                    
-                    // NÃO definir orderIdRef para evitar tentativas de refresh
-                    createOrderAbortControllerRef.current = null;
-                    
-                    // CRÍTICO: Não tentar criar novamente automaticamente
-                    // O usuário precisará tentar manualmente ou recarregar a página
-                    return; // Retornar sem salvar o pedido inválido
-                }
-                
-                // Pedido válido, salvar normalmente
-                setOrder(orderData);
-                orderIdRef.current = orderData._id;
-                cachedOrderIdFromStorageRef.current = orderData._id; // OTIMIZADO: Atualizar cache
-                storage.saveOrderId(orderData._id);
-                createOrderAbortControllerRef.current = null; // Limpar AbortController após sucesso
-                
-                // IMPORTANTE: Desativar loading após criar pedido com sucesso
-                // O CheckoutLoadingState vai manter o loading visual por 10s usando seu próprio estado
-                console.log('[useOrderCreation] ✅ Pedido criado com sucesso - desativando loading (CheckoutLoadingState vai manter visual por 10s)');
-                setLoading(false);
-                
-                // IMPORTANTE: Se o pedido tem expiresAt, salvar o timer no localStorage para usar como fallback
-                if (orderData.status === 'pending' && orderData.expiresAt) {
-                    const expiresAtDate = parseExpiresAt(orderData.expiresAt);
-                    const now = Date.now();
-                    const expiresAtTimestamp = expiresAtDate?.getTime() || 0;
-                    const remaining = expiresAtTimestamp > 0 ? Math.max(0, expiresAtTimestamp - now) : 0;
-                    
-                    console.log('[useOrderCreation] ⏰ Calculando timer do pedido:', {
-                        expiresAt: orderData.expiresAt,
-                        expiresAtParsed: expiresAtDate?.toISOString(),
-                        expiresAtTimestamp,
-                        remainingMs: remaining,
-                        remainingMinutes: Math.floor(remaining / 60000),
-                        remainingSeconds: Math.floor(remaining / 1000),
-                        now,
-                        nowISO: new Date(now).toISOString(),
-                        deviceTimeOffset: new Date().getTimezoneOffset(), // offset em minutos
-                    });
-                    
-                    // CRÍTICO: Validar se o tempo restante faz sentido
-                    // Se o dispositivo está dessincronizado, o remaining pode estar negativo ou muito grande
-                    const expectedMin = 25 * 60 * 1000; // Mínimo esperado: 25 minutos (permite 5min de tolerância)
-                    const expectedMax = 35 * 60 * 1000; // Máximo esperado: 35 minutos (permite 5min de tolerância)
-                    
-                    if (remaining > 0 && remaining >= expectedMin && remaining <= expectedMax) {
-                        // Tempo válido, salvar normalmente
-                        const startTime = now - (30 * 60 * 1000 - remaining); // 30 minutos
-                        storage.saveTimer(startTime);
-                        console.log('[useOrderCreation] 💾 Timer salvo no localStorage baseado no expiresAt do pedido criado:', {
-                            expiresAt: expiresAtDate?.toISOString(),
-                            startTime: new Date(startTime).toISOString(),
-                            startTimeMs: startTime,
-                            remainingMinutes: Math.floor(remaining / 60000),
-                            remainingSeconds: Math.floor(remaining / 1000),
-                        });
-                    } else if (remaining <= 0) {
-                        // Tempo já expirou ou é negativo (dispositivo à frente)
-                        console.warn('[useOrderCreation] ⚠️ Pedido criado mas expiresAt já expirou ou dispositivo está à frente:', {
-                            expiresAt: orderData.expiresAt,
-                            expiresAtParsed: expiresAtDate?.toISOString(),
-                            remaining,
-                            remainingMinutes: Math.floor(remaining / 60000),
-                            deviceTimeOffset: new Date().getTimezoneOffset(),
-                        });
-                        // Usar fallback: assumir que faltam 30 minutos (mais seguro)
-                        const fallbackStartTime = now;
-                        storage.saveTimer(fallbackStartTime);
-                        console.log('[useOrderCreation] 💾 Timer salvo com fallback (30min a partir de agora):', {
-                            startTime: new Date(fallbackStartTime).toISOString(),
-                        });
-                    } else {
-                        // Tempo muito grande (dispositivo atrás) ou muito pequeno
-                        console.warn('[useOrderCreation] ⚠️ Tempo restante fora do esperado (dispositivo dessincronizado?):', {
-                            expiresAt: orderData.expiresAt,
-                            expiresAtParsed: expiresAtDate?.toISOString(),
-                            remaining,
-                            remainingMinutes: Math.floor(remaining / 60000),
-                            expectedRange: `${Math.floor(expectedMin / 60000)}-${Math.floor(expectedMax / 60000)} minutos`,
-                            deviceTimeOffset: new Date().getTimezoneOffset(),
-                        });
-                        // Usar fallback: assumir que faltam 30 minutos (mais seguro)
-                        const fallbackStartTime = now;
-                        storage.saveTimer(fallbackStartTime);
-                        console.log('[useOrderCreation] 💾 Timer salvo com fallback (30min a partir de agora):', {
-                            startTime: new Date(fallbackStartTime).toISOString(),
-                        });
-                    }
-                } else {
-                    // Limpar timer antigo do localStorage se pedido não tem expiresAt
-                    storage.clearTimer();
-                    console.log('[useOrderCreation] 🧹 Timer antigo do localStorage limpo (novo pedido criado sem expiresAt)', {
-                        status: orderData.status,
-                        hasExpiresAt: !!orderData.expiresAt,
-                    });
-                }
-            }
+            // Desativar loading
+            console.log('[useOrderCreation] ✅ Pedido fake criado com sucesso - desativando loading');
+            setLoading(false);
         } catch (err: any) {
-            // OTIMIZADO: Ignorar erros de cancelamento intencional
-            if (err.name === 'AbortError' || err.name === 'CanceledError' || (err.code === 'ERR_CANCELED')) {
-                console.log('[useOrderCreation] ⏸️ Requisição de criação cancelada intencionalmente');
-                return;
-            }
-            
-            const statusCode = err?.response?.status;
-            let errorMessage = err?.response?.data?.message || err?.message || 'Erro ao criar pedido';
-            
-            // CRÍTICO: Tratar erro 429 (Rate Limit) especificamente
-            if (statusCode === 429) {
-                // Em desenvolvimento, bloqueio mais curto para facilitar testes
-                const isDevelopment = typeof window !== 'undefined' && (
-                    process.env.NODE_ENV !== 'production' || 
-                    window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1'
-                );
-                const blockDuration = isDevelopment ? 10 * 1000 : 5 * 60 * 1000; // 10 segundos em dev, 5 minutos em produção
-                const blockUntil = Date.now() + blockDuration;
-                lastCreateTimeRef.current = blockUntil;
-                
-                const blockSeconds = isDevelopment ? 10 : 300;
-                const blockMinutes = Math.floor(blockSeconds / 60);
-                errorMessage = `Muitas tentativas de criar pedido. O sistema está temporariamente bloqueado. Aguarde ${isDevelopment ? `${blockSeconds} segundos` : `${blockMinutes} minutos`} ou recarregue a página para tentar novamente.`;
-                console.warn(`[useOrderCreation] ⚠️ Rate limit atingido (429). Bloqueando tentativas automáticas por ${isDevelopment ? `${blockSeconds} segundos` : `${blockMinutes} minutos`}.`);
-                
-                // Limpar qualquer pedido inválido do storage
-                const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current;
-                if (savedOrderId) {
-                    orderIdRef.current = null;
-                    cachedOrderIdFromStorageRef.current = null;
-                    storage.clearOrderRelated();
-                    setOrder(null);
-                }
-            }
-            
+            const errorMessage = err?.message || 'Erro ao criar pedido fake';
             setError(errorMessage);
-            console.error('[useOrderCreation] ❌ Erro ao criar pedido:', {
-                status: statusCode,
+            console.error('[useOrderCreation] ❌ Erro ao criar pedido fake:', {
                 message: errorMessage,
                 error: err,
             });
-            
-            // Se erro 400 ou 404, pode ser que pedido já foi cancelado - limpar storage
-            if (statusCode === 400 || statusCode === 404) {
-                // OTIMIZADO: Usar cache primeiro
-                const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current;
-                if (savedOrderId) {
-                    orderIdRef.current = null;
-                    cachedOrderIdFromStorageRef.current = null; // Limpar cache também
-                    storage.clearOrderRelated();
-                    setOrder(null);
-                }
-            }
         } finally {
-            // IMPORTANTE: Verificar se o pedido foi criado com sucesso antes de desativar loading
-            // Se o pedido foi criado, o loading já foi desativado acima (após setOrder)
-            // Se não foi criado (erro), desativar loading aqui
             const orderWasCreated = orderIdRef.current || cachedOrderIdFromStorageRef.current;
             if (!orderWasCreated) {
-                // Apenas desativar loading se não houve sucesso na criação
                 console.log('[useOrderCreation] 🔄 setLoading(false) - finally (sem pedido criado ou erro)');
                 setLoading(false);
-            } else {
-                // Pedido foi criado, loading já foi desativado acima
-                // O CheckoutLoadingState vai manter o loading visual por 10s usando seu próprio estado
-                console.log('[useOrderCreation] ✅ Pedido criado - loading já foi desativado, CheckoutLoadingState vai gerenciar visual');
             }
             creatingRef.current = false;
-            // Limpar AbortController no finally para garantir cleanup mesmo em caso de erro
-            if (createOrderAbortControllerRef.current && !createOrderAbortControllerRef.current.signal.aborted) {
-                createOrderAbortControllerRef.current = null;
-            }
         }
     }, [
         setOrder,
@@ -497,12 +264,13 @@ export function useOrderCreation({
         orderIdRef,
         cachedOrderIdFromStorageRef,
         creatingRef,
-        lastCreateTimeRef,
         hasShownExpiredModalRef,
-        createOrderAbortControllerRef,
         order,
         storage,
-        cancelOrderInBackend,
+        generateFakeOrderNumber,
+        calculateFakeOrderTotal,
+        calculateFakeOrderTotalTickets,
+        promoterCode,
     ]);
 
     return {

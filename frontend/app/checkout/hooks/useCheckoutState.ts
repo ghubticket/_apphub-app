@@ -67,8 +67,12 @@ export function useCheckoutState({
     }, [order?.status, order?._id]);
 
     const hasGeneratedPix = useMemo(() => {
-        return !!pixResult;
-    }, [pixResult]);
+        // Verificar se há pixResult OU se há flag PIX ativa no sessionStorage
+        // Isso garante que mesmo após reload, a navegação seja liberada se o PIX foi gerado
+        const hasPixResult = !!pixResult;
+        const hasPixFlag = storage.getPixOrderActive() !== null;
+        return hasPixResult || hasPixFlag;
+    }, [pixResult, storage]);
 
     const isPaymentApproved = useMemo(() => {
         return cardPaymentStatus === 'success' ||

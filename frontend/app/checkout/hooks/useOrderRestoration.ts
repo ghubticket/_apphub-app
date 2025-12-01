@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { useCheckoutStorage } from './useCheckoutStorage';
 import { useCheckoutNavigation } from './useCheckoutNavigation';
 import { isOrderExpired, getRemainingTime, parseExpiresAt } from '../utils/orderHelpers';
+import { loadCartItems } from '@/lib/cart';
 
 interface UseOrderRestorationOptions {
     setOrder: (order: any) => void;
@@ -72,6 +73,124 @@ export function useOrderRestoration({
         if (!orderId) {
             console.log('[useOrderRestoration] ⚠️ refreshOrder chamado mas não há orderId');
             return;
+        }
+
+        // NOVO: Detectar pedidos fake e restaurá-los localmente sem buscar no backend
+        if (orderId.startsWith('fake-')) {
+            console.log('[useOrderRestoration] 🎭 Pedido fake detectado, restaurando localmente:', orderId);
+            
+            // Verificar se o timer ainda está válido
+            let savedStartTime = storage.loadTimer();
+            console.log('[useOrderRestoration] 🔍 Timer carregado:', {
+                savedStartTime,
+                savedStartTimeType: typeof savedStartTime,
+                savedStartTimeDate: savedStartTime ? new Date(savedStartTime).toISOString() : null,
+                now: Date.now(),
+                nowDate: new Date().toISOString(),
+            });
+            
+            // NOVO: Se timer não foi encontrado, tentar extrair do orderId fake
+            // O orderId fake tem formato: fake-{timestamp}
+            if (!savedStartTime) {
+                const timestampMatch = orderId.match(/^fake-(\d+)$/);
+                if (timestampMatch && timestampMatch[1]) {
+                    const extractedTimestamp = parseInt(timestampMatch[1], 10);
+                    if (!isNaN(extractedTimestamp) && extractedTimestamp > 0) {
+                        console.log('[useOrderRestoration] 🔧 Timer não encontrado, extraindo do orderId:', {
+                            orderId,
+                            extractedTimestamp,
+                            extractedDate: new Date(extractedTimestamp).toISOString(),
+                        });
+                        savedStartTime = extractedTimestamp;
+                        // Salvar o timer extraído para futuras restaurações
+                        storage.saveTimer(savedStartTime);
+                        console.log('[useOrderRestoration] 💾 Timer extraído salvo no localStorage');
+                    }
+                }
+            }
+            
+            // Se ainda não temos timer válido, limpar tudo
+            if (!savedStartTime) {
+                console.log('[useOrderRestoration] ⚠️ Pedido fake sem timer válido e sem timestamp no orderId, limpando');
+                orderIdRef.current = null;
+                cachedOrderIdFromStorageRef.current = null;
+                storage.clearOrderRelated();
+                setOrder(null);
+                setLoading(false);
+                return;
+            }
+            
+            const elapsed = Date.now() - savedStartTime;
+            const CHECKOUT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos
+            const remaining = Math.max(0, CHECKOUT_TIMEOUT_MS - elapsed);
+            
+            if (remaining <= 0) {
+                console.log('[useOrderRestoration] ⏰ Pedido fake expirado, limpando');
+                orderIdRef.current = null;
+                cachedOrderIdFromStorageRef.current = null;
+                storage.clearOrderRelated();
+                setOrder(null);
+                setLoading(false);
+                return;
+            }
+            
+            // Calcular totalAmount e totalTickets do carrinho atual
+            let totalAmount = 0;
+            let totalTickets = 0;
+            try {
+                const cartItems = loadCartItems().filter((item) => item.quantity > 0);
+                cartItems.forEach((item) => {
+                    const subtotal = item.price * item.quantity;
+                    const platformFeeValue = item.platformFeePercentage ? (subtotal * item.platformFeePercentage) / 100 : 0;
+                    const fixedFeeValue = item.ticketFee ? item.ticketFee * item.quantity : 0;
+                    const itemTotal = subtotal + platformFeeValue + fixedFeeValue;
+                    totalAmount += itemTotal;
+                    totalTickets += item.quantity;
+                });
+                console.log('[useOrderRestoration] 📦 Total calculado do carrinho:', { totalAmount, totalTickets, itemsCount: cartItems.length });
+            } catch (err) {
+                console.error('[useOrderRestoration] ❌ Erro ao calcular total do carrinho:', err);
+            }
+            
+            // Criar pedido fake localmente baseado no timer
+            const expiresAt = new Date(savedStartTime + CHECKOUT_TIMEOUT_MS);
+            const wasNull = order === null;
+            const fakeOrder = {
+                _id: orderId,
+                orderNumber: orderId.slice(5, 15).toUpperCase() + Math.random().toString(36).substring(2, 7).toUpperCase(), // Gerar número baseado no ID
+                status: 'pending' as const,
+                expiresAt: expiresAt.toISOString(),
+                totalAmount,
+                totalTickets,
+                paymentMethod: undefined,
+                createdAt: new Date(savedStartTime).toISOString(),
+                discountAmount: 0,
+                promoterCode: null,
+                isFake: true, // Flag para identificar pedido fake
+            };
+            
+            console.log('[useOrderRestoration] ✅ Pedido fake restaurado localmente:', {
+                orderId: fakeOrder._id,
+                expiresAt: fakeOrder.expiresAt,
+                remainingMinutes: Math.floor(remaining / 60000),
+                totalAmount: fakeOrder.totalAmount,
+                totalTickets: fakeOrder.totalTickets,
+                wasNull,
+            });
+            
+            setOrder(fakeOrder);
+            orderIdRef.current = orderId;
+            cachedOrderIdFromStorageRef.current = orderId;
+            
+            // IMPORTANTE: Mostrar modal de restauração se o pedido estava null antes
+            if (wasNull && !hasShownModalRef.current) {
+                console.log('[useOrderRestoration] 🔔 Mostrando modal de restauração para pedido fake');
+                setShowRestoreModal(true);
+                hasShownModalRef.current = true;
+            }
+            
+            setLoading(false);
+            return; // Não buscar no backend para pedidos fake
         }
 
         // Evitar múltiplas buscas simultâneas do mesmo pedido

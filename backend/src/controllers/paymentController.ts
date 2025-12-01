@@ -98,8 +98,162 @@ export const createPixPayment = async (req: Request, res: Response) => {
         const { orderId } = req.params;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
 
-        // Validar e buscar pedido
-        const order = await validateAndGetOrder(orderId, userId, req);
+        // NOVO: Se orderId começa com "fake-", criar pedido real primeiro
+        let order: any;
+        let createdOrderId: string | null = null;
+        
+        if (orderId.startsWith('fake-')) {
+            // Pedido fake - criar pedido real no backend
+            console.log('[createPixPayment] 🎭 Pedido fake detectado, recebendo dados do carrinho:', {
+                orderId,
+                bodyKeys: Object.keys(req.body),
+                hasCartItems: !!req.body.cartItems,
+                cartItemsType: Array.isArray(req.body.cartItems) ? 'array' : typeof req.body.cartItems,
+                cartItemsLength: Array.isArray(req.body.cartItems) ? req.body.cartItems.length : 'N/A',
+                hasCustomerData: !!req.body.customerData,
+                customerDataKeys: req.body.customerData ? Object.keys(req.body.customerData) : [],
+            });
+            
+            const { cartItems, customerData, promoterCode } = req.body;
+            
+            if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+                console.error('[createPixPayment] ❌ Erro: cartItems inválido:', {
+                    cartItems,
+                    isArray: Array.isArray(cartItems),
+                    length: cartItems?.length,
+                    type: typeof cartItems,
+                });
+                return res.status(400).json({
+                    success: false,
+                    message: 'Dados do carrinho são obrigatórios para criar pedido',
+                    errors: ['cartItems é obrigatório'],
+                });
+            }
+
+            if (!customerData || !customerData.name || !customerData.email) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Dados do cliente são obrigatórios',
+                    errors: ['customerData.name e customerData.email são obrigatórios'],
+                });
+            }
+
+            // Usar o primeiro item do carrinho para criar o pedido
+            const firstItem = cartItems[0];
+            if (!firstItem.eventId || !firstItem.id) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Dados do carrinho inválidos',
+                    errors: ['eventId e id são obrigatórios'],
+                });
+            }
+
+            // Criar pedido real chamando o endpoint /orders internamente
+            // Usar a mesma lógica do createOrder mas de forma simplificada
+            try {
+                const createOrderReq = {
+                    ...req,
+                    body: {
+                        eventId: firstItem.eventId,
+                        ticketTypeId: firstItem.id,
+                        quantity: firstItem.quantity,
+                        customerData: {
+                            name: customerData.name,
+                            email: customerData.email,
+                            cpf: customerData.cpf || undefined,
+                            phone: customerData.phone || undefined,
+                        },
+                        ...(promoterCode ? { promoterCode: promoterCode.toUpperCase().trim() } : {}),
+                        allowReuse: false, // CRÍTICO: Não reutilizar pedidos existentes ao criar a partir de pedido fake
+                    },
+                    // Garantir que socket existe para evitar erro de remoteAddress
+                    socket: req.socket || { remoteAddress: req.ip || 'unknown' },
+                    ip: req.ip || req.socket?.remoteAddress || req.headers['x-forwarded-for'] || 'unknown',
+                    // Adicionar método get() para compatibilidade com Express Request
+                    get: (name: string) => {
+                        if (name === 'user-agent') {
+                            return req.get('user-agent') || req.headers['user-agent'] || 'unknown';
+                        }
+                        return req.get(name) || req.headers[name.toLowerCase()] || undefined;
+                    },
+                } as Request;
+
+                // Importar createOrder dinamicamente
+                const { createOrder } = await import('./ordersController');
+                
+                // Criar resposta mock para capturar o resultado
+                let orderResponseData: any = null;
+                let orderResponseStatus = 500;
+                
+                const mockRes = {
+                    status: (code: number) => {
+                        orderResponseStatus = code;
+                        return {
+                            json: (data: any) => {
+                                orderResponseData = data;
+                                return mockRes;
+                            },
+                        };
+                    },
+                } as Response;
+
+                await createOrder(createOrderReq, mockRes);
+
+                console.log('[createPixPayment] 📋 Resposta do createOrder:', {
+                    status: orderResponseStatus,
+                    success: orderResponseData?.success,
+                    message: orderResponseData?.message,
+                    hasOrder: !!orderResponseData?.data?.order,
+                    orderId: orderResponseData?.data?.order?._id,
+                });
+
+                // Aceitar tanto 200 (ingressos adicionados) quanto 201 (novo pedido criado)
+                if ((orderResponseStatus !== 200 && orderResponseStatus !== 201) || !orderResponseData?.success) {
+                    console.error('[createPixPayment] ❌ Erro ao criar pedido:', {
+                        status: orderResponseStatus,
+                        success: orderResponseData?.success,
+                        message: orderResponseData?.message,
+                        errors: orderResponseData?.errors,
+                    });
+                    return res.status(orderResponseStatus || 500).json({
+                        success: false,
+                        message: orderResponseData?.message || 'Erro ao criar pedido',
+                        errors: orderResponseData?.errors || ['Erro desconhecido'],
+                    });
+                }
+
+                // Obter pedido criado
+                const createdOrder = orderResponseData.data.order;
+                createdOrderId = createdOrder._id;
+                
+                order = await Order.findById(createdOrderId)
+                    .select('status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt')
+                    .populate('event', 'name description')
+                    .populate('tickets', 'ticketType')
+                    .populate('customer', 'name email phone cpf')
+                    .lean();
+
+                if (!order) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Pedido criado mas não encontrado',
+                        errors: ['Erro ao buscar pedido criado'],
+                    });
+                }
+
+                console.log(`[createPixPayment] ✅ Pedido real criado a partir de pedido fake: ${order.orderNumber}`);
+            } catch (createError: any) {
+                console.error('[createPixPayment] ❌ Erro ao criar pedido real:', createError);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Erro ao criar pedido real',
+                    errors: [createError?.message || 'Erro desconhecido'],
+                });
+            }
+        } else {
+            // Pedido real - validar e buscar normalmente
+            order = await validateAndGetOrder(orderId, userId, req);
+        }
 
         // Buscar tickets para descrição e items
         // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
@@ -366,6 +520,8 @@ export const createPixPayment = async (req: Request, res: Response) => {
                           })),
                       }
                     : null,
+                // NOVO: Retornar orderId real se foi criado a partir de pedido fake
+                createdOrderId: createdOrderId || undefined,
                 // REFATORADO: Não retornar reserva - o pedido já contém todas as informações necessárias (expiresAt)
             },
         });
@@ -420,6 +576,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
 export const createCardPayment = async (req: Request, res: Response) => {
     let order: any = null;
     let currentAttempts = 0;
+    let createdOrderId: string | null = null;
 
     try {
         const { orderId } = req.params;
@@ -443,10 +600,160 @@ export const createCardPayment = async (req: Request, res: Response) => {
             });
         }
 
-        // Validar e buscar pedido
-        // IMPORTANTE: precisamos de um documento Mongoose real (sem .lean())
-        // para poder usar .save() com segurança neste fluxo.
-        order = await validateAndGetOrder(orderId, userId, req);
+        // NOVO: Se orderId começa com "fake-", criar pedido real primeiro
+        if (orderId.startsWith('fake-')) {
+            // Pedido fake - criar pedido real no backend
+            console.log('[createCardPayment] 🎭 Pedido fake detectado, recebendo dados do carrinho:', {
+                orderId,
+                bodyKeys: Object.keys(req.body),
+                hasCartItems: !!req.body.cartItems,
+                cartItemsType: Array.isArray(req.body.cartItems) ? 'array' : typeof req.body.cartItems,
+                cartItemsLength: Array.isArray(req.body.cartItems) ? req.body.cartItems.length : 'N/A',
+                hasCustomerData: !!req.body.customerData,
+                customerDataKeys: req.body.customerData ? Object.keys(req.body.customerData) : [],
+            });
+            
+            const { cartItems, customerData, promoterCode } = req.body;
+            
+            if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+                console.error('[createCardPayment] ❌ Erro: cartItems inválido:', {
+                    cartItems,
+                    isArray: Array.isArray(cartItems),
+                    length: cartItems?.length,
+                    type: typeof cartItems,
+                });
+                return res.status(400).json({
+                    success: false,
+                    message: 'Dados do carrinho são obrigatórios para criar pedido',
+                    errors: ['cartItems é obrigatório'],
+                });
+            }
+
+            if (!customerData || !customerData.name || !customerData.email) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Dados do cliente são obrigatórios',
+                    errors: ['customerData.name e customerData.email são obrigatórios'],
+                });
+            }
+
+            // Usar o primeiro item do carrinho para criar o pedido
+            const firstItem = cartItems[0];
+            if (!firstItem.eventId || !firstItem.id) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Dados do carrinho inválidos',
+                    errors: ['eventId e id são obrigatórios'],
+                });
+            }
+
+            // Criar pedido real chamando o endpoint /orders internamente
+            try {
+                const createOrderReq = {
+                    ...req,
+                    body: {
+                        eventId: firstItem.eventId,
+                        ticketTypeId: firstItem.id,
+                        quantity: firstItem.quantity,
+                        customerData: {
+                            name: customerData.name,
+                            email: customerData.email,
+                            cpf: customerData.cpf || undefined,
+                            phone: customerData.phone || undefined,
+                        },
+                        ...(promoterCode ? { promoterCode: promoterCode.toUpperCase().trim() } : {}),
+                        allowReuse: false, // CRÍTICO: Não reutilizar pedidos existentes ao criar a partir de pedido fake
+                    },
+                    // Garantir que socket existe para evitar erro de remoteAddress
+                    socket: req.socket || { remoteAddress: req.ip || 'unknown' },
+                    ip: req.ip || req.socket?.remoteAddress || req.headers['x-forwarded-for'] || 'unknown',
+                    // Adicionar método get() para compatibilidade com Express Request
+                    get: (name: string) => {
+                        if (name === 'user-agent') {
+                            return req.get('user-agent') || req.headers['user-agent'] || 'unknown';
+                        }
+                        return req.get(name) || req.headers[name.toLowerCase()] || undefined;
+                    },
+                } as Request;
+
+                // Importar createOrder dinamicamente
+                const { createOrder } = await import('./ordersController');
+                
+                // Criar resposta mock para capturar o resultado
+                let orderResponseData: any = null;
+                let orderResponseStatus = 500;
+                
+                const mockRes = {
+                    status: (code: number) => {
+                        orderResponseStatus = code;
+                        return {
+                            json: (data: any) => {
+                                orderResponseData = data;
+                                return mockRes;
+                            },
+                        };
+                    },
+                } as Response;
+
+                await createOrder(createOrderReq, mockRes);
+
+                console.log('[createPixPayment] 📋 Resposta do createOrder:', {
+                    status: orderResponseStatus,
+                    success: orderResponseData?.success,
+                    message: orderResponseData?.message,
+                    hasOrder: !!orderResponseData?.data?.order,
+                    orderId: orderResponseData?.data?.order?._id,
+                });
+
+                // Aceitar tanto 200 (ingressos adicionados) quanto 201 (novo pedido criado)
+                if ((orderResponseStatus !== 200 && orderResponseStatus !== 201) || !orderResponseData?.success) {
+                    console.error('[createPixPayment] ❌ Erro ao criar pedido:', {
+                        status: orderResponseStatus,
+                        success: orderResponseData?.success,
+                        message: orderResponseData?.message,
+                        errors: orderResponseData?.errors,
+                    });
+                    return res.status(orderResponseStatus || 500).json({
+                        success: false,
+                        message: orderResponseData?.message || 'Erro ao criar pedido',
+                        errors: orderResponseData?.errors || ['Erro desconhecido'],
+                    });
+                }
+
+                // Obter pedido criado
+                const createdOrder = orderResponseData.data.order;
+                createdOrderId = createdOrder._id;
+                
+                order = await Order.findById(createdOrderId)
+                    .select('status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt cardAttempts')
+                    .populate('event', 'name description')
+                    .populate('tickets', 'ticketType')
+                    .populate('customer', 'name email phone cpf')
+                    .lean();
+
+                if (!order) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Pedido criado mas não encontrado',
+                        errors: ['Erro ao buscar pedido criado'],
+                    });
+                }
+
+                console.log(`[createCardPayment] ✅ Pedido real criado a partir de pedido fake: ${order.orderNumber}`);
+            } catch (createError: any) {
+                console.error('[createCardPayment] ❌ Erro ao criar pedido real:', createError);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Erro ao criar pedido real',
+                    errors: [createError?.message || 'Erro desconhecido'],
+                });
+            }
+        } else {
+            // Validar e buscar pedido
+            // IMPORTANTE: precisamos de um documento Mongoose real (sem .lean())
+            // para poder usar .save() com segurança neste fluxo.
+            order = await validateAndGetOrder(orderId, userId, req);
+        }
 
         // Buscar tickets para descrição e items
         // OTIMIZAÇÃO: Usar .select() e .lean() para melhor performance
@@ -750,6 +1057,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 },
                 // Se precisar de 3D Secure, retornar informações
                 threeDSInfo: cardPayment.threeDSInfo,
+                // NOVO: Retornar orderId real se foi criado a partir de pedido fake
+                createdOrderId: createdOrderId || undefined,
             },
         });
     } catch (error: any) {

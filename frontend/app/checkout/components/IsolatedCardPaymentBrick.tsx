@@ -151,15 +151,27 @@ export function IsolatedCardPaymentBrick({
 
         // Renderizar Brick no container persistente - APENAS UMA VEZ
         try {
+            const brickAmount = Number(amountRef.current.toFixed(2));
+            
+            // CRÍTICO: Validar amount antes de renderizar o Brick
+            if (!brickAmount || brickAmount <= 0 || !Number.isFinite(brickAmount)) {
+                console.error('[IsolatedCardPaymentBrick] ❌ Amount inválido, não renderizando Brick:', {
+                    amount: amountRef.current,
+                    brickAmount,
+                    isValid: brickAmount > 0 && Number.isFinite(brickAmount),
+                });
+                return;
+            }
+            
             console.log('[IsolatedCardPaymentBrick] 🚀 Renderizando CardPayment', {
                 hasPublicKey: !!publicKey,
                 publicKeyPrefix: publicKey ? publicKey.slice(0, 10) : null,
-                amount: Number(amountRef.current.toFixed(2)),
+                amount: brickAmount,
             });
             root.render(
                 <CardPayment
                     initialization={{
-                        amount: Number(amountRef.current.toFixed(2)),
+                        amount: brickAmount,
                     }}
                     customization={{
                         visual: {

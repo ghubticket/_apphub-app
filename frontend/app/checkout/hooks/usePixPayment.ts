@@ -5,10 +5,13 @@ import type { FormEvent } from 'react';
 import type { PixPaymentResult } from '../types';
 import { getMercadoPagoDeviceId, waitForMercadoPagoDeviceId } from '../utils/deviceIdHelper';
 import api from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import { useCheckoutStorage } from './useCheckoutStorage';
 import { useCheckoutNavigation } from './useCheckoutNavigation';
 import { usePixPolling } from './usePixPolling';
 import { useRedirectCountdown } from './useRedirectCountdown';
+import { loadCartItems } from '@/lib/cart';
+import { storageHelpers } from '../utils/storageHelpers';
 
 export type PixPaymentStatus = 'idle' | 'processing' | 'success' | 'error';
 
@@ -35,7 +38,15 @@ interface UsePixPaymentReturn {
  * REFATORADO: Usa hooks especializados para polling e countdown
  * Reduzido de 510 para ~350 linhas
  */
-export function usePixPayment(orderId: string | null, orderExpiresAt?: string | Date | null): UsePixPaymentReturn {
+export function usePixPayment(
+    orderId: string | null, 
+    orderExpiresAt?: string | Date | null,
+    cartItems?: any[],
+    customerData?: { name: string; email: string; cpf: string; phone: string },
+    promoterCode?: string | null
+): UsePixPaymentReturn {
+    const { user } = useAuth();
+    const userId = user?._id || user?.id || null;
     const storage = useCheckoutStorage();
     const navigation = useCheckoutNavigation();
     
@@ -50,7 +61,17 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
     const previousOrderIdRef = useRef<string | null>(null);
     const orderIdRef = useRef<string | null>(orderId);
     const orderExpiresAtRef = useRef<string | Date | null | undefined>(orderExpiresAt);
+    const cartItemsRef = useRef<any[] | undefined>(cartItems);
+    const customerDataRef = useRef<{ name: string; email: string; cpf: string; phone: string } | undefined>(customerData);
+    const promoterCodeRef = useRef<string | null | undefined>(promoterCode);
     const pixGenerationDeadlineMinutes = 30;
+    
+    // Atualizar refs quando os valores mudarem
+    useEffect(() => {
+        cartItemsRef.current = cartItems;
+        customerDataRef.current = customerData;
+        promoterCodeRef.current = promoterCode;
+    }, [cartItems, customerData, promoterCode]);
 
     // Redirect countdown hook
     const redirectCountdown = useRedirectCountdown({
@@ -189,9 +210,101 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
                 deviceId = getMercadoPagoDeviceId();
             }
             
+            // Se orderId é fake, enviar dados do carrinho e cliente para criar pedido real
+            const isFakeOrder = orderId.startsWith('fake-');
+            const requestBody: any = { deviceId };
+            
+            if (isFakeOrder) {
+                // Obter dados do carrinho e cliente - tentar múltiplas fontes
+                let currentCartItems = cartItemsRef.current || cartItems;
+                let currentCustomerData = customerDataRef.current || customerData;
+                let currentPromoterCode = promoterCodeRef.current || promoterCode;
+                
+                // Se não temos dados dos parâmetros, tentar obter do storage/cart diretamente
+                if (!currentCartItems || currentCartItems.length === 0) {
+                    try {
+                        const rawCartItems = loadCartItems().filter((item) => item.quantity > 0);
+                        if (rawCartItems.length > 0) {
+                            // Calcular valores como no useCheckoutCart
+                            currentCartItems = rawCartItems.map((item: any) => {
+                                const subtotal = item.price * item.quantity;
+                                const platformFeeValue = item.platformFeePercentage ? (subtotal * item.platformFeePercentage) / 100 : 0;
+                                const fixedFeeValue = item.ticketFee ? item.ticketFee * item.quantity : 0;
+                                return {
+                                    ...item,
+                                    subtotal,
+                                    platformFeeValue,
+                                    fixedFeeValue,
+                                    total: subtotal + platformFeeValue + fixedFeeValue,
+                                };
+                            });
+                            console.log('[usePixPayment] 📦 Carrinho carregado do storage:', currentCartItems.length, 'itens');
+                        }
+                    } catch (err) {
+                        console.error('[usePixPayment] ❌ Erro ao carregar carrinho do storage:', err);
+                    }
+                }
+                
+                if (!currentCustomerData || !currentCustomerData.name || !currentCustomerData.email) {
+                    try {
+                        // CRÍTICO: Passar userId para validar que os dados pertencem ao usuário atual
+                        const storedCustomerData = storageHelpers.loadCustomerData(userId);
+                        if (storedCustomerData && storedCustomerData.name && storedCustomerData.email) {
+                            currentCustomerData = storedCustomerData;
+                            console.log('[usePixPayment] 👤 Dados do cliente carregados do storage');
+                        }
+                    } catch (err) {
+                        console.error('[usePixPayment] ❌ Erro ao carregar dados do cliente do storage:', err);
+                    }
+                }
+                
+                console.log('[usePixPayment] 🎭 Pedido fake detectado, preparando dados do carrinho:', {
+                    hasCartItems: !!currentCartItems,
+                    cartItemsLength: currentCartItems?.length,
+                    hasCustomerData: !!currentCustomerData,
+                    customerDataName: currentCustomerData?.name,
+                    customerDataEmail: currentCustomerData?.email,
+                });
+                
+                if (!currentCartItems || currentCartItems.length === 0) {
+                    throw new Error('Carrinho vazio. Por favor, adicione itens ao carrinho antes de gerar o PIX.');
+                }
+                
+                if (!currentCustomerData || !currentCustomerData.name || !currentCustomerData.email) {
+                    throw new Error('Dados do cliente incompletos. Por favor, preencha nome e email.');
+                }
+                
+                // Garantir que os dados estão no formato correto
+                requestBody.cartItems = currentCartItems.map((item: any) => ({
+                    eventId: item.eventId,
+                    id: item.id, // ticketTypeId
+                    quantity: item.quantity,
+                    price: item.price,
+                    name: item.name,
+                }));
+                
+                requestBody.customerData = {
+                    name: currentCustomerData.name,
+                    email: currentCustomerData.email,
+                    cpf: currentCustomerData.cpf || undefined,
+                    phone: currentCustomerData.phone || undefined,
+                };
+                
+                if (currentPromoterCode) {
+                    requestBody.promoterCode = currentPromoterCode;
+                }
+                
+                console.log('[usePixPayment] 📦 Dados preparados para criar pedido real:', {
+                    cartItemsCount: requestBody.cartItems.length,
+                    firstItem: requestBody.cartItems[0],
+                    customerName: requestBody.customerData.name,
+                    customerEmail: requestBody.customerData.email,
+                });
+            }
+            
             const response = await api.post(
                 `/payments/${orderId}/pix`,
-                { deviceId },
+                requestBody,
                 {
                     headers: {
                         'X-meli-session-id': deviceId,
@@ -202,7 +315,22 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
             const paymentResult = response.data?.data || response.data;
             
             if (paymentResult && response.data?.success) {
-                const expiresAt = orderExpiresAtRef.current || orderExpiresAt || paymentResult.expiresAt;
+                // NOVO: Se pedido real foi criado, atualizar orderId ANTES de iniciar polling
+                const realOrderId = paymentResult.createdOrderId || orderId;
+                const finalOrderId = realOrderId || orderId;
+                
+                if (realOrderId !== orderId && realOrderId) {
+                    console.log(`[usePixPayment] ✅ Pedido real criado: ${realOrderId} (era fake: ${orderId})`);
+                    // CRÍTICO: Atualizar orderIdRef ANTES de iniciar polling para evitar que polling pare
+                    orderIdRef.current = realOrderId;
+                    // Atualizar storage com orderId real
+                    storage.saveOrderId(realOrderId);
+                } else {
+                    // Garantir que orderIdRef está atualizado mesmo se não houver mudança
+                    orderIdRef.current = finalOrderId;
+                }
+                
+                const expiresAt = orderExpiresAtRef.current || orderExpiresAt || paymentResult.expiresAt || (paymentResult.order?.expiresAt);
                 let expirationDescription: string | null = null;
                 
                 if (expiresAt) {
@@ -238,12 +366,12 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
                 setStatus('idle');
                 setStatusMessage('');
                 
-                // Garantir que orderIdRef.current está atualizado antes de iniciar polling
-                orderIdRef.current = orderId;
-                storage.setPixOrderActive(orderId);
+                // Iniciar polling com orderId real (já atualizado no orderIdRef)
+                storage.setPixOrderActive(finalOrderId);
                 navigation.allowNavigation();
                 
-                startPolling(orderId);
+                // CRÍTICO: Iniciar polling com o orderId real, que já está no orderIdRef
+                startPolling(finalOrderId);
             } else {
                 throw new Error('Resposta inválida do servidor');
             }
@@ -258,7 +386,16 @@ export function usePixPayment(orderId: string | null, orderExpiresAt?: string | 
         } finally {
             processingRef.current = false;
         }
-    }, [pixGenerationDeadlineMinutes, startPolling, storage, navigation, orderExpiresAt]);
+    }, [
+        pixGenerationDeadlineMinutes, 
+        startPolling, 
+        storage, 
+        navigation, 
+        orderExpiresAt, 
+        cartItems, 
+        customerData, 
+        promoterCode
+    ]);
 
     // Handler para submit do formulário
     const handleFormSubmit = useCallback(async (event: FormEvent<HTMLFormElement>) => {

@@ -96,7 +96,17 @@ export const useSessionExpiration = () => {
         setShowWarning(false);
       }
     } catch (error: any) {
-      console.error('[useSessionExpiration] Erro ao verificar sessão:', error);
+      // Erro "Failed to fetch" geralmente indica problema de rede/CORS/servidor offline
+      // Não é crítico para o funcionamento do checkout, apenas logar em modo debug
+      if (error?.message?.includes('Failed to fetch') || error?.name === 'TypeError') {
+        // Silenciar erro de rede - não é crítico para checkout
+        // O usuário ainda pode usar o checkout normalmente
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[useSessionExpiration] ⚠️ Erro de rede ao verificar sessão (não crítico):', error.message);
+        }
+      } else {
+        console.error('[useSessionExpiration] Erro ao verificar sessão:', error);
+      }
       // Se erro de rede ou outro, não fazer logout automaticamente
       // Apenas limpar estado local
       setSessionInfo(null);

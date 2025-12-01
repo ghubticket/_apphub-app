@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { HiOutlineClipboardDocument } from 'react-icons/hi2';
+import { HiOutlineClipboardDocument, HiOutlineTicket } from 'react-icons/hi2';
 import type { PixPaymentResult } from '../types';
 
 type PixPaymentSectionProps = {
@@ -106,23 +106,37 @@ export function PixPaymentSection({
                         <button
                             type="submit"
                             disabled={!isCheckoutReady || isProcessing || pixPaymentActive}
-                            className="flex w-full items-center justify-center gap-3 rounded-full border border-[#a38f78] px-6 py-4 text-xs font-semibold uppercase text-[#a38f78] transition hover:border-[#f97316] hover:text-[#f97316] disabled:cursor-not-allowed disabled:border-[#c9c3b8] disabled:text-[#c9c3b8]"
+                            className="flex w-full items-center justify-center gap-3 rounded-full border-2 border-[#32BCAD] bg-[#32BCAD] px-6 py-4 text-xs font-semibold uppercase text-white transition hover:border-[#2a9d8f] hover:bg-[#2a9d8f] disabled:cursor-not-allowed disabled:border-[#c9c3b8] disabled:bg-[#c9c3b8] disabled:text-white/60"
                         >
-                            {isProcessing ? 'Gerando PIX…' : 'Garantir meu Ingresso via Vip'}
+                            <HiOutlineTicket className="text-base" />
+                            {isProcessing ? 'Gerando PIX…' : 'Garantir meu Ingresso via PIX'}
                         </button>
                     </>
                 ) : null}
 
                 {pixResult ? (
-                    <div className="space-y-4 rounded-2xl border border-[#ded7ca] bg-white p-5">
-                        <div className="rounded-2xl text-center md:text-left border border-[#b6f0d2] bg-[#f1fff6] px-4 py-3 text-sm text-[#1f5d3d]">
-                            <p className="font-semibold">Seu pedido está criado e aguardando pagamento via PIX.</p>
-                            {pixExpirationDescription ? (
-                                <p className="mt-1 text-xs text-[#2b6b47]">{pixExpirationDescription}</p>
-                            ) : (
-                                <p className="mt-1 text-xs text-[#2b6b47]">O QR Code expira em 30 minutos.</p>
-                            )}
-                        </div>
+                    <div className="space-y-4  rounded-2xl border border-[#ded7ca] bg-white p-5">
+                        {/* Loading infinito - Aguardando pagamento (unificado) */}
+                        {pixStatus !== 'success' && pixStatus !== 'error' ? (
+                            <div className="flex items-center gap-3 flex-col md:flex-row text-center md:text-left rounded-2xl border border-[#b6f0d2] bg-[#f1fff6] px-4 py-3">
+                                <div className="flex-shrink-0">
+                                    <div className="relative h-5 w-5">
+                                        <div className="absolute inset-0 animate-spin rounded-full border-2 border-[#1f5d3d] border-t-transparent"></div>
+                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-semibold text-[#1f5d3d]">
+                                        Seu pedido está criado e aguardando pagamento via PIX.
+                                        {pixExpirationDescription ? (
+                                            <span className="font-normal">
+                                                {' '}(Pagar até: {pixExpirationDescription.replace('Você pode pagar até: ', '')})
+                                            </span>
+                                        ) : null}
+                                    </p>
+                                    <p className="mt-1 text-xs text-[#2b6b47]">Atualizado em tempo real...</p>
+                                </div>
+                            </div>
+                        ) : null}
                         <div className="flex items-center text-center md:text-left  md:flex-row flex-col gap-3">
                             <div className="flex h-10 w-10 md:h-10 md:w-10 items-center justify-center rounded-full bg-[#f5f1e8] text-[#a38f78]">
                                 <HiOutlineClipboardDocument className="text-xl" />

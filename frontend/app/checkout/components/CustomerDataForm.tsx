@@ -25,7 +25,7 @@ export function CustomerDataForm({
 
     return (
         <div className="relative rounded-3xl border border-[#ded7ca] bg-white p-6">
-            <div className="pb-5 flex md:flex-row flex-col md:items-start md:justify-between gap-4">
+            <div className="pb-5 flex md:flex-row flex-col md:items-center md:justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
                         Dados do comprador
@@ -39,7 +39,7 @@ export function CustomerDataForm({
                     <button
                         type="button"
                         onClick={onEditClick}
-                        className="rounded-full border border-[#ded7ca] bg-white/70 p-2 text-[0.65rem] font-semibold uppercase tracking-normal text-[#6f6b63] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
+                        className="rounded-full border border-[#ded7ca] bg-white/70 text-[0.65rem] font-semibold p-2 uppercase px-4 tracking-normal text-[#6f6b63] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
                     >
                         {disabled ? 'Editar dados' : 'Concluir edição'}
                     </button>

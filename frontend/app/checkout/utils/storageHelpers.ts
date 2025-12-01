@@ -24,28 +24,51 @@ export const storageHelpers = {
         // Se houver userId, verificar se os dados salvos pertencem a esse usuário
         if (userId) {
             const savedUserId = window.localStorage.getItem(CHECKOUT_CUSTOMER_USER_ID_KEY);
+            console.log('[storageHelpers] 🔍 Verificando userId ao carregar dados:', {
+                currentUserId: userId,
+                savedUserId,
+                match: savedUserId === userId,
+            });
+            
             if (savedUserId && savedUserId !== userId) {
                 // Usuário diferente - limpar dados antigos
+                console.log('[storageHelpers] 🔒 Usuário diferente detectado, limpando dados antigos');
                 window.localStorage.removeItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
                 window.localStorage.removeItem(CHECKOUT_CUSTOMER_USER_ID_KEY);
                 return { name: '', email: '', cpf: '', phone: '' };
             }
+        } else {
+            // Sem userId - limpar dados para segurança
+            console.log('[storageHelpers] ⚠️ Sem userId, limpando dados por segurança');
+            window.localStorage.removeItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
+            window.localStorage.removeItem(CHECKOUT_CUSTOMER_USER_ID_KEY);
+            return { name: '', email: '', cpf: '', phone: '' };
         }
         
         const raw = window.localStorage.getItem(CHECKOUT_CUSTOMER_STORAGE_KEY);
         if (raw) {
             try {
                 const parsed = JSON.parse(raw) as Partial<CheckoutCustomerData>;
-                return {
+                const loaded = {
                     name: parsed.name ?? '',
                     email: parsed.email ?? '',
                     cpf: parsed.cpf ?? '',
                     phone: parsed.phone ?? '',
                 };
+                console.log('[storageHelpers] 📦 Dados carregados do localStorage:', {
+                    hasName: !!loaded.name,
+                    hasEmail: !!loaded.email,
+                    hasCpf: !!loaded.cpf,
+                    hasPhone: !!loaded.phone,
+                });
+                return loaded;
             } catch {
                 // ignore parse errors
+                console.warn('[storageHelpers] ⚠️ Erro ao fazer parse dos dados salvos');
             }
         }
+        
+        console.log('[storageHelpers] 📝 Nenhum dado encontrado, retornando vazio');
         return { name: '', email: '', cpf: '', phone: '' };
     },
 
