@@ -159,6 +159,8 @@ export async function GET(
                     'Cache-Control': 'public, max-age=31536000, immutable', // Cache de 1 ano
                     'X-Content-Type-Options': 'nosniff',
                     'X-Frame-Options': 'DENY',
+                    'Access-Control-Allow-Origin': '*', // Permitir CORS para imagens
+                    'Access-Control-Allow-Methods': 'GET',
                 },
             });
         } catch (fetchError: any) {

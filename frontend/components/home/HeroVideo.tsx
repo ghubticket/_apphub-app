@@ -226,6 +226,24 @@ export default function HeroCarousel({
                                     <p className="text-center text-sm text-[#a38f78] px-4">
                                         IMAGEM em construção.
                                     </p>
+                                ) : slide.imageUrl.startsWith('/api/images/') ? (
+                                    // Para URLs do proxy, usar img normal para evitar problemas com Next.js Image
+                                    <img
+                                        src={slide.imageUrl}
+                                        alt={`Slide ${index + 1}`}
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                        loading={index === currentSlide ? 'eager' : 'lazy'}
+                                        onError={(e) => {
+                                            console.error('[HeroCarousel] Erro ao carregar imagem do slide (img):', {
+                                                imageUrl: slide.imageUrl,
+                                                slideIndex: index,
+                                                error: e
+                                            });
+                                            setImageErrors((prev) => 
+                                                prev.includes(index) ? prev : [...prev, index]
+                                            );
+                                        }}
+                                    />
                                 ) : (
                                     <Image
                                         src={slide.imageUrl}
@@ -233,11 +251,9 @@ export default function HeroCarousel({
                                         fill
                                         className="object-cover"
                                         priority={index === currentSlide}
-                                        // Desabilitar otimização para imagens do proxy (já servidas pelo Next.js)
-                                        unoptimized={true}
                                         sizes="100vw"
                                         onError={(e) => {
-                                            console.error('[HeroCarousel] Erro ao carregar imagem do slide:', {
+                                            console.error('[HeroCarousel] Erro ao carregar imagem do slide (Image):', {
                                                 imageUrl: slide.imageUrl,
                                                 slideIndex: index,
                                                 error: e
