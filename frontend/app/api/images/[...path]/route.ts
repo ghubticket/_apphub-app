@@ -66,10 +66,23 @@ export async function GET(
         const isHttps = imageUrl.startsWith('https://');
         
         // Buscar a imagem da API
+        // Adicionar Referer para passar pela proteção de hotlink do backend
+        // Tentar obter do header primeiro, depois construir a partir da URL da requisição
+        let refererUrl = request.headers.get('referer');
+        if (!refererUrl) {
+            try {
+                const requestUrl = new URL(request.url);
+                refererUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+            } catch {
+                refererUrl = 'https://ghubtech.com.br';
+            }
+        }
+        
         const fetchOptions: RequestInit = {
             method: 'GET',
             headers: {
                 'Accept': 'image/*',
+                'Referer': refererUrl,
             },
             // Timeout de 10 segundos
             signal: AbortSignal.timeout(10000),
@@ -87,7 +100,10 @@ export async function GET(
                         port: url.port || 443,
                         path: url.pathname + url.search,
                         method: 'GET',
-                        headers: { 'Accept': 'image/*' },
+                        headers: { 
+                            'Accept': 'image/*',
+                            'Referer': refererUrl,
+                        },
                         rejectUnauthorized: false, // Desabilitar verificação SSL apenas em dev localhost
                     };
 
@@ -137,7 +153,21 @@ export async function GET(
 
         // Fazer requisição para a API backend (fetch padrão)
         try {
-            const response = await fetch(imageUrl, fetchOptions);
+            let response = await fetch(imageUrl, fetchOptions);
+
+            // Se falhar com 404, tentar com /api/uploads/ como fallback
+            if (!response.ok && response.status === 404) {
+                // Tentar com /api/uploads/ se o caminho começar com uploads/
+                if (imagePath.startsWith('uploads/')) {
+                    const fallbackUrl = `${cleanBaseUrl}/api/${imagePath}`;
+                    console.log('[Image Proxy] Trying fallback URL:', fallbackUrl);
+                    const fallbackResponse = await fetch(fallbackUrl, fetchOptions);
+                    if (fallbackResponse.ok) {
+                        response = fallbackResponse;
+                        console.log('[Image Proxy] Fallback URL succeeded');
+                    }
+                }
+            }
 
             if (!response.ok) {
                 console.error(`[Image Proxy] Failed to fetch image: ${imageUrl}`, {
