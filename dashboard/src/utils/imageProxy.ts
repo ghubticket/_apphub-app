@@ -61,7 +61,9 @@ export function getProxiedImageUrl(imageUrl: string | null | undefined): string 
                 
                 // Garantir que o caminho não esteja vazio
                 if (!path) {
-                    console.warn('[getProxiedImageUrl] Empty path after processing:', normalized);
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn('[getProxiedImageUrl] Empty path after processing:', normalized);
+                    }
                     return '';
                 }
                 
@@ -69,7 +71,9 @@ export function getProxiedImageUrl(imageUrl: string | null | undefined): string 
                 return `/api/images/${path}${url.search}`;
             } catch (error) {
                 // Se falhar ao parsear URL, tentar extrair manualmente
-                console.warn('[getProxiedImageUrl] Failed to parse URL, trying regex:', normalized, error);
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('[getProxiedImageUrl] Failed to parse URL, trying regex:', normalized, error);
+                }
                 
                 // Tentar extrair caminho que começa com /uploads/
                 const uploadsMatch = normalized.match(/\/(uploads\/.+)$/);
@@ -91,7 +95,9 @@ export function getProxiedImageUrl(imageUrl: string | null | undefined): string 
                 }
                 
                 // Se não conseguir extrair, retornar vazio
-                console.error('[getProxiedImageUrl] Could not extract path from URL:', normalized);
+                if (process.env.NODE_ENV === 'development') {
+                    console.error('[getProxiedImageUrl] Could not extract path from URL:', normalized);
+                }
                 return '';
             }
         }

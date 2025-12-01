@@ -36,18 +36,20 @@ export async function GET(
         const cleanImagePath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
         const imageUrl = `${cleanBaseUrl}${cleanImagePath}`;
         
-        // Log para debug
-        console.log('[Dashboard Image Proxy] Fetching image:', {
-            imagePath,
-            originalApiBaseUrl: process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api',
-            cleanedApiBaseUrl: cleanBaseUrl,
-            imageUrl,
-            env: {
-                NODE_ENV: process.env.NODE_ENV,
-                API_URL: process.env.API_URL ? 'set' : 'not set',
-                NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ? 'set' : 'not set',
-            }
-        });
+        // Log para debug (apenas em desenvolvimento)
+        if (process.env.NODE_ENV === 'development') {
+            console.log('[Dashboard Image Proxy] Fetching image:', {
+                imagePath,
+                originalApiBaseUrl: process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api',
+                cleanedApiBaseUrl: cleanBaseUrl,
+                imageUrl,
+                env: {
+                    NODE_ENV: process.env.NODE_ENV,
+                    API_URL: process.env.API_URL ? 'set' : 'not set',
+                    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ? 'set' : 'not set',
+                }
+            });
+        }
 
         // Configurar para ignorar verificação SSL em desenvolvimento (apenas para localhost HTTPS)
         const isDevelopment = process.env.NODE_ENV === 'development';
@@ -144,13 +146,15 @@ export async function GET(
             const contentType = response.headers.get('content-type') || 'image/jpeg';
             const imageBuffer = await response.arrayBuffer();
 
-            // Log de sucesso
-            console.log('[Dashboard Image Proxy] Image fetched successfully:', {
-                imageUrl,
-                contentType,
-                size: imageBuffer.byteLength,
-                imagePath
-            });
+            // Log de sucesso (apenas em desenvolvimento)
+            if (process.env.NODE_ENV === 'development') {
+                console.log('[Dashboard Image Proxy] Image fetched successfully:', {
+                    imageUrl,
+                    contentType,
+                    size: imageBuffer.byteLength,
+                    imagePath
+                });
+            }
 
             // Retornar a imagem com headers de cache e segurança
             return new NextResponse(imageBuffer, {
