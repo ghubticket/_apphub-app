@@ -46,16 +46,9 @@ export async function GET(
         const cleanBaseUrl = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
         const cleanImagePath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
         
-        // Construir a URL - o path já vem decodificado do Next.js
-        // Precisamos codificar cada segmento do path, mas manter as barras
-        // Dividir o path em segmentos, codificar cada um, e juntar novamente
-        const pathSegments = cleanImagePath.split('/').filter(Boolean);
-        const encodedPath = '/' + pathSegments.map(segment => {
-            // Codificar o segmento, mas preservar barras se houver
-            return encodeURIComponent(segment);
-        }).join('/');
-        
-        const imageUrl = `${cleanBaseUrl}${encodedPath}`;
+        // Construir a URL - o Next.js já decodifica os segmentos do path
+        // Não precisamos codificar novamente, apenas juntar
+        const imageUrl = `${cleanBaseUrl}${cleanImagePath}`;
         
         // Log para debug (sempre, para ajudar a debugar em produção)
         console.log('[Image Proxy] Fetching image:', {
