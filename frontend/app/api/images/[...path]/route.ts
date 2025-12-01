@@ -135,6 +135,7 @@ export async function GET(
                     headers: Object.fromEntries(response.headers.entries()),
                     imagePath,
                     cleanBaseUrl,
+                    userAgent: request.headers.get('user-agent'),
                 });
                 return new NextResponse('Image not found', { status: response.status });
             }
@@ -161,6 +162,7 @@ export async function GET(
                     'X-Frame-Options': 'DENY',
                     'Access-Control-Allow-Origin': '*', // Permitir CORS para imagens
                     'Access-Control-Allow-Methods': 'GET',
+                    'Access-Control-Allow-Headers': 'Content-Type',
                 },
             });
         } catch (fetchError: any) {

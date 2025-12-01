@@ -233,15 +233,27 @@ export default function HeroCarousel({
                                         alt={`Slide ${index + 1}`}
                                         className="absolute inset-0 w-full h-full object-cover"
                                         loading={index === currentSlide ? 'eager' : 'lazy'}
+                                        decoding="async"
                                         onError={(e) => {
+                                            const imgElement = e.target as HTMLImageElement;
                                             console.error('[HeroCarousel] Erro ao carregar imagem do slide (img):', {
                                                 imageUrl: slide.imageUrl,
                                                 slideIndex: index,
-                                                error: e
+                                                error: e,
+                                                targetSrc: imgElement?.src,
+                                                naturalWidth: imgElement?.naturalWidth,
+                                                naturalHeight: imgElement?.naturalHeight,
+                                                complete: imgElement?.complete,
                                             });
                                             setImageErrors((prev) => 
                                                 prev.includes(index) ? prev : [...prev, index]
                                             );
+                                        }}
+                                        onLoad={() => {
+                                            console.log('[HeroCarousel] Imagem carregada com sucesso:', {
+                                                imageUrl: slide.imageUrl,
+                                                slideIndex: index
+                                            });
                                         }}
                                     />
                                 ) : (
