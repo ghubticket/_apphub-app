@@ -1471,6 +1471,17 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 let paymentInfo = data.transactions?.payments?.[0];
                 let orderInfo: any = null;
 
+                // DEBUG: Log detalhado da estrutura do webhook
+                console.log(`🔍 [webhook-order] Estrutura do webhook recebido:`, {
+                    hasTransactions: !!data.transactions,
+                    hasPayments: !!data.transactions?.payments,
+                    paymentsLength: data.transactions?.payments?.length || 0,
+                    dataStatus: data.status,
+                    dataStatusDetail: data.status_detail,
+                    paymentInfoStatus: paymentInfo?.status,
+                    paymentInfoStatusDetail: paymentInfo?.status_detail,
+                });
+
                 if (paymentInfo) {
                     // Webhook já enviou os dados do pagamento - usar diretamente
                     console.log(`✅ [webhook-order] Usando dados do webhook (mais atualizados):`, {
@@ -1497,6 +1508,22 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     }
 
                     paymentInfo = orderInfo.transactions?.payments?.[0];
+                }
+
+                // CRÍTICO: Se paymentInfo ainda não existe, tentar usar dados do data diretamente
+                // Isso pode acontecer quando o webhook envia status no nível do data, não no payment
+                if (!paymentInfo && (data.status || data.status_detail)) {
+                    console.log(`⚠️ [webhook-order] PaymentInfo não encontrado, usando dados do data diretamente:`, {
+                        dataStatus: data.status,
+                        dataStatusDetail: data.status_detail,
+                    });
+                    // Criar um paymentInfo mínimo a partir dos dados do data
+                    paymentInfo = {
+                        id: data.transactions?.payments?.[0]?.id || `PAY${data.id}`,
+                        status: data.status || data.transactions?.payments?.[0]?.status,
+                        status_detail: data.status_detail || data.transactions?.payments?.[0]?.status_detail,
+                        payment_method: data.transactions?.payments?.[0]?.payment_method || { id: 'pix', type: 'bank_transfer' },
+                    };
                 }
 
                 // Buscar pedido pelo external_reference
@@ -1528,9 +1555,22 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 const wasPaidBefore = order.status === 'paid';
 
                 // Obter informações completas do status
+                // CRÍTICO: Garantir que status_detail seja extraído corretamente
+                const paymentStatusRaw = paymentInfo.status || data.status;
+                const paymentStatusDetailRaw = paymentInfo.status_detail || data.status_detail || '';
+                
+                console.log(`🔍 [webhook-order] Extraindo status do pagamento:`, {
+                    paymentInfoStatus: paymentInfo.status,
+                    paymentInfoStatusDetail: paymentInfo.status_detail,
+                    dataStatus: data.status,
+                    dataStatusDetail: data.status_detail,
+                    finalStatus: paymentStatusRaw,
+                    finalStatusDetail: paymentStatusDetailRaw,
+                });
+
                 const statusInfo = getPaymentStatusInfo(
-                    paymentInfo.status,
-                    paymentInfo.status_detail || ''
+                    paymentStatusRaw,
+                    paymentStatusDetailRaw
                 );
                 const paymentStatus = statusInfo.internalStatus;
                 
@@ -1539,9 +1579,11 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     mpOrderId,
                     orderId,
                     orderNumber: order.orderNumber,
-                    paymentStatus: paymentInfo.status,
-                    paymentStatusDetail: paymentInfo.status_detail,
+                    paymentStatus: paymentStatusRaw,
+                    paymentStatusDetail: paymentStatusDetailRaw,
                     internalStatus: paymentStatus,
+                    statusInfoUserMessage: statusInfo.userMessage,
+                    statusInfoInternalStatus: statusInfo.internalStatus,
                     wasPaidBefore,
                 });
                 // Orders API usa payment_method.{type,id} em vez de payment_type_id/payment_method_id
@@ -1552,9 +1594,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 const paymentMethod = mapPaymentMethod(paymentTypeId, paymentMethodId);
 
                 // Atualizar pedido com informações completas
+                // CRÍTICO: Usar os valores extraídos corretamente
                 order.paymentId = paymentInfo.id;
-                order.paymentStatus = paymentInfo.status;
-                order.paymentStatusDetail = paymentInfo.status_detail;
+                order.paymentStatus = paymentStatusRaw;
+                order.paymentStatusDetail = paymentStatusDetailRaw;
                 order.paymentMessage = statusInfo.userMessage;
                 order.paymentAdminMessage = statusInfo.adminMessage;
 
@@ -1565,9 +1608,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                 if (paymentStatus === 'paid') {
                     console.log(`✅ [webhook-order] Pagamento APROVADO! Atualizando pedido ${order.orderNumber} para paid:`, {
-                        paymentStatus: paymentInfo.status,
-                        paymentStatusDetail: paymentInfo.status_detail,
+                        paymentStatus: paymentStatusRaw,
+                        paymentStatusDetail: paymentStatusDetailRaw,
                         internalStatus: paymentStatus,
+                        previousOrderStatus: order.status,
                     });
                     order.status = 'paid';
 
@@ -1609,9 +1653,17 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 }
 
                 if (paymentStatus === 'paid') {
+                    // Atualizar paidAt com a data de aprovação do pagamento ou data atual
                     order.paidAt = paymentInfo.date_approved
                         ? new Date(paymentInfo.date_approved)
-                        : new Date();
+                        : paymentInfo.date_created
+                          ? new Date(paymentInfo.date_created)
+                          : new Date();
+                    
+                    // Atualizar paymentOrderId se disponível
+                    if (mpOrderId && !order.paymentOrderId) {
+                        order.paymentOrderId = mpOrderId;
+                    }
 
                     // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                     // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
