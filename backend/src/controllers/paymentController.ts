@@ -1439,17 +1439,54 @@ export const handleWebhook = async (req: Request, res: Response) => {
         if (type === 'order') {
             // Notificação de Order (Orders API)
             const mpOrderId = data.id;
+            const action = (req.body as any).action; // Pode ser "order.processed", "order.updated", etc.
+
+            console.log(`🔔 [webhook-order] Recebendo notificação de order:`, {
+                mpOrderId,
+                action,
+                status: data.status,
+                statusDetail: data.status_detail,
+                hasTransactions: !!data.transactions,
+                hasPayments: !!data.transactions?.payments,
+            });
 
             try {
-                const orderInfo = (await paymentService.getOrderById(mpOrderId)) as any;
+                // CRÍTICO: Usar dados do webhook quando disponíveis (mais atualizados)
+                // Se o webhook já enviou os dados do pagamento, usar diretamente
+                // Caso contrário, buscar do MP (fallback)
+                let paymentInfo = data.transactions?.payments?.[0];
+                let orderInfo: any = null;
 
-                if (!orderInfo) {
-                    console.error('Order não encontrada:', mpOrderId);
-                    return;
+                if (paymentInfo) {
+                    // Webhook já enviou os dados do pagamento - usar diretamente
+                    console.log(`✅ [webhook-order] Usando dados do webhook (mais atualizados):`, {
+                        paymentId: paymentInfo.id,
+                        status: paymentInfo.status,
+                        statusDetail: paymentInfo.status_detail,
+                    });
+                    // Criar um objeto orderInfo mínimo com os dados necessários
+                    orderInfo = {
+                        external_reference: data.external_reference,
+                        metadata: { order_id: data.external_reference },
+                        transactions: {
+                            payments: [paymentInfo]
+                        }
+                    };
+                } else {
+                    // Fallback: buscar do MP se webhook não enviou dados completos
+                    console.log(`⚠️ [webhook-order] Webhook não enviou dados completos, buscando do MP...`);
+                    orderInfo = (await paymentService.getOrderById(mpOrderId)) as any;
+
+                    if (!orderInfo) {
+                        console.error('Order não encontrada:', mpOrderId);
+                        return;
+                    }
+
+                    paymentInfo = orderInfo.transactions?.payments?.[0];
                 }
 
                 // Buscar pedido pelo external_reference
-                const orderId = orderInfo.external_reference || orderInfo.metadata?.order_id;
+                const orderId = data.external_reference || orderInfo.external_reference || orderInfo.metadata?.order_id;
 
                 if (!orderId) {
                     console.error('Order ID não encontrado na order do MP:', mpOrderId);
@@ -1463,9 +1500,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     return;
                 }
 
-                // Processar primeira transação da order
-                // Orders API retorna: orderInfo.transactions.payments[0]
-                const paymentInfo = orderInfo.transactions?.payments?.[0];
+                if (!paymentInfo) {
+                    console.error('Nenhum pagamento encontrado na order:', mpOrderId);
+                    return;
+                }
 
                 if (!paymentInfo) {
                     console.error('Nenhum pagamento encontrado na order:', mpOrderId);
