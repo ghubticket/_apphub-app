@@ -1246,7 +1246,23 @@ export const getOrderById = async (req: Request, res: Response) => {
             setImmediate(async () => {
                 try {
                     const orderDoc = await Order.findById(order._id);
-                    if (!orderDoc || orderDoc.status !== 'pending') return;
+                    if (!orderDoc || orderDoc.status !== 'pending') {
+                        console.log(`⏭️ [getOrderById] Pulando sincronização:`, {
+                            orderId: order._id,
+                            orderNumber: order.orderNumber,
+                            reason: !orderDoc ? 'orderDoc não encontrado' : 'status não é pending',
+                            currentStatus: orderDoc?.status,
+                        });
+                        return;
+                    }
+                    
+                    console.log(`🔄 [getOrderById] Iniciando sincronização com MP:`, {
+                        orderId: orderDoc._id,
+                        orderNumber: orderDoc.orderNumber,
+                        paymentMethod: orderDoc.paymentMethod,
+                        paymentOrderId: (orderDoc as any).paymentOrderId,
+                        paymentId: orderDoc.paymentId,
+                    });
 
                     let paymentInfo: any = null;
                     let mpStatus: string | null = null;
@@ -1261,16 +1277,42 @@ export const getOrderById = async (req: Request, res: Response) => {
                             const mpPayment = mpOrder?.transactions?.payments?.[0];
                             if (mpPayment) {
                                 paymentInfo = mpPayment;
+                                // CRÍTICO: Priorizar status do payment, depois do order
                                 mpStatus = (
                                     mpPayment.status ||
                                     mpOrder?.status ||
                                     ''
                                 ).toLowerCase();
+                                
+                                // DEBUG: Log detalhado do que veio do MP
+                                console.log(`📦 [getOrderById] Dados do MP recebidos:`, {
+                                    orderId: orderDoc._id,
+                                    orderNumber: orderDoc.orderNumber,
+                                    mpPaymentStatus: mpPayment.status,
+                                    mpPaymentStatusDetail: mpPayment.status_detail,
+                                    mpOrderStatus: mpOrder?.status,
+                                    mpOrderStatusDetail: mpOrder?.status_detail,
+                                    finalMpStatus: mpStatus,
+                                    paymentInfoStatusDetail: paymentInfo.status_detail,
+                                });
+                                
+                                // CRÍTICO: Garantir que status_detail seja capturado do payment
+                                if (!paymentInfo.status_detail && mpPayment.status_detail) {
+                                    paymentInfo.status_detail = mpPayment.status_detail;
+                                }
+                                // Se não tiver no payment, tentar do order
+                                if (!paymentInfo.status_detail && mpOrder?.status_detail) {
+                                    paymentInfo.status_detail = mpOrder.status_detail;
+                                }
                                 if (mpPayment.date_of_expiration) {
                                     mpExpiration = new Date(mpPayment.date_of_expiration);
                                 }
                             } else if (mpOrder?.status) {
                                 mpStatus = String(mpOrder.status).toLowerCase();
+                                // Se não tem payment, usar status_detail do order
+                                if (mpOrder.status_detail) {
+                                    paymentInfo = { status_detail: mpOrder.status_detail };
+                                }
                             }
                         } catch (orderError) {
                             if (process.env.NODE_ENV !== 'production') {

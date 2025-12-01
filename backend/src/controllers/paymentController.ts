@@ -1372,6 +1372,20 @@ async function sendPaymentRejectedEmailHelper(order: any, rejectionReason?: stri
 export const handleWebhook = async (req: Request, res: Response) => {
     try {
         const { type, data } = req.body;
+        const action = (req.body as any).action; // Pode ser "order.processed", "order.updated", etc.
+        
+        // Log inicial do webhook recebido
+        console.log(`🔔 [handleWebhook] Webhook recebido:`, {
+            type,
+            action,
+            dataId: data?.id,
+            dataStatus: data?.status,
+            dataStatusDetail: data?.status_detail,
+            hasTransactions: !!data?.transactions,
+            hasPayments: !!data?.transactions?.payments,
+            paymentStatus: data?.transactions?.payments?.[0]?.status,
+            paymentStatusDetail: data?.transactions?.payments?.[0]?.status_detail,
+        });
 
         // Assinatura do webhook
         const secret = process.env.MP_WEBHOOK_SECRET?.trim();
