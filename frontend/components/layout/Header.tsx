@@ -245,7 +245,7 @@ export default function Header() {
                                 <button
                                     type="button"
                                     onClick={openCartDrawer}
-                                    className="group relative flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border border-[#ded7ca] bg-white/60 backdrop-blur-sm text-[#1a1a1d] transition hover:border-[#f97316] hover:bg-[#f97316]/10 hover:text-[#f97316]"
+                                    className="hidden group relative flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border border-[#ded7ca] bg-white/60 backdrop-blur-sm text-[#1a1a1d] transition hover:border-[#f97316] hover:bg-[#f97316]/10 hover:text-[#f97316]"
                                     aria-label="Ingressos"
                                 >
                                     <HiOutlineTicket className="text-xl" />
@@ -260,9 +260,9 @@ export default function Header() {
                                     <div className="flex items-center gap-3 text-[#1a1a1d]">
                                         <Link
                                             href="/dashboard"
-                                            className="inline-flex items-center h-full rounded-full gap-2 bg-[#1a1a1d] text-white px-4 py-1.5 text-xs md:px-6 md:py-2 md:text-sm font-semibold uppercase transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                            className="group inline-flex items-center h-full rounded-full gap-2 bg-[#1a1a1d] text-white px-4 py-1.5 text-xs md:px-6 md:py-2 md:text-sm font-semibold uppercase transition hover:bg-[#f97316] hover:text-white"
                                         >
-                                            <HiOutlineUserCircle className="text-base md:text-lg" />
+                                            <HiOutlineUserCircle className="text-base md:text-lg group-hover:text-white" />
                                             <span className="md:hidden">Meu perfil</span>
                                             <span className="hidden md:inline">
                                                 Olá, <strong className="font-bold">{welcomeName}</strong>
@@ -284,9 +284,9 @@ export default function Header() {
                                 ) : (
                                     <Link
                                         href="/login"
-                                        className="group inline-flex items-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] text-xs h-9 w-9 md:h-11 md:w-11 justify-center md:text-sm font-semibold uppercase text-white transition hover:bg-[#f97316] hover:border-[#f97316] lg:inline-flex"
+                                        className="group inline-flex items-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] text-xs h-9 w-9 md:h-11 md:w-11 justify-center md:text-sm font-semibold uppercase text-white transition hover:bg-[#f97316] hover:border-[#f97316] hover:text-white lg:inline-flex"
                                     >
-                                        <HiOutlineUserCircle className="text-xl" />
+                                        <HiOutlineUserCircle className="text-xl group-hover:text-white" />
                                         
                                     </Link>
                                 )}

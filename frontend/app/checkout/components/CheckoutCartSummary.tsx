@@ -283,13 +283,13 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
             {(orderDiscountAmount && orderDiscountAmount > 0 && orderPromoterCode) || 
              (promoterCodeState.state.appliedCode && !orderPromoterCode) ? (
                 <div className="mt-6 rounded-xl border border-[#10b981] bg-[#f1fff6] p-3">
-                    <div className="flex items-start gap-2">
+                    <div className="flex  items-center gap-2">
                         <HiSparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#10b981]" />
                         <div className="flex-1 space-y-1">
-                            <p className="text-xs font-semibold text-[#1f5d3d]">
+                            <p className="text-base font-semibold text-[#1f5d3d]">
                                 Desconto aplicado!
                             </p>
-                            <p className="text-xs leading-relaxed text-[#059669]">
+                            <p className="text-xs leading-0 text-[#059669]">
                                 {orderDiscountAmount && orderDiscountAmount > 0 ? (
                                     <>
                                         O código <span className="font-semibold">{orderPromoterCode}</span> foi aplicado com sucesso. O promoter disponibilizou este desconto de{' '}

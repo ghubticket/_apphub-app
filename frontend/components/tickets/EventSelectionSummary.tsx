@@ -254,7 +254,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                     <div className='flex gap-3'>
                                         {/* Tooltip com informações do ingresso */}
                                         <div className="relative inline-flex items-center group mt-0.5 mb-0.5">
-                                            <HiOutlineInformationCircle className="text-[1rem] text-[#a38f78] cursor-help hover:text-[#8b7a6a] transition-colors" />
+                                            <HiOutlineInformationCircle className="text-[1rem] text-[#a38f78] cursor-help hover:text-white transition-colors" />
                                             <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-50 pointer-events-none">
                                                 <div className="bg-[#1a1a1d] text-white text-[0.7rem] rounded-lg px-3 py-2 shadow-xl max-w-[220px] whitespace-normal">
                                                     <div className="space-y-1.5">
@@ -298,7 +298,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                                 type="button"
                                                 onClick={() => updateQuantity(ticket, -1)}
                                                 disabled={quantity <= 0}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d] disabled:opacity-40 disabled:cursor-not-allowed"
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                                 <HiOutlineMinusSmall className="text-sm" />
                                             </button>
@@ -309,7 +309,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                                 type="button"
                                                 onClick={() => updateQuantity(ticket, 1)}
                                                 disabled={isSoldOut || maxReached}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d] disabled:opacity-40 disabled:cursor-not-allowed"
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                                 <HiOutlinePlusSmall className="text-sm" />
                                             </button>
@@ -322,11 +322,11 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                         type="button"
                                         onClick={() => handleCreateVipOrder(ticket)}
                                         disabled={!isReady || !isAuthenticated || isCreatingVipOrder[ticket.id]}
-                                        className="mt-3 w-full rounded-full border border-[#a38f78] bg-white px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-normal text-[#a38f78] transition hover:border-[#f97316] hover:text-[#f97316] disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="group mt-3 w-full rounded-full border border-[#a38f78] bg-white px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-normal text-[#a38f78] transition hover:border-[#f97316] hover:bg-[#f97316] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {!isReady || !isAuthenticated ? (
                                             <>
-                                                <HiOutlineLockClosed className="mr-1 inline text-sm" />
+                                                <HiOutlineLockClosed className="mr-1 inline text-sm group-hover:text-white" />
                                                 Login necessário
                                             </>
                                         ) : isCreatingVipOrder[ticket.id] ? (
@@ -374,7 +374,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                 onClick={handleProceed}
                 disabled={!hasSelectedTickets || isProcessing}
                 className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-normal transition ${hasSelectedTickets && !isProcessing
-                    ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-[#1a1a1d]'
+                    ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-white'
                     : 'cursor-not-allowed bg-[#f3f3f5] text-[#b5b1aa]'
                     }`}
             >

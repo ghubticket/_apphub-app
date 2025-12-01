@@ -310,7 +310,7 @@ export default function HeroCarousel({
 
             {/* Navegação - Setas e Indicadores */}
             {slides.length > 1 && (
-                <div className="absolute bottom-6 right-6 z-20 flex items-center gap-4 md:bottom-8 md:right-8">
+                <div className="absolute bottom-6 right-6 z-1 flex items-center gap-4 md:bottom-8 md:right-8">
                     {/* Indicadores de slide (bullets) - estilo bullseye */}
                     <div className="flex items-center gap-2">
                         {slides.map((_, index) => (

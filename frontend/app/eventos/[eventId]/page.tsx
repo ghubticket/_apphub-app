@@ -127,7 +127,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
     };
 
     return (
-        <main className="bg-[#f5f1e8] pt-24 md:pt-40">
+        <main className="bg-[#f5f1e8] pt-24 md:pt-28">
             <div className='bg-white py-6'>
                 <Container>
                     <div className="flex flex-col lg:flex-row gap-5 md:gap-10 justify-between">
