@@ -13,7 +13,16 @@ export async function GET(
         const resolvedParams = params instanceof Promise ? await params : params;
         const { path } = resolvedParams;
         
+        // Log inicial para debug
+        console.log('[Image Proxy] Request received:', {
+            path,
+            pathLength: path?.length,
+            requestUrl: request.url,
+            method: request.method,
+        });
+        
         if (!path || path.length === 0) {
+            console.error('[Image Proxy] Path is empty or invalid');
             return new NextResponse('Path is required', { status: 400 });
         }
 
@@ -191,4 +200,5 @@ export async function GET(
 // Configurar para permitir parâmetros dinâmicos
 export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
+export const runtime = 'nodejs';
 
