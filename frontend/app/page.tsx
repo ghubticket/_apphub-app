@@ -69,11 +69,11 @@ export default function Home() {
     // Gerar slides do carrossel hero a partir dos eventos da API
     const heroSlides: HeroSlide[] = useMemo(() => {
         if (!hasEvents) {
-            // Fallback: slides padrão se não houver eventos
+            // Fallback: slide sem imagem (mostrará "IMAGEM em construção.")
             return [
                 {
                     type: 'image',
-                    imageUrl: '/images/Banner-4-1600x838-5.png',
+                    imageUrl: '', // Sem imagem para mostrar o texto de construção
                     content: {
                         title: 'Próximos Eventos',
                         description: 'Aguarde, em breve teremos novidades incríveis para você!',
@@ -88,7 +88,19 @@ export default function Home() {
         return events.slice(0, 4).map((event) => {
             // Usar a imagem do backend (coverImage ou squareImage), mesma da página de ingressos
             const eventImage = event.coverImage || event.squareImage;
+            // Se houver imagem do evento, usar o proxy; caso contrário, usar fallback
             const imageUrl = eventImage ? getProxiedImageUrl(eventImage) : '/images/Banner-4-1600x838-5.png';
+            
+            // Log para debug em desenvolvimento
+            if (process.env.NODE_ENV === 'development') {
+                console.log('[Home] Hero slide image:', {
+                    eventId: event.id,
+                    eventName: event.name,
+                    hasCoverImage: !!event.coverImage,
+                    hasSquareImage: !!event.squareImage,
+                    finalImageUrl: imageUrl,
+                });
+            }
             
             return {
                 type: 'image',

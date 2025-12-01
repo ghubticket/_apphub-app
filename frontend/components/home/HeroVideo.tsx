@@ -52,6 +52,7 @@ export default function HeroCarousel({
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isLoaded, setIsLoaded] = useState(false);
     const [isTextTransitioning, setIsTextTransitioning] = useState(false);
+    const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
     const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
     
     // Estados para touch/swipe
@@ -219,21 +220,31 @@ export default function HeroCarousel({
                                 loading={index === currentSlide ? 'eager' : 'lazy'}
                             />
                         ) : slide.type === 'image' && slide.imageUrl ? (
-                            <div className="absolute inset-0">
-                                {/* Imagem para mobile e desktop - usar a mesma imagem do backend */}
-                                <Image
-                                    src={slide.imageUrl}
-                                    alt={`Slide ${index + 1}`}
-                                    fill
-                                    className="object-cover"
-                                    priority={index === currentSlide}
-                                    // Desabilitar otimização para imagens do proxy (já servidas pelo Next.js)
-                                    unoptimized={slide.imageUrl.startsWith('/api/images/')}
-                                    sizes="100vw"
-                                    onError={(e) => {
-                                        console.error('Erro ao carregar imagem do slide:', slide.imageUrl, e);
-                                    }}
-                                />
+                            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
+                                {imageErrors.has(index) || !slide.imageUrl ? (
+                                    <p className="text-center text-sm text-[#a38f78] px-4">
+                                        IMAGEM em construção.
+                                    </p>
+                                ) : (
+                                    <Image
+                                        src={slide.imageUrl}
+                                        alt={`Slide ${index + 1}`}
+                                        fill
+                                        className="object-cover"
+                                        priority={index === currentSlide}
+                                        // Desabilitar otimização para imagens do proxy (já servidas pelo Next.js)
+                                        unoptimized={true}
+                                        sizes="100vw"
+                                        onError={(e) => {
+                                            console.error('[HeroCarousel] Erro ao carregar imagem do slide:', {
+                                                imageUrl: slide.imageUrl,
+                                                slideIndex: index,
+                                                error: e
+                                            });
+                                            setImageErrors((prev) => new Set(prev).add(index));
+                                        }}
+                                    />
+                                )}
                             </div>
                         ) : null}
 
