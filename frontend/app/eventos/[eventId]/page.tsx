@@ -195,7 +195,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                 )}
                             </div>
                         </div>
-
+                      
                         {/* Seção Sobre */}
                         <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 lg:p-8 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
                             <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
@@ -213,9 +213,9 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                         'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
                                 }}
                             />
-                            
+                            <hr />
                             {/* Botões de compartilhar */}
-                            <div className="mt-6 flex flex-wrap gap-3">
+                            <div className="mt-4 flex flex-wrap gap-3">
                                 <button
                                     type="button"
                                     onClick={handleShareWhatsApp}

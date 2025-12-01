@@ -220,27 +220,16 @@ export default function HeroCarousel({
                             />
                         ) : slide.type === 'image' && slide.imageUrl ? (
                             <div className="absolute inset-0">
-                                {/* Imagem para mobile */}
-                                <Image
-                                    src="/images/Banner-3-624x1000-5.png"
-                                    alt={`Slide ${index + 1}`}
-                                    fill
-                                    className="object-cover md:hidden"
-                                    priority={index === currentSlide}
-                                    sizes="(max-width: 768px) 100vw, 0vw"
-                                    onError={(e) => {
-                                        console.error('Erro ao carregar imagem do slide mobile:', e);
-                                    }}
-                                />
-                                {/* Imagem para desktop */}
+                                {/* Imagem para mobile e desktop - usar a mesma imagem do backend */}
                                 <Image
                                     src={slide.imageUrl}
                                     alt={`Slide ${index + 1}`}
                                     fill
-                                    className="hidden object-cover md:block"
+                                    className="object-cover"
                                     priority={index === currentSlide}
-                                    unoptimized={slide.imageUrl.startsWith('http') || slide.imageUrl.startsWith('https')}
-                                    sizes="(min-width: 768px) 100vw, 0vw"
+                                    // Desabilitar otimização para imagens do proxy (já servidas pelo Next.js)
+                                    unoptimized={slide.imageUrl.startsWith('/api/images/')}
+                                    sizes="100vw"
                                     onError={(e) => {
                                         console.error('Erro ao carregar imagem do slide:', slide.imageUrl, e);
                                     }}

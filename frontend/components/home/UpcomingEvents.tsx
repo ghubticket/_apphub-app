@@ -63,9 +63,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                         // Priorizar coverImage, depois squareImage, depois fallback
                         const image = event.coverImage || event.squareImage;
                         const hasError = imageErrors.has(event.id);
-                        const imageSrc = hasError || !image
-                            ? '/images/31809-20250922180915.webp'
-                            : getProxiedImageUrl(image);
+                        const imageSrc = getProxiedImageUrl(image);
 
                         return (
                             <article
@@ -73,16 +71,22 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                 className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-md transition-all hover:shadow-xl"
                             >
                                 {/* Imagem do evento */}
-                                <div className="relative aspect-[16/10] w-full overflow-hidden bg-gray-100">
-                                    <Image
-                                        src={imageSrc}
-                                        alt={event.name || 'Evento'}
-                                        fill
-                                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                        sizes="(max-width: 768px) 100vw, 50vw"
-                                        unoptimized={false}
-                                        onError={() => handleImageError(event.id)}
-                                    />
+                                <div className="relative aspect-[16/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                                    {hasError || !image ? (
+                                        <p className="text-center text-sm text-[#a38f78] px-4">
+                                            Imagem em construção.
+                                        </p>
+                                    ) : (
+                                        <Image
+                                            src={imageSrc}
+                                            alt={event.name || 'Evento'}
+                                            fill
+                                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                            sizes="(max-width: 768px) 100vw, 50vw"
+                                            unoptimized={false}
+                                            onError={() => handleImageError(event.id)}
+                                        />
+                                    )}
                                 </div>
 
                                 {/* Conteúdo do card */}

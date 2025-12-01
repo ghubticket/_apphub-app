@@ -51,22 +51,47 @@ export function getProxiedImageUrl(imageUrl: string | null | undefined): string 
                 const url = new URL(normalized);
                 let path = url.pathname;
                 
-                // Remover /api se estiver presente
+                // Remover /api se estiver presente no caminho
                 if (path.startsWith('/api/')) {
-                    path = path.substring(5);
+                    path = path.substring(5); // Remove '/api/'
                 } else if (path.startsWith('/')) {
+                    // Se começa com / mas não tem /api/, apenas remover a barra inicial
                     path = path.substring(1);
+                }
+                
+                // Garantir que o caminho não esteja vazio
+                if (!path) {
+                    console.warn('[getProxiedImageUrl] Empty path after processing:', normalized);
+                    return '/images/anita.jpg';
                 }
                 
                 // Retornar URL do proxy (sempre começa com /)
                 return `/api/images/${path}${url.search}`;
-            } catch {
+            } catch (error) {
                 // Se falhar ao parsear URL, tentar extrair manualmente
-                const match = normalized.match(/\/(uploads\/.+)$/);
-                if (match) {
-                    return `/api/images/${match[1]}`;
+                console.warn('[getProxiedImageUrl] Failed to parse URL, trying regex:', normalized, error);
+                
+                // Tentar extrair caminho que começa com /uploads/
+                const uploadsMatch = normalized.match(/\/(uploads\/.+)$/);
+                if (uploadsMatch) {
+                    return `/api/images/${uploadsMatch[1]}`;
                 }
+                
+                // Tentar extrair qualquer caminho após o domínio
+                const pathMatch = normalized.match(/https?:\/\/[^\/]+(\/.+)$/);
+                if (pathMatch) {
+                    let extractedPath = pathMatch[1];
+                    // Remover /api/ se presente
+                    if (extractedPath.startsWith('/api/')) {
+                        extractedPath = extractedPath.substring(5);
+                    } else if (extractedPath.startsWith('/')) {
+                        extractedPath = extractedPath.substring(1);
+                    }
+                    return `/api/images/${extractedPath}`;
+                }
+                
                 // Se não conseguir extrair, retornar fallback
+                console.error('[getProxiedImageUrl] Could not extract path from URL:', normalized);
                 return '/images/anita.jpg';
             }
         }

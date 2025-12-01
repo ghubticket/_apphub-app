@@ -29,23 +29,29 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
                 {events.map((event) => {
                     const image = event.coverImage || event.squareImage;
                     const hasError = imageErrors.has(event.id);
-                    const imageSrc = hasError || !image ? '/images/anita.jpg' : getProxiedImageUrl(image);
+                    const imageSrc = getProxiedImageUrl(image);
 
                     return (
                         <article
                             key={event.id}
                             className="group relative flex min-w-[280px] max-w-sm flex-col overflow-hidden rounded-3xl border border-[#ded7ca] bg-white/80 shadow-[0_24px_45px_-30px_rgba(20,20,32,0.55)] transition hover:-translate-y-1 hover:shadow-[0_40px_60px_-35px_rgba(20,20,32,0.6)]"
                         >
-                            <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#e7dfd2]">
-                                <Image
-                                    src={imageSrc}
-                                    alt={event.name || 'Evento'}
-                                    fill
-                                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                    sizes="(max-width: 768px) 80vw, 360px"
-                                    unoptimized={false}
-                                    onError={() => handleImageError(event.id)}
-                                />
+                            <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#e7dfd2] flex items-center justify-center">
+                                {hasError || !image ? (
+                                    <p className="text-center text-sm text-[#a38f78] px-4">
+                                        Imagem em construção.
+                                    </p>
+                                ) : (
+                                    <Image
+                                        src={imageSrc}
+                                        alt={event.name || 'Evento'}
+                                        fill
+                                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                        sizes="(max-width: 768px) 80vw, 360px"
+                                        unoptimized={false}
+                                        onError={() => handleImageError(event.id)}
+                                    />
+                                )}
                             </div>
 
                             <div className="flex flex-1 flex-col justify-between p-5">

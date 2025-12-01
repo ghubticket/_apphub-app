@@ -43,27 +43,27 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
 
             // Função auxiliar para desenhar header em cada página
             const drawHeader = () => {
-                doc.fontSize(24).fillColor('#000000').text(data.event.name, { align: 'center' });
+            doc.fontSize(24).fillColor('#000000').text(data.event.name, { align: 'center' });
 
-                doc.moveDown(0.5);
+            doc.moveDown(0.5);
 
-                doc.fontSize(12)
-                    .fillColor('#666666')
-                    .text(`Data: ${formatDate(data.event.date)}`, { align: 'center' });
+            doc.fontSize(12)
+                .fillColor('#666666')
+                .text(`Data: ${formatDate(data.event.date)}`, { align: 'center' });
 
-                doc.text(`Local: ${data.event.location}`, { align: 'center' });
+            doc.text(`Local: ${data.event.location}`, { align: 'center' });
 
-                if (data.event.address) {
-                    doc.text(`Endereço: ${data.event.address}`, { align: 'center' });
-                }
+            if (data.event.address) {
+                doc.text(`Endereço: ${data.event.address}`, { align: 'center' });
+            }
 
-                doc.moveDown(1);
+            doc.moveDown(1);
 
-                doc.fontSize(10)
-                    .fillColor('#999999')
-                    .text(`Pedido #${data.orderNumber}`, { align: 'center' });
+            doc.fontSize(10)
+                .fillColor('#999999')
+                .text(`Pedido #${data.orderNumber}`, { align: 'center' });
 
-                doc.text(`Cliente: ${data.customerName}`, { align: 'center' });
+            doc.text(`Cliente: ${data.customerName}`, { align: 'center' });
 
                 doc.moveDown(1.5);
             };
@@ -138,10 +138,10 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
                 doc.text('Não compartilhe este QR Code (uso único).', { align: 'center' });
 
                 // Footer em cada página
-                doc.moveDown(2);
-                doc.fontSize(8)
-                    .fillColor('#999999')
-                    .text('EventHub - Sistema de Gestão de Eventos', { align: 'center' });
+            doc.moveDown(2);
+            doc.fontSize(8)
+                .fillColor('#999999')
+                .text('EventHub - Sistema de Gestão de Eventos', { align: 'center' });
             }
 
             doc.end();

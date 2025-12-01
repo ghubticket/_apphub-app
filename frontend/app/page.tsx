@@ -9,6 +9,7 @@ import PhotosCarousel from '@/components/home/PhotosCarousel';
 import HeroCarousel, { type HeroSlide } from '@/components/home/HeroVideo';
 import { fetchEventsList, type EventSummary } from '@/lib/ticketsCatalog';
 import { APP_NAME } from '@/lib/config';
+import { getProxiedImageUrl } from '@/lib/imageProxy';
 
 export default function Home() {
     // Limpar qualquer estado de processamento de pagamento ao entrar na HOME
@@ -85,10 +86,13 @@ export default function Home() {
 
         // Criar slides a partir dos eventos da API (máximo 4)
         return events.slice(0, 4).map((event) => {
-            // Sempre usar a imagem estática
+            // Usar a imagem do backend (coverImage ou squareImage), mesma da página de ingressos
+            const eventImage = event.coverImage || event.squareImage;
+            const imageUrl = eventImage ? getProxiedImageUrl(eventImage) : '/images/Banner-4-1600x838-5.png';
+            
             return {
                 type: 'image',
-                imageUrl: '/images/Banner-4-1600x838-5.png',
+                imageUrl: imageUrl,
                 content: {
                     title: event.name || 'Evento',
                     description: event.description
