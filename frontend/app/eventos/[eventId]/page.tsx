@@ -12,6 +12,7 @@ import type { TicketProduct } from '@/types/ticket';
 import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
 import api from '@/lib/api';
 import { APP_NAME } from '@/lib/config';
+import { getProxiedImageUrl } from '@/lib/imageProxy';
 
 type EventTicketsPageProps = {
     params: {
@@ -177,13 +178,13 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                         <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
                             <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
                                 <Image
-                                    src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : primaryTicket.image}
+                                    src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : getProxiedImageUrl(primaryTicket.image)}
                                     alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
                                     fill
                                     className="object-cover"
                                     priority
                                     sizes="(max-width: 768px) 100vw, 50vw"
-                                    unoptimized={primaryTicket?.image?.startsWith('http')}
+                                    unoptimized={false}
                                     onError={() => setImageError(true)}
                                 />
                             </div>
@@ -296,13 +297,13 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                             <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
                                 <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
                                     <Image
-                                        src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : primaryTicket.image}
+                                        src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : getProxiedImageUrl(primaryTicket.image)}
                                         alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
                                         fill
                                         className="object-cover"
                                         priority
                                         sizes="100vw"
-                                        unoptimized={primaryTicket?.image?.startsWith('http')}
+                                        unoptimized={false}
                                         onError={() => setImageError(true)}
                                     />
                                 </div>

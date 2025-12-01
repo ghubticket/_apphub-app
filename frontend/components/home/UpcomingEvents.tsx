@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineTicket } from 'react-icons/hi2';
 import type { EventSummary } from '@/lib/ticketsCatalog';
+import { getProxiedImageUrl } from '@/lib/imageProxy';
 
 type UpcomingEventsProps = {
     events: EventSummary[];
@@ -79,7 +80,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                         fill
                                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                                         sizes="(max-width: 768px) 100vw, 50vw"
-                                        unoptimized={imageSrc.startsWith('http') || imageSrc.startsWith('https')}
+                                        unoptimized={false}
                                         onError={() => handleImageError(event.id)}
                                     />
                                 </div>

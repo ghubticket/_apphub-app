@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { EventSummary } from '@/lib/ticketsCatalog';
 import { APP_NAME } from '@/lib/config';
+import { getProxiedImageUrl } from '@/lib/imageProxy';
 
 type EventCarouselProps = {
     events: EventSummary[];
@@ -28,7 +29,7 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
                 {events.map((event) => {
                     const image = event.coverImage || event.squareImage;
                     const hasError = imageErrors.has(event.id);
-                    const imageSrc = hasError || !image ? '/images/anita.jpg' : image;
+                    const imageSrc = hasError || !image ? '/images/anita.jpg' : getProxiedImageUrl(image);
 
                     return (
                         <article
@@ -42,7 +43,7 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
                                     fill
                                     className="object-cover transition-transform duration-500 group-hover:scale-105"
                                     sizes="(max-width: 768px) 80vw, 360px"
-                                    unoptimized={imageSrc.startsWith('http')}
+                                    unoptimized={false}
                                     onError={() => handleImageError(event.id)}
                                 />
                             </div>
