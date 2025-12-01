@@ -26,12 +26,14 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
     onRemoveCode,
 }: PromoterCodeInputProps) {
     const {
-        state: { codeInput, appliedCode, invalidCode, codeStatus },
+        state: { codeInput, appliedCode, invalidCode, codeStatus, appliedDiscountInfo },
         updateInput,
         clearStatus,
     } = state;
 
-    const hasAppliedCode = appliedCode && orderDiscountAmount && orderDiscountAmount > 0;
+    // Código aplicado se: há appliedCode OU há orderDiscountAmount > 0
+    // Isso permite mostrar sucesso mesmo quando o pedido ainda é fake (sem orderDiscountAmount)
+    const hasAppliedCode = appliedCode || (orderDiscountAmount && orderDiscountAmount > 0);
     const hasInvalidCode = invalidCode && codeInput.trim() && !appliedCode;
 
     // Memoizar classes CSS condicionais
@@ -75,14 +77,28 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
         const newValue = e.target.value.toUpperCase();
         updateInput(newValue);
 
-        // Limpar estados apenas quando usuário realmente mudar o código
+        // Limpar estados de erro/aplicado quando usuário começar a digitar um novo código
         if (newValue.trim() === '') {
+            // Campo vazio: limpar tudo
             state.clearAll();
-        } else if (newValue !== appliedCode && newValue !== invalidCode) {
-            if (newValue !== invalidCode) {
-                clearStatus();
+        } else {
+            // Limpar status de erro/aplicado quando usuário está digitando
+            // Isso evita mostrar "Inválido" enquanto o usuário ainda está digitando
+            clearStatus();
+            // Se havia um código inválido ou aplicado e o usuário mudou o código, limpar
+            if (invalidCode && newValue !== invalidCode) {
+                state.setInvalidCode(null);
+            }
+            if (appliedCode && newValue !== appliedCode) {
+                // Não limpar appliedCode aqui, apenas o status visual
+                // O appliedCode será limpo quando o usuário clicar em "Trocar" ou "Limpar"
             }
         }
+    };
+
+    const handleBlur = () => {
+        // Não validar automaticamente no blur - apenas limpar status se necessário
+        // A validação só acontece quando o usuário clica em "OK"
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -100,6 +116,7 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
                         value={codeInput}
                         onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
+                        onBlur={handleBlur}
                         placeholder={placeholder}
                         disabled={pixPaymentActive || isValidating}
                         className={inputClassName}

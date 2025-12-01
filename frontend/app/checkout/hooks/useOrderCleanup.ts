@@ -71,6 +71,27 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
         }
     }, []);
 
+    // Limpar código de promotor do sessionStorage
+    const clearPromoterCodesFromStorage = useCallback(() => {
+        if (typeof window !== 'undefined') {
+            // Limpar todos os códigos de promotor do sessionStorage
+            // Como não temos o eventId aqui, vamos limpar todas as chaves que começam com 'promoter_code_'
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < window.sessionStorage.length; i++) {
+                const key = window.sessionStorage.key(i);
+                if (key && key.startsWith('promoter_code_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => {
+                window.sessionStorage.removeItem(key);
+            });
+            if (keysToRemove.length > 0) {
+                console.log('[useOrderCleanup] 🗑️ Códigos de promotor removidos do sessionStorage:', keysToRemove.length);
+            }
+        }
+    }, []);
+
     // Cancelar pedido (backend + limpeza básica)
     const cancelOrder = useCallback(async (
         orderId: string,
@@ -88,6 +109,9 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
 
         // Limpar storage relacionado ao pedido
         storage.clearOrderRelated();
+
+        // Limpar código de promotor do sessionStorage
+        clearPromoterCodesFromStorage();
 
         // Limpar carrinho
         clearCartItems();
@@ -108,7 +132,7 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
         if (onComplete) {
             onComplete();
         }
-    }, [cancelOrderInBackend, clearOrder, storage, refreshCart, router, onComplete]);
+    }, [cancelOrderInBackend, clearOrder, storage, refreshCart, router, onComplete, clearPromoterCodesFromStorage]);
 
     // Limpeza completa (sem cancelar no backend)
     const cleanupOrder = useCallback(async (
@@ -131,6 +155,9 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
         // Limpar storage relacionado ao pedido
         storage.clearOrderRelated();
 
+        // Limpar código de promotor do sessionStorage
+        clearPromoterCodesFromStorage();
+
         // Limpar carrinho
         clearCartItems();
         refreshCart();
@@ -150,7 +177,7 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
         if (onComplete) {
             onComplete();
         }
-    }, [cancelOrderInBackend, resetBrick, clearOrder, storage, refreshCart, router, onComplete]);
+    }, [cancelOrderInBackend, resetBrick, clearOrder, storage, refreshCart, router, onComplete, clearPromoterCodesFromStorage]);
 
     // Limpeza completa incluindo Brick reset
     const cleanupAll = useCallback(async (
@@ -173,6 +200,9 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
         // Limpar todo o storage (incluindo navigation flags)
         storage.clearAll();
 
+        // Limpar código de promotor do sessionStorage
+        clearPromoterCodesFromStorage();
+
         // Limpar carrinho
         clearCartItems();
         refreshCart();
@@ -192,7 +222,7 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
         if (onComplete) {
             onComplete();
         }
-    }, [cancelOrderInBackend, resetBrick, clearOrder, storage, refreshCart, router, onComplete]);
+    }, [cancelOrderInBackend, resetBrick, clearOrder, storage, refreshCart, router, onComplete, clearPromoterCodesFromStorage]);
 
     return {
         cancelOrder,

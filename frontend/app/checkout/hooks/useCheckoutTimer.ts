@@ -117,10 +117,7 @@ export function useCheckoutTimer(
             hasInitializedFromStorageRef.current = true; // Marcar como inicializado
             // Limpar timer antigo do localStorage quando temos initialRemainingSeconds
             storageHelpers.clearTimerStartTime();
-            console.log('[useCheckoutTimer] 🔄 Timer atualizado com tempo restante:', {
-                initialRemainingSeconds,
-                remainingMinutes: Math.floor(remainingMs / 60000),
-            });
+            // Log removido para reduzir ruído
             return;
         }
 
@@ -137,11 +134,7 @@ export function useCheckoutTimer(
                 if (remaining > 0) {
                     setTimeRemaining(remaining);
                     startTimeRef.current = savedStartTime;
-                    console.log('[useCheckoutTimer] 🔄 Timer restaurado do localStorage:', {
-                        savedStartTime: new Date(savedStartTime).toISOString(),
-                        remainingMs: remaining,
-                        remainingMinutes: Math.floor(remaining / 60000),
-                    });
+                    // Log removido para reduzir ruído
                 } else {
                     console.log('[useCheckoutTimer] ⏰ Timer do localStorage expirado, limpando');
                     storageHelpers.clearTimerStartTime();
@@ -176,9 +169,7 @@ export function useCheckoutTimer(
         startTimeRef.current = newStartTime;
         // Salvar novo tempo de início no localStorage (apenas se não temos expiresAt)
         storageHelpers.saveTimerStartTime(newStartTime);
-        console.log('[useCheckoutTimer] 🔄 Timer resetado e salvo:', {
-            startTime: new Date(newStartTime).toISOString(),
-        });
+        // Log removido para reduzir ruído
     }, [expiresAt]);
 
     const pauseTimer = useCallback(() => {

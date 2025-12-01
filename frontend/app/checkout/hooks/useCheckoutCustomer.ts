@@ -35,32 +35,18 @@ export function useCheckoutCustomer() {
             ? window.localStorage.getItem('checkout:customer-user-id')
             : null;
 
-        console.log('[useCheckoutCustomer] 🔍 Verificando dados salvos:', {
-            currentUserId: userId,
-            savedUserId,
-            hasSavedData: !!(savedData && (savedData.name || savedData.email)),
-            savedDataName: savedData?.name,
-            savedDataEmail: savedData?.email,
-        });
-
         // Se há dados salvos mas são de outro usuário, limpar e recarregar
         if (savedUserId && savedUserId !== userId) {
-            console.log('[useCheckoutCustomer] 🔒 Usuário diferente detectado, limpando dados antigos:', {
-                savedUserId,
-                currentUserId: userId,
-            });
+            // Log removido para reduzir ruído
             storageHelpers.clearCustomerData();
             setCustomerData({ name: '', email: '', cpf: '', phone: '' });
         } else if (savedData && (savedData.name || savedData.email)) {
             // Carregar dados válidos do usuário atual
-            console.log('[useCheckoutCustomer] ✅ Carregando dados salvos do usuário atual:', {
-                name: savedData.name,
-                email: savedData.email,
-            });
+            // Log removido para reduzir ruído
             setCustomerData(savedData);
         } else {
             // Não há dados salvos - começar vazio
-            console.log('[useCheckoutCustomer] 📝 Nenhum dado salvo encontrado, iniciando vazio');
+            // Log removido para reduzir ruído
             setCustomerData({ name: '', email: '', cpf: '', phone: '' });
         }
     }, [userId]);
@@ -96,7 +82,7 @@ export function useCheckoutCustomer() {
         
         // Se há dados salvos (mesmo que parcialmente), não preencher automaticamente do user
         if (hasAnySavedData) {
-            console.log('[useCheckoutCustomer] ⚠️ Dados salvos encontrados, não preenchendo automaticamente do user');
+            // Log removido para reduzir ruído
             return;
         }
 

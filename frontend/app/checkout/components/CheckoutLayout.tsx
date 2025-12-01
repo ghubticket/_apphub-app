@@ -65,10 +65,14 @@ export function CheckoutLayout() {
     // Atualizar código de promotor no pedido existente via API
     // REFATORADO: Simplificado - lógica movida para hooks especializados
     const handlePromoterCodeChange = useCallback(async (code: string | null) => {
-        setPromoterCode(code);
+        // Se código é null, apenas limpar
+        if (!code) {
+            setPromoterCode(null);
+            return;
+        }
 
-        // Se já existe um pedido, atualizar via API sem resetar nada
-        if (order?._id) {
+        // Se já existe um pedido REAL (não fake), atualizar via API sem resetar nada
+        if (order?._id && !order._id.startsWith('fake-')) {
             try {
                 const response = await api.patch(`/orders/${order._id}/promoter-code`, {
                     promoterCode: code,
@@ -80,9 +84,78 @@ export function CheckoutLayout() {
             } catch (error: any) {
                 // Reverter estado do código se houver erro
                 setPromoterCode(promoterCode);
+                // Log do erro para debug
+                console.error('[CheckoutLayout] ❌ Erro ao atualizar código de promotor:', {
+                    error: error?.response?.data?.message || error?.message,
+                    orderId: order._id,
+                    code,
+                });
+            }
+        } else if (order?._id?.startsWith('fake-')) {
+            // Pedido fake: validar código via API para mostrar feedback visual
+            // O código será aplicado quando o pedido real for criado
+            const eventId = summarizedCart[0]?.eventId;
+            if (eventId) {
+                try {
+                    const response = await api.get(`/promoters/validate`, {
+                        params: {
+                            code: code.toUpperCase().trim(),
+                            eventId,
+                        },
+                    });
+
+                    const result = response.data;
+                    if (result?.valid && result?.data) {
+                        // Código válido: salvar no estado para aplicar quando pedido real for criado
+                        setPromoterCode(code);
+                        console.log('[CheckoutLayout] ✅ Código validado (pedido fake), será aplicado quando pedido real for criado');
+                    } else {
+                        // Código inválido: não salvar e deixar o CheckoutCartSummary mostrar o erro
+                        setPromoterCode(null);
+                        console.log('[CheckoutLayout] ❌ Código inválido (pedido fake)');
+                    }
+                } catch (error: any) {
+                    // Em caso de erro na validação, não salvar o código
+                    setPromoterCode(null);
+                    console.error('[CheckoutLayout] ❌ Erro ao validar código de promotor:', {
+                        error: error?.response?.data?.message || error?.message,
+                        code,
+                    });
+                }
+            } else {
+                // Sem eventId, apenas salvar no estado
+                setPromoterCode(code);
+            }
+        } else {
+            // Sem pedido ainda: apenas salvar no estado
+            setPromoterCode(code);
+        }
+    }, [order?._id, promoterCode, refreshOrder, summarizedCart]);
+
+    // Ler código de desconto do sessionStorage quando o pedido for criado
+    // CRÍTICO: Usar useRef para evitar loop infinito
+    const promoterCodeAppliedRef = useRef(false);
+    useEffect(() => {
+        // Só aplicar código se não houver código já aplicado e se houver um pedido e eventId do carrinho
+        // E se ainda não foi aplicado anteriormente (evitar loop)
+        if (!promoterCode && !promoterCodeAppliedRef.current && order?._id && summarizedCart.length > 0) {
+            const eventId = summarizedCart[0]?.eventId;
+            if (eventId && typeof window !== 'undefined') {
+                const storageKey = `promoter_code_${eventId}`;
+                const savedCode = window.sessionStorage.getItem(storageKey);
+                if (savedCode) {
+                    // Marcar como aplicado ANTES de chamar para evitar loop
+                    promoterCodeAppliedRef.current = true;
+                    // Aplicar código automaticamente
+                    handlePromoterCodeChange(savedCode);
+                }
             }
         }
-    }, [order?._id, promoterCode, refreshOrder]);
+        // Resetar flag se o pedido mudar
+        if (!order?._id) {
+            promoterCodeAppliedRef.current = false;
+        }
+    }, [order?._id, summarizedCart.length, promoterCode]); // Removido handlePromoterCodeChange das dependências
 
     // Hooks de pagamento
     // NOVO: Passar dados do carrinho e cliente para criar pedido real quando pagar com cartão
@@ -138,13 +211,17 @@ export function CheckoutLayout() {
     const storage = useCheckoutStorage();
 
     // Restaurar flag de navegação se houver flag PIX ativa (após reload)
+    // CRÍTICO: Usar ref para evitar loop infinito
+    const pixFlagCheckedRef = useRef(false);
     useEffect(() => {
+        if (pixFlagCheckedRef.current) return;
+        
         const pixOrderId = storage.getPixOrderActive();
         if (pixOrderId) {
-            console.log('[CheckoutLayout] 🔓 Flag PIX ativa detectada, liberando navegação:', pixOrderId);
+            pixFlagCheckedRef.current = true;
             navigation.allowNavigation();
         }
-    }, [storage, navigation]);
+    }, []); // Executar apenas uma vez na montagem
 
     // Escutar mudanças no storage para sincronizar entre abas
     useEffect(() => {
@@ -443,16 +520,6 @@ export function CheckoutLayout() {
                     <section className="space-y-6">
                         {checkoutState.timerActive && (
                             <>
-                                {console.log('[CheckoutLayout] ⏰ Renderizando CheckoutTimer:', {
-                                    timerActive: checkoutState.timerActive,
-                                    expiresAt: timerExpiresAt,
-                                    expiresAtType: typeof timerExpiresAt,
-                                    expiresAtParsed: timerExpiresAt ? new Date(timerExpiresAt).toISOString() : null,
-                                    remainingSeconds: checkoutState.remainingSeconds,
-                                    orderId: order?._id,
-                                    orderStatus: order?.status,
-                                    now: new Date().toISOString(),
-                                })}
                                 <CheckoutTimer
                                     isActive={checkoutState.timerActive}
                                     onExpire={handleTimerExpire}
@@ -472,6 +539,7 @@ export function CheckoutLayout() {
                             onPromoterCodeApplied={handlePromoterCodeChange}
                             orderPromoterCode={order?.promoterCode || null}
                             orderDiscountAmount={order?.discountAmount || 0}
+                            pendingPromoterCode={order?._id?.startsWith('fake-') ? promoterCode : null}
                         />
 
                         <CustomerDataForm
@@ -531,3 +599,4 @@ export function CheckoutLayout() {
         </main>
     );
 }
+

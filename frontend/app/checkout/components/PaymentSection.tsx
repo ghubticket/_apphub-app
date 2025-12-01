@@ -47,16 +47,7 @@ export function PaymentSection({
 }: PaymentSectionProps) {
     const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
     
-    // Logs de diagnóstico para inicilização do Brick em produção
-    if (typeof window !== 'undefined') {
-        // Log enxuto, sem expor a chave completa
-        console.log('[PaymentSection] ⚙️ Configuração Mercado Pago (client)', {
-            hasPublicKey: !!MP_PUBLIC_KEY,
-            publicKeyPrefix: MP_PUBLIC_KEY ? MP_PUBLIC_KEY.slice(0, 10) : null,
-            orderId,
-            totalAmount,
-        });
-    }
+    // Log removido para reduzir ruído - só logar em caso de erro
     
     // Hook para gerenciar pagamento com cartão
     const cardPayment = useCardPayment(orderId);

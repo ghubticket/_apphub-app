@@ -41,34 +41,44 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
             doc.on('end', () => resolve(Buffer.concat(chunks)));
             doc.on('error', reject);
 
-            // Header
-            doc.fontSize(24).fillColor('#000000').text(data.event.name, { align: 'center' });
+            // Função auxiliar para desenhar header em cada página
+            const drawHeader = () => {
+                doc.fontSize(24).fillColor('#000000').text(data.event.name, { align: 'center' });
 
-            doc.moveDown(0.5);
+                doc.moveDown(0.5);
 
-            doc.fontSize(12)
-                .fillColor('#666666')
-                .text(`Data: ${formatDate(data.event.date)}`, { align: 'center' });
+                doc.fontSize(12)
+                    .fillColor('#666666')
+                    .text(`Data: ${formatDate(data.event.date)}`, { align: 'center' });
 
-            doc.text(`Local: ${data.event.location}`, { align: 'center' });
+                doc.text(`Local: ${data.event.location}`, { align: 'center' });
 
-            if (data.event.address) {
-                doc.text(`Endereço: ${data.event.address}`, { align: 'center' });
-            }
+                if (data.event.address) {
+                    doc.text(`Endereço: ${data.event.address}`, { align: 'center' });
+                }
 
-            doc.moveDown(1);
+                doc.moveDown(1);
 
-            doc.fontSize(10)
-                .fillColor('#999999')
-                .text(`Pedido #${data.orderNumber}`, { align: 'center' });
+                doc.fontSize(10)
+                    .fillColor('#999999')
+                    .text(`Pedido #${data.orderNumber}`, { align: 'center' });
 
-            doc.text(`Cliente: ${data.customerName}`, { align: 'center' });
+                doc.text(`Cliente: ${data.customerName}`, { align: 'center' });
 
-            doc.moveDown(2);
+                doc.moveDown(1.5);
+            };
 
             // Para cada ingresso
             for (let i = 0; i < data.tickets.length; i++) {
                 const ticket = data.tickets[i];
+
+                // Se não for o primeiro ingresso, adicionar nova página
+                if (i > 0) {
+                    doc.addPage();
+                }
+
+                // Desenhar header em cada página
+                drawHeader();
 
                 // Converter QR Code base64 para buffer
                 const qrCodeBase64 = ticket.qrCode.replace(/^data:image\/png;base64,/, '');
@@ -77,62 +87,62 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
                 // Dimensão desejada do QR
                 const qrSize = 300;
 
-                // Calcular posição central na página
+                // Calcular posição central horizontalmente, mas começar do topo
                 const pageWidth = doc.page.width;
-                const pageHeight = doc.page.height;
                 const x = (pageWidth - qrSize) / 2;
-                const y = (pageHeight - qrSize) / 2;
+                
+                // Posição Y inicial (após o header)
+                let y = doc.y;
 
-                // Desenhar QR code centralizado na página
+                // Se estiver muito baixo na página, adicionar espaço
+                if (y < 200) {
+                    y = 200;
+                }
+
+                // Desenhar QR code centralizado horizontalmente
                 doc.image(qrCodeBuffer, x, y, {
                     width: qrSize,
                     height: qrSize,
                 });
 
                 // Posicionar cursor logo abaixo do QR para o texto
-                doc.y = y + qrSize + 40;
+                doc.y = y + qrSize + 30;
 
                 // Informações do ingresso
                 doc.fontSize(14)
                     .fillColor('#000000')
                     .text(`Ingresso: ${ticket.ticketType}`, { align: 'center' });
 
+                doc.moveDown(0.5);
+
                 if (ticket.holderName) {
                     doc.fontSize(12)
                         .fillColor('#333333')
                         .text(`Nome: ${ticket.holderName}`, { align: 'center' });
+                    doc.moveDown(0.5);
                 }
 
                 doc.fontSize(10)
                     .fillColor('#666666')
                     .text(`Código: ${ticket.code}`, { align: 'center' });
 
-                doc.moveDown(1);
+                doc.moveDown(1.5);
 
                 // Instruções
                 doc.fontSize(9)
                     .fillColor('#999999')
                     .text('Apresente este QR Code na entrada do evento.', { align: 'center' });
+                doc.moveDown(0.3);
                 doc.text('Pode ser no celular ou impresso.', { align: 'center' });
+                doc.moveDown(0.3);
                 doc.text('Não compartilhe este QR Code (uso único).', { align: 'center' });
 
-                // Linha divisória (se não for o último)
-                if (i < data.tickets.length - 1) {
-                    doc.moveDown(2);
-                    doc.moveTo(50, doc.y)
-                        .lineTo(550, doc.y)
-                        .strokeColor('#cccccc')
-                        .lineWidth(1)
-                        .stroke();
-                    doc.moveDown(2);
-                }
+                // Footer em cada página
+                doc.moveDown(2);
+                doc.fontSize(8)
+                    .fillColor('#999999')
+                    .text('EventHub - Sistema de Gestão de Eventos', { align: 'center' });
             }
-
-            // Footer simplificado (sem data/hora de geração, a pedido do cliente)
-            doc.moveDown(2);
-            doc.fontSize(8)
-                .fillColor('#999999')
-                .text('EventHub - Sistema de Gestão de Eventos', { align: 'center' });
 
             doc.end();
         } catch (error) {

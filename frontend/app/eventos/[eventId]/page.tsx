@@ -31,6 +31,18 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
 
     const eventId = useMemo(() => params.eventId, [params.eventId]);
 
+    // Ler código de desconto da URL e salvar no sessionStorage
+    useEffect(() => {
+        const discountCode = searchParams.get('cd');
+        if (discountCode && typeof window !== 'undefined') {
+            // Salvar código de desconto no sessionStorage com o eventId como chave
+            // Isso permite ter códigos diferentes para eventos diferentes
+            const storageKey = `promoter_code_${eventId}`;
+            window.sessionStorage.setItem(storageKey, discountCode.toUpperCase().trim());
+            console.log('[EventTicketsPage] 💾 Código de desconto salvo:', { code: discountCode, eventId });
+        }
+    }, [searchParams, eventId]);
+
     useEffect(() => {
         const load = async () => {
             try {
@@ -243,7 +255,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
 
                     {/* Coluna: Meus ingressos / detalhes da compra */}
                     <div className="lg:col-span-1">
-                        <EventSelectionSummary tickets={tickets} loading={loading} />
+                        <EventSelectionSummary tickets={tickets} loading={loading} eventId={eventId} />
                     </div>
                 </div>
             </Container>

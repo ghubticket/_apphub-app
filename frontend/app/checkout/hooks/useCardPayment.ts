@@ -72,16 +72,10 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
         const shouldUpdate = !currentOrderId || isNewReal || (isCurrentReal === false && isNewFake);
         
         if (shouldUpdate) {
-            console.log('[useCardPayment] 🔄 Atualizando orderIdRef:', { previous: orderIdRef.current, current: orderId });
+            // Log removido para reduzir ruído - só logar em caso de mudança significativa
             orderIdRef.current = orderId;
-        } else {
-            console.log('[useCardPayment] ⏭️ Mantendo orderIdRef real (não sobrescrevendo com fake):', { 
-                currentReal: orderIdRef.current, 
-                newFake: orderId,
-                isCurrentReal,
-                isNewFake
-            });
         }
+        // Log removido para reduzir ruído
         
         // Verificar se orderId mudou (usar ref para evitar loop)
         const orderIdChanged = previousOrderIdRef.current !== orderId;

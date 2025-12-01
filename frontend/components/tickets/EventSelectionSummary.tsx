@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { HiOutlineTicket, HiOutlineShoppingCart, HiOutlineMinusSmall, HiOutlinePlusSmall, HiOutlineLockClosed, HiOutlineInformationCircle } from 'react-icons/hi2';
 import { addCartItem } from '@/lib/cart';
 import type { TicketProduct } from '@/types/ticket';
@@ -11,14 +11,36 @@ import api from '@/lib/api';
 type EventSelectionSummaryProps = {
     tickets?: TicketProduct[];
     loading?: boolean;
+    eventId?: string;
 };
 
-export default function EventSelectionSummary({ tickets = [], loading = false }: EventSelectionSummaryProps) {
+export default function EventSelectionSummary({ tickets = [], loading = false, eventId }: EventSelectionSummaryProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { isAuthenticated, isReady, user } = useAuth();
     const [quantities, setQuantities] = useState<Record<string, number>>({});
     const [isCreatingVipOrder, setIsCreatingVipOrder] = useState<Record<string, boolean>>({});
     const [isProcessing, setIsProcessing] = useState(false);
+    const [appliedPromoterCode, setAppliedPromoterCode] = useState<string | null>(null);
+
+    // Ler código de desconto do sessionStorage ou da URL
+    useEffect(() => {
+        if (typeof window === 'undefined' || !eventId) return;
+        
+        // Primeiro, tentar ler da URL (mais recente)
+        const urlCode = searchParams.get('cd');
+        if (urlCode) {
+            setAppliedPromoterCode(urlCode.toUpperCase().trim());
+            return;
+        }
+        
+        // Se não houver na URL, tentar ler do sessionStorage
+        const storageKey = `promoter_code_${eventId}`;
+        const savedCode = window.sessionStorage.getItem(storageKey);
+        if (savedCode) {
+            setAppliedPromoterCode(savedCode);
+        }
+    }, [searchParams, eventId]);
 
     const currencyFormatter = useMemo(
         () =>
@@ -330,6 +352,15 @@ export default function EventSelectionSummary({ tickets = [], loading = false }:
             </div>
 
             <div className="mt-6 border-t border-[#e2ddd1] pt-4 text-xs text-[#4c4c55]">
+                {/* Mensagem de cupom aplicado */}
+                {appliedPromoterCode && (
+                    <div className="mb-3 rounded-lg bg-green-50 border border-green-300 px-3 py-2.5">
+                        <p className="text-sm font-semibold text-green-700">
+                            CUPOM aplicado: <span className="uppercase font-bold text-green-800">{appliedPromoterCode}</span>
+                        </p>
+                    </div>
+                )}
+                
                 <div className="flex items-center justify-between">
                     <span className="font-semibold uppercase tracking-normal text-[#7d796c]">
                         Subtotal

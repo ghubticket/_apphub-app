@@ -77,10 +77,9 @@ export function useCheckoutStorage() {
         (window as any).__ALLOW_NAVIGATION__ = allow;
         if (allow) {
             window.onbeforeunload = null;
-            console.log('[useCheckoutStorage] ✅ Navegação liberada');
-        } else {
-            console.log('[useCheckoutStorage] 🔒 Navegação bloqueada');
+            // Log removido para reduzir ruído
         }
+        // Log removido para reduzir ruído
     }, []);
 
     const isNavigationAllowed = useCallback((): boolean => {

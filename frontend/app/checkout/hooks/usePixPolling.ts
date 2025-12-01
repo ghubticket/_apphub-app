@@ -84,23 +84,16 @@ export function usePixPolling({
                 // Usar o orderId atualizado (pode ser real ou fake)
                 const orderIdToCheck = orderIdRef.current || orderId;
                 
-                console.log(`[usePixPolling] 🔍 Verificando status do pedido (tentativa ${attempts}/${maxAttempts}):`, {
-                    orderId: orderIdToCheck,
-                    originalOrderId: orderId,
-                    currentOrderIdRef: orderIdRef.current,
-                });
+                // Log removido para reduzir ruído - só logar a cada 10 tentativas ou em caso de mudança de status
+                if (attempts % 10 === 0) {
+                    console.log(`[usePixPolling] 🔍 Verificando status (tentativa ${attempts}/${maxAttempts})`);
+                }
                 
                 const response = await api.get(`/orders/${orderIdToCheck}`);
                 // API retorna { success: true, data: order }
                 const order = response.data?.data;
                 
-                console.log(`[usePixPolling] 📦 Resposta da API:`, {
-                    hasOrder: !!order,
-                    orderStatus: order?.status,
-                    paymentStatus: order?.paymentStatus,
-                    paymentStatusDetail: order?.paymentStatusDetail,
-                    orderId: order?._id || order?.id,
-                });
+                // Log removido para reduzir ruído - só logar quando status mudar
                 
                 if (order) {
                     // CRÍTICO: Verificar tanto order.status quanto paymentStatus
@@ -141,14 +134,7 @@ export function usePixPolling({
                         onPaymentError(errorMessage);
                         return; // Parar execução
                     } else {
-                        // Pedido ainda pendente
-                        console.log('[usePixPolling] ⏳ Pedido ainda pendente:', {
-                            orderStatus: order.status,
-                            paymentStatus: order.paymentStatus,
-                            paymentStatusDetail: order.paymentStatusDetail,
-                            attempts,
-                            remainingAttempts: maxAttempts - attempts,
-                        });
+                        // Pedido ainda pendente - log removido para reduzir ruído
                     }
                 } else {
                     console.warn('[usePixPolling] ⚠️ Resposta da API não contém dados do pedido:', {

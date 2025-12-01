@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useCheckoutStorage } from './useCheckoutStorage';
 import { useCheckoutNavigation } from './useCheckoutNavigation';
 import { getRemainingSeconds } from '../utils/orderHelpers';
@@ -90,13 +90,7 @@ export function useCheckoutState({
     const remainingSeconds = useMemo(() => {
         if (order?.expiresAt) {
             const remaining = getRemainingSeconds(order.expiresAt);
-            console.log('[useCheckoutState] ⏰ Calculando remainingSeconds do pedido:', {
-                expiresAt: order.expiresAt,
-                expiresAtType: typeof order.expiresAt,
-                expiresAtParsed: new Date(order.expiresAt).toISOString(),
-                remaining,
-                now: new Date().toISOString(),
-            });
+            // Log removido para reduzir ruído - aparece a cada segundo
             return remaining;
         }
 
@@ -161,22 +155,23 @@ export function useCheckoutState({
     }, [pixResult, selectedTab]);
 
     // Definir flag global quando pagamento é aprovado
+    // CRÍTICO: Usar refs para evitar loop infinito
+    const lastPaymentApprovedRef = useRef(isPaymentApproved);
     useEffect(() => {
-        if (isPaymentApproved && typeof window !== 'undefined') {
-            console.log('[useCheckoutState] ✅ Pagamento aprovado - definindo flag para permitir redirecionamento sem alerta');
-            navigation.allowNavigation();
-            
-            return () => {
-                if (typeof window !== 'undefined') {
-                    navigation.blockNavigation();
-                }
-            };
-        } else {
-            if (typeof window !== 'undefined') {
-                navigation.blockNavigation();
-            }
+        // Só executar se o estado realmente mudou
+        if (lastPaymentApprovedRef.current === isPaymentApproved) {
+            return;
         }
-    }, [isPaymentApproved, navigation]);
+        
+        lastPaymentApprovedRef.current = isPaymentApproved;
+        
+        if (isPaymentApproved && typeof window !== 'undefined') {
+            navigation.allowNavigation();
+        } else if (typeof window !== 'undefined') {
+            // Só bloquear se não houver pedido ou se o pedido não estiver pago
+            navigation.blockNavigation();
+        }
+    }, [isPaymentApproved]); // Removido navigation das dependências
 
     return {
         selectedTab,

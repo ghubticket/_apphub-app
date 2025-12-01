@@ -74,13 +74,14 @@ export function usePixPayment(
     }, [cartItems, customerData, promoterCode]);
 
     // Redirect countdown hook
+    const [redirectCountdownState, setRedirectCountdownState] = useState<number | null>(null);
+    
     const redirectCountdown = useRedirectCountdown({
         onCountdownUpdate: (countdown) => {
-            // Countdown é gerenciado pelo hook
+            // CRÍTICO: Atualizar o estado local para que o componente re-renderize com o countdown atualizado
+            setRedirectCountdownState(countdown);
         },
     });
-    
-    const [redirectCountdownState, setRedirectCountdownState] = useState<number | null>(null);
 
     // Pix polling hook
     const { startPolling, stopPolling } = usePixPolling({
@@ -90,7 +91,10 @@ export function usePixPayment(
         onPaymentSuccess: () => {
             setStatus('success');
             setStatusMessage('Pagamento aprovado com sucesso!');
-            setRedirectCountdownState(5);
+            // Limpar storage e permitir navegação
+            storage.clearOrderRelated();
+            navigation.allowNavigation();
+            // Iniciar countdown - o onCountdownUpdate vai atualizar o redirectCountdownState
             redirectCountdown.startCountdown('/dashboard', 5);
         },
         onPaymentError: (message) => {
@@ -142,14 +146,8 @@ export function usePixPayment(
         
         if (shouldUpdateOrderId) {
             orderIdRef.current = orderId;
-        } else {
-            console.log('[usePixPayment] ⏭️ Mantendo orderIdRef real (não sobrescrevendo com fake):', { 
-                currentReal: orderIdRef.current, 
-                newFake: orderId,
-                isCurrentReal,
-                isNewFake
-            });
         }
+        // Log removido para reduzir ruído
         
         // Sempre atualizar orderExpiresAt
         orderExpiresAtRef.current = orderExpiresAt;
@@ -262,7 +260,7 @@ export function usePixPayment(
                                     total: subtotal + platformFeeValue + fixedFeeValue,
                                 };
                             });
-                            console.log('[usePixPayment] 📦 Carrinho carregado do storage:', currentCartItems.length, 'itens');
+                            // Log removido para reduzir ruído
                         }
                     } catch (err) {
                         console.error('[usePixPayment] ❌ Erro ao carregar carrinho do storage:', err);
@@ -275,20 +273,14 @@ export function usePixPayment(
                         const storedCustomerData = storageHelpers.loadCustomerData(userId);
                         if (storedCustomerData && storedCustomerData.name && storedCustomerData.email) {
                             currentCustomerData = storedCustomerData;
-                            console.log('[usePixPayment] 👤 Dados do cliente carregados do storage');
+                            // Log removido para reduzir ruído
                         }
                     } catch (err) {
                         console.error('[usePixPayment] ❌ Erro ao carregar dados do cliente do storage:', err);
                     }
                 }
                 
-                console.log('[usePixPayment] 🎭 Pedido fake detectado, preparando dados do carrinho:', {
-                    hasCartItems: !!currentCartItems,
-                    cartItemsLength: currentCartItems?.length,
-                    hasCustomerData: !!currentCustomerData,
-                    customerDataName: currentCustomerData?.name,
-                    customerDataEmail: currentCustomerData?.email,
-                });
+                // Log removido para reduzir ruído
                 
                 if (!currentCartItems || currentCartItems.length === 0) {
                     throw new Error('Carrinho vazio. Por favor, adicione itens ao carrinho antes de gerar o PIX.');
@@ -318,12 +310,7 @@ export function usePixPayment(
                     requestBody.promoterCode = currentPromoterCode;
                 }
                 
-                console.log('[usePixPayment] 📦 Dados preparados para criar pedido real:', {
-                    cartItemsCount: requestBody.cartItems.length,
-                    firstItem: requestBody.cartItems[0],
-                    customerName: requestBody.customerData.name,
-                    customerEmail: requestBody.customerData.email,
-                });
+                // Log removido para reduzir ruído
             }
             
             const response = await api.post(
@@ -395,11 +382,7 @@ export function usePixPayment(
                 navigation.allowNavigation();
                 
                 // CRÍTICO: Iniciar polling com o orderId real, que já está no orderIdRef
-                console.log('[usePixPayment] 🚀 Iniciando polling após gerar PIX:', {
-                    finalOrderId,
-                    orderIdRefCurrent: orderIdRef.current,
-                    timestamp: new Date().toISOString(),
-                });
+                // Log removido para reduzir ruído
                 startPolling(finalOrderId);
             } else {
                 throw new Error('Resposta inválida do servidor');

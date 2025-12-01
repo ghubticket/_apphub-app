@@ -45,60 +45,31 @@ export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ c
     const [showLoading, setShowLoading] = useState(false);
     const orderLoadingRef = useRef(orderLoading);
 
-    // Logs para debug
-    useEffect(() => {
-        console.log('[CheckoutLoadingState] 🔄 Props mudaram:', {
-            cartLoading,
-            orderLoading,
-            showLoading,
-            timestamp: new Date().toISOString(),
-        });
-    }, [cartLoading, orderLoading, showLoading]);
-
     // Efeito para manter o loading visível somente enquanto orderLoading for true
     // Sem timeouts adicionais: o backend é a fonte de verdade
     useEffect(() => {
-        console.log('[CheckoutLoadingState] ⚙️ useEffect executado:', {
-            orderLoading,
-            previousOrderLoading: orderLoadingRef.current,
-            showLoading,
-        });
-
         // Se orderLoading mudou para true, ativar loading
         if (orderLoading) {
-            console.log('[CheckoutLoadingState] ✅ orderLoading TRUE - ativando loading');
             setShowLoading(true);
         } else {
-            console.log('[CheckoutLoadingState] ✅ orderLoading FALSE - desativando loading imediatamente');
             setShowLoading(false);
         }
 
         // Atualizar ref
         orderLoadingRef.current = orderLoading;
-
-        return () => {};
-    }, [orderLoading]); // Removido showLoading das dependências para evitar loop
+    }, [orderLoading]);
 
     // Determinar qual loading mostrar
     // Mostrar loading somente enquanto o pedido está efetivamente sendo criado
     const shouldShowFullscreen = orderLoading && showLoading;
-    
-    console.log('[CheckoutLoadingState] 🎨 Renderizando:', {
-        shouldShowFullscreen,
-        orderLoading,
-        showLoading,
-        cartLoading,
-    });
 
     // Se estiver criando pedido, mostrar loading fullscreen
     if (shouldShowFullscreen) {
-        console.log('[CheckoutLoadingState] 📺 Mostrando FullscreenOrderLoading');
         return <FullscreenOrderLoading />;
     }
 
     // Se estiver carregando carrinho, mostrar loading normal
     if (cartLoading) {
-        console.log('[CheckoutLoadingState] 📺 Mostrando loading normal do carrinho');
         return (
             <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
                 <Container className="py-12">
@@ -111,7 +82,6 @@ export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ c
     }
 
     // Não deveria chegar aqui, mas por segurança
-    console.log('[CheckoutLoadingState] ⚠️ Nenhum loading ativo - retornando null');
     return null;
 });
 

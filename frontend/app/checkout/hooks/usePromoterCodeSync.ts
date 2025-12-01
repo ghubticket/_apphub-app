@@ -22,6 +22,7 @@ export function usePromoterCodeSync({
     const {
         state: { codeInput, invalidCode, appliedCode },
         setInvalidCode,
+        setAppliedCode,
         syncFromOrder,
         clearAll,
         invalidCodeRef,
@@ -49,14 +50,38 @@ export function usePromoterCodeSync({
             return;
         }
 
+        // CRÍTICO: Não sincronizar se o código aplicado localmente é diferente do código no pedido
+        // mas o código no input corresponde ao aplicado localmente
+        // Isso significa que o usuário está aplicando manualmente e o pedido ainda não foi atualizado
+        const isUserApplyingManually = appliedCode && 
+                                      appliedCode !== orderPromoterCode && 
+                                      (codeInput.trim().toUpperCase() === appliedCode.toUpperCase() || 
+                                       codeInput.trim().toUpperCase() === orderPromoterCode?.toUpperCase());
+
+        if (isUserApplyingManually) {
+            // Usuário está aplicando manualmente - não interferir, aguardar atualização do pedido
+            // O pedido será atualizado via handlePromoterCodeChange e depois o sync vai funcionar corretamente
+            return;
+        }
+
         // Se há código válido no pedido, sincronizar
         if (orderPromoterCode && orderDiscountAmount && orderDiscountAmount > 0) {
-            if (appliedCode !== orderPromoterCode) {
-                state.syncFromOrder(orderPromoterCode);
+            // Só sincronizar se o código aplicado for diferente OU se não houver código aplicado mas há no pedido
+            if (appliedCode !== orderPromoterCode || (!appliedCode && orderPromoterCode)) {
+                // Quando vem da API, usar setAppliedCode para configurar corretamente o estado visual
+                // Criar um discountInfo mínimo baseado no desconto aplicado
+                // Como não temos o tipo exato do desconto da API, assumimos 'fixed' por padrão
+                // O valor será o orderDiscountAmount (valor já calculado do desconto)
+                state.setAppliedCode(orderPromoterCode, {
+                    code: orderPromoterCode,
+                    discountType: 'fixed', // Assumir fixed por padrão, pode ser ajustado se a API retornar o tipo
+                    discountValue: orderDiscountAmount,
+                });
             }
         } else if (!orderPromoterCode && !orderDiscountAmount) {
             // Se código foi removido do pedido, limpar apenas se não houver código inválido persistente
-            if (appliedCode && !codeInput.trim()) {
+            // E se não houver código sendo aplicado manualmente
+            if (appliedCode && !codeInput.trim() && !isUserApplyingManually) {
                 state.clearAll();
             }
         }
