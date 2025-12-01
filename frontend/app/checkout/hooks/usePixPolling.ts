@@ -63,18 +63,46 @@ export function usePixPolling({
             }
 
             try {
+                console.log(`[usePixPolling] 🔍 Verificando status do pedido (tentativa ${attempts}/${maxAttempts}):`, {
+                    orderId,
+                    currentOrderIdRef: orderIdRef.current,
+                });
+                
                 const response = await api.get(`/orders/${orderId}`);
                 const order = response.data?.data || response.data?.data?.order;
                 
+                console.log(`[usePixPolling] 📦 Resposta da API:`, {
+                    hasOrder: !!order,
+                    orderStatus: order?.status,
+                    paymentStatus: order?.paymentStatus,
+                    paymentStatusDetail: order?.paymentStatusDetail,
+                    orderId: order?._id || order?.id,
+                });
+                
                 if (order) {
+                    // CRÍTICO: Verificar tanto order.status quanto paymentStatus
+                    const isPaid = order.status === 'paid' || 
+                                  order.paymentStatus === 'approved' || 
+                                  order.paymentStatus === 'accredited';
+                    
                     // Se pedido foi pago, parar polling e mostrar sucesso
-                    if (order.status === 'paid') {
+                    if (isPaid) {
+                        console.log('[usePixPolling] ✅ Pagamento aprovado! Parando polling:', {
+                            orderStatus: order.status,
+                            paymentStatus: order.paymentStatus,
+                            paymentStatusDetail: order.paymentStatusDetail,
+                        });
                         stopPolling();
                         setStatus('success');
                         setStatusMessage('Pagamento aprovado com sucesso!');
                         onPaymentSuccess();
-                    } else if (order.status === 'cancelled' || order.status === 'failed') {
+                    } else if (order.status === 'cancelled' || order.status === 'failed' || 
+                               order.paymentStatus === 'cancelled' || order.paymentStatus === 'rejected') {
                         // Pedido cancelado ou falhou, parar polling
+                        console.log('[usePixPolling] ❌ Pagamento cancelado/falhou, parando polling:', {
+                            orderStatus: order.status,
+                            paymentStatus: order.paymentStatus,
+                        });
                         stopPolling();
                         setStatus('error');
                         const errorMessage = 'Pagamento não foi concluído. Tente gerar um novo QR Code.';
@@ -84,15 +112,28 @@ export function usePixPolling({
                         // Pedido ainda pendente
                         console.log('[usePixPolling] ⏳ Pedido ainda pendente:', {
                             orderStatus: order.status,
+                            paymentStatus: order.paymentStatus,
+                            paymentStatusDetail: order.paymentStatusDetail,
                             attempts,
                             remainingAttempts: maxAttempts - attempts,
                         });
                     }
                 } else {
-                    console.log('[usePixPolling] ⚠️ Resposta da API não contém dados do pedido');
+                    console.warn('[usePixPolling] ⚠️ Resposta da API não contém dados do pedido:', {
+                        responseData: response.data,
+                    });
                 }
             } catch (err: any) {
                 const statusCode = err?.response?.status;
+                const errorMessage = err?.response?.data?.message || err?.message;
+                
+                console.error('[usePixPolling] ❌ Erro ao verificar status:', {
+                    statusCode,
+                    errorMessage,
+                    orderId,
+                    attempts,
+                });
+                
                 // Se pedido não encontrado (404), parar polling
                 if (statusCode === 404) {
                     console.log('[usePixPolling] ⚠️ Pedido não encontrado durante polling (404), parando:', {
@@ -101,6 +142,7 @@ export function usePixPolling({
                     });
                     stopPolling();
                 }
+                // Não parar polling em outros erros (pode ser temporário)
             }
 
             // Se excedeu tentativas, parar polling
