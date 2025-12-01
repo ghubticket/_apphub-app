@@ -65,7 +65,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                         const hasError = imageErrors.has(event.id);
                         const imageSrc = hasError || !image
                             ? '/images/31809-20250922180915.webp'
-                            : image;
+                            : getProxiedImageUrl(image);
 
                         return (
                             <article

@@ -176,17 +176,23 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                     <section className="hidden lg:block space-y-6 lg:col-start-1 lg:col-end-2">
                         {/* Poster do Evento */}
                         <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
-                            <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
-                                <Image
-                                    src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : getProxiedImageUrl(primaryTicket.image)}
-                                    alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                    fill
-                                    className="object-cover"
-                                    priority
-                                    sizes="(max-width: 768px) 100vw, 50vw"
-                                    unoptimized={false}
-                                    onError={() => setImageError(true)}
-                                />
+                            <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca] flex items-center justify-center">
+                                {imageError || !primaryTicket?.image ? (
+                                    <p className="text-center text-sm text-[#a38f78] px-4">
+                                        Imagem do evento em construção
+                                    </p>
+                                ) : (
+                                    <Image
+                                        src={getProxiedImageUrl(primaryTicket.image)}
+                                        alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                        fill
+                                        className="object-cover"
+                                        priority
+                                        sizes="(max-width: 768px) 100vw, 50vw"
+                                        unoptimized={true}
+                                        onError={() => setImageError(true)}
+                                    />
+                                )}
                             </div>
                         </div>
 
@@ -295,17 +301,23 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                         {/* Foto do Evento - MOBILE: aparece entre informações e ingressos, DESKTOP: hidden (fica na coluna esquerda) */}
                         <div className="lg:hidden">
                             <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
-                                <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
-                                    <Image
-                                        src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : getProxiedImageUrl(primaryTicket.image)}
-                                        alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                        fill
-                                        className="object-cover"
-                                        priority
-                                        sizes="100vw"
-                                        unoptimized={false}
-                                        onError={() => setImageError(true)}
-                                    />
+                                <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca] flex items-center justify-center">
+                                    {imageError || !primaryTicket?.image ? (
+                                        <p className="text-center text-sm text-[#a38f78] px-4">
+                                            Imagem do evento em construção
+                                        </p>
+                                    ) : (
+                                        <Image
+                                            src={getProxiedImageUrl(primaryTicket.image)}
+                                            alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                            fill
+                                            className="object-cover"
+                                            priority
+                                            sizes="100vw"
+                                            unoptimized={true}
+                                            onError={() => setImageError(true)}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -313,6 +325,47 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                         {/* Seção de Seleção de Ingressos */}
                         <div id="ticket-selection">
                             <EventSelectionSummary tickets={tickets} loading={loading} eventId={eventId} />
+                        </div>
+
+                        {/* Seção Sobre - MOBILE: aparece abaixo dos ingressos, DESKTOP: hidden (fica na coluna esquerda) */}
+                        <div className="lg:hidden">
+                            <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                                <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
+                                <div
+                                    className="text-sm text-[#4c4c55] prose prose-sm max-w-none 
+                                        prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
+                                        prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
+                                        prose-strong:text-[#1a1a1d] prose-strong:font-semibold
+                                        prose-ul:text-[#4c4c55] prose-ul:list-disc prose-ul:ml-5 prose-ul:mb-3 prose-ul:space-y-1
+                                        prose-ol:text-[#4c4c55] prose-ol:list-decimal prose-ol:ml-5 prose-ol:mb-3 prose-ol:space-y-1
+                                        prose-li:text-[#4c4c55] prose-li:leading-relaxed"
+                                    dangerouslySetInnerHTML={{
+                                        __html: eventData?.description ||
+                                            primaryTicket?.description ||
+                                            'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
+                                    }}
+                                />
+                                
+                                {/* Botões de compartilhar */}
+                                <div className="mt-6 flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleShareWhatsApp}
+                                        className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
+                                    >
+                                        <FaWhatsapp className="text-base" />
+                                        Compartilhar no WhatsApp
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleShareInstagram}
+                                        className="flex flex-1 justify-center  items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
+                                    >
+                                        <FaInstagram className="text-base" />
+                                        Compartilhar no Instagram
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </section>
                 </div>

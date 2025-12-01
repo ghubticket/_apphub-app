@@ -19,7 +19,8 @@ export async function GET(
         const imagePath = path.join('/');
         
         // URL da API backend (usar variável de ambiente)
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'https://api.ghubtech.com.br/api';
+        // Prioridade: API_URL (server-side) > NEXT_PUBLIC_API_URL > fallback
+        const apiBaseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api';
         
         // Construir URL completa da imagem
         const imageUrl = `${apiBaseUrl}/${imagePath}`;

@@ -21,32 +21,64 @@ export function getProxiedImageUrl(imageUrl: string | null | undefined): string 
         return '/images/anita.jpg';
     }
 
-    // Se já for uma URL local (começa com /), retornar como está
-    if (imageUrl.startsWith('/')) {
-        return imageUrl;
+    // Normalizar a string (trim)
+    const normalized = imageUrl.trim();
+    if (!normalized) {
+        return '/images/anita.jpg';
     }
 
-    // Se for uma URL externa que não é da nossa API, retornar como está
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-        // Verificar se é da nossa API
-        if (imageUrl.includes(API_BASE_URL) || imageUrl.includes('api.ghubtech.com.br')) {
+    // Se já for uma URL local que começa com /, verificar se já é do proxy
+    if (normalized.startsWith('/')) {
+        // Se já for do proxy, retornar como está
+        if (normalized.startsWith('/api/images/')) {
+            return normalized;
+        }
+        // Se for outra URL local (ex: /images/...), retornar como está
+        return normalized;
+    }
+
+    // Se for uma URL externa (http:// ou https://)
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+        // Verificar se é da nossa API (incluindo localhost para desenvolvimento)
+        const isApiUrl = normalized.includes(API_BASE_URL) || 
+                        normalized.includes('api.ghubtech.com.br') ||
+                        normalized.includes('localhost:3443') ||
+                        normalized.includes('localhost:3001');
+        
+        if (isApiUrl) {
             // Extrair o caminho após a base URL
-            const url = new URL(imageUrl);
-            const path = url.pathname;
-            
-            // Remover /api se estiver presente
-            const cleanPath = path.startsWith('/api/') ? path.substring(5) : path.startsWith('/') ? path.substring(1) : path;
-            
-            // Retornar URL do proxy
-            return `/api/images/${cleanPath}${url.search}`;
+            try {
+                const url = new URL(normalized);
+                let path = url.pathname;
+                
+                // Remover /api se estiver presente
+                if (path.startsWith('/api/')) {
+                    path = path.substring(5);
+                } else if (path.startsWith('/')) {
+                    path = path.substring(1);
+                }
+                
+                // Retornar URL do proxy (sempre começa com /)
+                return `/api/images/${path}${url.search}`;
+            } catch {
+                // Se falhar ao parsear URL, tentar extrair manualmente
+                const match = normalized.match(/\/(uploads\/.+)$/);
+                if (match) {
+                    return `/api/images/${match[1]}`;
+                }
+                // Se não conseguir extrair, retornar fallback
+                return '/images/anita.jpg';
+            }
         }
         
         // Se for outra URL externa, retornar como está (mas pode querer bloquear isso)
-        return imageUrl;
+        return normalized;
     }
 
-    // Se for um caminho relativo, assumir que é da API
-    const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
+    // Se for um caminho relativo (sem / e sem http), assumir que é da API
+    // Garantir que não comece com / para evitar duplicação
+    const cleanPath = normalized.startsWith('/') ? normalized.substring(1) : normalized;
+    // Garantir que a URL do proxy sempre comece com /
     return `/api/images/${cleanPath}`;
 }
 

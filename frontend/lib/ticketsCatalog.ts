@@ -5,9 +5,12 @@ import type { TicketProduct } from '@/types/ticket';
 import { cacheEvents, cacheTicketTypes, cacheCatalog, generateCacheKey } from './cache';
 
 /**
- * Normaliza URLs de imagem para garantir que sempre usem a URL completa da API
+ * Normaliza URLs de imagem para retornar caminho relativo (será convertido para proxy depois)
  * @param imageUrl - URL da imagem (pode ser completa, relativa ou apenas filename)
- * @returns URL completa normalizada ou undefined se não houver URL
+ * @returns Caminho relativo normalizado ou undefined se não houver URL
+ * 
+ * NOTA: URLs completas da API serão convertidas para caminhos relativos
+ * que serão processados pelo getProxiedImageUrl para usar o proxy
  */
 const normalizeImageUrl = (imageUrl?: string | null): string | undefined => {
     if (!imageUrl || typeof imageUrl !== 'string') return undefined;
@@ -15,27 +18,38 @@ const normalizeImageUrl = (imageUrl?: string | null): string | undefined => {
     const trimmed = imageUrl.trim();
     if (!trimmed) return undefined;
     
-    // Se já for uma URL completa (http:// ou https://), retornar como está
+    // Se for uma URL completa da API, extrair apenas o caminho
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-        return trimmed;
+        try {
+            const url = new URL(trimmed);
+            // Se for da nossa API, retornar apenas o pathname (sem /api se presente)
+            if (url.hostname.includes('api.ghubtech.com.br') || 
+                url.hostname.includes('localhost') && (url.port === '3443' || url.port === '3001')) {
+                let path = url.pathname;
+                // Remover /api se estiver presente
+                if (path.startsWith('/api/')) {
+                    path = path.substring(5);
+                } else if (path.startsWith('/')) {
+                    path = path.substring(1);
+                }
+                return path;
+            }
+            // Se for outra URL externa, retornar como está (será tratada pelo getProxiedImageUrl)
+            return trimmed;
+        } catch {
+            // Se falhar ao parsear, tratar como caminho relativo
+        }
     }
     
-    // Obter a base URL da API
-    const apiBaseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-    // Remover /api do final se existir, pois vamos adicionar /uploads/events/
-    const baseUrl = apiBaseURL.replace(/\/api\/?$/, '');
-    
-    // Se começar com /, é um caminho relativo
+    // Se começar com /, é um caminho relativo - remover / inicial
     if (trimmed.startsWith('/')) {
-        // Remover / duplicado se baseUrl já terminar com /
-        const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-        return `${baseUrl}${cleanPath}`;
+        return trimmed.substring(1);
     }
     
-    // Caso contrário, assumir que é apenas o filename e construir o caminho completo
+    // Caso contrário, assumir que é apenas o filename e construir o caminho
     // Remover qualquer /uploads/events/ que possa estar no início do filename
     const cleanFilename = trimmed.replace(/^\/?uploads\/events\//, '');
-    return `${baseUrl}/uploads/events/${cleanFilename}`;
+    return `uploads/events/${cleanFilename}`;
 };
 
 type FetchTicketCatalogOptions = {
