@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { HiOutlineEnvelope, HiOutlineLockClosed, HiOutlineUserPlus, HiOutlineIdentification } from 'react-icons/hi2';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -38,7 +38,8 @@ const formatCPF = (value: string) => {
     return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
 };
 
-export default function LoginPage() {
+// Componente interno que usa useSearchParams - precisa estar em Suspense
+function LoginPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { login: authLogin, isAuthenticated, isReady } = useAuth();
@@ -363,5 +364,24 @@ export default function LoginPage() {
                 </div>
             </Container>
         </main>
+    );
+}
+
+// Componente principal que envolve o conteúdo em Suspense
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <main className="bg-[#faf7f0] pt-32 pb-20">
+                <Container>
+                    <div className="flex items-center justify-center min-h-[400px]">
+                        <div className="text-center">
+                            <p className="text-[#6f6b63]">Carregando...</p>
+                        </div>
+                    </div>
+                </Container>
+            </main>
+        }>
+            <LoginPageContent />
+        </Suspense>
     );
 }
