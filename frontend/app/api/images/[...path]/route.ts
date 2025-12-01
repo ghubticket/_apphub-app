@@ -6,10 +6,12 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(
     request: NextRequest,
-    { params }: { params: { path: string[] } }
+    { params }: { params: Promise<{ path: string[] }> | { path: string[] } }
 ) {
     try {
-        const { path } = params;
+        // Next.js 15 pode passar params como Promise, então precisamos fazer await se necessário
+        const resolvedParams = params instanceof Promise ? await params : params;
+        const { path } = resolvedParams;
         
         if (!path || path.length === 0) {
             return new NextResponse('Path is required', { status: 400 });

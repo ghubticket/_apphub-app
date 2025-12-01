@@ -233,10 +233,10 @@ export default function HeroCarousel({
                                         IMAGEM em construção.
                                     </p>
                                 ) : slide.imageUrl.startsWith('/api/images/') ? (
-                                    // Para URLs do proxy, usar img normal com URL absoluta
-                                    // Isso evita que o Next.js tente otimizar através de /_next/image
+                                    // Para URLs do proxy, usar img normal com URL relativa
+                                    // O navegador vai buscar diretamente do proxy sem passar pelo Next.js Image Optimization
                                     <img
-                                        src={`${getBaseUrl()}${slide.imageUrl}`}
+                                        src={slide.imageUrl}
                                         alt={`Slide ${index + 1}`}
                                         className="absolute inset-0 w-full h-full object-cover"
                                         loading={index === currentSlide ? 'eager' : 'lazy'}
