@@ -1441,12 +1441,32 @@ export const handleWebhook = async (req: Request, res: Response) => {
             sigHeader,
             !!signatureValid
         );
-        if (queued.status === 'processed') {
+        
+        // DEBUG: Log do status do webhook
+        console.log(`🔍 [handleWebhook] Status do webhook na fila:`, {
+            eventId,
+            queuedStatus: queued.status,
+            action: (req.body as any).action,
+            type,
+            dataId: data?.id,
+        });
+        
+        // CRÍTICO: Para webhooks de order.processed, sempre processar mesmo se já foi processado antes
+        // Isso garante que pedidos que ainda não foram atualizados sejam atualizados
+        const isOrderProcessed = type === 'order' && action === 'order.processed';
+        const shouldProcessAnyway = isOrderProcessed && queued.status === 'processed';
+        
+        if (queued.status === 'processed' && !shouldProcessAnyway) {
+            console.log(`⏭️ [handleWebhook] Webhook já processado anteriormente, ignorando:`, { eventId });
             return res.status(200).send('OK');
         }
 
         // Responder imediatamente ao Mercado Pago (200 OK)
         res.status(200).send('OK');
+        
+        if (shouldProcessAnyway) {
+            console.log(`🔄 [handleWebhook] Reprocessando webhook order.processed para garantir atualização:`, { eventId });
+        }
 
         // Processar notificação em background
         // Orders API pode enviar notificações de 'order' ou 'payment'
@@ -1546,13 +1566,21 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     return;
                 }
 
-                if (!paymentInfo) {
-                    console.error('Nenhum pagamento encontrado na order:', mpOrderId);
-                    return;
-                }
-
                 // Guardar status anterior para evitar disparar e-mail/aprovação duplicados
                 const wasPaidBefore = order.status === 'paid';
+                
+                // CRÍTICO: Se o pedido já está pago e o webhook está sendo reprocessado, verificar se precisa atualizar
+                // Se o pedido já está pago e o status do MP também é pago, não precisa fazer nada
+                if (wasPaidBefore && action === 'order.processed') {
+                    const paymentStatusRaw = paymentInfo.status || data.status;
+                    const paymentStatusDetailRaw = paymentInfo.status_detail || data.status_detail || '';
+                    const statusInfo = getPaymentStatusInfo(paymentStatusRaw, paymentStatusDetailRaw);
+                    
+                    if (statusInfo.internalStatus === 'paid') {
+                        console.log(`✅ [webhook-order] Pedido ${order.orderNumber} já está pago e o status do MP confirma. Nenhuma ação necessária.`);
+                        return;
+                    }
+                }
 
                 // Obter informações completas do status
                 // CRÍTICO: Garantir que status_detail seja extraído corretamente
@@ -1721,16 +1749,47 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     orderId: order._id,
                     orderStatus: order.status,
                     paymentId: paymentInfo.id,
-                    paymentStatus: paymentInfo.status,
-                    paymentStatusDetail: paymentInfo.status_detail,
+                    paymentStatus: paymentStatusRaw,
+                    paymentStatusDetail: paymentStatusDetailRaw,
                     internalStatus: paymentStatus,
                     userMessage: statusInfo.userMessage,
                     requiresAction: statusInfo.requiresAction,
                     canRetry: statusInfo.canRetry,
                     wasPaidBefore,
+                    action,
                 });
+                
+                // Marcar webhook como processado
+                try {
+                    await WebhookEvent.updateOne(
+                        { eventId },
+                        { status: 'processed', processedAt: new Date(), attempts: queued.attempts || 0 }
+                    );
+                } catch (updateError) {
+                    console.warn('Erro ao marcar webhook como processado:', updateError);
+                }
             } catch (error: any) {
-                console.error('Erro ao processar notificação de Order:', error);
+                console.error('❌ [webhook-order] Erro ao processar notificação de Order:', {
+                    error: error.message,
+                    stack: error.stack,
+                    mpOrderId,
+                    action,
+                    type,
+                    dataId: data?.id,
+                });
+                // Marcar falha e agendar retry
+                try {
+                    await WebhookEvent.updateOne(
+                        { eventId },
+                        {
+                            $set: { status: 'failed', lastError: error?.message || 'unknown' },
+                            $inc: { attempts: 1 },
+                        },
+                        { upsert: false }
+                    );
+                } catch (updateError) {
+                    console.error('Erro ao marcar webhook como falho:', updateError);
+                }
             }
             return;
         }
