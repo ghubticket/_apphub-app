@@ -60,24 +60,39 @@ export function usePixPolling({
         const executePoll = async () => {
             attempts++;
             
-            // Verificar se ainda temos o mesmo orderId
-            if (orderIdRef.current !== orderId) {
-                console.log('[usePixPolling] ⚠️ OrderId mudou durante polling, parando:', {
-                    expectedOrderId: orderId,
-                    currentOrderIdRef: orderIdRef.current,
-                });
+            // CRÍTICO: Usar orderIdRef.current em vez de orderId para permitir atualização dinâmica
+            // Isso permite que o polling continue mesmo quando o pedido fake é substituído por um real
+            const currentOrderId = orderIdRef.current || orderId;
+            
+            // Verificar se ainda temos um orderId válido (não null)
+            if (!currentOrderId) {
+                console.log('[usePixPolling] ⚠️ OrderId é null, parando polling');
                 stopPolling();
                 return;
             }
+            
+            // Se o orderId mudou de fake para real, atualizar e continuar
+            if (currentOrderId !== orderId && currentOrderId.startsWith('fake-') === false) {
+                console.log('[usePixPolling] 🔄 OrderId atualizado de fake para real, continuando polling:', {
+                    oldOrderId: orderId,
+                    newOrderId: currentOrderId,
+                });
+                // Não parar - continuar com o novo orderId real
+            }
 
             try {
+                // Usar o orderId atualizado (pode ser real ou fake)
+                const orderIdToCheck = orderIdRef.current || orderId;
+                
                 console.log(`[usePixPolling] 🔍 Verificando status do pedido (tentativa ${attempts}/${maxAttempts}):`, {
-                    orderId,
+                    orderId: orderIdToCheck,
+                    originalOrderId: orderId,
                     currentOrderIdRef: orderIdRef.current,
                 });
                 
-                const response = await api.get(`/orders/${orderId}`);
-                const order = response.data?.data || response.data?.data?.order;
+                const response = await api.get(`/orders/${orderIdToCheck}`);
+                // API retorna { success: true, data: order }
+                const order = response.data?.data;
                 
                 console.log(`[usePixPolling] 📦 Resposta da API:`, {
                     hasOrder: !!order,
@@ -143,18 +158,21 @@ export function usePixPolling({
             } catch (err: any) {
                 const statusCode = err?.response?.status;
                 const errorMessage = err?.response?.data?.message || err?.message;
+                const orderIdToCheck = orderIdRef.current || orderId;
                 
                 console.error('[usePixPolling] ❌ Erro ao verificar status:', {
                     statusCode,
                     errorMessage,
-                    orderId,
+                    orderId: orderIdToCheck,
+                    originalOrderId: orderId,
                     attempts,
                 });
                 
                 // Se pedido não encontrado (404), parar polling
                 if (statusCode === 404) {
                     console.log('[usePixPolling] ⚠️ Pedido não encontrado durante polling (404), parando:', {
-                        orderId,
+                        orderId: orderIdToCheck,
+                        originalOrderId: orderId,
                         attempts,
                     });
                     stopPolling();

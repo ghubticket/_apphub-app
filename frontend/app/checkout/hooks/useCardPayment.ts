@@ -57,9 +57,27 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
 
         // OTIMIZADO: Consolidar atualização de orderIdRef e reset de estado
         useEffect(() => {
-        // Atualizar orderIdRef sempre
-        console.log('[useCardPayment] 🔄 Atualizando orderIdRef:', { previous: orderIdRef.current, current: orderId });
-        orderIdRef.current = orderId;
+        // CRÍTICO: Não sobrescrever orderIdRef se já temos um pedido real (não fake)
+        // Isso evita que o useCardPayment sobrescreva o orderIdRef atualizado pelo usePixPayment
+        const currentOrderId = orderIdRef.current;
+        const isCurrentReal = currentOrderId && !currentOrderId.startsWith('fake-');
+        const isNewFake = orderId && orderId.startsWith('fake-');
+        
+        // Só atualizar se:
+        // 1. Não temos orderIdRef atual OU
+        // 2. O novo orderId não é fake OU
+        // 3. O orderIdRef atual também é fake (pode ser atualizado)
+        const shouldUpdate = !currentOrderId || !isNewFake || !isCurrentReal;
+        
+        if (shouldUpdate) {
+            console.log('[useCardPayment] 🔄 Atualizando orderIdRef:', { previous: orderIdRef.current, current: orderId });
+            orderIdRef.current = orderId;
+        } else {
+            console.log('[useCardPayment] ⏭️ Mantendo orderIdRef real (não sobrescrevendo com fake):', { 
+                currentReal: orderIdRef.current, 
+                newFake: orderId 
+            });
+        }
         
         // Verificar se orderId mudou (usar ref para evitar loop)
         const orderIdChanged = previousOrderIdRef.current !== orderId;
