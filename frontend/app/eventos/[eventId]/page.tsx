@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FaWhatsapp } from 'react-icons/fa';
+import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import { HiOutlineCalendar, HiOutlineMapPin } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import TicketCatalog from '@/components/tickets/TicketCatalog';
@@ -126,6 +126,38 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
         window.open(whatsappUrl, '_blank');
     };
 
+    const handleShareInstagram = async () => {
+        const eventName = primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento';
+        const eventDate = primaryTicket?.eventDate ?? '';
+        const eventLocation = primaryTicket?.location ?? '';
+        const eventUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+        const text = `🎫 ${eventName}${eventDate ? `\n📅 ${eventDate}` : ''}${eventLocation ? `\n📍 ${eventLocation}` : ''}\n\n🔗 ${eventUrl}`;
+
+        // Tentar copiar para área de transferência e abrir Instagram
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+            }
+        } catch (err) {
+            console.log('Erro ao copiar para área de transferência:', err);
+        }
+
+        // Abrir Instagram - tenta abrir o app se estiver instalado, senão abre o site
+        // Para mobile, tenta abrir o app diretamente
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+            // Mobile: tenta abrir o app do Instagram
+            window.location.href = `instagram://share?text=${encodeURIComponent(text)}`;
+            // Fallback: se o app não abrir em 500ms, abre o site
+            setTimeout(() => {
+                window.open(`https://www.instagram.com/`, '_blank');
+            }, 500);
+        } else {
+            // Desktop: abre o site do Instagram
+            window.open('https://www.instagram.com/', '_blank');
+        }
+    };
+
     return (
         <main className="bg-[#f5f1e8] pt-24 md:pt-28">
             <div className='bg-white py-6'>
@@ -240,15 +272,25 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                 </div>
 
                                 <hr />
-                                {/* Botão de compartilhar no WhatsApp */}
-                                <button
-                                    type="button"
-                                    onClick={handleShareWhatsApp}
-                                    className="inline-flex items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
-                                >
-                                    <FaWhatsapp className="text-base" />
-                                    Compartilhar no WhatsApp
-                                </button>
+                                {/* Botões de compartilhar */}
+                                <div className="flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleShareWhatsApp}
+                                        className="inline-flex items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
+                                    >
+                                        <FaWhatsapp className="text-base" />
+                                        Compartilhar no WhatsApp
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleShareInstagram}
+                                        className="inline-flex items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
+                                    >
+                                        <FaInstagram className="text-base" />
+                                        Compartilhar no Instagram
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </section>
