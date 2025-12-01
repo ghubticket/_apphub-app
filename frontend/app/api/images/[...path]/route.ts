@@ -14,11 +14,16 @@ export async function GET(
         const { path } = resolvedParams;
         
         // Log inicial para debug
+        console.log('[Image Proxy] ===== REQUEST RECEIVED =====');
         console.log('[Image Proxy] Request received:', {
             path,
             pathLength: path?.length,
             requestUrl: request.url,
             method: request.method,
+            headers: {
+                referer: request.headers.get('referer'),
+                userAgent: request.headers.get('user-agent'),
+            }
         });
         
         if (!path || path.length === 0) {
@@ -172,6 +177,7 @@ export async function GET(
                 const contentType = response.headers.get('content-type') || '';
                 const isHtml = contentType.includes('text/html') || errorText.trim().startsWith('<!');
                 
+                console.error('[Image Proxy] ===== ERROR =====');
                 console.error(`[Image Proxy] Failed to fetch image: ${imageUrl}`, {
                     status: response.status,
                     statusText: response.statusText,
@@ -226,11 +232,15 @@ export async function GET(
             }
 
             // Log de sucesso
+            console.log('[Image Proxy] ===== SUCCESS =====');
             console.log('[Image Proxy] Image fetched successfully:', {
                 imageUrl,
                 contentType,
                 size: imageBuffer.byteLength,
-                imagePath
+                imagePath,
+                responseHeaders: {
+                    'content-type': contentType,
+                }
             });
 
             // Retornar a imagem com headers de cache e segurança
@@ -256,14 +266,30 @@ export async function GET(
             throw fetchError; // Re-throw para ser capturado pelo catch externo
         }
     } catch (error: any) {
-        console.error('[Image Proxy] Error:', error);
+        console.error('[Image Proxy] ===== EXCEPTION =====');
+        console.error('[Image Proxy] Error:', {
+            message: error.message,
+            name: error.name,
+            stack: error.stack,
+            cause: error.cause,
+        });
         
         // Retornar erro 500 ou 404 dependendo do tipo de erro
         if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-            return new NextResponse('Request timeout', { status: 504 });
+            return new NextResponse('Request timeout', { 
+                status: 504,
+                headers: {
+                    'Content-Type': 'text/plain',
+                }
+            });
         }
         
-        return new NextResponse('Internal server error', { status: 500 });
+        return new NextResponse(`Internal server error: ${error.message}`, { 
+            status: 500,
+            headers: {
+                'Content-Type': 'text/plain',
+            }
+        });
     }
 }
 
