@@ -171,7 +171,65 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
         <main className="bg-[#f5f1e8] pt-24 md:pt-28">
             <Container className="pb-8">
                 <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[1.2fr_1fr] lg:gap-10 lg:items-start">
-                    {/* Box de Informações - MOBILE: aparece PRIMEIRO (ordem natural), DESKTOP: aparece segundo (col-start-2) */}
+                    {/* Coluna Esquerda: Foto e Sobre - DESKTOP: col-start-1, MOBILE: hidden (foto aparece acima) */}
+                    <section className="hidden lg:block space-y-6 lg:col-start-1 lg:col-end-2">
+                        {/* Poster do Evento */}
+                        <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                            <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
+                                <Image
+                                    src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : primaryTicket.image}
+                                    alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                    fill
+                                    className="object-cover"
+                                    priority
+                                    sizes="(max-width: 768px) 100vw, 50vw"
+                                    unoptimized={primaryTicket?.image?.startsWith('http')}
+                                    onError={() => setImageError(true)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Seção Sobre */}
+                        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 lg:p-8 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                            <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
+                            <div
+                                className="text-sm text-[#4c4c55] prose prose-sm max-w-none 
+                                    prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
+                                    prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
+                                    prose-strong:text-[#1a1a1d] prose-strong:font-semibold
+                                    prose-ul:text-[#4c4c55] prose-ul:list-disc prose-ul:ml-5 prose-ul:mb-3 prose-ul:space-y-1
+                                    prose-ol:text-[#4c4c55] prose-ol:list-decimal prose-ol:ml-5 prose-ol:mb-3 prose-ol:space-y-1
+                                    prose-li:text-[#4c4c55] prose-li:leading-relaxed"
+                                dangerouslySetInnerHTML={{
+                                    __html: eventData?.description ||
+                                        primaryTicket?.description ||
+                                        'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
+                                }}
+                            />
+                            
+                            {/* Botões de compartilhar */}
+                            <div className="mt-6 flex flex-wrap gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleShareWhatsApp}
+                                    className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
+                                >
+                                    <FaWhatsapp className="text-base" />
+                                    Compartilhar no WhatsApp
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleShareInstagram}
+                                    className="flex flex-1 justify-center  items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
+                                >
+                                    <FaInstagram className="text-base" />
+                                    Compartilhar no Instagram
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Coluna Direita: Informações e Ingressos - DESKTOP: col-start-2 */}
                     <section className="space-y-6 lg:col-start-2 lg:col-end-3">
                         {/* Título do Evento com Favoritar */}
                         <div className="flex items-start justify-between gap-4">
@@ -233,67 +291,27 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                             </button>
                         </div>
 
+                        {/* Foto do Evento - MOBILE: aparece entre informações e ingressos, DESKTOP: hidden (fica na coluna esquerda) */}
+                        <div className="lg:hidden">
+                            <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                                <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
+                                    <Image
+                                        src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : primaryTicket.image}
+                                        alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                        fill
+                                        className="object-cover"
+                                        priority
+                                        sizes="100vw"
+                                        unoptimized={primaryTicket?.image?.startsWith('http')}
+                                        onError={() => setImageError(true)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Seção de Seleção de Ingressos */}
                         <div id="ticket-selection">
                             <EventSelectionSummary tickets={tickets} loading={loading} eventId={eventId} />
-                        </div>
-                    </section>
-
-                    {/* Box da Foto - MOBILE: aparece SEGUNDO (ordem natural), DESKTOP: aparece primeiro (col-start-1) */}
-                    <section className="space-y-6 lg:col-start-1 lg:col-end-2 lg:row-start-1">
-                        {/* Poster do Evento */}
-                        <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
-                            <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
-                                <Image
-                                    src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : primaryTicket.image}
-                                    alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                    fill
-                                    className="object-cover"
-                                    priority
-                                    sizes="(max-width: 768px) 100vw, 50vw"
-                                    unoptimized={primaryTicket?.image?.startsWith('http')}
-                                    onError={() => setImageError(true)}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Seção Sobre */}
-                        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 lg:p-8 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
-                            <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
-                            <div
-                                className="text-sm text-[#4c4c55] prose prose-sm max-w-none 
-                                    prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
-                                    prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
-                                    prose-strong:text-[#1a1a1d] prose-strong:font-semibold
-                                    prose-ul:text-[#4c4c55] prose-ul:list-disc prose-ul:ml-5 prose-ul:mb-3 prose-ul:space-y-1
-                                    prose-ol:text-[#4c4c55] prose-ol:list-decimal prose-ol:ml-5 prose-ol:mb-3 prose-ol:space-y-1
-                                    prose-li:text-[#4c4c55] prose-li:leading-relaxed"
-                                dangerouslySetInnerHTML={{
-                                    __html: eventData?.description ||
-                                        primaryTicket?.description ||
-                                        'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
-                                }}
-                            />
-                            
-                            {/* Botões de compartilhar */}
-                            <div className="mt-6 flex flex-wrap gap-3">
-                                <button
-                                    type="button"
-                                    onClick={handleShareWhatsApp}
-                                    className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
-                                >
-                                    <FaWhatsapp className="text-base" />
-                                    Compartilhar no WhatsApp
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleShareInstagram}
-                                    className="flex flex-1 justify-center  items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
-                                >
-                                    <FaInstagram className="text-base" />
-                                    Compartilhar no Instagram
-                                </button>
-                            </div>
                         </div>
                     </section>
                 </div>
