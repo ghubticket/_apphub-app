@@ -91,11 +91,14 @@ export function usePixPolling({
                     // CRÍTICO: Verificar tanto order.status quanto paymentStatus
                     // Na Orders API, PIX aprovado vem como status='processed' + status_detail='accredited'
                     // O backend mapeia isso para order.status='paid'
+                    const isProcessedAccredited = 
+                        order.paymentStatus === 'processed' && 
+                        (order.paymentStatusDetail === 'accredited' || 
+                         String(order.paymentStatusDetail || '').toLowerCase().includes('accredited'));
+                    
                     const isPaid = order.status === 'paid' || 
                                   order.paymentStatus === 'approved' || 
-                                  order.paymentStatus === 'processed' && 
-                                  (order.paymentStatusDetail === 'accredited' || 
-                                   String(order.paymentStatusDetail || '').toLowerCase().includes('accredited'));
+                                  isProcessedAccredited;
                     
                     // Se pedido foi pago, parar polling e mostrar sucesso
                     if (isPaid) {

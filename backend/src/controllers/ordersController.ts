@@ -1316,7 +1316,22 @@ export const getOrderById = async (req: Request, res: Response) => {
                             .toLowerCase()
                             .includes('accredited');
 
+                    console.log(`🔍 [getOrderById] Verificando status do MP para sincronização:`, {
+                        orderId: orderDoc._id,
+                        orderNumber: orderDoc.orderNumber,
+                        mpStatus,
+                        paymentStatusDetail: paymentInfo?.status_detail,
+                        isProcessedAccredited,
+                        currentOrderStatus: orderDoc.status,
+                    });
+
                     if (mpStatus === 'approved' || isProcessedAccredited) {
+                        console.log(`✅ [getOrderById] Pagamento APROVADO detectado! Atualizando pedido ${orderDoc.orderNumber}:`, {
+                            mpStatus,
+                            paymentStatusDetail: paymentInfo?.status_detail,
+                            isProcessedAccredited,
+                            previousStatus: orderDoc.status,
+                        });
                         orderDoc.status = 'paid';
                         orderDoc.paymentStatus = 'approved';
                         orderDoc.paymentStatusDetail = paymentInfo?.status_detail || 'accredited';
@@ -1324,6 +1339,7 @@ export const getOrderById = async (req: Request, res: Response) => {
                             (orderDoc as any).paidAt = new Date(paymentInfo.date_approved);
                         }
                         await orderDoc.save();
+                        console.log(`✅ [getOrderById] Pedido ${orderDoc.orderNumber} atualizado para 'paid' com sucesso!`);
 
                         // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
                         // O pedido PENDING já funciona como reserva e quando pago, o estoque já está bloqueado corretamente
