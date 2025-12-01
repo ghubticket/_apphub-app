@@ -220,10 +220,10 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                         <HiOutlineTicket className="text-xl" />
                     </span>
                     <div>
-                        <h2 className="text-sm font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                        <h2 className="text-[1rem] font-semibold uppercase tracking-normal text-[#1a1a1d]">
                             Ingressos Disponíveis
                         </h2>
-                        <p className="text-[0.75rem] text-[#7d796c]">
+                        <p className="text-[0.9rem] text-[#7d796c]">
                             Selecione o setor e a quantidade
                         </p>
                     </div>
@@ -250,7 +250,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                 key={ticket.id}
                                 className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3"
                             >
-                                <div className="flex flex-col justify-between gap-3">
+                                <div className="flex flex-col md:flex-row justify-between gap-3">
                                     <div className='flex gap-3'>
                                         {/* Tooltip com informações do ingresso */}
                                         <div className="relative inline-flex items-center group mt-0.5 mb-0.5">
@@ -281,11 +281,11 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                         </div>
 
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-[0.9rem] font-semibold text-[#1a1a1d] truncate">
+                                            <p className="text-[1rem] font-semibold text-[#1a1a1d] truncate">
                                                 {ticket.name}
                                             </p>
 
-                                            <p className="text-[0.75rem]  text-[#1a1a1d]">
+                                            <p className="text-[0.85rem]  text-[#1a1a1d]">
                                                 Valor Unitario: {currencyFormatter.format(ticket.price)}
                                             </p>
 
@@ -298,7 +298,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                                 type="button"
                                                 onClick={() => updateQuantity(ticket, -1)}
                                                 disabled={quantity <= 0}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                                 <HiOutlineMinusSmall className="text-sm" />
                                             </button>
@@ -309,7 +309,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                                 type="button"
                                                 onClick={() => updateQuantity(ticket, 1)}
                                                 disabled={isSoldOut || maxReached}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                                 <HiOutlinePlusSmall className="text-sm" />
                                             </button>
@@ -362,10 +362,10 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                 )}
                 
                 <div className="flex items-center justify-between">
-                    <span className="font-semibold uppercase tracking-normal text-[#7d796c]">
+                    <span className="font-semibold text-base uppercase tracking-normal text-[#7d796c]">
                         Subtotal
                     </span>
-                    <span className="text-sm font-semibold text-[#1a1a1d]">{formattedTotal}</span>
+                    <span className="text-base font-semibold text-[#1a1a1d]">{formattedTotal}</span>
                 </div>
             </div>
 

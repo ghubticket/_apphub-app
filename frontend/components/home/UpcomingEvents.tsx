@@ -123,7 +123,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                     {/* Botão CTA */}
                                     <Link
                                         href={`/eventos/${event.id}`}
-                                        className="mt-auto inline-flex items-center gap-2 rounded-full border-2 border-[#f97316]/30 bg-[#f97316] justify-center py-2 text-xs font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#ea580c] hover:border-[#f97316]/50"
+                                        className="mt-auto inline-flex items-center gap-2 rounded-full hover:text-white color border-2 border-[#f97316]/30 bg-[#f97316] justify-center py-2 text-xs font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#ea580c] hover:border-[#f97316]/50"
                                     >
                                         <HiOutlineTicket className="h-4 w-4 md:h-5 md:w-5" />
                                         Comprar Ingresso

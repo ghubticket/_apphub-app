@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
-import { HiOutlineCalendar, HiOutlineMapPin } from 'react-icons/hi2';
+import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineUser, HiOutlineHeart } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import TicketCatalog from '@/components/tickets/TicketCatalog';
 import EventSelectionSummary from '@/components/tickets/EventSelectionSummary';
@@ -158,151 +158,146 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
         }
     };
 
+    // Calcular preço mínimo
+    const minPrice = useMemo(() => {
+        if (!tickets.length) return 0;
+        const prices = tickets
+            .filter(t => !t.isVip && typeof t.price === 'number' && t.price > 0)
+            .map(t => t.price);
+        return prices.length > 0 ? Math.min(...prices) : 0;
+    }, [tickets]);
+
     return (
         <main className="bg-[#f5f1e8] pt-24 md:pt-28">
-            <div className='bg-white py-6'>
-                <Container>
-                    <div className="flex flex-col lg:flex-row gap-5 md:gap-10 justify-between">
-
-                        {/* Resumo compacto do evento */}
-                        <div className="flex items-center gap-4 lg:justify-center">
-                            <div className="relative h-20 w-20 overflow-hidden rounded-lg border border-[#ded7ca] bg-[#e7dfd2]">
-                                <Image
-                                    src={compactImageError || !primaryTicket?.image ? '/images/anita.jpg' : primaryTicket.image}
-                                    alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                    fill
-                                    className="object-cover"
-                                    sizes="80px"
-                                    unoptimized={primaryTicket?.image?.startsWith('http')}
-                                    onError={() => setCompactImageError(true)}
-                                />
-                            </div>
-                            <div className="min-w-0 space-y-1">
-                                <p className="truncate text-sm font-semibold text-[#1a1a1d]">
-                                    {primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento'}
-                                </p>
-
-                                <p className="text-[0.7rem] font-semibold uppercase tracking-normal text-[#a38f78]">
-                                    Local: {primaryTicket?.location ?? APP_NAME}
-                                </p>
-
-                                {primaryTicket?.eventDate && (
-                                    <p className="text-[0.7rem] text-[#6f6b63]">
-                                        Data:{primaryTicket.eventDate}
-                                    </p>
-                                )}
-                            </div>
+            <Container className="pb-8">
+                <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[1.2fr_1fr] lg:gap-10 lg:items-start">
+                    {/* Box de Informações - MOBILE: aparece PRIMEIRO (ordem natural), DESKTOP: aparece segundo (col-start-2) */}
+                    <section className="space-y-6 lg:col-start-2 lg:col-end-3">
+                        {/* Título do Evento com Favoritar */}
+                        <div className="flex items-start justify-between gap-4">
+                            <h1 className="flex-1 text-2xl md:text-3xl font-bold text-[#1a1a1d] leading-tight">
+                                {primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento'}
+                            </h1>
+                            <button
+                                type="button"
+                                className="flex-shrink-0 rounded-full border border-[#ded7ca] bg-white p-2.5 text-[#a38f78] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                aria-label="Favoritar evento"
+                            >
+                                <HiOutlineHeart className="text-xl" />
+                            </button>
                         </div>
 
-                        {/* Etapas da compra */}
-                        <div className="hidden md:flex items-center justify-start gap-3 lg:justify-end">
-                            <div className="flex items-center gap-3 text-[0.7rem] font-semibold uppercase tracking-normal">
-                                <div className="flex items-center gap-1.5 text-[#1a1a1d]">
-                                    <span className={`flex items-center justify-center rounded-full bg-[#1a1a1d] font-semibold text-white ${totalAvailableTickets >= 100
-                                        ? 'h-7 w-7 text-[0.65rem]'
-                                        : totalAvailableTickets >= 10
-                                            ? 'h-6 w-6 text-[0.70rem]'
-                                            : 'h-6 w-6 text-[0.70rem]'
-                                        }`}>
-                                        {loading ? '...' : totalAvailableTickets > 0 ? totalAvailableTickets : '0'}
-                                    </span>
-                                    <span>Ingressos Disponiveis</span>
+                        {/* Detalhes do Evento */}
+                        <div className="space-y-4 rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
+                            {primaryTicket?.eventDate && (
+                                <div className="flex items-center gap-3 text-sm text-[#4c4c55]">
+                                    <HiOutlineCalendar className="text-lg text-[#a38f78] flex-shrink-0" />
+                                    <span className="text-[#1a1a1d]">{primaryTicket.eventDate}</span>
                                 </div>
+                            )}
 
+                            {primaryTicket?.location && (
+                                <div className="flex items-start gap-3 text-sm text-[#4c4c55]">
+                                    <HiOutlineMapPin className="text-lg text-[#a38f78] flex-shrink-0 mt-0.5" />
+                                    <span className="text-[#1a1a1d]">{primaryTicket.location}</span>
+                                </div>
+                            )}
+
+                            {/* Classificação etária (se disponível) */}
+                            <div className="flex items-center gap-3 text-sm text-[#4c4c55]">
+                                <HiOutlineUser className="text-lg text-[#a38f78] flex-shrink-0" />
+                                <span className="text-[#1a1a1d]">Classificação livre</span>
                             </div>
-                        </div>
-                    </div>
-                </Container>
-            </div>
 
-            <Container className="py-8 lg:py-10">
-                <div className="flex flex-col gap-10 lg:grid lg:grid-cols-3 lg:items-start">
-                    {/* Coluna: Detalhes do evento */}
-                    <section className="space-y-6 lg:col-span-2">
-                        <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white/80 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
-                            <div className="relative aspect-[16/9] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
+                            {/* Preço mínimo */}
+                            {minPrice > 0 && (
+                                <div className="pt-2 border-t border-[#e2ddd1]">
+                                    <p className="text-base font-semibold text-[#1a1a1d]">
+                                        A partir de <span className="text-[#f97316]">R$ {minPrice.toFixed(2).replace('.', ',')}</span>
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Botão Comprar Ingresso */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const ticketSection = document.getElementById('ticket-selection');
+                                    if (ticketSection) {
+                                        ticketSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }
+                                }}
+                                className="w-full rounded-full bg-[#1a1a1d] px-6 py-3.5 text-sm font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-white"
+                            >
+                                Comprar Ingresso
+                            </button>
+                        </div>
+
+                        {/* Seção de Seleção de Ingressos */}
+                        <div id="ticket-selection">
+                            <EventSelectionSummary tickets={tickets} loading={loading} eventId={eventId} />
+                        </div>
+                    </section>
+
+                    {/* Box da Foto - MOBILE: aparece SEGUNDO (ordem natural), DESKTOP: aparece primeiro (col-start-1) */}
+                    <section className="space-y-6 lg:col-start-1 lg:col-end-2 lg:row-start-1">
+                        {/* Poster do Evento */}
+                        <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                            <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca]">
                                 <Image
                                     src={imageError || !primaryTicket?.image ? '/images/anita.jpg' : primaryTicket.image}
                                     alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
                                     fill
                                     className="object-cover"
                                     priority
-                                    sizes="(max-width: 768px) 100vw, 66vw"
+                                    sizes="(max-width: 768px) 100vw, 50vw"
                                     unoptimized={primaryTicket?.image?.startsWith('http')}
                                     onError={() => setImageError(true)}
                                 />
                             </div>
+                        </div>
 
-                            <div className="space-y-5 p-6 lg:p-8">
-                                <div className="space-y-2">
-                                    <h1 className="text-xl font-bold tracking-normal text-[#1a1a1d]">
-                                        {primaryTicket?.eventName ?? 'Evento'}
-                                    </h1>
-
-                                    <div className="flex flex-wrap items-center md:gap-4 gap-1 pb-4 text-sm text-[#4c4c55]">
-                                        {primaryTicket?.eventDate && (
-                                            <div className="flex items-center gap-2 ">
-                                                <HiOutlineCalendar className="text-base text-[#a38f78]" />
-                                                <span className="text-[#1a1a1d]">{primaryTicket.eventDate}</span>
-                                            </div>
-                                        )}
-
-                                        {primaryTicket?.location && (
-                                            <div className="flex items-center gap-2">
-                                                <HiOutlineMapPin className="text-base text-[#a38f78]" />
-                                                <span className="text-[#1a1a1d]">{primaryTicket.location}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <hr />
-                                    <div
-                                        className="text-sm pt-5 pb-3 text-[#4c4c55] prose prose-sm max-w-none 
-                                            prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
-                                            prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
-                                            prose-strong:text-[#1a1a1d] prose-strong:font-semibold
-                                            prose-ul:text-[#4c4c55] prose-ul:list-disc prose-ul:ml-5 prose-ul:mb-3 prose-ul:space-y-1
-                                            prose-ol:text-[#4c4c55] prose-ol:list-decimal prose-ol:ml-5 prose-ol:mb-3 prose-ol:space-y-1
-                                            prose-li:text-[#4c4c55] prose-li:leading-relaxed"
-                                        dangerouslySetInnerHTML={{
-                                            __html: eventData?.description ||
-                                                primaryTicket?.description ||
-                                                'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
-                                        }}
-                                    />
-                                </div>
-
-                                <hr />
-                                {/* Botões de compartilhar */}
-                                <div className="flex flex-wrap gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={handleShareWhatsApp}
-                                        className="inline-flex items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
-                                    >
-                                        <FaWhatsapp className="text-base" />
-                                        Compartilhar no WhatsApp
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleShareInstagram}
-                                        className="inline-flex items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
-                                    >
-                                        <FaInstagram className="text-base" />
-                                        Compartilhar no Instagram
-                                    </button>
-                                </div>
+                        {/* Seção Sobre */}
+                        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 lg:p-8 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                            <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
+                            <div
+                                className="text-sm text-[#4c4c55] prose prose-sm max-w-none 
+                                    prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
+                                    prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
+                                    prose-strong:text-[#1a1a1d] prose-strong:font-semibold
+                                    prose-ul:text-[#4c4c55] prose-ul:list-disc prose-ul:ml-5 prose-ul:mb-3 prose-ul:space-y-1
+                                    prose-ol:text-[#4c4c55] prose-ol:list-decimal prose-ol:ml-5 prose-ol:mb-3 prose-ol:space-y-1
+                                    prose-li:text-[#4c4c55] prose-li:leading-relaxed"
+                                dangerouslySetInnerHTML={{
+                                    __html: eventData?.description ||
+                                        primaryTicket?.description ||
+                                        'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
+                                }}
+                            />
+                            
+                            {/* Botões de compartilhar */}
+                            <div className="mt-6 flex flex-wrap gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleShareWhatsApp}
+                                    className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
+                                >
+                                    <FaWhatsapp className="text-base" />
+                                    Compartilhar no WhatsApp
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleShareInstagram}
+                                    className="flex flex-1 justify-center  items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
+                                >
+                                    <FaInstagram className="text-base" />
+                                    Compartilhar no Instagram
+                                </button>
                             </div>
                         </div>
                     </section>
-
-                    {/* Coluna: Meus ingressos / detalhes da compra */}
-                    <div className="lg:col-span-1">
-                        <EventSelectionSummary tickets={tickets} loading={loading} eventId={eventId} />
-                    </div>
                 </div>
             </Container>
         </main>
     );
 }
-
-
