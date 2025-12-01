@@ -56,6 +56,12 @@ export default function HeroCarousel({
     const [imageErrors, setImageErrors] = useState<number[]>([]);
     const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
     
+    // Obter URL base do site (client-side only)
+    const getBaseUrl = useCallback(() => {
+        if (typeof window === 'undefined') return '';
+        return window.location.origin;
+    }, []);
+    
     // Estados para touch/swipe
     const touchStartX = useRef<number | null>(null);
     const touchEndX = useRef<number | null>(null);
@@ -227,9 +233,10 @@ export default function HeroCarousel({
                                         IMAGEM em construção.
                                     </p>
                                 ) : slide.imageUrl.startsWith('/api/images/') ? (
-                                    // Para URLs do proxy, usar img normal para evitar problemas com Next.js Image
+                                    // Para URLs do proxy, usar img normal com URL absoluta
+                                    // Isso evita que o Next.js tente otimizar através de /_next/image
                                     <img
-                                        src={slide.imageUrl}
+                                        src={`${getBaseUrl()}${slide.imageUrl}`}
                                         alt={`Slide ${index + 1}`}
                                         className="absolute inset-0 w-full h-full object-cover"
                                         loading={index === currentSlide ? 'eager' : 'lazy'}
@@ -238,9 +245,9 @@ export default function HeroCarousel({
                                             const imgElement = e.target as HTMLImageElement;
                                             console.error('[HeroCarousel] Erro ao carregar imagem do slide (img):', {
                                                 imageUrl: slide.imageUrl,
+                                                fullUrl: imgElement?.src,
                                                 slideIndex: index,
                                                 error: e,
-                                                targetSrc: imgElement?.src,
                                                 naturalWidth: imgElement?.naturalWidth,
                                                 naturalHeight: imgElement?.naturalHeight,
                                                 complete: imgElement?.complete,
