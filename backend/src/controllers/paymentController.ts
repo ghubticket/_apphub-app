@@ -1481,6 +1481,17 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     paymentInfo.status_detail || ''
                 );
                 const paymentStatus = statusInfo.internalStatus;
+                
+                // DEBUG: Log detalhado do status recebido
+                console.log(`🔔 [webhook-order] Status recebido do MP:`, {
+                    mpOrderId,
+                    orderId,
+                    orderNumber: order.orderNumber,
+                    paymentStatus: paymentInfo.status,
+                    paymentStatusDetail: paymentInfo.status_detail,
+                    internalStatus: paymentStatus,
+                    wasPaidBefore,
+                });
                 // Orders API usa payment_method.{type,id} em vez de payment_type_id/payment_method_id
                 const paymentTypeId =
                     paymentInfo.payment_type_id || paymentInfo.payment_method?.type;
@@ -1501,6 +1512,11 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
 
                 if (paymentStatus === 'paid') {
+                    console.log(`✅ [webhook-order] Pagamento APROVADO! Atualizando pedido ${order.orderNumber} para paid:`, {
+                        paymentStatus: paymentInfo.status,
+                        paymentStatusDetail: paymentInfo.status_detail,
+                        internalStatus: paymentStatus,
+                    });
                     order.status = 'paid';
 
                     // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
@@ -1596,15 +1612,18 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 await order.save();
 
                 // Log detalhado
-                console.log(`✅ Pedido ${order.orderNumber} atualizado via webhook (Order):`, {
-                    orderId: mpOrderId,
+                console.log(`✅ [webhook-order] Pedido ${order.orderNumber} atualizado via webhook:`, {
+                    mpOrderId,
+                    orderId: order._id,
+                    orderStatus: order.status,
                     paymentId: paymentInfo.id,
-                    status: paymentInfo.status,
-                    statusDetail: paymentInfo.status_detail,
+                    paymentStatus: paymentInfo.status,
+                    paymentStatusDetail: paymentInfo.status_detail,
                     internalStatus: paymentStatus,
                     userMessage: statusInfo.userMessage,
                     requiresAction: statusInfo.requiresAction,
                     canRetry: statusInfo.canRetry,
+                    wasPaidBefore,
                 });
             } catch (error: any) {
                 console.error('Erro ao processar notificação de Order:', error);
@@ -1666,6 +1685,11 @@ export const handleWebhook = async (req: Request, res: Response) => {
             const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
 
             if (paymentStatus === 'paid') {
+                console.log(`✅ [webhook-payment] Pagamento APROVADO! Atualizando pedido ${order.orderNumber} para paid:`, {
+                    paymentStatus: paymentInfo.status,
+                    paymentStatusDetail: paymentInfo.status_detail,
+                    internalStatus: paymentStatus,
+                });
                 order.status = 'paid';
 
                 // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
@@ -1762,16 +1786,19 @@ export const handleWebhook = async (req: Request, res: Response) => {
             await order.save();
 
             // Log detalhado
-            console.log(`✅ Pedido ${order.orderNumber} atualizado via webhook:`, {
+            console.log(`✅ [webhook-payment] Pedido ${order.orderNumber} atualizado via webhook:`, {
                 paymentId,
-                status: paymentInfo.status,
-                statusDetail: paymentInfo.status_detail,
+                orderId: order._id,
+                orderStatus: order.status,
+                paymentStatus: paymentInfo.status,
+                paymentStatusDetail: paymentInfo.status_detail,
                 internalStatus: paymentStatus,
                 userMessage: statusInfo.userMessage,
                 requiresAction: statusInfo.requiresAction,
                 canRetry: statusInfo.canRetry,
                 errorCode: paymentInfo.error_code,
                 errorDescription: paymentInfo.error_description,
+                wasPaidBefore,
             });
             // Marcar como processado
             await WebhookEvent.updateOne(
