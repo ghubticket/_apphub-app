@@ -69,37 +69,18 @@ export async function GET(
         const isHttps = imageUrl.startsWith('https://');
         
         // Buscar a imagem da API
-        // Adicionar Referer para passar pela proteção de hotlink do backend
-        // O backend verifica o referer apenas em produção e se ele existir
-        // Se não houver referer, o backend permite (não bloqueia)
-        // Mas vamos enviar o referer do frontend para garantir
-        let refererUrl = request.headers.get('referer');
-        if (!refererUrl) {
-            try {
-                const requestUrl = new URL(request.url);
-                refererUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-            } catch {
-                // Usar o FRONTEND_URL da env ou fallback
-                refererUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || 'https://ghubtech.com.br';
-            }
-        }
-        
+        // NÃO enviar Referer - o backend permite requisições sem Referer
+        // O backend só verifica Referer em produção E se ele existir
+        // Se não houver Referer, o backend permite (não bloqueia)
+        // Isso evita problemas com a lista de origens permitidas
         const fetchOptions: RequestInit = {
             method: 'GET',
             headers: {
                 'Accept': 'image/*',
-                // Só enviar Referer se tivermos uma URL válida
-                ...(refererUrl ? { 'Referer': refererUrl } : {}),
             },
             // Timeout de 10 segundos
             signal: AbortSignal.timeout(10000),
         };
-        
-        console.log('[Image Proxy] Fetch options:', {
-            refererUrl,
-            hasReferer: !!refererUrl,
-            imageUrl,
-        });
 
         // Em desenvolvimento com localhost HTTPS, usar módulo https diretamente
         if (isDevelopment && isLocalhost && isHttps) {
@@ -115,7 +96,6 @@ export async function GET(
                         method: 'GET',
                         headers: { 
                             'Accept': 'image/*',
-                            ...(refererUrl ? { 'Referer': refererUrl } : {}),
                         },
                         rejectUnauthorized: false, // Desabilitar verificação SSL apenas em dev localhost
                     };
