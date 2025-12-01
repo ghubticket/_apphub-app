@@ -3,7 +3,7 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { HiOutlineEnvelope, HiOutlineLockClosed, HiOutlineUserPlus, HiOutlineIdentification } from 'react-icons/hi2';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import InputField from '@/components/forms/InputField';
 import PasswordField from '@/components/forms/PasswordField';
 import Button from '@/components/shared/Button';
@@ -40,13 +40,19 @@ const formatCPF = (value: string) => {
 
 export default function LoginPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { login: authLogin, isAuthenticated, isReady } = useAuth();
+
+    // Obter returnUrl da query string
+    const returnUrl = searchParams.get('returnUrl');
 
     useEffect(() => {
         if (isReady && isAuthenticated) {
-            router.replace('/dashboard');
+            // Se há returnUrl, redirecionar para ele, senão ir para dashboard
+            const redirectTo = returnUrl || '/dashboard';
+            router.replace(redirectTo);
         }
-    }, [isReady, isAuthenticated, router]);
+    }, [isReady, isAuthenticated, router, returnUrl]);
 
     const [formData, setFormData] = useState({
         email: '',
@@ -135,7 +141,9 @@ export default function LoginPage() {
             });
 
             setTimeout(() => {
-                router.replace('/');
+                // CRÍTICO: Usar returnUrl da query string se disponível, senão ir para dashboard
+                const redirectTo = returnUrl || '/dashboard';
+                router.replace(redirectTo);
             }, 600);
         } catch (error: any) {
             const status = error?.response?.status;

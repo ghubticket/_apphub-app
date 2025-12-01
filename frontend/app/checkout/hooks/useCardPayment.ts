@@ -62,12 +62,14 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
         const currentOrderId = orderIdRef.current;
         const isCurrentReal = currentOrderId && !currentOrderId.startsWith('fake-');
         const isNewFake = orderId && orderId.startsWith('fake-');
+        const isNewReal = orderId && !orderId.startsWith('fake-');
         
+        // REGRA: Se já temos um pedido REAL, NUNCA sobrescrever com fake
         // Só atualizar se:
         // 1. Não temos orderIdRef atual OU
-        // 2. O novo orderId não é fake OU
-        // 3. O orderIdRef atual também é fake (pode ser atualizado)
-        const shouldUpdate = !currentOrderId || !isNewFake || !isCurrentReal;
+        // 2. O novo orderId é real (pode atualizar fake para real, ou real para real) OU
+        // 3. O orderIdRef atual também é fake E o novo também é fake (pode atualizar fake para fake)
+        const shouldUpdate = !currentOrderId || isNewReal || (isCurrentReal === false && isNewFake);
         
         if (shouldUpdate) {
             console.log('[useCardPayment] 🔄 Atualizando orderIdRef:', { previous: orderIdRef.current, current: orderId });
@@ -75,7 +77,9 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
         } else {
             console.log('[useCardPayment] ⏭️ Mantendo orderIdRef real (não sobrescrevendo com fake):', { 
                 currentReal: orderIdRef.current, 
-                newFake: orderId 
+                newFake: orderId,
+                isCurrentReal,
+                isNewFake
             });
         }
         

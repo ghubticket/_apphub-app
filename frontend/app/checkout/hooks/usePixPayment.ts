@@ -126,8 +126,32 @@ export function usePixPayment(
     useEffect(() => {
         const orderIdChanged = previousOrderIdRef.current !== orderId;
         
-        // Atualizar refs
-        orderIdRef.current = orderId;
+        // CRÍTICO: Não sobrescrever orderIdRef se já temos um pedido real (não fake)
+        // Isso evita que o orderIdRef seja sobrescrito de volta para fake após criar pedido real
+        const currentOrderId = orderIdRef.current;
+        const isCurrentReal = currentOrderId && !currentOrderId.startsWith('fake-');
+        const isNewFake = orderId && orderId.startsWith('fake-');
+        const isNewReal = orderId && !orderId.startsWith('fake-');
+        
+        // REGRA: Se já temos um pedido REAL, NUNCA sobrescrever com fake
+        // Só atualizar se:
+        // 1. Não temos orderIdRef atual OU
+        // 2. O novo orderId é real (pode atualizar fake para real, ou real para real) OU
+        // 3. O orderIdRef atual também é fake E o novo também é fake (pode atualizar fake para fake)
+        const shouldUpdateOrderId = !currentOrderId || isNewReal || (isCurrentReal === false && isNewFake);
+        
+        if (shouldUpdateOrderId) {
+            orderIdRef.current = orderId;
+        } else {
+            console.log('[usePixPayment] ⏭️ Mantendo orderIdRef real (não sobrescrevendo com fake):', { 
+                currentReal: orderIdRef.current, 
+                newFake: orderId,
+                isCurrentReal,
+                isNewFake
+            });
+        }
+        
+        // Sempre atualizar orderExpiresAt
         orderExpiresAtRef.current = orderExpiresAt;
         
         // Atualizar isCheckoutReady baseado em orderId
