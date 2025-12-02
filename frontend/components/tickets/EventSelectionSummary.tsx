@@ -322,17 +322,17 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                         type="button"
                                         onClick={() => handleCreateVipOrder(ticket)}
                                         disabled={!isReady || !isAuthenticated || isCreatingVipOrder[ticket.id]}
-                                        className="group mt-3 w-full rounded-full border border-[#a38f78] bg-white px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-normal text-[#a38f78] transition hover:border-[#f97316] hover:bg-[#f97316] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="mt-3 w-full rounded-full bg-[#1f5d3d] px-4 py-2.5 text-[0.75rem] font-semibold uppercase tracking-normal text-white transition hover:bg-[#2b6b47] disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {!isReady || !isAuthenticated ? (
                                             <>
-                                                <HiOutlineLockClosed className="mr-1 inline text-sm group-hover:text-white" />
+                                                <HiOutlineLockClosed className="mr-1 inline text-sm" />
                                                 Login necessário
                                             </>
                                         ) : isCreatingVipOrder[ticket.id] ? (
-                                            'Criando pedido...'
+                                            'Gerando sua Corteria...'
                                         ) : (
-                                            'Solicitar ingresso VIP'
+                                            'Pegar minha Cortesia'
                                         )}
                                     </button>
                                 )}

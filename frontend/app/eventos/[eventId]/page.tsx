@@ -212,7 +212,6 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
     return (
         <PageContainer 
             bgColor="bg-[#f5f1e8]" 
-            paddingTop={10}
             paddingBottom="pb-8"
             containerClassName="pb-8"
         >

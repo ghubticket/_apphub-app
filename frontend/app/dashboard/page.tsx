@@ -415,15 +415,22 @@ export default function DashboardPage() {
 
     // Callback quando pedido é pago (detectado via polling)
     const handleOrderPaid = useCallback((orderId: string, order: any) => {
-        // Atualizar lista de pedidos
-        fetchOrders();
+        // Extrair orderNumber do pedido (pode estar em diferentes formatos)
+        const orderNumber = order?.orderNumber || order?.order_number || orderId;
         
-        // Mostrar modal de sucesso
+        // Mostrar modal de sucesso ANTES de atualizar a lista
+        // Isso garante que a modal apareça imediatamente
         setPaidOrderInfo({
-            orderNumber: order.orderNumber || orderId,
+            orderNumber: orderNumber,
             message: 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.',
         });
         setShowPaymentSuccessModal(true);
+        
+        // Atualizar lista de pedidos após mostrar a modal
+        // Pequeno delay para garantir que a modal seja exibida primeiro
+        setTimeout(() => {
+            fetchOrders();
+        }, 100);
     }, [fetchOrders]);
 
     // Polling de pedidos pendentes (apenas quando estiver na aba de pedidos)
@@ -436,8 +443,15 @@ export default function DashboardPage() {
         });
     }, [orders]);
 
+    // CRÍTICO: Manter polling ativo mesmo após detectar pagamento (enquanto modal estiver aberta)
+    // Isso garante que o polling não pare antes da modal ser exibida
+    const shouldPoll = activeTab === 'orders' && 
+                      (hasPendingOrders || showPaymentSuccessModal) && 
+                      isAuthenticated && 
+                      isReady;
+
     const { isPolling } = useOrdersPolling({
-        enabled: activeTab === 'orders' && hasPendingOrders && isAuthenticated && isReady,
+        enabled: shouldPoll,
         onOrderPaid: handleOrderPaid,
     });
 
@@ -648,10 +662,6 @@ export default function DashboardPage() {
                                                 >
                                                     {statusConfig.paid.label}
                                                 </span>
-                                              
-                                                <span className="text-xs text-[#7d796c]">
-                                                    {realTotalTickets} ingresso{realTotalTickets > 1 ? 's' : ''} total{realTotalTickets > 1 ? '' : ''}
-                                                </span>
                                             </div>
                                             <HiOutlineChevronDown
                                                 className={`hidden md:block text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
@@ -735,7 +745,7 @@ export default function DashboardPage() {
                                                     setShowSecurityModal(true);
                                                 }
                                             }}
-                                            className="flex items-center gap-2 rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                            className="flex items-center gap-2 w-full md:w-auto justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
                                         >
                                             <HiOutlineTicket className="text-base" />
                                             Visualizar Ingressos ({allTickets.length})
@@ -840,7 +850,7 @@ export default function DashboardPage() {
                                 {order.status === 'pending' && order.paymentMethod === 'pix' && (
                                     order.pixInfo ? (
                                         <div className="flex-1 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                                            <div className="mb-3 flex items-center gap-2">
+                                            <div className="mb-3 flex justify-center items-center gap-2">
                                                 <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
@@ -852,16 +862,16 @@ export default function DashboardPage() {
                                             {/* Indicador de polling ativo (aguardando pagamento) */}
                                             {isPolling && (
                                                 <div className="mb-4 rounded-lg border border-emerald-300 bg-emerald-100/80 p-2.5">
-                                                    <div className="flex items-center justify-center gap-2">
+                                                    <div className="flex flex-col md:flex-row items-center justify-center gap-2">
                                                         <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-600"></div>
-                                                        <p className="text-xs font-semibold text-emerald-800">
+                                                        <p className="text-xs text-center font-semibold text-emerald-800">
                                                             Aguardando confirmação de pagamento em tempo real...
                                                         </p>
                                                     </div>
                                                 </div>
                                             )}
 
-                                            <p className="mb-4 text-sm text-emerald-700">
+                                            <p className="mb-4 text-center text-sm text-emerald-700">
                                                 Seu pedido ainda está pendente. Copie e cole o código PIX abaixo para finalizar o pagamento.
                                             </p>
 
@@ -879,7 +889,7 @@ export default function DashboardPage() {
                                             {/* Código PIX para copiar */}
                                             {(order.pixInfo.qrCode || order.pixInfo.ticketUrl) && (
                                                 <div className="mb-4">
-                                                    <label className="mb-2 block text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                    <label className="mb-2 block text-center text-xs font-semibold uppercase tracking-normal text-emerald-800">
                                                         Código PIX (Copiar e Colar)
                                                     </label>
                                                     <div className="flex gap-2">
@@ -916,7 +926,7 @@ export default function DashboardPage() {
                                         </div>
                                     ) : (
                                         <div className="flex-1 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                                            <div className="mb-3 flex items-center gap-2">
+                                            <div className="mb-3 flex  items-center gap-2">
                                                 <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
@@ -1141,7 +1151,10 @@ export default function DashboardPage() {
                     setShowPaymentSuccessModal(false);
                     setPaidOrderInfo(null);
                     // Recarregar pedidos para mostrar o pedido pago atualizado
-                    fetchOrders();
+                    // Pequeno delay para garantir que a modal feche antes de recarregar
+                    setTimeout(() => {
+                        fetchOrders();
+                    }, 100);
                 }}
                 orderNumber={paidOrderInfo?.orderNumber}
                 message={paidOrderInfo?.message}

@@ -39,16 +39,12 @@ export function CustomerDataForm({
                     </p>
                 </div>
 
-                {showEditToggle && (
+                {/* Esconder botão "Editar dados" quando PIX está ativo */}
+                {showEditToggle && !pixPaymentActive && (
                     <button
                         type="button"
                         onClick={onEditClick}
-                        disabled={pixPaymentActive}
-                        className={`rounded-full border border-[#ded7ca] bg-white/70 text-[0.65rem] font-semibold p-2 uppercase px-4 tracking-normal transition ${
-                            pixPaymentActive
-                                ? 'cursor-not-allowed text-[#7d796c] bg-[#f5f1e8]'
-                                : 'text-[#6f6b63] hover:border-[#a38f78] hover:text-[#1a1a1d]'
-                        }`}
+                        className="rounded-full border border-[#ded7ca] bg-white/70 text-[0.65rem] font-semibold p-2 uppercase px-4 tracking-normal transition text-[#6f6b63] hover:border-[#a38f78] hover:text-[#1a1a1d]"
                     >
                         {disabled ? 'Editar dados' : 'Concluir edição'}
                     </button>
