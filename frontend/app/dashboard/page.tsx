@@ -614,18 +614,9 @@ export default function DashboardPage() {
                                                 >
                                                     {statusConfig.paid.label}
                                                 </span>
-                                                <span className="text-xs uppercase tracking-normal text-[#7d796c]">
-                                                    {group.orders.length > 1
-                                                        ? `De ${earliestDate} até ${latestDate}`
-                                                        : `Criado em ${latestDate}`
-                                                    }
-                                                </span>
-
-                                                <span className="text-[0.65rem] uppercase tracking-normal text-[#a38f78]">
-                                                    {paymentLabelsList || 'Pagamento confirmado'}
-                                                </span>
+                                              
                                                 <span className="text-xs text-[#7d796c]">
-                                                    {realTotalTickets} ingresso{realTotalTickets > 1 ? 's' : ''} total{realTotalTickets > 1 ? 'is' : ''}
+                                                    {realTotalTickets} ingresso{realTotalTickets > 1 ? 's' : ''} total{realTotalTickets > 1 ? '' : ''}
                                                 </span>
                                             </div>
                                             <HiOutlineChevronDown

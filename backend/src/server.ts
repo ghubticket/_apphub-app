@@ -250,7 +250,23 @@ const __allowedUploadOrigins = [
 
 app.use('/uploads', (req: Request, res: Response, next) => {
     const referer = req.get('referer') || '';
+    const userAgent = req.get('user-agent') || '';
     const isProd = (process.env.NODE_ENV || 'development') === 'production';
+    
+    // Permitir requisições de proxies (dashboard e frontend)
+    // Os proxies enviam User-Agent específico
+    const isProxyRequest = 
+        userAgent.includes('EventHub-Image-Proxy') ||
+        userAgent.includes('EventHub-Dashboard-Proxy') ||
+        userAgent.includes('Image-Proxy');
+    
+    // Se for requisição de proxy, permitir sempre
+    if (isProxyRequest) {
+        return next();
+    }
+    
+    // Em produção, verificar Referer apenas se existir
+    // Se não houver Referer, permitir (pode ser requisição direta ou de proxy)
     if (isProd && referer) {
         try {
             const url = new URL(referer);
