@@ -183,6 +183,10 @@ function CadastroPageContent() {
 
         setIsSubmitting(true);
         setFormMessage(null);
+        
+        // Scroll para o topo quando iniciar o loading
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
         try {
             // Para envio, fazemos trim apenas no início e fim, mas mantemos espaços internos
             const nameSanitized = formData.name.replace(/[\u0000-\u001F\u007F<>]/g, '').trim();
@@ -281,13 +285,31 @@ function CadastroPageContent() {
         }
     };
 
+    // Efeito para travar scroll quando estiver carregando
+    useEffect(() => {
+        if (isSubmitting) {
+            // Travar scroll
+            document.body.style.overflow = 'hidden';
+            // Scroll para o topo
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        } else {
+            // Liberar scroll
+            document.body.style.overflow = '';
+        }
+        
+        // Cleanup: sempre liberar scroll ao desmontar
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isSubmitting]);
+
     if (isSubmitting) {
         return (
             <PageContainer bgColor="bg-[#faf7f0]">
                 <LoadingSpinner 
                     message="Criando sua conta..." 
                     submessage="Aguarde enquanto processamos seus dados"
-                    fullscreen={false}
+                    fullscreen={true}
                 />
             </PageContainer>
         );

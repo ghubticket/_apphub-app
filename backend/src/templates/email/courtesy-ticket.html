@@ -1,11 +1,11 @@
-<h2>Você recebeu uma cortesia</h2>
+<h2>Seus ingressos estão confirmados</h2>
 
 <p>Olá <strong>{{customerName}}</strong>,</p>
 
 <p>Você recebeu uma cortesia para o evento <strong>{{eventName}}</strong>!</p>
 
-<div class="success-box">
-    <h3>Sua Cortesia</h3>
+<div class="info-box">
+    <h3>Informações do Evento</h3>
     <ul>
         <li><strong>Evento:</strong> {{eventName}}</li>
         <li><strong>Data:</strong> {{eventDate}}</li>
@@ -13,34 +13,17 @@
         {{#if eventAddress}}
         <li><strong>Endereço:</strong> {{eventAddress}}</li>
         {{/if}}
-        <li><strong>Quantidade:</strong> {{totalTickets}} ingresso(s) {{ticketType}}</li>
-        <li><strong>Pedido:</strong> #{{orderNumber}}</li>
     </ul>
 </div>
 
-<div class="info-box">
+<div class="success-box">
     <h3>Seus Ingressos</h3>
     <p>Você recebeu <strong>{{totalTickets}}</strong> ingresso(s) do tipo <strong>{{ticketType}}</strong> como cortesia.</p>
 
-    {{#if qrCodes}}
-    <div style="margin-top: 24px;">
-        <h4 style="margin-bottom: 16px;">Seus QR Codes:</h4>
-        <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
-            {{#each qrCodes}}
-            <div style="text-align: center; padding: 20px; background: white; border: 2px solid #1a1a1a;">
-                <img src="{{this.qrCode}}" alt="QR Code Ingresso {{this.code}}"
-                    style="max-width: 200px; height: auto; display: block; margin: 0 auto 12px; border: 2px solid #1a1a1a; padding: 8px;" />
-                <p style="margin: 0; font-size: 12px; color: #1a1a1a; font-weight: 600;">{{this.code}}</p>
-                {{#if this.holderName}}
-                <p style="margin: 8px 0 0 0; font-size: 11px; color: #666666;">{{this.holderName}}</p>
-                {{/if}}
-            </div>
-            {{/each}}
-        </div>
-    </div>
-    {{/if}}
-
-    <p style="margin-top: 24px;">O PDF com os QR Codes também está anexo neste email.</p>
+    <p style="margin-top: 16px;">
+        O PDF com todos os QR Codes está anexo neste email. Você pode apresentar o PDF no celular ou
+        impresso na entrada do evento.
+    </p>
 </div>
 
 <div class="warning-box">
@@ -55,12 +38,12 @@
 
 {{#if downloadLink}}
 <div style="text-align: center; margin: 32px 0;">
-    <a href="{{downloadLink}}" class="button">Baixar PDF dos Ingressos</a>
+    <a href="{{downloadLink}}" class="button">Ver meu pedido</a>
 </div>
 {{/if}}
 
-<p>Esperamos você no evento!</p>
+<p>Nos vemos lá!</p>
 
 <p style="margin-top: 32px; color: #666666; font-size: 14px;">
-    Em caso de dúvidas, entre em contato conosco através do email de suporte.
+    Em caso de dúvidas, entre em contato conosco através do email de suporte: {{supportEmail}}
 </p>
