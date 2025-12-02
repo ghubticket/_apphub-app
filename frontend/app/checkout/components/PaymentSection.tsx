@@ -5,6 +5,7 @@ import { SiPix } from 'react-icons/si';
 import { PaymentTabs } from './PaymentTabs';
 import { useCardPayment } from '../hooks/useCardPayment';
 import { usePixPayment } from '../hooks/usePixPayment';
+import type { UsePixPaymentReturn } from '../hooks/usePixPayment';
 import { clearCartItems } from '@/lib/cart';
 import { storageHelpers } from '../utils/storageHelpers';
 
@@ -34,6 +35,7 @@ interface PaymentSectionProps {
     customerEmail: string;
     onCancelOrder?: () => void;
     orderNumber?: string;
+    pixPayment?: UsePixPaymentReturn; // Passar o hook do CheckoutLayout
 }
 
 export function PaymentSection({ 
@@ -46,6 +48,7 @@ export function PaymentSection({
     customerEmail,
     onCancelOrder,
     orderNumber,
+    pixPayment: externalPixPayment,
 }: PaymentSectionProps) {
     const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
     
@@ -55,7 +58,10 @@ export function PaymentSection({
     const cardPayment = useCardPayment(orderId);
     
     // Hook para gerenciar pagamento PIX (passar expiresAt do pedido)
-    const pixPayment = usePixPayment(orderId, orderExpiresAt);
+    // Se o hook foi passado como prop, usar ele; caso contrário, criar um novo
+    // IMPORTANTE: O hook interno é criado sempre (regra dos hooks), mas só é usado se não houver hook externo
+    const internalPixPayment = usePixPayment(orderId, orderExpiresAt);
+    const pixPayment = externalPixPayment || internalPixPayment;
 
     // Handler para quando Brick estiver pronto
     const handleBrickReady = () => {

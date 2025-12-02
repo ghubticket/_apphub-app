@@ -28,6 +28,12 @@ export default function PaymentSuccessModal({
     useEffect(() => {
         if (isOpen) {
             setMounted(true);
+            
+            // Vibrar dispositivo quando modal abrir (iPhone/Android)
+            if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200]);
+            }
+            
             const frame = requestAnimationFrame(() => {
                 setEntering(true);
             });
@@ -53,7 +59,7 @@ export default function PaymentSuccessModal({
             onClick={onClose}
         >
             <div
-                className={`relative mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl transition-all duration-300 ${entering ? 'animate-[bounce_0.6s_ease-out]' : ''}`}
+                className="relative mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl transition-all duration-300"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex flex-col items-center gap-6 p-8 text-center">

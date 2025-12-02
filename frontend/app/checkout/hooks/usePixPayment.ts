@@ -15,7 +15,7 @@ import { storageHelpers } from '../utils/storageHelpers';
 
 export type PixPaymentStatus = 'idle' | 'processing' | 'success' | 'error';
 
-interface UsePixPaymentReturn {
+export interface UsePixPaymentReturn {
     status: PixPaymentStatus;
     statusMessage: string;
     pixResult: PixPaymentResult | null;

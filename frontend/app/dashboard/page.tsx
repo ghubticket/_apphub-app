@@ -418,13 +418,9 @@ export default function DashboardPage() {
         // Extrair orderNumber do pedido (pode estar em diferentes formatos)
         const orderNumber = order?.orderNumber || order?.order_number || orderId;
         
-        // Vibrar dispositivo se suportado (para chamar atenção)
-        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-            navigator.vibrate([200, 100, 200]);
-        }
-        
         // Mostrar modal de sucesso ANTES de atualizar a lista
         // Isso garante que a modal apareça imediatamente
+        // A vibração será acionada automaticamente pela modal quando ela abrir
         setPaidOrderInfo({
             orderNumber: orderNumber,
             message: 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.',

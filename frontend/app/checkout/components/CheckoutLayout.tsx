@@ -402,6 +402,11 @@ export function CheckoutLayout() {
         return order?.totalAmount ?? totalAmount;
     }, [order?.totalAmount, totalAmount]);
 
+    // Memoizar se PIX está ativo (quando há QR code gerado)
+    const isPixActive = useMemo(() => {
+        return !!pixPayment.pixResult;
+    }, [pixPayment.pixResult]);
+
     // CRÍTICO: Mostrar loading IMEDIATAMENTE se não há pedido mas há condições para criar um
     // Isso garante que o loading apareça antes de qualquer renderização
     // IMPORTANTE: Não mostrar loading de criação se já existe pedido no storage (será restaurado)
@@ -461,7 +466,7 @@ export function CheckoutLayout() {
     return (
         <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
             <Container className="py-7">
-                <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr]">
+                <div className={`grid gap-8 ${isPixActive ? 'lg:grid-cols-1 max-w-[40rem] mx-auto' : 'lg:grid-cols-[1.1fr_1fr]'}`}>
                     <section className="space-y-6">
                         {checkoutState.timerActive && (
                             <>
@@ -475,42 +480,62 @@ export function CheckoutLayout() {
                             </>
                         )}
 
-                        <CheckoutCartSummary
-                            items={summarizedCart}
-                            totalTickets={totalTickets}
-                            totalAmount={displayTotalAmount}
-                            pixPaymentActive={!!pixPayment.pixResult}
-                            onRemoveItem={handleRemoveItem}
-                            onPromoterCodeApplied={handlePromoterCodeChange}
-                            orderPromoterCode={order?.promoterCode || null}
-                            orderDiscountAmount={order?.discountAmount || 0}
-                            pendingPromoterCode={order?._id?.startsWith('fake-') ? promoterCode : null}
-                        />
+                        {isPixActive ? (
+                            <PaymentSection
+                                selectedTab={checkoutState.selectedTab}
+                                onTabChange={checkoutState.setSelectedTab}
+                                pixPaymentActive={isPixActive}
+                                orderId={order?._id || null}
+                                orderExpiresAt={order?.expiresAt || null}
+                                totalAmount={displayTotalAmount}
+                                customerEmail={customerData.email}
+                                onCancelOrder={handleCancelOrderAndGoHome}
+                                orderNumber={order?.orderNumber}
+                                pixPayment={pixPayment}
+                            />
+                        ) : (
+                            <>
+                                <CheckoutCartSummary
+                                    items={summarizedCart}
+                                    totalTickets={totalTickets}
+                                    totalAmount={displayTotalAmount}
+                                    pixPaymentActive={isPixActive}
+                                    onRemoveItem={handleRemoveItem}
+                                    onPromoterCodeApplied={handlePromoterCodeChange}
+                                    orderPromoterCode={order?.promoterCode || null}
+                                    orderDiscountAmount={order?.discountAmount || 0}
+                                    pendingPromoterCode={order?._id?.startsWith('fake-') ? promoterCode : null}
+                                />
 
-                        <CustomerDataForm
-                            data={customerData}
-                            disabled={!isEditingCustomer}
-                            onChange={handleCustomerChange}
-                            docTypeReady={true}
-                            showEditToggle
-                            onEditClick={() => setIsEditingCustomer((prev) => !prev)}
-                            pixPaymentActive={!!pixPayment.pixResult}
-                        />
+                                <CustomerDataForm
+                                    data={customerData}
+                                    disabled={!isEditingCustomer}
+                                    onChange={handleCustomerChange}
+                                    docTypeReady={true}
+                                    showEditToggle
+                                    onEditClick={() => setIsEditingCustomer((prev) => !prev)}
+                                    pixPaymentActive={isPixActive}
+                                />
+                            </>
+                        )}
                     </section>
 
-                    <section className="space-y-6">
-                        <PaymentSection
-                            selectedTab={checkoutState.selectedTab}
-                            onTabChange={checkoutState.setSelectedTab}
-                            pixPaymentActive={!!pixPayment.pixResult}
-                            orderId={order?._id || null}
-                            orderExpiresAt={order?.expiresAt || null}
-                            totalAmount={displayTotalAmount}
-                            customerEmail={customerData.email}
-                            onCancelOrder={handleCancelOrderAndGoHome}
-                            orderNumber={order?.orderNumber}
-                        />
-                    </section>
+                    {!isPixActive && (
+                        <section className="space-y-6">
+                            <PaymentSection
+                                selectedTab={checkoutState.selectedTab}
+                                onTabChange={checkoutState.setSelectedTab}
+                                pixPaymentActive={isPixActive}
+                                orderId={order?._id || null}
+                                orderExpiresAt={order?.expiresAt || null}
+                                totalAmount={displayTotalAmount}
+                                customerEmail={customerData.email}
+                                onCancelOrder={handleCancelOrderAndGoHome}
+                                orderNumber={order?.orderNumber}
+                                pixPayment={pixPayment}
+                            />
+                        </section>
+                    )}
                 </div>
             </Container>
 
