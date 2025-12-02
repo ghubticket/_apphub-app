@@ -96,10 +96,18 @@ router.post('/', authenticate, createOrderRateLimit, orderCreationUserRateLimit,
  */
 // Se for ADMIN, lista todos. Se não, lista apenas os do usuário
 router.get('/', authenticate, (req, res, next) => {
+    console.log('[orders route] 🚀 GET /orders chamado', {
+        userRole: (req as any).user?.role,
+        userId: (req as any).user?._id || (req as any).user?.id,
+        query: req.query,
+        environment: process.env.NODE_ENV,
+    });
     const userRole = (req as any).user?.role;
     if (userRole === 'ADMIN') {
+        console.log('[orders route] 👤 Usuário é ADMIN, chamando listAllOrders');
         return listAllOrders(req, res);
     } else {
+        console.log('[orders route] 👤 Usuário não é ADMIN, chamando listMyOrders');
         return listMyOrders(req, res);
     }
 });

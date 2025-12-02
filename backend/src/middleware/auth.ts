@@ -15,6 +15,16 @@ declare global {
  * Middleware para verificar token JWT
  */
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+    // Log para debug - verificar se requisições estão chegando
+    if (req.path === '/orders' || req.path.includes('/orders')) {
+        console.log('[authenticate middleware] 🔍 Requisição para /orders detectada', {
+            method: req.method,
+            path: req.path,
+            query: req.query,
+            hasAuthHeader: !!req.headers.authorization,
+            environment: process.env.NODE_ENV,
+        });
+    }
     try {
         // Verificar se o token existe no header Authorization
         const authHeader = req.headers.authorization;
