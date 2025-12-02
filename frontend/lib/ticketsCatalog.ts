@@ -18,19 +18,28 @@ const normalizeImageUrl = (imageUrl?: string | null): string | undefined => {
     const trimmed = imageUrl.trim();
     if (!trimmed) return undefined;
     
-    // Se for uma URL completa, verificar se é do dashboard (manter URL completa)
+    // Se for uma URL completa, extrair o caminho para usar no proxy
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
         try {
             const url = new URL(trimmed);
-            // Se for do dashboard, retornar URL completa (não normalizar)
-            // O dashboard pode ter /api/images/ no caminho que precisa ser preservado
-            if (url.hostname.includes('dash.ghubtech.com.br')) {
-                return trimmed; // Retornar URL completa do dashboard
-            }
-            // Se for da API, extrair apenas o caminho (será reconstruído com api.ghubtech.com.br)
-            if (url.hostname.includes('api.ghubtech.com.br') || 
+            let path = url.pathname;
+            
+            // Se for do dashboard ou da API, extrair o caminho
+            // O proxy do frontend vai buscar do dashboard
+            if (url.hostname.includes('dash.ghubtech.com.br') || 
+                url.hostname.includes('api.ghubtech.com.br') ||
                 url.hostname.includes('localhost') && (url.port === '3443' || url.port === '3001')) {
-                let path = url.pathname;
+                
+                // Se a URL já tiver /api/images/, extrair apenas o path após isso
+                if (path.startsWith('/api/images/')) {
+                    return path.substring(12); // Remover '/api/images/'
+                }
+                
+                // Se for /uploads/..., retornar o caminho completo
+                if (path.startsWith('/uploads/')) {
+                    return path.substring(1); // Remover / inicial
+                }
+                
                 // Remover /api se estiver presente
                 if (path.startsWith('/api/')) {
                     path = path.substring(5);

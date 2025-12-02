@@ -73,15 +73,15 @@ function extractImagePath(url: string): string | null {
 }
 
 /**
- * Converte uma URL de imagem da API para URL completa (sem proxy)
- * O Next.js Image Optimization agora lida diretamente com as imagens da API
+ * Converte uma URL de imagem para usar o proxy do frontend
+ * PROTEÇÃO: Oculta a URL real do dashboard, sempre usa /api/images/...
  * 
- * @param imageUrl - URL completa da imagem da API ou caminho relativo
- * @returns URL completa da imagem ou fallback
+ * @param imageUrl - URL completa da imagem do dashboard ou caminho relativo
+ * @returns URL do proxy do frontend (/api/images/...) ou fallback
  * 
  * @example
- * // Caminho relativo: /uploads/events/image.jpg
- * // Retorna: https://api.ghubtech.com.br/uploads/events/image.jpg
+ * // URL do dashboard: https://dash.ghubtech.com.br/api/images/uploads/events/image.jpg
+ * // Retorna: /api/images/uploads/events/image.jpg (protegido)
  */
 export function getProxiedImageUrl(imageUrl: string | null | undefined): string {
     // Retornar fallback se não houver URL
@@ -91,40 +91,52 @@ export function getProxiedImageUrl(imageUrl: string | null | undefined): string 
     const normalized = imageUrl.trim();
     if (!normalized) return DEFAULT_FALLBACK_IMAGE;
     
-    // Se já for uma URL completa (http:// ou https://), retornar como está
+    // Se já for uma URL do proxy do frontend, retornar como está
+    if (normalized.startsWith('/api/images/')) {
+        return normalized;
+    }
+    
+    // Se for uma URL completa (http:// ou https://), extrair o caminho para o proxy
     if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
-        return normalized;
-    }
-    
-    // Se for uma URL local (começa com /), processar
-    if (normalized.startsWith('/')) {
-        // Se for uma URL do proxy antigo (/api/images/), converter para URL direta
-        if (normalized.startsWith('/api/images/')) {
-            const path = normalized.replace('/api/images/', '');
-            // Construir URL completa da API (remover /api do base URL)
-            let apiBaseUrl = API_BASE_URL;
-            if (apiBaseUrl.endsWith('/api')) {
-                apiBaseUrl = apiBaseUrl.slice(0, -4);
-            } else if (apiBaseUrl.endsWith('/api/')) {
-                apiBaseUrl = apiBaseUrl.slice(0, -5);
+        try {
+            const url = new URL(normalized);
+            let path = url.pathname;
+            
+            // Se a URL já tiver /api/images/ no caminho (do dashboard), extrair apenas o path após isso
+            if (path.startsWith('/api/images/')) {
+                // Remover /api/images/ do início
+                const imagePath = path.substring(12); // '/api/images/'.length = 12
+                return `/api/images/${imagePath}`;
             }
-            // Garantir que não haja dupla barra
-            const cleanPath = path.startsWith('/') ? path : `/${path}`;
-            return `${apiBaseUrl}${cleanPath}`;
+            
+            // Se for /uploads/..., adicionar ao proxy
+            if (path.startsWith('/uploads/')) {
+                return `/api/images${path}`;
+            }
+            
+            // Se começar com /, usar como está no proxy
+            if (path.startsWith('/')) {
+                return `/api/images${path}`;
+            }
+            
+            // Caso contrário, adicionar /api/images/ antes
+            return `/api/images/${path}`;
+        } catch (error) {
+            // Se falhar ao parsear, tratar como caminho relativo
         }
-        // Se for outro caminho local (ex: /images/...), retornar como está
-        return normalized;
     }
     
-    // Se for um caminho relativo (sem / no início), construir URL completa
-    // Assumir que é da API e construir URL completa
-    let apiBaseUrl = API_BASE_URL;
-    if (apiBaseUrl.endsWith('/api')) {
-        apiBaseUrl = apiBaseUrl.slice(0, -4);
-    } else if (apiBaseUrl.endsWith('/api/')) {
-        apiBaseUrl = apiBaseUrl.slice(0, -5);
+    // Se for uma URL local (começa com /), adicionar ao proxy
+    if (normalized.startsWith('/')) {
+        // Se já começar com /api/images/, retornar como está
+        if (normalized.startsWith('/api/images/')) {
+            return normalized;
+        }
+        // Caso contrário, adicionar /api/images/ antes
+        return `/api/images${normalized}`;
     }
-    const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
-    return `${apiBaseUrl}${cleanPath}`;
+    
+    // Se for um caminho relativo (sem / no início), adicionar ao proxy
+    return `/api/images/${normalized}`;
 }
 

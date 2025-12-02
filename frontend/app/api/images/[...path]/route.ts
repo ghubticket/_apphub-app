@@ -21,44 +21,35 @@ export async function GET(
         // Reconstruir o caminho da imagem
         const imagePath = path.join('/');
         
-        // URL da API backend (usar variável de ambiente)
-        // Prioridade: API_URL (server-side) > NEXT_PUBLIC_API_URL > fallback
-        let apiBaseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
+        // PROTEÇÃO: As imagens SEMPRE estão no dashboard
+        // O proxy busca do dashboard mas expõe apenas /api/images/... no frontend
+        const DASHBOARD_BASE_URL = 'https://dash.ghubtech.com.br';
         
-        // Fallback caso não haja variável de ambiente configurada
-        if (!apiBaseUrl) {
-            console.error('[Image Proxy] No API_URL or NEXT_PUBLIC_API_URL configured. Using fallback.');
-            apiBaseUrl = 'https://api.ghubtech.com.br/api';
+        // Construir URL completa da imagem no dashboard
+        // O caminho já vem como uploads/events/... ou api/images/uploads/events/...
+        let cleanImagePath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+        
+        // Se o caminho já começar com /api/images/, usar como está
+        // Caso contrário, adicionar /api/images/ antes
+        if (!cleanImagePath.startsWith('/api/images/')) {
+            // Se começar com /uploads/, adicionar /api/images antes
+            if (cleanImagePath.startsWith('/uploads/')) {
+                cleanImagePath = `/api/images${cleanImagePath}`;
+            } else {
+                // Caso contrário, adicionar /api/images/ antes
+                cleanImagePath = `/api/images/${cleanImagePath.substring(1)}`;
+            }
         }
         
-        // SEMPRE remover /api do final do apiBaseUrl, pois as imagens estão diretamente em /uploads/
-        // As imagens não estão em /api/uploads/, estão em /uploads/
-        if (apiBaseUrl.endsWith('/api')) {
-            apiBaseUrl = apiBaseUrl.replace(/\/api$/, '');
-        } else if (apiBaseUrl.endsWith('/api/')) {
-            apiBaseUrl = apiBaseUrl.replace(/\/api\/$/, '');
-        }
-        
-        // Construir URL completa da imagem
-        // Garantir que não haja dupla barra
-        const cleanBaseUrl = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
-        const cleanImagePath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-        
-        // Construir a URL - o Next.js já decodifica os segmentos do path
-        // Não precisamos codificar novamente, apenas juntar
-        const imageUrl = `${cleanBaseUrl}${cleanImagePath}`;
+        // Construir URL completa no dashboard
+        const imageUrl = `${DASHBOARD_BASE_URL}${cleanImagePath}`;
         
         // Log para debug (apenas em desenvolvimento)
         if (process.env.NODE_ENV === 'development') {
-            console.log('[Image Proxy] Fetching image:', {
-                imagePath,
-                cleanedApiBaseUrl: cleanBaseUrl,
-                imageUrl,
-                env: {
-                    NODE_ENV: process.env.NODE_ENV,
-                    API_URL: process.env.API_URL ? `set (${process.env.API_URL})` : 'not set',
-                    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ? `set (${process.env.NEXT_PUBLIC_API_URL})` : 'not set',
-                }
+            console.log('[Image Proxy] Fetching image from dashboard:', {
+                originalPath: imagePath,
+                finalImageUrl: imageUrl,
+                proxyPath: `/api/images/${imagePath}`,
             });
         }
 
@@ -159,7 +150,7 @@ export async function GET(
                     statusText: response.statusText,
                     headers: Object.fromEntries(response.headers.entries()),
                     imagePath,
-                    cleanBaseUrl,
+                    imageUrl,
                 });
                 return new NextResponse('Image not found', { status: response.status });
             }
