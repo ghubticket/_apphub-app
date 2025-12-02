@@ -1,6 +1,7 @@
 import swaggerJsdoc from 'swagger-jsdoc';
-import { Application } from 'express';
+import { Application, Request, Response, NextFunction } from 'express';
 import swaggerUi from 'swagger-ui-express';
+import { swaggerAuth } from '../middleware/swaggerAuth';
 
 const options = {
     definition: {
@@ -195,14 +196,16 @@ export const setupSwagger = (app: Application): void => {
         customfavIcon: '/favicon.ico',
     };
 
-    // Rota para a documentação
-    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, swaggerUiOptions));
-
-    // Rota para o JSON da documentação
-    app.get('/api-docs.json', (req, res) => {
+    // Proteger Swagger com autenticação básica (exceto em dev se desabilitado)
+    // Aplicar autenticação antes de servir o Swagger UI
+    app.use('/api-docs', swaggerAuth);
+    app.get('/api-docs.json', swaggerAuth, (req: Request, res: Response) => {
         res.setHeader('Content-Type', 'application/json');
         res.send(specs);
     });
+
+    // Rota para a documentação (após autenticação)
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, swaggerUiOptions));
 
     // Swagger configurado
 };
