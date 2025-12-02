@@ -64,6 +64,9 @@ async function handleRequest(
     params: { path: string[] },
     method: string
 ) {
+    // Definir fullUrl no escopo da função para estar disponível no catch
+    let fullUrl: string = 'unknown';
+    
     try {
         const { path } = params;
 
@@ -81,7 +84,7 @@ async function handleRequest(
         // Obter query parameters
         const searchParams = request.nextUrl.searchParams;
         const queryString = searchParams.toString();
-        const fullUrl = queryString ? `${apiUrl}?${queryString}` : apiUrl;
+        fullUrl = queryString ? `${apiUrl}?${queryString}` : apiUrl;
 
         // Obter headers da requisição original (exceto alguns que não devem ser repassados)
         const headers: HeadersInit = {
@@ -230,7 +233,7 @@ async function handleRequest(
         if (error.cause?.code === 'ECONNREFUSED' || error.code === 'ECONNREFUSED') {
             const isDev = process.env.NODE_ENV === 'development';
             console.error('[API Proxy] ❌ Conexão recusada:', {
-                url: fullUrl || 'unknown',
+                url: fullUrl,
                 message: isDev 
                     ? 'Backend não está acessível. Verifique se está rodando ou configure NEXT_PUBLIC_API_URL'
                     : 'Servidor backend não está acessível',
