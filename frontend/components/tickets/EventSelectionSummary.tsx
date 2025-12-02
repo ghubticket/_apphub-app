@@ -254,9 +254,9 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                     <div className='flex gap-3'>
                                         {/* Tooltip com informações do ingresso */}
                                         <div className="relative inline-flex items-center group mt-0.5 mb-0.5">
-                                            <HiOutlineInformationCircle className="text-[1rem] text-[#a38f78] cursor-help hover:text-white transition-colors" />
+                                            <HiOutlineInformationCircle className="text-[1rem] text-[#a38f78] cursor-help hover:text-[#1a1a1d] transition-colors" />
                                             <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-50 pointer-events-none">
-                                                <div className="bg-[#1a1a1d] text-white text-[0.7rem] rounded-lg px-3 py-2 shadow-xl max-w-[220px] whitespace-normal">
+                                                <div className="bg-[#1a1a1d] text-white text-[0.7rem] rounded-lg px-3 py-2 shadow-xl min-w-[300px] max-w-[400px] whitespace-normal">
                                                     <div className="space-y-1.5">
                                                         {ticket.description && (
                                                             <p className="font-medium leading-snug">{ticket.description}</p>
