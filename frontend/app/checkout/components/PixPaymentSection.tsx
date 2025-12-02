@@ -39,6 +39,16 @@ export function PixPaymentSection({
     onNavigateToOrders,
     orderNumber,
 }: PixPaymentSectionProps) {
+    // Scroll para o topo quando o PIX for gerado (especialmente no mobile)
+    useEffect(() => {
+        if (pixResult) {
+            // Pequeno delay para garantir que o DOM foi atualizado
+            setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
+        }
+    }, [pixResult]);
+
     return (
         <div className="relative">
             {/* Modal padronizada de sucesso */}
