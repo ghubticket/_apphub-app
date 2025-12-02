@@ -197,7 +197,10 @@ const validatePaymentData = (params: CreatePixPaymentParams | CreateCardPaymentP
  * - Additional info completo (comprador, produtos, indústria)
  * - Device ID para rastreamento de segurança
  */
-export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?: string): Promise<any> => {
+export const createPixPayment = async (
+    params: CreatePixPaymentParams,
+    deviceId?: string
+): Promise<any> => {
     try {
         // Criar cliente Mercado Pago (validação lazy do token)
         const currentClient = createMercadoPagoClient();
@@ -251,7 +254,10 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
         // 3. NODE_ENV !== 'production' (ambiente de desenvolvimento)
         let payerEmail = customerData.email;
         const forceSandbox = process.env.MP_SANDBOX === 'true' || process.env.MP_SANDBOX === '1';
-        const isSandbox = forceSandbox || currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
+        const isSandbox =
+            forceSandbox ||
+            currentToken.startsWith('TEST-') ||
+            process.env.NODE_ENV !== 'production';
 
         // Log para debug
         console.log('🔍 [paymentService] Verificando conversão de email:', {
@@ -301,7 +307,12 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                     const token = getAccessToken();
                     const isSandboxToken = token.startsWith('TEST-');
 
-                    if (isProd && !isSandboxToken && digits.length === 11 && isValidCpfBackend(digits)) {
+                    if (
+                        isProd &&
+                        !isSandboxToken &&
+                        digits.length === 11 &&
+                        isValidCpfBackend(digits)
+                    ) {
                         return {
                             identification: {
                                 type: 'CPF',
@@ -320,7 +331,11 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
 
                           // Validar telefone antes de incluir
                           // area_code deve ter 2 dígitos, number deve ter entre 8 e 9 dígitos
-                          if (areaCode.length === 2 && phoneNumber.length >= 8 && phoneNumber.length <= 9) {
+                          if (
+                              areaCode.length === 2 &&
+                              phoneNumber.length >= 8 &&
+                              phoneNumber.length <= 9
+                          ) {
                               return {
                                   area_code: areaCode,
                                   number: phoneNumber,
@@ -454,15 +469,19 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
             if (sandboxEmailError) {
                 // CRÍTICO: Se recebemos erro de email sandbox, significa que estamos em sandbox
                 // mas a conversão não foi aplicada. Converter agora e tentar novamente.
-                console.error('❌ ERRO: Email sandbox não foi convertido corretamente. Tentando novamente com email convertido...');
-                
+                console.error(
+                    '❌ ERRO: Email sandbox não foi convertido corretamente. Tentando novamente com email convertido...'
+                );
+
                 // Converter email para sandbox
                 let fallbackEmail = params.customerData.email;
                 if (!fallbackEmail.endsWith('@testuser.com')) {
                     const emailName = fallbackEmail.split('@')[0] || 'test';
                     fallbackEmail = `${emailName}@testuser.com`;
-                    console.log(`🔧 FALLBACK: Convertendo email e tentando novamente: "${params.customerData.email}" → "${fallbackEmail}"`);
-                    
+                    console.log(
+                        `🔧 FALLBACK: Convertendo email e tentando novamente: "${params.customerData.email}" → "${fallbackEmail}"`
+                    );
+
                     // Tentar novamente com email convertido (recursão controlada)
                     // Atualizar params com email convertido
                     const retryParams = {
@@ -472,16 +491,18 @@ export const createPixPayment = async (params: CreatePixPaymentParams, deviceId?
                             email: fallbackEmail,
                         },
                     };
-                    
+
                     // Tentar criar pagamento novamente com email convertido
                     // Usar um flag para evitar loop infinito
                     if (!(error as any).__retryAttempted) {
                         (error as any).__retryAttempted = true;
-                        console.log('🔄 Tentando criar pagamento novamente com email convertido...');
+                        console.log(
+                            '🔄 Tentando criar pagamento novamente com email convertido...'
+                        );
                         return createPixPayment(retryParams, deviceId);
                     }
                 }
-                
+
                 // Se já tentou ou email já está convertido, lançar erro
                 throw new Error(
                     `Email inválido para ambiente de teste. Em sandbox, o email deve terminar com '@testuser.com'. Email usado: ${params.customerData.email}. Email convertido: ${fallbackEmail}`
@@ -666,10 +687,11 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         // 2. Access token começa com "TEST-" (token de teste do MP)
         // 3. NODE_ENV !== 'production' (ambiente local/dev)
         let payerEmail = cardholder?.email || customerData.email;
-        const forceSandbox =
-            process.env.MP_SANDBOX === 'true' || process.env.MP_SANDBOX === '1';
+        const forceSandbox = process.env.MP_SANDBOX === 'true' || process.env.MP_SANDBOX === '1';
         const isSandbox =
-            forceSandbox || currentToken.startsWith('TEST-') || process.env.NODE_ENV !== 'production';
+            forceSandbox ||
+            currentToken.startsWith('TEST-') ||
+            process.env.NODE_ENV !== 'production';
 
         if (isSandbox && !payerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
@@ -1013,7 +1035,14 @@ export const getOrderById = async (orderId: string) => {
         // Verificar cache primeiro
         const cached = mpOrderCache.get(orderId);
         if (cached && Date.now() - cached.timestamp < MP_ORDER_CACHE_TTL) {
-            console.log(`[paymentService] ✅ Retornando order do cache: ${orderId}`);
+            console.log(`[paymentService] ✅ Retornando order do cache: ${orderId}`, {
+                cacheAge: Date.now() - cached.timestamp,
+                hasTransactions: !!cached.data?.transactions,
+                hasPayments: !!cached.data?.transactions?.payments,
+                paymentsLength: cached.data?.transactions?.payments?.length || 0,
+                firstPaymentMethod: cached.data?.transactions?.payments?.[0]?.payment_method?.type,
+                environment: process.env.NODE_ENV,
+            });
             return cached.data;
         }
 
@@ -1025,25 +1054,27 @@ export const getOrderById = async (orderId: string) => {
         const client = createMercadoPagoClient();
         const orderApi = new Order(client);
         const response = await orderApi.get({ id: orderId });
-        
+
         // Log da estrutura da resposta para debug
         if (process.env.NODE_ENV !== 'production') {
             console.log(`[paymentService] 📋 Estrutura da resposta do MP para order ${orderId}:`, {
                 hasResponse: !!response,
                 responseKeys: response ? Object.keys(response) : [],
                 hasTransactions: !!(response as any)?.transactions,
-                hasPayments: !!((response as any)?.transactions?.payments),
-                paymentsCount: ((response as any)?.transactions?.payments)?.length || 0,
-                firstPaymentKeys: ((response as any)?.transactions?.payments?.[0]) ? Object.keys((response as any).transactions.payments[0]) : [],
+                hasPayments: !!(response as any)?.transactions?.payments,
+                paymentsCount: (response as any)?.transactions?.payments?.length || 0,
+                firstPaymentKeys: (response as any)?.transactions?.payments?.[0]
+                    ? Object.keys((response as any).transactions.payments[0])
+                    : [],
             });
         }
-        
+
         // Armazenar no cache
         mpOrderCache.set(orderId, {
             data: response as any,
             timestamp: Date.now(),
         });
-        
+
         // Limpar cache expirado periodicamente (a cada 10 requisições)
         if (mpOrderCache.size > 100) {
             const now = Date.now();
@@ -1053,7 +1084,7 @@ export const getOrderById = async (orderId: string) => {
                 }
             }
         }
-        
+
         return response as any;
     } catch (error: any) {
         console.error('❌ Erro ao buscar order:', {

@@ -948,22 +948,25 @@ export const listMyOrders = async (req: Request, res: Response) => {
                                 // Na Orders API, o PIX está em payment_method (não payment_method_id)
                                 // Verificar se é PIX: payment_method.type === 'pix' ou payment_method_id === 'pix'
                                 // OU payment_method.id === 'pix' (algumas versões da API)
+                                // OU se point_of_interaction.type é 'pix'
                                 const isPix =
                                     mpPayment?.payment_method?.type === 'pix' ||
                                     mpPayment?.payment_method?.id === 'pix' ||
                                     mpPayment?.payment_method_id === 'pix' ||
+                                    (mpPayment as any)?.point_of_interaction?.type === 'pix' ||
                                     (mpPayment?.payment_method && !mpPayment?.payment_method_id); // Se tem payment_method mas não payment_method_id, provavelmente é PIX
                                 
-                                // Log adicional para debug em dev
-                                if (process.env.NODE_ENV !== 'production') {
-                                    console.log(`[listMyOrders] 🔍 Verificação PIX para pedido ${order.orderNumber}:`, {
-                                        isPix,
-                                        paymentMethodType: mpPayment?.payment_method?.type,
-                                        paymentMethodId: mpPayment?.payment_method?.id,
-                                        paymentMethodIdField: mpPayment?.payment_method_id,
-                                        hasPaymentMethod: !!mpPayment?.payment_method,
-                                    });
-                                }
+                                // Log sempre visível para debug
+                                console.log(`[listMyOrders] 🔍 Verificação PIX para pedido ${order.orderNumber}:`, {
+                                    isPix,
+                                    paymentMethodType: mpPayment?.payment_method?.type,
+                                    paymentMethodId: mpPayment?.payment_method?.id,
+                                    paymentMethodIdField: mpPayment?.payment_method_id,
+                                    hasPaymentMethod: !!mpPayment?.payment_method,
+                                    pointOfInteractionType: (mpPayment as any)?.point_of_interaction?.type,
+                                    paymentMethodFull: mpPayment?.payment_method ? JSON.stringify(mpPayment.payment_method) : null,
+                                    environment: process.env.NODE_ENV,
+                                });
 
                                 if (mpPayment && isPix) {
                                     // Na Orders API, os dados do PIX estão em payment_method, não em point_of_interaction
@@ -1080,6 +1083,22 @@ export const listMyOrders = async (req: Request, res: Response) => {
                 return orderResponse;
             })
         );
+
+        // Log final para debug - verificar se pixInfo está sendo retornado
+        const pixOrders = ordersWithFilteredQR.filter((o: any) => o.status === 'pending' && o.paymentMethod === 'pix');
+        if (pixOrders.length > 0) {
+            console.log(`[listMyOrders] 📤 Retornando ${pixOrders.length} pedido(s) PIX pendente(s):`, {
+                pixOrders: pixOrders.map((o: any) => ({
+                    orderNumber: o.orderNumber,
+                    hasPixInfo: !!o.pixInfo,
+                    pixInfoKeys: o.pixInfo ? Object.keys(o.pixInfo) : [],
+                    hasQrCode: !!o.pixInfo?.qrCodeBase64,
+                    hasTicketUrl: !!o.pixInfo?.ticketUrl,
+                    pixInfoFull: o.pixInfo ? JSON.stringify(o.pixInfo) : null,
+                })),
+                environment: process.env.NODE_ENV,
+            });
+        }
 
         res.json({
             success: true,
