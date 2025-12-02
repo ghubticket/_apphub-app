@@ -42,23 +42,68 @@ export function useOrdersPolling({
         }
 
         try {
-            // Buscar apenas pedidos pendentes
+            // CRÍTICO: Buscar TODOS os pedidos recentes (não apenas pendentes)
+            // Isso permite detectar quando um pedido muda de pending para paid
+            // mesmo que ele não apareça mais na lista de pendentes
             const response = await api.get('/orders', {
                 params: {
-                    limit: 10,
-                    status: 'pending', // Filtrar apenas pendentes
+                    limit: 20, // Aumentar limite para pegar mais pedidos
                 },
             });
 
             const ordersRaw = response.data?.data?.orders ?? [];
             const pendingOrders = ordersRaw.filter((order: any) => order.status === 'pending');
+            const allOrderIds = new Set(ordersRaw.map((order: any) => order._id || order.id).filter(Boolean));
 
-            // Se não há pedidos pendentes na lista, continuar verificando
-            // (pode ser que o pedido ainda esteja pendente mas não apareceu na lista ainda)
-            // O polling só para quando `enabled` se torna false
-            if (pendingOrders.length === 0) {
-                // Limpar status armazenados, mas continuar polling
-                lastOrderStatusesRef.current.clear();
+            // Verificar pedidos que estávamos monitorando mas que não aparecem mais na lista
+            // Isso detecta quando um pedido foi pago e saiu da lista de pendentes
+            const monitoredOrderIds = Array.from(lastOrderStatusesRef.current.keys());
+            for (const orderId of monitoredOrderIds) {
+                // Se o pedido não está mais na lista de todos os pedidos, verificar individualmente
+                if (!allOrderIds.has(orderId)) {
+                    const previousStatus = lastOrderStatusesRef.current.get(orderId);
+                    if (previousStatus === 'pending') {
+                        try {
+                            // Buscar detalhes atualizados do pedido
+                            const orderResponse = await api.get(`/orders/${orderId}`);
+                            const orderData = orderResponse.data?.data;
+
+                            if (orderData) {
+                                const isProcessedAccredited =
+                                    orderData.paymentStatus === 'processed' &&
+                                    (orderData.paymentStatusDetail === 'accredited' ||
+                                        String(orderData.paymentStatusDetail || '').toLowerCase().includes('accredited'));
+
+                                const isPaid =
+                                    orderData.status === 'paid' ||
+                                    orderData.paymentStatus === 'approved' ||
+                                    isProcessedAccredited;
+
+                                // Se mudou de pending para paid, disparar callback
+                                if (isPaid) {
+                                    const orderWithNumber = {
+                                        ...orderData,
+                                        orderNumber: orderData.orderNumber || orderData.order_number || orderId,
+                                    };
+                                    onOrderPaid(orderId, orderWithNumber);
+                                    lastOrderStatusesRef.current.delete(orderId);
+                                    // Continuar verificando outros pedidos
+                                    continue;
+                                }
+                            }
+                        } catch (err: any) {
+                            // Se pedido não encontrado ou erro, remover da lista
+                            if (err?.response?.status === 404) {
+                                lastOrderStatusesRef.current.delete(orderId);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Se não há pedidos pendentes na lista, mas ainda há pedidos sendo monitorados, continuar
+            if (pendingOrders.length === 0 && lastOrderStatusesRef.current.size === 0) {
+                // Não há mais pedidos para monitorar, mas continuar polling caso apareça um novo
                 return;
             }
 
@@ -129,7 +174,7 @@ export function useOrdersPolling({
             try {
                 const response = await api.get('/orders', {
                     params: {
-                        limit: 10,
+                        limit: 20, // Aumentar limite para pegar mais pedidos
                     },
                 });
 

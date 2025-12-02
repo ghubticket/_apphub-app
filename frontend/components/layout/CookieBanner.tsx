@@ -78,8 +78,8 @@ export default function CookieBanner() {
                                         className="text-[#f97316] hover:text-[#ff8c42] underline transition-colors"
                                     >
                                         Termos de Uso
-                                    </Link>
-                                    . Você pode gerenciar suas preferências a qualquer momento.
+                                    </Link> <br />
+                                    Você pode gerenciar suas preferências a qualquer momento.
                                 </p>
                                 <p className="text-xs text-white/60">
                                     Em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).

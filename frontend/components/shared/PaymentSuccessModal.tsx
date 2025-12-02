@@ -44,8 +44,8 @@ export default function PaymentSuccessModal({
     if (!mounted) return null;
 
     const activeClass = entering
-        ? 'opacity-100 translate-y-0 pointer-events-auto'
-        : 'opacity-0 translate-y-3 pointer-events-none';
+        ? 'opacity-100 translate-y-0 pointer-events-auto scale-100'
+        : 'opacity-0 translate-y-3 pointer-events-none scale-95';
 
     return (
         <div
@@ -53,12 +53,12 @@ export default function PaymentSuccessModal({
             onClick={onClose}
         >
             <div
-                className="relative mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl transition-all duration-300"
+                className={`relative mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl transition-all duration-300 ${entering ? 'animate-[bounce_0.6s_ease-out]' : ''}`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex flex-col items-center gap-6 p-8 text-center">
-                    {/* Ícone de sucesso */}
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#1f5d3d]">
+                    {/* Ícone de sucesso com animação */}
+                    <div className={`flex h-20 w-20 items-center justify-center rounded-full bg-[#1f5d3d] ${entering ? 'animate-[pulse_1s_ease-in-out_infinite]' : ''}`}>
                         <HiOutlineCheckCircle className="h-12 w-12 text-white" />
                     </div>
 

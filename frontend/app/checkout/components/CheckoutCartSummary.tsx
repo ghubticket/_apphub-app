@@ -269,15 +269,17 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                 })}
             </div>
 
-            {/* Campo de código de cupom/promoter */}
-            <PromoterCodeInput
-                state={promoterCodeState}
-                isValidating={isValidating}
-                pixPaymentActive={pixPaymentActive}
-                orderDiscountAmount={orderDiscountAmount}
-                onApplyCode={handleApplyCode}
-                onRemoveCode={handleRemoveCode}
-            />
+            {/* Campo de código de cupom/promoter - Esconder quando PIX está ativo */}
+            {!pixPaymentActive && (
+                <PromoterCodeInput
+                    state={promoterCodeState}
+                    isValidating={isValidating}
+                    pixPaymentActive={pixPaymentActive}
+                    orderDiscountAmount={orderDiscountAmount}
+                    onApplyCode={handleApplyCode}
+                    onRemoveCode={handleRemoveCode}
+                />
+            )}
 
             {/* Mensagem de desconto aplicado */}
             {(orderDiscountAmount && orderDiscountAmount > 0 && orderPromoterCode) || 

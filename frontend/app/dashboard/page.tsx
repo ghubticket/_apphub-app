@@ -418,6 +418,11 @@ export default function DashboardPage() {
         // Extrair orderNumber do pedido (pode estar em diferentes formatos)
         const orderNumber = order?.orderNumber || order?.order_number || orderId;
         
+        // Vibrar dispositivo se suportado (para chamar atenção)
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+            navigator.vibrate([200, 100, 200]);
+        }
+        
         // Mostrar modal de sucesso ANTES de atualizar a lista
         // Isso garante que a modal apareça imediatamente
         setPaidOrderInfo({
@@ -445,8 +450,9 @@ export default function DashboardPage() {
 
     // CRÍTICO: Manter polling ativo mesmo após detectar pagamento (enquanto modal estiver aberta)
     // Isso garante que o polling não pare antes da modal ser exibida
+    // IMPORTANTE: Manter polling ativo sempre que estiver na aba de pedidos e autenticado
+    // para detectar pagamentos mesmo quando não há pedidos pendentes visíveis na lista
     const shouldPoll = activeTab === 'orders' && 
-                      (hasPendingOrders || showPaymentSuccessModal) && 
                       isAuthenticated && 
                       isReady;
 

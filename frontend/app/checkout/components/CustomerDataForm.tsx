@@ -26,6 +26,17 @@ export function CustomerDataForm({
     // CRÍTICO: Quando PIX está ativo, sempre desabilitar (independente do estado de edição)
     const isDisabled = pixPaymentActive ? true : disabled;
     const sharedClass = `${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${isDisabled ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''}`;
+    
+    // Quando PIX está ativo, forçar readonly e disabled para garantir somente leitura
+    const inputProps = pixPaymentActive ? {
+        readOnly: true,
+        disabled: true,
+        'aria-readonly': true,
+    } : {
+        readOnly: isDisabled,
+        disabled: isDisabled,
+        'aria-readonly': isDisabled,
+    };
 
     return (
         <div className="relative rounded-3xl border border-[#ded7ca] bg-white p-6">
@@ -76,9 +87,7 @@ export function CustomerDataForm({
                             type="email"
                             value={data.email}
                             onChange={isDisabled ? undefined : (event) => onChange('email', event.target.value)}
-                            readOnly={isDisabled}
-                            disabled={isDisabled}
-                            aria-readonly={isDisabled}
+                            {...inputProps}
                             className={sharedClass}
                             placeholder="email@exemplo.com"
                         />
@@ -96,9 +105,7 @@ export function CustomerDataForm({
                             pattern="[0-9]*"
                             value={data.cpf}
                             onChange={isDisabled ? undefined : (event) => onChange('cpf', event.target.value)}
-                            readOnly={isDisabled}
-                            disabled={isDisabled}
-                            aria-readonly={isDisabled}
+                            {...inputProps}
                             className={sharedClass}
                             placeholder="000.000.000-00"
                         />
@@ -114,9 +121,7 @@ export function CustomerDataForm({
                             pattern="[0-9]*"
                             value={data.phone}
                             onChange={isDisabled ? undefined : (event) => onChange('phone', event.target.value)}
-                            readOnly={isDisabled}
-                            disabled={isDisabled}
-                            aria-readonly={isDisabled}
+                            {...inputProps}
                             className={sharedClass}
                             placeholder="(11) 99999-9999"
                         />
