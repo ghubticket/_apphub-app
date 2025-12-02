@@ -232,37 +232,6 @@ export default function HeroCarousel({
                                     <p className="text-center text-sm text-[#a38f78] px-4">
                                         IMAGEM em construção.
                                     </p>
-                                ) : slide.imageUrl.startsWith('/api/images/') ? (
-                                    // Para URLs do proxy, usar img normal com URL relativa
-                                    // O navegador vai buscar diretamente do proxy sem passar pelo Next.js Image Optimization
-                                    <img
-                                        src={slide.imageUrl}
-                                        alt={`Slide ${index + 1}`}
-                                        className="absolute inset-0 w-full h-full object-cover"
-                                        loading={index === currentSlide ? 'eager' : 'lazy'}
-                                        decoding="async"
-                                        onError={(e) => {
-                                            const imgElement = e.target as HTMLImageElement;
-                                            console.error('[HeroCarousel] Erro ao carregar imagem do slide (img):', {
-                                                imageUrl: slide.imageUrl,
-                                                fullUrl: imgElement?.src,
-                                                slideIndex: index,
-                                                error: e,
-                                                naturalWidth: imgElement?.naturalWidth,
-                                                naturalHeight: imgElement?.naturalHeight,
-                                                complete: imgElement?.complete,
-                                            });
-                                            setImageErrors((prev) => 
-                                                prev.includes(index) ? prev : [...prev, index]
-                                            );
-                                        }}
-                                        onLoad={() => {
-                                            console.log('[HeroCarousel] Imagem carregada com sucesso:', {
-                                                imageUrl: slide.imageUrl,
-                                                slideIndex: index
-                                            });
-                                        }}
-                                    />
                                 ) : (
                                     <Image
                                         src={slide.imageUrl}

@@ -72,14 +72,15 @@ function extractImagePath(url: string): string | null {
 }
 
 /**
- * Converte uma URL de imagem da API para usar o proxy do Next.js
+ * Converte uma URL de imagem da API para URL completa (sem proxy)
+ * O Next.js Image Optimization agora lida diretamente com as imagens da API
  * 
  * @param imageUrl - URL completa da imagem da API ou caminho relativo
- * @returns URL do proxy do Next.js ou URL original se não for da API
+ * @returns URL completa da imagem ou fallback
  * 
  * @example
- * // URL da API: https://api.ghubtech.com.br/api/uploads/events/image.jpg
- * // Retorna: /api/images/uploads/events/image.jpg
+ * // Caminho relativo: /uploads/events/image.jpg
+ * // Retorna: https://api.ghubtech.com.br/uploads/events/image.jpg
  */
 export function getProxiedImageUrl(imageUrl: string | null | undefined): string {
     // Retornar fallback se não houver URL
@@ -89,38 +90,40 @@ export function getProxiedImageUrl(imageUrl: string | null | undefined): string 
     const normalized = imageUrl.trim();
     if (!normalized) return DEFAULT_FALLBACK_IMAGE;
     
-    // Se já for uma URL do proxy, retornar como está
-    if (normalized.startsWith('/api/images/')) {
-        return normalized;
-    }
-    
-    // Se for outra URL local, retornar como está
-    if (normalized.startsWith('/')) {
-        return normalized;
-    }
-    
-    // Se for uma URL completa (http:// ou https://)
+    // Se já for uma URL completa (http:// ou https://), retornar como está
     if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
-        // Verificar se é da nossa API
-        if (isApiImageUrl(normalized)) {
-            const path = extractImagePath(normalized);
-            
-            if (!path) {
-                if (process.env.NODE_ENV === 'development') {
-                    console.warn('[getProxiedImageUrl] Failed to extract path from URL:', normalized);
-                }
-                return DEFAULT_FALLBACK_IMAGE;
-            }
-            
-            return `/api/images/${path}`;
-        }
-        
-        // Se for outra URL externa, retornar como está
         return normalized;
     }
     
-    // Se for um caminho relativo (assumir que é da API)
-    const cleanPath = normalized.startsWith('/') ? normalized.substring(1) : normalized;
-    return `/api/images/${cleanPath}`;
+    // Se for uma URL local (começa com /), processar
+    if (normalized.startsWith('/')) {
+        // Se for uma URL do proxy antigo, converter para URL direta
+        if (normalized.startsWith('/api/images/')) {
+            const path = normalized.replace('/api/images/', '');
+            // Construir URL completa da API (remover /api do base URL)
+            let apiBaseUrl = API_BASE_URL;
+            if (apiBaseUrl.endsWith('/api')) {
+                apiBaseUrl = apiBaseUrl.slice(0, -4);
+            } else if (apiBaseUrl.endsWith('/api/')) {
+                apiBaseUrl = apiBaseUrl.slice(0, -5);
+            }
+            // Garantir que não haja dupla barra
+            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            return `${apiBaseUrl}${cleanPath}`;
+        }
+        // Se for outro caminho local (ex: /images/...), retornar como está
+        return normalized;
+    }
+    
+    // Se for um caminho relativo (sem / no início), construir URL completa
+    // Assumir que é da API e construir URL completa
+    let apiBaseUrl = API_BASE_URL;
+    if (apiBaseUrl.endsWith('/api')) {
+        apiBaseUrl = apiBaseUrl.slice(0, -4);
+    } else if (apiBaseUrl.endsWith('/api/')) {
+        apiBaseUrl = apiBaseUrl.slice(0, -5);
+    }
+    const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    return `${apiBaseUrl}${cleanPath}`;
 }
 

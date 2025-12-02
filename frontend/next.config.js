@@ -16,23 +16,30 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'media.r2.com.vc',
       },
-      // NÃO incluir api.ghubtech.com.br aqui - todas as imagens devem passar pelo proxy /api/images
-      // Permitir localhost apenas para desenvolvimento (mas imagens devem passar pelo proxy)
+      // Permitir imagens diretamente da API (mais eficiente que proxy)
+      {
+        protocol: 'https',
+        hostname: 'api.ghubtech.com.br',
+        pathname: '/uploads/**',
+      },
+      // Permitir localhost para desenvolvimento
       {
         protocol: 'https',
         hostname: 'localhost',
         port: '3443',
+        pathname: '/uploads/**',
       },
       {
         protocol: 'http',
         hostname: 'localhost',
         port: '3001',
+        pathname: '/uploads/**',
       },
     ],
     formats: ['image/avif', 'image/webp'],
-    // Desabilitar otimização para imagens do proxy (já servidas pelo Next.js)
+    // Habilitar otimização de imagens
     unoptimized: false,
-    // Desabilitar loader customizado - usar o padrão do Next.js
+    // Usar o loader padrão do Next.js
     loader: 'default',
   },
   
