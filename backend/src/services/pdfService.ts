@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import { Ticket, Event } from '../models';
+import { APP_NAME } from '../config/appConfig';
 
 interface TicketPDFData {
     event: {
@@ -30,7 +31,7 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
                 margin: 50,
                 info: {
                     Title: `Ingressos - ${data.event.name}`,
-                    Author: 'EventHub',
+                    Author: APP_NAME,
                     Subject: `Ingressos do pedido #${data.orderNumber}`,
                 },
             });
@@ -141,7 +142,7 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
             doc.moveDown(2);
             doc.fontSize(8)
                 .fillColor('#999999')
-                .text('EventHub - Sistema de Gestão de Eventos', { align: 'center' });
+                .text(`${APP_NAME} - Sistema de Gestão de Eventos`, { align: 'center' });
             }
 
             doc.end();

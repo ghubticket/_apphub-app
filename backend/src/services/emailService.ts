@@ -71,7 +71,8 @@ export const sendEmail = async (
 
     // Email padrão (pode ser configurado via env)
     // Usa domínio de teste do Resend se não configurado
-    const defaultFrom = process.env.RESEND_FROM_EMAIL || 'EventHub <onboarding@resend.dev>';
+    const appName = process.env.APP_NAME || 'Toka';
+    const defaultFrom = process.env.RESEND_FROM_EMAIL || `${appName} <onboarding@resend.dev>`;
     const from = emailData.from || defaultFrom;
 
     try {

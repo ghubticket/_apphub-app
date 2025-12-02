@@ -35,19 +35,16 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
         }
 
         try {
-            console.log('[useOrderCleanup] 🧹 Resetando Brick');
             window.__MP_BRICK_RESET__();
         } catch (brickErr) {
-            console.warn('[useOrderCleanup] ⚠️ Erro ao resetar Brick:', brickErr);
+            // Erro silencioso ao resetar Brick
         }
     }, []);
 
     // Cancelar pedido no backend
     const cancelOrderInBackend = useCallback(async (orderId: string): Promise<boolean> => {
         try {
-            console.log('[useOrderCleanup] 🗑️ Cancelando pedido no backend:', orderId);
             await api.post(`/orders/${orderId}/cancel`);
-            console.log('[useOrderCleanup] ✅ Pedido cancelado com sucesso no backend');
             return true;
         } catch (err: any) {
             const status = err?.response?.status;
@@ -56,17 +53,10 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
             // Se pedido não encontrado (404) OU não está mais pendente (400), tratar como sucesso.
             // Isso significa que o backend já cancelou/atualizou o pedido (ex: expirado, pago, etc.).
             if (status === 404 || (status === 400 && backendMessage)) {
-                console.log(
-                    '[useOrderCleanup] ⚠️ Pedido já não pode ser cancelado no backend (status=%s, message=%s), tratando como sucesso: %s',
-                    status,
-                    backendMessage,
-                    orderId
-                );
                 return true;
             }
 
-            // Para outros erros, logar mas ainda assim retornar false
-            console.error('[useOrderCleanup] ❌ Erro ao cancelar pedido no backend:', err);
+            // Para outros erros, retornar false
             return false;
         }
     }, []);
@@ -86,9 +76,6 @@ export function useOrderCleanup({ clearOrder, refreshCart, onComplete }: UseOrde
             keysToRemove.forEach(key => {
                 window.sessionStorage.removeItem(key);
             });
-            if (keysToRemove.length > 0) {
-                console.log('[useOrderCleanup] 🗑️ Códigos de promotor removidos do sessionStorage:', keysToRemove.length);
-            }
         }
     }, []);
 

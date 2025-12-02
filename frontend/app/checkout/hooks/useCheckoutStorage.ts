@@ -54,7 +54,6 @@ export function useCheckoutStorage() {
     const setPixOrderActive = useCallback((orderId: string) => {
         if (typeof window === 'undefined') return;
         window.sessionStorage.setItem(PIX_ORDER_ACTIVE_KEY, orderId);
-        console.log('[useCheckoutStorage] ✅ Flag PIX ativo definida:', orderId);
     }, []);
 
     const getPixOrderActive = useCallback((): string | null => {
@@ -64,11 +63,7 @@ export function useCheckoutStorage() {
 
     const clearPixOrderActive = useCallback(() => {
         if (typeof window === 'undefined') return;
-        const orderId = window.sessionStorage.getItem(PIX_ORDER_ACTIVE_KEY);
         window.sessionStorage.removeItem(PIX_ORDER_ACTIVE_KEY);
-        if (orderId) {
-            console.log('[useCheckoutStorage] 🗑️ Flag PIX ativo removida:', orderId);
-        }
     }, []);
 
     // ========== Navigation Flag (window global) ==========
@@ -93,7 +88,6 @@ export function useCheckoutStorage() {
         clearTimer();
         clearPixOrderActive();
         setAllowNavigation(false);
-        console.log('[useCheckoutStorage] 🧹 Todo o storage do checkout foi limpo');
     }, [clearOrderId, clearTimer, clearPixOrderActive, setAllowNavigation]);
 
     // ========== Clear Order Related (orderId + timer + PIX flag) ==========
@@ -101,7 +95,6 @@ export function useCheckoutStorage() {
         clearOrderId();
         clearTimer();
         clearPixOrderActive();
-        console.log('[useCheckoutStorage] 🧹 Dados relacionados ao pedido foram limpos');
     }, [clearOrderId, clearTimer, clearPixOrderActive]);
 
     return {

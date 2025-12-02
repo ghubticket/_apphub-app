@@ -263,7 +263,7 @@ export function usePixPayment(
                             // Log removido para reduzir ruído
                         }
                     } catch (err) {
-                        console.error('[usePixPayment] ❌ Erro ao carregar carrinho do storage:', err);
+                        // Erro silencioso ao carregar carrinho
                     }
                 }
                 
@@ -276,7 +276,7 @@ export function usePixPayment(
                             // Log removido para reduzir ruído
                         }
                     } catch (err) {
-                        console.error('[usePixPayment] ❌ Erro ao carregar dados do cliente do storage:', err);
+                        // Erro silencioso ao carregar dados do cliente
                     }
                 }
                 
@@ -331,7 +331,6 @@ export function usePixPayment(
                 const finalOrderId = realOrderId || orderId;
                 
                 if (realOrderId !== orderId && realOrderId) {
-                    console.log(`[usePixPayment] ✅ Pedido real criado: ${realOrderId} (era fake: ${orderId})`);
                     // CRÍTICO: Atualizar orderIdRef ANTES de iniciar polling para evitar que polling pare
                     orderIdRef.current = realOrderId;
                     // Atualizar storage com orderId real
@@ -433,7 +432,7 @@ export function usePixPayment(
                     setPixCopySuccess(false);
                 }, 3000);
             }).catch((err) => {
-                console.error('[usePixPayment] Erro ao copiar código:', err);
+                // Erro silencioso ao copiar código
             });
         }
     }, [pixResult]);

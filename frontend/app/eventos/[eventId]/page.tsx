@@ -42,7 +42,6 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
             // Isso permite ter códigos diferentes para eventos diferentes
             const storageKey = `promoter_code_${eventId}`;
             window.sessionStorage.setItem(storageKey, discountCode.toUpperCase().trim());
-            console.log('[EventTicketsPage] 💾 Código de desconto salvo:', { code: discountCode, eventId });
         }
     }, [searchParams, eventId]);
 
@@ -62,7 +61,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                         });
                     }
                 } catch (eventErr) {
-                    console.warn('[EventTicketsPage] Erro ao buscar dados do evento:', eventErr);
+                    // Erro silencioso ao buscar dados do evento
                 }
 
                 // Reaproveita o catálogo existente e filtra por evento
@@ -79,7 +78,6 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
 
                 setTickets(eventTickets);
             } catch (err: any) {
-                console.error('[EventTicketsPage] erro ao carregar ingressos do evento', err);
                 setError(
                     err?.response?.data?.message ??
                     err?.message ??
@@ -143,7 +141,6 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                 await navigator.clipboard.writeText(text);
             }
         } catch (err) {
-            console.log('Erro ao copiar para área de transferência:', err);
         }
 
         // Abrir Instagram - tenta abrir o app se estiver instalado, senão abre o site

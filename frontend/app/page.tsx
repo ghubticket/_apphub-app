@@ -92,17 +92,6 @@ export default function Home() {
             // Se houver imagem do evento, usar o proxy; caso contrário, usar fallback
             const imageUrl = eventImage ? getProxiedImageUrl(eventImage) : '/images/Banner-4-1600x838-5.png';
             
-            // Log para debug em desenvolvimento
-            if (process.env.NODE_ENV === 'development') {
-                console.log('[Home] Hero slide image:', {
-                    eventId: event.id,
-                    eventName: event.name,
-                    hasCoverImage: !!event.coverImage,
-                    hasSquareImage: !!event.squareImage,
-                    finalImageUrl: imageUrl,
-                });
-            }
-            
             return {
                 type: 'image',
                 imageUrl: imageUrl,

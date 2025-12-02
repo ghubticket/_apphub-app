@@ -101,22 +101,10 @@ export function useCheckoutState({
                 const elapsed = Date.now() - savedStartTime;
                 const remaining = Math.max(0, 30 * 60 * 1000 - elapsed); // 30 minutos
                 const remainingSecs = Math.floor(remaining / 1000);
-                console.log('[useCheckoutState] ⏰ Calculando remainingSeconds do localStorage:', {
-                    savedStartTime: new Date(savedStartTime).toISOString(),
-                    elapsed,
-                    remaining,
-                    remainingSecs,
-                    now: new Date().toISOString(),
-                });
                 return remainingSecs;
             }
         }
 
-        console.log('[useCheckoutState] ⚠️ Nenhum timer disponível:', {
-            hasOrderExpiresAt: !!order?.expiresAt,
-            hasPendingOrderInStorage,
-            hasValidTimerInStorage,
-        });
         return null;
     }, [order?.expiresAt, hasPendingOrderInStorage, hasValidTimerInStorage, storage]);
 
@@ -149,7 +137,6 @@ export function useCheckoutState({
     // Travar aba de cartão quando QR code PIX é gerado
     useEffect(() => {
         if (pixResult && selectedTab === 'card') {
-            console.log('[useCheckoutState] 🔒 QR code PIX gerado - travando aba de cartão');
             setSelectedTab('pix');
         }
     }, [pixResult, selectedTab]);

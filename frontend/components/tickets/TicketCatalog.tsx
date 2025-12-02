@@ -160,21 +160,10 @@ export default function TicketCatalog({ tickets, className, variant = 'default' 
                     },
                 };
 
-                console.log('[TicketCatalog] 🚀 Criando pedido VIP diretamente:', {
-                    eventId: orderPayload.eventId,
-                    ticketTypeId: orderPayload.ticketTypeId,
-                    customerEmail: orderPayload.customerData.email,
-                });
-
                 const response = await api.post('/orders', orderPayload);
                 const orderData = response.data?.data?.order;
 
                 if (orderData) {
-                    console.log('[TicketCatalog] ✅ Pedido VIP criado com sucesso:', {
-                        orderId: orderData._id,
-                        orderNumber: orderData.orderNumber,
-                        status: orderData.status,
-                    });
 
                     setFeedback(ticket.id, {
                         type: 'success',
@@ -190,7 +179,7 @@ export default function TicketCatalog({ tickets, className, variant = 'default' 
                     throw new Error('Resposta inválida do servidor');
                 }
             } catch (error: any) {
-                console.error('[TicketCatalog] ❌ Erro ao criar pedido VIP:', error);
+                // Erro silencioso ao criar pedido VIP
                 
                 const errorMessage = error?.response?.data?.message || 
                                    error?.response?.data?.errors?.[0] ||

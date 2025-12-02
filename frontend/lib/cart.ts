@@ -120,7 +120,6 @@ export const addCartItem = (item: CartItem, options: AddCartItemOptions = {}) =>
     
     // CRÍTICO: Bloquear adição de ingressos VIP ao carrinho
     if (isVipTicket(item)) {
-        console.warn('[cart] ⚠️ Tentativa de adicionar ingresso VIP ao carrinho bloqueada:', item.name);
         return;
     }
     

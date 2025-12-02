@@ -14,7 +14,6 @@ export function useCheckoutCustomer() {
     // IMPORTANTE: Inicializar sempre vazio e carregar depois para evitar race conditions
     const [customerData, setCustomerData] = useState<CheckoutCustomerData>(() => {
         // Sempre começar vazio na inicialização - os dados serão carregados no useEffect
-        console.log('[useCheckoutCustomer] 🚀 Inicializando hook, começando com dados vazios');
         return { name: '', email: '', cpf: '', phone: '' };
     });
     const [persistCustomerData, setPersistCustomerData] = useState(true);
@@ -23,7 +22,6 @@ export function useCheckoutCustomer() {
     useEffect(() => {
         if (!userId) {
             // Usuário deslogado - limpar dados
-            console.log('[useCheckoutCustomer] 🧹 Usuário deslogado, limpando dados');
             storageHelpers.clearCustomerData();
             setCustomerData({ name: '', email: '', cpf: '', phone: '' });
             return;
@@ -55,7 +53,6 @@ export function useCheckoutCustomer() {
     useEffect(() => {
         if (!userId && typeof window !== 'undefined') {
             // Forçar limpeza completa ao montar se não há usuário
-            console.log('[useCheckoutCustomer] 🧹 Sem userId ao montar, forçando limpeza completa');
             storageHelpers.clearCustomerData();
             setCustomerData({ name: '', email: '', cpf: '', phone: '' });
         }
@@ -66,15 +63,6 @@ export function useCheckoutCustomer() {
     // IMPORTANTE: Não preencher automaticamente se já há dados no storage (mesmo que vazios)
     useEffect(() => {
         if (!user || !userId) return;
-
-        // DEBUG: Log para identificar de onde vêm os dados
-        console.log('[useCheckoutCustomer] 👤 Dados do usuário do AuthContext:', {
-            userId,
-            userName: user.name,
-            userEmail: user.email,
-            userCpf: user.cpf,
-            userPhone: user.phone,
-        });
 
         // Verificar se há dados salvos no storage primeiro
         const savedData = storageHelpers.loadCustomerData(userId);
@@ -95,12 +83,6 @@ export function useCheckoutCustomer() {
             const allFieldsEmpty = !next.name && !next.email && !next.cpf && !next.phone;
             
             if (!allFieldsEmpty) {
-                console.log('[useCheckoutCustomer] ⚠️ Campos já preenchidos, não sobrescrevendo:', {
-                    hasName: !!next.name,
-                    hasEmail: !!next.email,
-                    hasCpf: !!next.cpf,
-                    hasPhone: !!next.phone,
-                });
                 return prev;
             }
 
@@ -115,33 +97,23 @@ export function useCheckoutCustomer() {
             if (!next.name && user.name) {
                 next.name = sanitizeInput(user.name);
                 changed = true;
-                console.log('[useCheckoutCustomer] ✅ Preenchendo nome do usuário:', user.name);
             }
             if (!next.email && user.email) {
                 next.email = sanitizeInput(user.email).toLowerCase();
                 changed = true;
-                console.log('[useCheckoutCustomer] ✅ Preenchendo email do usuário:', user.email);
             }
             // CRÍTICO: Não preencher CPF se estiver criptografado (dados não descriptografados pelo backend)
             if (!next.cpf && user.cpf) {
-                if (isEncrypted(user.cpf)) {
-                    console.warn('[useCheckoutCustomer] ⚠️ CPF do usuário está criptografado, não preenchendo:', user.cpf);
-                    // Não preencher dados criptografados
-                } else {
+                if (!isEncrypted(user.cpf)) {
                     next.cpf = formatCpfDisplay(user.cpf);
                     changed = true;
-                    console.log('[useCheckoutCustomer] ✅ Preenchendo CPF do usuário:', user.cpf);
                 }
             }
             // CRÍTICO: Não preencher telefone se estiver criptografado (dados não descriptografados pelo backend)
             if (!next.phone && user.phone) {
-                if (isEncrypted(user.phone)) {
-                    console.warn('[useCheckoutCustomer] ⚠️ Telefone do usuário está criptografado, não preenchendo:', user.phone);
-                    // Não preencher dados criptografados
-                } else {
+                if (!isEncrypted(user.phone)) {
                     next.phone = formatPhoneDisplay(user.phone);
                     changed = true;
-                    console.log('[useCheckoutCustomer] ✅ Preenchendo telefone do usuário:', user.phone);
                 }
             }
 

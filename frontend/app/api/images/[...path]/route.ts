@@ -131,11 +131,9 @@ export async function GET(
                         },
                     });
                 } else {
-                    console.error(`[Image Proxy] Failed to fetch image: ${imageUrl}`, response.status);
                     return new NextResponse('Image not found', { status: response.status });
                 }
             } catch (httpsError: any) {
-                console.error('[Image Proxy] HTTPS request error:', httpsError);
                 // Fallback para fetch normal
             }
         }
@@ -145,29 +143,12 @@ export async function GET(
             const response = await fetch(imageUrl, fetchOptions);
 
             if (!response.ok) {
-                console.error(`[Image Proxy] Failed to fetch image: ${imageUrl}`, {
-                    status: response.status,
-                    statusText: response.statusText,
-                    headers: Object.fromEntries(response.headers.entries()),
-                    imagePath,
-                    imageUrl,
-                });
                 return new NextResponse('Image not found', { status: response.status });
             }
 
             // Obter o tipo de conteúdo da imagem
             const contentType = response.headers.get('content-type') || 'image/jpeg';
             const imageBuffer = await response.arrayBuffer();
-
-            // Log de sucesso (apenas em desenvolvimento)
-            if (process.env.NODE_ENV === 'development') {
-                console.log('[Image Proxy] Image fetched successfully:', {
-                    imageUrl,
-                    contentType,
-                    size: imageBuffer.byteLength,
-                    imagePath
-                });
-            }
 
             // Retornar a imagem com headers de cache e segurança
             return new NextResponse(imageBuffer, {
@@ -180,17 +161,9 @@ export async function GET(
                 },
             });
         } catch (fetchError: any) {
-            console.error('[Image Proxy] Fetch error:', {
-                imageUrl,
-                error: fetchError.message,
-                name: fetchError.name,
-                stack: fetchError.stack
-            });
             throw fetchError; // Re-throw para ser capturado pelo catch externo
         }
     } catch (error: any) {
-        console.error('[Image Proxy] Error:', error);
-        
         // Retornar erro 500 ou 404 dependendo do tipo de erro
         if (error.name === 'AbortError' || error.name === 'TimeoutError') {
             return new NextResponse('Request timeout', { status: 504 });

@@ -281,8 +281,6 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
     // Tentar obter do cache primeiro
     const cachedCatalog = cacheCatalog.get(cacheKey);
     if (cachedCatalog) {
-        console.log('[fetchTicketCatalog] ✅ Retornando catálogo do cache');
-        
         // Stale-while-revalidate: retornar cache imediatamente e atualizar em background
         // Isso melhora a performance sem bloquear a UI
         // Atualizar mais agressivamente (após 30 segundos) para dados mais frescos
@@ -297,9 +295,8 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
                 const freshCatalog = await fetchTicketCatalogFresh(options);
                 // Atualizar cache com dados frescos (TTL: 1 minuto)
                 cacheCatalog.set(cacheKey, freshCatalog, 1 * 60 * 1000);
-                console.log('[fetchTicketCatalog] 🔄 Cache atualizado em background');
             } catch (error) {
-                console.warn('[fetchTicketCatalog] ⚠️ Erro ao atualizar cache em background:', error);
+                // Erro silencioso ao atualizar cache em background
             }
         });
         
@@ -310,11 +307,8 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
     // Isso evita chamadas duplicadas simultâneas (React Strict Mode, re-renders, etc)
     const pendingRequest = pendingRequests.get(cacheKey);
     if (pendingRequest) {
-        console.log('[fetchTicketCatalog] ⏳ Requisição já em andamento, aguardando resultado...');
         return pendingRequest;
     }
-
-    console.log('[fetchTicketCatalog] 🔍 Buscando catálogo de ingressos:', { limitEvents, limitTicketsPerEvent, search, onlyWithAvailability });
 
     // Criar promise para a requisição
     const requestPromise = (async () => {
@@ -349,22 +343,14 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
                 }
             }
 
-            console.log('[fetchTicketCatalog] 📋 Eventos retornados (cache/API):', eventsRaw.length);
-            eventsRaw.forEach((event, idx) => {
-                console.log(`   ${idx + 1}. ${event.name} - isActive: ${event.isActive} - status: ${event.status || 'undefined'}`);
-            });
-
             const filteredEvents = eventsRaw.filter(
                 (event) => event && event.isActive !== false && (event.status ?? 'published') !== 'cancelled',
             );
-
-            console.log('[fetchTicketCatalog] ✅ Eventos após filtro:', filteredEvents.length);
 
             const ticketsNested = await Promise.all(
                 filteredEvents.map(async (event) => {
                     try {
                         const eventId = event._id ?? event.id;
-                        console.log(`[fetchTicketCatalog] 🎫 Buscando tickets para evento: ${event.name} (${eventId})`);
                         
                         // Tentar obter do cache primeiro
                         const cachedTicketTypes = cacheTicketTypes.get(eventId);
@@ -372,7 +358,6 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
                         
                         if (cachedTicketTypes && Array.isArray(cachedTicketTypes)) {
                             ticketTypes = cachedTicketTypes;
-                            console.log(`[fetchTicketCatalog] ✅ Tickets do evento ${event.name} obtidos do cache`);
                         } else {
                             const ticketTypesResponse = await api.get(`/events/${eventId}/ticket-types`, {
                                 params: {
@@ -391,36 +376,23 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
                             }
                         }
 
-                        console.log(`[fetchTicketCatalog] 🎫 Tickets encontrados para ${event.name}:`, ticketTypes.length);
-                        ticketTypes.forEach((ticket, idx) => {
-                            console.log(`   ${idx + 1}. ${ticket.name} - isActive: ${ticket.isActive} - soldQuantity: ${ticket.soldQuantity} - maxQuantity: ${ticket.maxQuantity} - availableQuantity: ${ticket.availableQuantity ?? ((ticket.maxQuantity || 0) - (ticket.soldQuantity || 0))}`);
-                        });
-
                         const normalizedTickets = ticketTypes
                             .map((ticket) => {
-                                const normalized = normalizeTicketType(ticket, event, { onlyWithAvailability });
-                                if (!normalized) {
-                                    console.log(`[fetchTicketCatalog] ⚠️ Ticket ${ticket.name} foi filtrado (isActive: ${ticket.isActive}, isSoldOut: ${((ticket.maxQuantity || 0) - (ticket.soldQuantity || 0)) <= 0}, onlyWithAvailability: ${onlyWithAvailability})`);
-                                }
-                                return normalized;
+                                return normalizeTicketType(ticket, event, { onlyWithAvailability });
                             })
                             .filter((ticket): ticket is TicketProduct => Boolean(ticket));
-
-                        console.log(`[fetchTicketCatalog] ✅ Tickets normalizados para ${event.name}:`, normalizedTickets.length);
 
                         if (limitTicketsPerEvent !== undefined && limitTicketsPerEvent > 0) {
                             return normalizedTickets.slice(0, limitTicketsPerEvent);
                         }
                         return normalizedTickets;
                     } catch (error) {
-                        console.error('[fetchTicketCatalog] ❌ Erro ao carregar ingressos do evento', event._id ?? event.id, error);
                         return [];
                     }
                 }),
             );
 
             const flattened = ticketsNested.flat();
-            console.log('[fetchTicketCatalog] 📦 Total de tickets após normalização:', flattened.length);
 
             const sorted = flattened.sort((a, b) => {
                 const dateA = a.sortTimestamp ?? Number.POSITIVE_INFINITY;
@@ -522,7 +494,6 @@ async function fetchTicketCatalogFresh(options: FetchTicketCatalogOptions = {}):
                 }
                 return normalizedTickets;
             } catch (error) {
-                console.error('[fetchTicketCatalogFresh] ❌ Erro ao carregar ingressos do evento', event._id ?? event.id, error);
                 return [];
             }
         }),

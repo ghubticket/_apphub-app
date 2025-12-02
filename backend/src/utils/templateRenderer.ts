@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { APP_NAME, COMPANY_NAME } from '../config/appConfig';
 
 /**
  * Substitui variáveis em uma string HTML
@@ -108,7 +109,9 @@ export const renderBaseTemplate = (
     // Substituir outras variáveis
     const defaultVars = {
         year: new Date().getFullYear(),
-        subject: 'EventHub',
+        subject: APP_NAME,
+        appName: APP_NAME,
+        companyName: COMPANY_NAME,
         ...variables,
     };
 

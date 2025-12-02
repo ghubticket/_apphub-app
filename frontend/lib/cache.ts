@@ -314,8 +314,8 @@ export async function getCachedOrFetch<T>(
                 // Atualizar em background (não esperar)
                 fetchFn().then((freshData) => {
                     cache.set(key, freshData, ttl);
-                }).catch((error) => {
-                    console.warn(`[Cache] Erro ao atualizar cache em background para ${key}:`, error);
+                }).catch(() => {
+                    // Erro silencioso ao atualizar cache em background
                 });
                 
                 // Retornar dados stale imediatamente
@@ -358,8 +358,6 @@ export function invalidateCachePattern(pattern: string): void {
 export function invalidateEventCache(eventId: string): void {
     if (typeof window === 'undefined') return;
     
-    console.log(`[Cache] 🗑️ Invalidando cache do evento: ${eventId}`);
-    
     // Invalidar eventos
     cacheEvents.invalidateEvent(eventId);
     
@@ -368,8 +366,6 @@ export function invalidateEventCache(eventId: string): void {
     
     // Invalidar catálogo que contém o evento
     cacheCatalog.invalidateEvent(eventId);
-    
-    console.log(`[Cache] ✅ Cache invalidado para evento: ${eventId}`);
 }
 
 export default cache;

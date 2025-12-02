@@ -84,12 +84,6 @@ export function CheckoutLayout() {
             } catch (error: any) {
                 // Reverter estado do código se houver erro
                 setPromoterCode(promoterCode);
-                // Log do erro para debug
-                console.error('[CheckoutLayout] ❌ Erro ao atualizar código de promotor:', {
-                    error: error?.response?.data?.message || error?.message,
-                    orderId: order._id,
-                    code,
-                });
             }
         } else if (order?._id?.startsWith('fake-')) {
             // Pedido fake: validar código via API para mostrar feedback visual
@@ -108,19 +102,13 @@ export function CheckoutLayout() {
                     if (result?.valid && result?.data) {
                         // Código válido: salvar no estado para aplicar quando pedido real for criado
                         setPromoterCode(code);
-                        console.log('[CheckoutLayout] ✅ Código validado (pedido fake), será aplicado quando pedido real for criado');
                     } else {
                         // Código inválido: não salvar e deixar o CheckoutCartSummary mostrar o erro
                         setPromoterCode(null);
-                        console.log('[CheckoutLayout] ❌ Código inválido (pedido fake)');
                     }
                 } catch (error: any) {
                     // Em caso de erro na validação, não salvar o código
                     setPromoterCode(null);
-                    console.error('[CheckoutLayout] ❌ Erro ao validar código de promotor:', {
-                        error: error?.response?.data?.message || error?.message,
-                        code,
-                    });
                 }
             } else {
                 // Sem eventId, apenas salvar no estado
@@ -263,7 +251,6 @@ export function CheckoutLayout() {
     // Limpar carrinho quando modal de expiração aparecer
     useEffect(() => {
         if (showExpiredModal) {
-            console.log('[CheckoutLayout] 🧹 Limpando carrinho porque pedido expirou');
             clearCartItems();
             refreshCart();
         }
@@ -271,19 +258,14 @@ export function CheckoutLayout() {
 
     // Handler para expiração do timer
     const handleTimerExpire = useCallback(async () => {
-        console.log('[CheckoutLayout] ⏰ Timer do pedido expirado! Redirecionando diretamente...');
         closeExpiredModal();
         const orderId = order?._id ?? null;
 
         if (orderId) {
             try {
-                console.log('[CheckoutLayout] 🗑️ Cancelando pedido expirado:', orderId);
                 await api.post(`/orders/${orderId}/cancel`);
-                console.log('[CheckoutLayout] ✅ Pedido expirado cancelado com sucesso, estoque devolvido');
             } catch (err: any) {
-                if (err?.response?.status !== 404) {
-                    console.error('[CheckoutLayout] ❌ Erro ao cancelar pedido expirado:', err);
-                }
+                // Ignorar erro 404 (pedido já não existe)
             }
         }
 
@@ -300,7 +282,6 @@ export function CheckoutLayout() {
     }, [closeRestoreModal]);
 
     const handleCreateNewOrder = useCallback(async () => {
-        console.log('[CheckoutLayout] 🔄 Usuário confirmou criação de novo pedido após expiração');
         closeExpiredModal();
         clearCartItems();
         refreshCart();
@@ -314,20 +295,12 @@ export function CheckoutLayout() {
     // Handlers de cancelamento
     const handleCancelOrder = useCallback(async () => {
         if (!order) {
-            console.log('[CheckoutLayout] ⚠️ handleCancelOrder chamado mas não há pedido');
             return;
         }
-
-        console.log('[CheckoutLayout] 🗑️ Cancelando pedido:', {
-            orderId: order._id,
-            orderNumber: order.orderNumber,
-            status: order.status,
-        });
 
         // NOVO: Se pedido é fake, apenas limpar estado local (não chamar backend)
         const isFakeOrder = order._id.startsWith('fake-');
         if (isFakeOrder) {
-            console.log('[CheckoutLayout] 🎭 Pedido fake detectado, apenas limpando estado local');
             orderCleanup.cleanupAll(order._id, { skipBackend: true });
             router.refresh();
             return;
@@ -335,72 +308,52 @@ export function CheckoutLayout() {
 
         try {
             await api.post(`/orders/${order._id}/cancel`);
-            console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso no backend');
             orderCleanup.cleanupAll(order._id, { skipBackend: false });
             router.refresh();
         } catch (err: any) {
             if (err?.response?.status === 404) {
-                console.log('[CheckoutLayout] ⚠️ Pedido já não existe (404), limpando estado local');
                 orderCleanup.cleanupAll(order._id, { skipBackend: true });
                 router.refresh();
                 return;
             }
-            console.error('[CheckoutLayout] ❌ Erro ao cancelar pedido:', err);
             orderCleanup.cleanupAll(order._id, { skipBackend: true });
         }
     }, [order, orderCleanup, router]);
 
     const handleStayOnPage = useCallback(() => {
-        console.log('[CheckoutLayout] ✅ Usuário escolheu continuar no checkout');
         checkoutState.setShowExitWarning(false);
     }, [checkoutState]);
 
     const handleRemoveItem = useCallback(async (itemId: string) => {
-        console.log('[CheckoutLayout] 🗑️ Removendo item do carrinho e limpando tudo:', itemId);
-
         try {
             if (order?._id) {
                 // NOVO: Se pedido é fake, não chamar backend
                 const isFakeOrder = order._id.startsWith('fake-');
                 if (!isFakeOrder) {
                     try {
-                        console.log('[CheckoutLayout] 🗑️ Cancelando pedido antes de limpar carrinho:', order._id);
                         await api.post(`/orders/${order._id}/cancel`);
-                        console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso');
                     } catch (cancelErr: any) {
-                        if (cancelErr?.response?.status !== 404) {
-                            console.error('[CheckoutLayout] ⚠️ Erro ao cancelar pedido:', cancelErr);
-                        }
+                        // Ignorar erro 404
                     }
-                } else {
-                    console.log('[CheckoutLayout] 🎭 Pedido fake detectado, pulando cancelamento no backend');
                 }
             }
 
             orderCleanup.cleanupAll(order?._id || null, { skipBackend: false, redirectTo: '/' });
         } catch (error: any) {
-            console.error('[CheckoutLayout] ❌ Erro ao remover item e limpar carrinho:', error);
             orderCleanup.cleanupAll(order?._id || null, { skipBackend: true, redirectTo: '/' });
         }
     }, [order?._id, orderCleanup]);
 
     const handleCancelOrderAndGoHome = useCallback(async () => {
-        console.log('[CheckoutLayout] 🗑️ Cancelando pedido e redirecionando para home (do modal de erro)');
         orderCleanup.cleanupAll(order?._id || null, { skipBackend: false, redirectTo: '/' });
     }, [order?._id, orderCleanup]);
 
     const handleLeavePage = useCallback(async () => {
-        console.log('[CheckoutLayout] 🚪 Usuário escolheu sair do checkout');
         checkoutState.setShowExitWarning(false);
 
         const orderId = order?._id;
-        console.log('[CheckoutLayout] 📋 OrderId para cancelar:', {
-            orderId,
-            fromOrder: !!order?._id,
-        });
 
         if (!orderId) {
-            console.log('[CheckoutLayout] ⚠️ Nenhum pedido encontrado, apenas saindo');
             orderCleanup.cleanupAll(null, { skipBackend: true, redirectTo: '/' });
             return;
         }
@@ -408,36 +361,30 @@ export function CheckoutLayout() {
         // NOVO: Se pedido é fake, apenas limpar estado local (não chamar backend)
         const isFakeOrder = orderId.startsWith('fake-');
         if (isFakeOrder) {
-            console.log('[CheckoutLayout] 🎭 Pedido fake detectado, apenas limpando estado local e saindo');
             orderCleanup.cleanupAll(orderId, { skipBackend: true, redirectTo: '/' });
             return;
         }
 
         try {
-            console.log('[CheckoutLayout] 🗑️ Cancelando pedido antes de sair:', orderId);
             await api.post(`/orders/${orderId}/cancel`);
-            console.log('[CheckoutLayout] ✅ Pedido cancelado com sucesso, limpando estado');
             orderCleanup.cleanupAll(orderId, { skipBackend: false, redirectTo: '/' });
         } catch (err: any) {
             if (err?.response?.status === 404) {
-                console.log('[CheckoutLayout] ⚠️ Pedido já não existe (404), limpando estado local e saindo');
                 orderCleanup.cleanupAll(orderId, { skipBackend: true, redirectTo: '/' });
                 return;
             }
-            console.error('[CheckoutLayout] ❌ Erro ao cancelar pedido ao sair:', err);
             orderCleanup.cleanupAll(orderId, { skipBackend: true, redirectTo: '/' });
         }
     }, [order?._id, orderCleanup, checkoutState]);
 
     // Handlers para erro
     const handleRetryCreateOrder = useCallback(async () => {
-        console.log('[CheckoutLayout] 🔄 Tentando criar pedido novamente após erro');
         try {
             storageHelpers.clearActiveOrderId();
             storageHelpers.clearTimerStartTime();
             await createOrder();
         } catch (err) {
-            console.error('[CheckoutLayout] ❌ Erro ao tentar criar pedido novamente:', err);
+            // Erro silencioso
         }
     }, [createOrder]);
 
@@ -472,14 +419,12 @@ export function CheckoutLayout() {
         
         // Verificar se há pedido no storage - se houver, não mostrar loading de criação
         if (savedOrderIdRef.current) {
-            console.log('[CheckoutLayout] ℹ️ Pedido encontrado no storage, não mostrando loading de criação (será restaurado)');
             return false;
         }
         
         // Se não há pedido e não há pedido no storage, mas há itens no carrinho e dados do cliente, mostrar loading
         // Isso faz o loading aparecer IMEDIATAMENTE ao entrar no checkout para criar novo pedido
         if (!order && summarizedCart.length > 0 && customerData.name && customerData.email) {
-            console.log('[CheckoutLayout] 🚀 Mostrando loading inicial - condições para criar pedido atendidas');
             return true;
         }
         

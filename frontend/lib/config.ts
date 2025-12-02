@@ -24,12 +24,28 @@ export const APP_CONFIG = {
     email: 'contato@toka.com.br',
     privacyEmail: 'privacidade@toka.com.br',
     dpoEmail: 'dpo@toka.com.br',
+    supportEmail: 'suporte@toka.com.br',
+  },
+  
+  // Informações legais
+  legal: {
+    cnpj: '45.380.558/0001-88',
+    companyName: 'Toka',
+    lgpdLaw: 'Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)',
+  },
+  
+  // Informações do desenvolvedor
+  developer: {
+    name: 'Guilherme Henrique',
+    instagram: 'https://www.instagram.com/5521/',
   },
   
   // URLs e links
   links: {
     instagram: 'https://www.instagram.com/toka/',
     website: '/',
+    privacy: '/privacidade',
+    terms: '/termos',
   },
   
   // Chaves de storage (mantendo compatibilidade com código existente)
@@ -45,4 +61,13 @@ export const APP_FULL_NAME = APP_CONFIG.fullName;
 export const APP_SHORT_NAME = APP_CONFIG.shortName;
 export const APP_LOGO = APP_CONFIG.logo.src;
 export const APP_LOGO_ALT = APP_CONFIG.logo.alt;
+export const CONTACT_EMAIL = APP_CONFIG.contact.email;
+export const PRIVACY_EMAIL = APP_CONFIG.contact.privacyEmail;
+export const DPO_EMAIL = APP_CONFIG.contact.dpoEmail;
+export const SUPPORT_EMAIL = APP_CONFIG.contact.supportEmail;
+export const COMPANY_CNPJ = APP_CONFIG.legal.cnpj;
+export const COMPANY_NAME = APP_CONFIG.legal.companyName;
+export const LGPD_LAW = APP_CONFIG.legal.lgpdLaw;
+export const DEVELOPER_NAME = APP_CONFIG.developer.name;
+export const DEVELOPER_INSTAGRAM = APP_CONFIG.developer.instagram;
 

@@ -18,7 +18,6 @@ import { invalidateEventCache, cacheEvents, cacheTicketTypes, cacheCatalog } fro
  */
 export function invalidateEventCacheInFrontend(eventId: string): void {
     if (typeof window === 'undefined') {
-        console.warn('[Cache] Tentativa de invalidar cache no servidor (não suportado)');
         return;
     }
     
@@ -32,11 +31,9 @@ export function invalidateEventCacheInFrontend(eventId: string): void {
 export function invalidateAllEventsCache(): void {
     if (typeof window === 'undefined') return;
     
-    console.log('[Cache] 🗑️ Invalidando todo o cache de eventos');
     cacheEvents.clear();
     cacheTicketTypes.clear();
     cacheCatalog.clear();
-    console.log('[Cache] ✅ Todo o cache foi invalidado');
 }
 
 /**

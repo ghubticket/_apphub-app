@@ -578,28 +578,6 @@ export default function DashboardPage() {
                         // Isso resolve discrepâncias causadas por tickets deletados ou não populados
                         const realTotalTickets = allTickets.length;
 
-                        // Log para debug apenas se houver discrepância (qualquer diferença)
-                        // Isso ajuda a identificar quando tickets foram deletados ou não foram criados corretamente
-                        if (realTotalTickets !== group.totalTickets) {
-                            const missingTickets = group.totalTickets - realTotalTickets;
-                            console.warn('[Dashboard] ⚠️ Discrepância no número de tickets:', {
-                                totalTicketsCalculado: group.totalTickets,
-                                ticketsColetados: realTotalTickets,
-                                ticketsFaltando: missingTickets > 0 ? missingTickets : 0,
-                                pedidosNoGrupo: group.orders.length,
-                                ticketsPorPedido: group.orders.map(o => ({
-                                    orderId: o._id,
-                                    orderNumber: o.orderNumber,
-                                    totalTickets: o.totalTickets,
-                                    ticketsArrayLength: Array.isArray(o.tickets) ? o.tickets.length : 0,
-                                    status: o.status,
-                                })),
-                                observacao: missingTickets > 0
-                                    ? `⚠️ ATENÇÃO: ${missingTickets} ticket(s) podem ter sido deletados ou não foram criados corretamente. Verifique no banco de dados.`
-                                    : 'Tickets adicionais podem ter sido criados manualmente.',
-                            });
-                        }
-
                         return (
                             <article
                                 key={groupId}

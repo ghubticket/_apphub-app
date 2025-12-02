@@ -1,6 +1,7 @@
 'use client';
 
 import Container from '@/components/shared/Container';
+import { APP_NAME, PRIVACY_EMAIL, DPO_EMAIL, COMPANY_NAME, LGPD_LAW } from '@/lib/config';
 
 export default function PrivacidadePage() {
     return (
@@ -27,8 +28,8 @@ export default function PrivacidadePage() {
                             1. Introdução
                         </h2>
                         <p className="text-sm leading-relaxed text-[#4c4c55]">
-                            A 5521 está comprometida em proteger a privacidade e os dados pessoais de nossos usuários, em conformidade
-                            com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018). Esta Política de Privacidade descreve como
+                            A {COMPANY_NAME} está comprometida em proteger a privacidade e os dados pessoais de nossos usuários, em conformidade
+                            com a {LGPD_LAW}. Esta Política de Privacidade descreve como
                             coletamos, usamos, armazenamos e protegemos suas informações pessoais quando você utiliza nossa plataforma
                             de venda de ingressos.
                         </p>
@@ -243,8 +244,8 @@ export default function PrivacidadePage() {
                             </ul>
                             <p>
                                 Para exercer seus direitos, entre em contato conosco através do e-mail:
-                                <a href="mailto:privacidade@5521.com.br" className="font-medium text-[#f97316] underline-offset-4 hover:underline ml-1">
-                                    privacidade@5521.com.br
+                                <a href={`mailto:${PRIVACY_EMAIL}`} className="font-medium text-[#f97316] underline-offset-4 hover:underline ml-1">
+                                    {PRIVACY_EMAIL}
                                 </a>
                             </p>
                         </div>
@@ -307,8 +308,8 @@ export default function PrivacidadePage() {
                         <p className="text-sm leading-relaxed text-[#4c4c55]">
                             Para questões relacionadas à proteção de dados pessoais, você pode entrar em contato com nosso Encarregado de
                             Proteção de Dados através do e-mail:
-                            <a href="mailto:dpo@5521.com.br" className="font-medium text-[#f97316] underline-offset-4 hover:underline ml-1">
-                                dpo@5521.com.br
+                            <a href={`mailto:${DPO_EMAIL}`} className="font-medium text-[#f97316] underline-offset-4 hover:underline ml-1">
+                                {DPO_EMAIL}
                             </a>
                         </p>
                     </section>
@@ -320,8 +321,8 @@ export default function PrivacidadePage() {
                         <p className="text-sm leading-relaxed text-[#4c4c55]">
                             Para questões relacionadas a esta Política de Privacidade ou ao tratamento de seus dados pessoais, entre em
                             contato conosco através do e-mail:
-                            <a href="mailto:privacidade@5521.com.br" className="font-medium text-[#f97316] underline-offset-4 hover:underline ml-1">
-                                privacidade@5521.com.br
+                            <a href={`mailto:${PRIVACY_EMAIL}`} className="font-medium text-[#f97316] underline-offset-4 hover:underline ml-1">
+                                {PRIVACY_EMAIL}
                             </a>
                         </p>
                     </section>

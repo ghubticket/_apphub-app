@@ -51,19 +51,15 @@ export function useOrderCreation({
     // Função auxiliar para cancelar pedido no backend
     const cancelOrderInBackend = useCallback(async (orderId: string): Promise<boolean> => {
         try {
-            console.log('[useOrderCreation] 🗑️ Cancelando pedido no backend:', orderId);
             await api.post(`/orders/${orderId}/cancel`);
-            console.log('[useOrderCreation] ✅ Pedido cancelado com sucesso no backend');
             return true;
         } catch (err: any) {
             // Se pedido não encontrado (404), tratar como sucesso - pedido já foi cancelado/expirado
             if (err?.response?.status === 404) {
-                console.log('[useOrderCreation] ⚠️ Pedido já não existe (404), tratando como sucesso:', orderId);
                 return true;
             }
 
-            // Para outros erros, logar mas ainda assim retornar false
-            console.error('[useOrderCreation] ❌ Erro ao cancelar pedido no backend:', err);
+            // Para outros erros, retornar false
             return false;
         }
     }, []);
@@ -117,21 +113,18 @@ export function useOrderCreation({
 
         // Evitar múltiplas criações simultâneas
         if (creatingRef.current) {
-            console.log('[useOrderCreation] ⏸️ Já está criando pedido, ignorando chamada duplicada');
             return;
         }
         
         creatingRef.current = true;
 
         try {
-            console.log('[useOrderCreation] 🔄 setLoading(true) - ATIVANDO loading');
             setLoading(true);
             setError(null);
 
             // IMPORTANTE: Se há orderId no storage, verificar se é um pedido real (não fake)
             const existingOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current || storage.loadOrderId();
             if (existingOrderId && !existingOrderId.startsWith('fake-') && !order) {
-                console.log('[useOrderCreation] 🔍 Encontrado orderId real no storage, verificando se pedido ainda é válido:', existingOrderId);
                 try {
                     const checkResponse = await api.get(`/orders/${existingOrderId}`);
                     const existingOrder = checkResponse.data?.data?.order;
@@ -141,32 +134,23 @@ export function useOrderCreation({
                         
                         if (!hasExpired) {
                             // Pedido ainda válido, usar ele
-                            const remainingMinutes = Math.floor(getRemainingTime(existingOrder.expiresAt) / 60000);
-                            console.log('[useOrderCreation] ✅ Pedido existente ainda válido, usando:', {
-                                orderId: existingOrder._id,
-                                remainingMinutes,
-                            });
                             setOrder(existingOrder);
                             orderIdRef.current = existingOrder._id;
                             cachedOrderIdFromStorageRef.current = existingOrder._id;
                             storage.saveOrderId(existingOrder._id);
-                            console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido existente válido encontrado');
                             setLoading(false);
                             creatingRef.current = false;
                             return;
                         } else {
                             // Pedido expirado, limpar
-                            console.log('[useOrderCreation] ⏰ Pedido existente expirado, limpando:', existingOrderId);
                             storage.clearOrderRelated();
                             orderIdRef.current = null;
                             cachedOrderIdFromStorageRef.current = null;
                             setOrder(null);
-                            console.log('[useOrderCreation] 🔄 setLoading(false) - Pedido expirado');
                             setLoading(false);
                             creatingRef.current = false;
                             
                             if (!hasShownExpiredModalRef.current) {
-                                console.log('[useOrderCreation] 🔔 Mostrando modal de pedido expirado');
                                 setShowExpiredModal(true);
                                 hasShownExpiredModalRef.current = true;
                             }
@@ -176,7 +160,6 @@ export function useOrderCreation({
                 } catch (checkErr: any) {
                     // Se pedido não encontrado (404/403), limpar e criar fake
                     if (checkErr?.response?.status === 404 || checkErr?.response?.status === 403) {
-                        console.log('[useOrderCreation] ⚠️ Pedido existente não encontrado, limpando e criando fake');
                         storage.clearOrderRelated();
                         orderIdRef.current = null;
                         cachedOrderIdFromStorageRef.current = null;
@@ -220,14 +203,6 @@ export function useOrderCreation({
                 isFake: true, // Flag para identificar pedido fake
             };
 
-            console.log('[useOrderCreation] 🎭 Criando pedido FAKE local:', {
-                orderId: fakeOrderId,
-                orderNumber: fakeOrderNumber,
-                totalAmount,
-                totalTickets,
-                expiresAt: expiresAt.toISOString(),
-            });
-
             // Salvar pedido fake no estado
             setOrder(fakeOrder);
             orderIdRef.current = fakeOrderId;
@@ -236,22 +211,15 @@ export function useOrderCreation({
             
             // Salvar timer para o pedido fake
             storage.saveTimer(now);
-            console.log('[useOrderCreation] 💾 Timer salvo no localStorage para pedido fake');
 
             // Desativar loading
-            console.log('[useOrderCreation] ✅ Pedido fake criado com sucesso - desativando loading');
             setLoading(false);
         } catch (err: any) {
             const errorMessage = err?.message || 'Erro ao criar pedido fake';
             setError(errorMessage);
-            console.error('[useOrderCreation] ❌ Erro ao criar pedido fake:', {
-                message: errorMessage,
-                error: err,
-            });
         } finally {
             const orderWasCreated = orderIdRef.current || cachedOrderIdFromStorageRef.current;
             if (!orderWasCreated) {
-                console.log('[useOrderCreation] 🔄 setLoading(false) - finally (sem pedido criado ou erro)');
                 setLoading(false);
             }
             creatingRef.current = false;

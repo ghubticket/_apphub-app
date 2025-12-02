@@ -186,7 +186,7 @@ export default function HeroCarousel({
                     'https://www.youtube.com'
                 );
             } catch (error) {
-                console.log('Erro ao tentar forçar play:', error);
+                // Erro silencioso ao tentar forçar play
             }
         }, 1000);
 
@@ -240,12 +240,7 @@ export default function HeroCarousel({
                                         alt={`Slide ${index + 1}`}
                                         className="absolute inset-0 w-full h-full object-cover"
                                         loading={index === currentSlide ? 'eager' : 'lazy'}
-                                        onError={(e) => {
-                                            console.error('[HeroCarousel] Erro ao carregar imagem do slide (img):', {
-                                                imageUrl: slide.imageUrl,
-                                                slideIndex: index,
-                                                error: e
-                                            });
+                                        onError={() => {
                                             setImageErrors((prev) => 
                                                 prev.includes(index) ? prev : [...prev, index]
                                             );
@@ -259,12 +254,7 @@ export default function HeroCarousel({
                                         className="object-cover"
                                         priority={index === currentSlide}
                                         sizes="100vw"
-                                        onError={(e) => {
-                                            console.error('[HeroCarousel] Erro ao carregar imagem do slide (Image):', {
-                                                imageUrl: slide.imageUrl,
-                                                slideIndex: index,
-                                                error: e
-                                            });
+                                        onError={() => {
                                             setImageErrors((prev) => 
                                                 prev.includes(index) ? prev : [...prev, index]
                                             );

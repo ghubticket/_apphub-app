@@ -135,7 +135,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                     throw new Error('Resposta inválida do servidor');
                 }
             } catch (error: any) {
-                console.error('[EventSelectionSummary] ❌ Erro ao criar pedido VIP:', error);
+                // Erro silencioso ao criar pedido VIP
             } finally {
                 setIsCreatingVipOrder((prev) => {
                     const newState = { ...prev };

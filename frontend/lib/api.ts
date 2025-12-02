@@ -18,14 +18,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.co
 // URL base que será usada (proxy ou API direta)
 const apiBaseURL = USE_PROXY ? PROXY_BASE_URL : API_BASE_URL;
 
-if (typeof window !== 'undefined') {
-  console.log('[API] 🔧 Configuração da API:', { 
-    baseURL: apiBaseURL, 
-    usingProxy: USE_PROXY,
-    env: process.env.NEXT_PUBLIC_API_URL,
-    source: process.env.NEXT_PUBLIC_API_URL ? 'env' : 'fallback'
-  });
-}
 
 const api = axios.create({
   baseURL: apiBaseURL,

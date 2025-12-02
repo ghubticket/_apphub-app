@@ -7,7 +7,7 @@ import { FaInstagram, FaYoutube, FaSpotify } from 'react-icons/fa';
 import Container from '@/components/shared/Container';
 import api from '@/lib/api';
 import styles from './Footer.module.scss';
-import { APP_NAME, APP_LOGO, APP_LOGO_ALT, APP_CONFIG } from '@/lib/config';
+import { APP_NAME, APP_LOGO, APP_LOGO_ALT, APP_CONFIG, COMPANY_CNPJ, DEVELOPER_NAME, DEVELOPER_INSTAGRAM, LGPD_LAW } from '@/lib/config';
 
 const marqueeLocations = [
     { city: 'Rio de Janeiro', state: 'RJ' },
@@ -179,11 +179,11 @@ export default function Footer() {
                             <img className='w-40' src='/images/toka.branco.webp' alt='Festa do Branco' />
                             
                             <h2 className="text-2xl  font-bold uppercase leading-tight sm:text-3xl">
-                                Festa do Branco com Suel, Bruno Diegues, BG e Davi Quaresma
+                            Alô SJC! O Pagode do Chuvsico está DE VOLTA na TOKA!
                             </h2>
                             <div>
                                 <span className="text-xs font-semibold uppercase tracking-normal text-[#f97316]">
-                                    Vem com a gente no dia 23 de Dezembro
+                                    Vem com a gente no dia 04 de Dezembro
                                 </span>
                               
                             </div>
@@ -270,13 +270,13 @@ export default function Footer() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div className="flex flex-col gap-2">
                             <span>© {new Date().getFullYear()} {APP_NAME} © Todos os direitos reservados</span>
-                            <span>CNPJ: 45.380.558/0001-88</span>
+                            <span>CNPJ: {COMPANY_CNPJ}</span>
                             <span className="text-white/50">
-                                Em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)
+                                Em conformidade com a {LGPD_LAW}
                             </span>
                         </div>
                         <div className="flex flex-wrap gap-4">
-                            <p>Feito com <span className="text-orange-400">❤️</span> por <Link href="https://www.instagram.com/5521/" target="_blank" className="text-orange-400 hover:text-orange-300 transition-colors">Guilherme Henrique</Link></p>
+                            <p>Feito com <span className="text-orange-400">❤️</span> por <Link href={DEVELOPER_INSTAGRAM} target="_blank" className="text-orange-400 hover:text-orange-300 transition-colors">{DEVELOPER_NAME}</Link></p>
                         </div>
                     </div>
                     <div className="pt-2 border-t border-white/5 flex flex-wrap gap-x-4 gap-y-2 text-white/50">

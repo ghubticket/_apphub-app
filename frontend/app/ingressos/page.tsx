@@ -18,7 +18,6 @@ export default function TicketsPage() {
     const loadTickets = useCallback(async () => {
         // Evitar chamadas duplicadas (React Strict Mode, re-renders)
         if (hasLoadedRef.current) {
-            console.log('[TicketsPage] ⏭️ loadTickets já foi executado, pulando...');
             return;
         }
         
@@ -32,7 +31,6 @@ export default function TicketsPage() {
             });
             setTickets(catalog);
         } catch (err: any) {
-            console.error('Erro ao carregar catálogo de ingressos', err);
             setError(
                 err?.response?.data?.message ??
                     err?.message ??

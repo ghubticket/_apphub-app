@@ -1,6 +1,7 @@
 import { renderTemplate } from '../utils/templateRenderer';
 import { sendEmail, EmailData, EmailAttachment } from './emailService';
 import type { Order } from '../models';
+import { APP_NAME, SUPPORT_EMAIL } from '../config/appConfig';
 
 /**
  * Interface para dados de confirmação de ingresso
@@ -33,6 +34,7 @@ export const sendTicketConfirmationEmail = async (
     const html = renderTemplate('ticket-confirmation', {
         ...data,
         subject: `Seus ingressos - ${data.eventName}`,
+        supportEmail: SUPPORT_EMAIL,
     });
 
     return sendEmail({
@@ -70,6 +72,7 @@ export const sendPaymentPendingEmail = async (
     const html = renderTemplate('payment-pending', {
         ...data,
         subject: `Pagamento pendente - Pedido #${data.orderNumber}`,
+        supportEmail: SUPPORT_EMAIL,
     });
 
     return sendEmail({
@@ -104,6 +107,7 @@ export const sendPaymentConfirmedEmail = async (
     const html = renderTemplate('payment-confirmed', {
         ...data,
         subject: `Pagamento confirmado - Pedido #${data.orderNumber}`,
+        supportEmail: SUPPORT_EMAIL,
     });
 
     return sendEmail({
@@ -135,6 +139,7 @@ export const sendOrderCancelledEmail = async (
     const html = renderTemplate('order-cancelled', {
         ...data,
         subject: `Pedido cancelado - #${data.orderNumber}`,
+        supportEmail: SUPPORT_EMAIL,
     });
 
     return sendEmail({
@@ -163,12 +168,13 @@ export const sendWelcomeEmail = async (
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
     const html = renderTemplate('welcome', {
         ...data,
-        subject: 'Bem-vindo ao EventHub!',
+        subject: `Bem-vindo ao ${APP_NAME}!`,
+        supportEmail: SUPPORT_EMAIL,
     });
 
     return sendEmail({
         to,
-        subject: '🎉 Bem-vindo ao EventHub!',
+        subject: `🎉 Bem-vindo ao ${APP_NAME}!`,
         html,
     });
 };
@@ -194,11 +200,12 @@ export const sendPasswordResetEmail = async (
         ...data,
         expirationMinutes: data.expirationMinutes || 30,
         subject: 'Redefinição de senha',
+        supportEmail: SUPPORT_EMAIL,
     });
 
     return sendEmail({
         to,
-        subject: '🔐 Redefinição de senha - EventHub',
+        subject: `🔐 Redefinição de senha - ${APP_NAME}`,
         html,
     });
 };
@@ -228,6 +235,7 @@ export const sendPaymentRejectedEmail = async (
     const html = renderTemplate('payment-rejected', {
         ...data,
         subject: `Pagamento recusado - Pedido #${data.orderNumber}`,
+        supportEmail: SUPPORT_EMAIL,
     });
 
     return sendEmail({
@@ -268,6 +276,7 @@ export const sendCourtesyTicketEmail = async (
     const html = renderTemplate('courtesy-ticket', {
         ...data,
         subject: `🎁 Cortesia - ${data.eventName}`,
+        supportEmail: SUPPORT_EMAIL,
     });
 
     return sendEmail({

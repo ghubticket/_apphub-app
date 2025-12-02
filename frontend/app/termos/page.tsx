@@ -1,6 +1,7 @@
 'use client';
 
 import Container from '@/components/shared/Container';
+import { APP_NAME, CONTACT_EMAIL, COMPANY_NAME } from '@/lib/config';
 
 export default function TermosPage() {
     return (
@@ -27,8 +28,8 @@ export default function TermosPage() {
                             1. Aceitação dos Termos
                         </h2>
                         <p className="text-sm leading-relaxed text-[#4c4c55]">
-                            Ao acessar e utilizar a plataforma 5521, você concorda em cumprir e estar vinculado a estes Termos de Uso.
-                            Se você não concorda com qualquer parte destes termos, não deve utilizar nossos serviços. A 5521 reserva-se
+                            Ao acessar e utilizar a plataforma {COMPANY_NAME}, você concorda em cumprir e estar vinculado a estes Termos de Uso.
+                            Se você não concorda com qualquer parte destes termos, não deve utilizar nossos serviços. A {COMPANY_NAME} reserva-se
                             o direito de modificar estes termos a qualquer momento, e tais modificações entrarão em vigor imediatamente
                             após sua publicação.
                         </p>
@@ -39,7 +40,7 @@ export default function TermosPage() {
                             2. Descrição do Serviço
                         </h2>
                         <p className="text-sm leading-relaxed text-[#4c4c55]">
-                            A 5521 é uma plataforma digital que oferece serviços de venda de ingressos para eventos, experiências e
+                            A {COMPANY_NAME} é uma plataforma digital que oferece serviços de venda de ingressos para eventos, experiências e
                             atividades diversas. Através de nossa plataforma, você pode visualizar eventos disponíveis, adquirir ingressos,
                             gerenciar seus pedidos e acessar informações sobre seus ingressos adquiridos.
                         </p>
@@ -63,7 +64,7 @@ export default function TermosPage() {
                             </ul>
                             <p>
                                 Você é responsável por manter a confidencialidade de suas credenciais de acesso e por todas as atividades
-                                que ocorram em sua conta. A 5521 não se responsabiliza por perdas ou danos decorrentes do uso não autorizado
+                                que ocorram em sua conta. A {COMPANY_NAME} não se responsabiliza por perdas ou danos decorrentes do uso não autorizado
                                 de sua conta.
                             </p>
                         </div>
@@ -75,7 +76,7 @@ export default function TermosPage() {
                         </h2>
                         <div className="space-y-3 text-sm leading-relaxed text-[#4c4c55]">
                             <p>
-                                Ao adquirir ingressos através da plataforma 5521, você concorda com as seguintes condições:
+                                Ao adquirir ingressos através da plataforma {COMPANY_NAME}, você concorda com as seguintes condições:
                             </p>
                             <ul className="ml-6 list-disc space-y-2">
                                 <li>
@@ -83,7 +84,7 @@ export default function TermosPage() {
                                     aplicáveis. Todos os valores são exibidos em Reais (R$) e incluem impostos quando cabíveis.
                                 </li>
                                 <li>
-                                    <strong>Disponibilidade:</strong> A disponibilidade de ingressos está sujeita a confirmação. A 5521 não
+                                    <strong>Disponibilidade:</strong> A disponibilidade de ingressos está sujeita a confirmação. A {COMPANY_NAME} não
                                     garante a disponibilidade de ingressos até a confirmação do pagamento.
                                 </li>
                                 <li>
@@ -105,7 +106,7 @@ export default function TermosPage() {
                         </h2>
                         <div className="space-y-3 text-sm leading-relaxed text-[#4c4c55]">
                             <p>
-                                A 5521 aceita os seguintes métodos de pagamento:
+                                A {COMPANY_NAME} aceita os seguintes métodos de pagamento:
                             </p>
                             <ul className="ml-6 list-disc space-y-2">
                                 <li>Cartão de Crédito</li>
@@ -170,8 +171,8 @@ export default function TermosPage() {
                             8. Códigos Promocionais e Descontos
                         </h2>
                         <p className="text-sm leading-relaxed text-[#4c4c55]">
-                            Códigos promocionais e descontos oferecidos pela 5521 ou por parceiros estão sujeitos a termos e condições
-                            específicos. Cada código pode ter restrições de uso, validade e aplicabilidade. A 5521 reserva-se o direito de
+                            Códigos promocionais e descontos oferecidos pela {COMPANY_NAME} ou por parceiros estão sujeitos a termos e condições
+                            específicos. Cada código pode ter restrições de uso, validade e aplicabilidade. A {COMPANY_NAME} reserva-se o direito de
                             cancelar ou modificar códigos promocionais a qualquer momento, sem aviso prévio.
                         </p>
                     </section>
@@ -181,8 +182,8 @@ export default function TermosPage() {
                             9. Propriedade Intelectual
                         </h2>
                         <p className="text-sm leading-relaxed text-[#4c4c55]">
-                            Todo o conteúdo da plataforma 5521, incluindo textos, gráficos, logotipos, ícones, imagens, clipes de áudio,
-                            downloads digitais e compilações de dados, é propriedade da 5521 ou de seus fornecedores de conteúdo e está
+                            Todo o conteúdo da plataforma {COMPANY_NAME}, incluindo textos, gráficos, logotipos, ícones, imagens, clipes de áudio,
+                            downloads digitais e compilações de dados, é propriedade da {COMPANY_NAME} ou de seus fornecedores de conteúdo e está
                             protegido por leis de direitos autorais brasileiras e internacionais. Você não pode reproduzir, distribuir,
                             modificar ou criar trabalhos derivados sem autorização prévia por escrito.
                         </p>
@@ -194,7 +195,7 @@ export default function TermosPage() {
                         </h2>
                         <div className="space-y-3 text-sm leading-relaxed text-[#4c4c55]">
                             <p>
-                                A 5521 atua como intermediária na venda de ingressos. Nossa responsabilidade limita-se a:
+                                A {COMPANY_NAME} atua como intermediária na venda de ingressos. Nossa responsabilidade limita-se a:
                             </p>
                             <ul className="ml-6 list-disc space-y-2">
                                 <li>Processar pagamentos de forma segura</li>
@@ -202,7 +203,7 @@ export default function TermosPage() {
                                 <li>Manter a segurança e privacidade dos dados do cliente</li>
                             </ul>
                             <p>
-                                A 5521 não se responsabiliza por cancelamentos, alterações ou problemas relacionados ao evento em si,
+                                A {COMPANY_NAME} não se responsabiliza por cancelamentos, alterações ou problemas relacionados ao evento em si,
                                 incluindo mas não limitado a: mudanças de data, local, cancelamento do evento, qualidade do evento ou
                                 comportamento de outros participantes.
                             </p>
@@ -214,7 +215,7 @@ export default function TermosPage() {
                             11. Modificações do Serviço
                         </h2>
                         <p className="text-sm leading-relaxed text-[#4c4c55]">
-                            A 5521 reserva-se o direito de modificar, suspender ou descontinuar qualquer aspecto do serviço a qualquer
+                            A {COMPANY_NAME} reserva-se o direito de modificar, suspender ou descontinuar qualquer aspecto do serviço a qualquer
                             momento, com ou sem aviso prévio. Não seremos responsáveis perante você ou qualquer terceiro por qualquer
                             modificação, suspensão ou descontinuação do serviço.
                         </p>
@@ -237,8 +238,8 @@ export default function TermosPage() {
                         </h2>
                         <p className="text-sm leading-relaxed text-[#4c4c55]">
                             Para questões relacionadas a estes Termos de Uso, entre em contato conosco através do e-mail:
-                            <a href="mailto:contato@5521.com.br" className="font-medium text-[#f97316] underline-offset-4 hover:underline ml-1">
-                                contato@5521.com.br
+                            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-[#f97316] underline-offset-4 hover:underline ml-1">
+                                {CONTACT_EMAIL}
                             </a>
                         </p>
                     </section>
