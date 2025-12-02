@@ -70,8 +70,8 @@ export const createEvent = async (req: Request, res: Response) => {
         } = req.body;
 
         const filesMap = req.files as FilesMap;
-        const cover = filesMap?.cover?.[0]?.filename || null;
-        const square = filesMap?.square?.[0]?.filename || null;
+        const coverFile = filesMap?.cover?.[0] || null;
+        const squareFile = filesMap?.square?.[0] || null;
 
         // Converter date string (YYYY-MM-DD) para Date
         // Criar data no início do dia local para evitar problemas de timezone na validação
