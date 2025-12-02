@@ -684,6 +684,9 @@ export default function DashboardPage() {
                                             const orderPaymentLabel = order.paymentMethod && paymentLabels[order.paymentMethod]
                                                 ? paymentLabels[order.paymentMethod]
                                                 : 'Pagamento confirmado';
+                                            
+                                            // Verificar se é pedido VIP
+                                            const isOrderVip = order.paymentMethod === 'vip_free' || order.totalAmount === 0;
 
                                             return (
                                                 <div
@@ -697,9 +700,15 @@ export default function DashboardPage() {
                                                         <p className="text-xs text-[#7d796c] mt-1">
                                                             {orderCreatedAt} • {orderPaymentLabel}
                                                         </p>
-                                                        <p className="text-xs font-medium text-[#4c4c55] mt-1">
-                                                            {order.totalTickets} ingresso{order.totalTickets > 1 ? 's' : ''} • {currencyFormatter.format(order.totalAmount)}
-                                                        </p>
+                                                        {isOrderVip ? (
+                                                            <p className="text-xs text-[#4c4c55] mt-1 leading-relaxed">
+                                                                Esse ingresso é uma cortesia, é proibida a venda, e é intransferível.
+                                                            </p>
+                                                        ) : (
+                                                            <p className="text-xs font-medium text-[#4c4c55] mt-1">
+                                                                {order.totalTickets} ingresso{order.totalTickets > 1 ? 's' : ''} • {currencyFormatter.format(order.totalAmount)}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             );
@@ -744,6 +753,9 @@ export default function DashboardPage() {
                         (order.status === 'paid' ? 'Pagamento confirmado' : 'Pagamento pendente');
 
                     const ticketsConfirmed = order.tickets.filter((ticket) => ticket?.status === 'confirmed').length;
+                    
+                    // Verificar se é pedido VIP (cortesia)
+                    const isVipOrder = order.paymentMethod === 'vip_free' || order.totalAmount === 0;
 
                     const isExpanded = expandedOrderId === order._id;
 
@@ -776,18 +788,27 @@ export default function DashboardPage() {
 
                                     </div>
                                     <div className="flex items-center gap-10 w-full md:w-auto">
-                                        <div className="flex gap-3 w-full md:w-auto justify-between">
-                                            <p className="text-black">
-                                                Seu pedido foi:
-                                                <span> {currencyFormatter.format(order.totalAmount ?? 0)}</span>
-                                            </p>
-                                            <span
-                                                className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-normal ${statusInfo.badgeClass}`}
-                                            >
-                                                {statusInfo.label}
-                                            </span>
-                                        </div>
-                                       
+                                        {isVipOrder ? (
+                                            // Mensagem para pedidos VIP
+                                            <div className="w-full md:w-auto">
+                                                <p className="text-xs text-[#4c4c55] leading-relaxed">
+                                                    Esse ingresso é uma cortesia, é proibida a venda, e é intransferível.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            // Exibição normal para pedidos pagos
+                                            <div className="flex gap-3 w-full md:w-auto justify-between">
+                                                <p className="text-black">
+                                                    Seu pedido foi:
+                                                    <span> {currencyFormatter.format(order.totalAmount ?? 0)}</span>
+                                                </p>
+                                                <span
+                                                    className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-normal ${statusInfo.badgeClass}`}
+                                                >
+                                                    {statusInfo.label}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </button>
 
