@@ -18,13 +18,17 @@ const normalizeImageUrl = (imageUrl?: string | null): string | undefined => {
     const trimmed = imageUrl.trim();
     if (!trimmed) return undefined;
     
-    // Se for uma URL completa da API, extrair apenas o caminho
+    // Se for uma URL completa, verificar se é do dashboard (manter URL completa)
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
         try {
             const url = new URL(trimmed);
-            // Se for da nossa API ou Dashboard, retornar apenas o pathname (sem /api se presente)
+            // Se for do dashboard, retornar URL completa (não normalizar)
+            // O dashboard pode ter /api/images/ no caminho que precisa ser preservado
+            if (url.hostname.includes('dash.ghubtech.com.br')) {
+                return trimmed; // Retornar URL completa do dashboard
+            }
+            // Se for da API, extrair apenas o caminho (será reconstruído com api.ghubtech.com.br)
             if (url.hostname.includes('api.ghubtech.com.br') || 
-                url.hostname.includes('dash.ghubtech.com.br') ||
                 url.hostname.includes('localhost') && (url.port === '3443' || url.port === '3001')) {
                 let path = url.pathname;
                 // Remover /api se estiver presente
