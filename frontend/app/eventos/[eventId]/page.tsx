@@ -8,6 +8,8 @@ import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineUser, HiOutlineHeart } fro
 import Container from '@/components/shared/Container';
 import TicketCatalog from '@/components/tickets/TicketCatalog';
 import EventSelectionSummary from '@/components/tickets/EventSelectionSummary';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import BuyTicketButton from '@/components/shared/BuyTicketButton';
 import type { TicketProduct } from '@/types/ticket';
 import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
 import api from '@/lib/api';
@@ -168,6 +170,40 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
         return prices.length > 0 ? Math.min(...prices) : 0;
     }, [tickets]);
 
+    // Mostrar loading enquanto carrega
+    if (loading) {
+        return (
+            <main className="bg-[#f5f1e8] pt-24 md:pt-28" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
+                <Container className="pb-8">
+                    <LoadingSpinner 
+                        message="Carregando evento..." 
+                        submessage="Aguarde enquanto buscamos as informações"
+                        fullscreen={false}
+                    />
+                </Container>
+            </main>
+        );
+    }
+
+    // Mostrar erro se houver
+    if (error) {
+        return (
+            <main className="bg-[#f5f1e8] pt-24 md:pt-28" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
+                <Container className="pb-8">
+                    <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center">
+                        <p className="text-lg font-semibold text-red-800">{error}</p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="mt-4 rounded-full bg-[#f97316] px-6 py-2 text-sm font-semibold text-white transition hover:bg-[#ea580c]"
+                        >
+                            Tentar novamente
+                        </button>
+                    </div>
+                </Container>
+            </main>
+        );
+    }
+
     return (
         <main className="bg-[#f5f1e8] pt-24 md:pt-28">
             <Container className="pb-8">
@@ -296,18 +332,17 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                             )}
 
                             {/* Botão Comprar Ingresso */}
-                            <button
-                                type="button"
+                            <BuyTicketButton
                                 onClick={() => {
                                     const ticketSection = document.getElementById('ticket-selection');
                                     if (ticketSection) {
                                         ticketSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                     }
                                 }}
-                                className="w-full rounded-full bg-[#1a1a1d] px-6 py-3.5 text-sm font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-white"
-                            >
-                                Comprar Ingresso
-                            </button>
+                                variant="dark"
+                                size="lg"
+                                className="w-full"
+                            />
                         </div>
 
                         {/* Foto do Evento - MOBILE: aparece entre informações e ingressos, DESKTOP: hidden (fica na coluna esquerda) */}

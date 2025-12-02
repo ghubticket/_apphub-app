@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineTicket } from 'react-icons/hi2';
+import { HiOutlineCalendar, HiOutlineMapPin } from 'react-icons/hi2';
 import type { EventSummary } from '@/lib/ticketsCatalog';
 import { getProxiedImageUrl } from '@/lib/imageProxy';
+import BuyTicketButton from '@/components/shared/BuyTicketButton';
 
 type UpcomingEventsProps = {
     events: EventSummary[];
@@ -71,7 +72,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                 className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-md transition-all hover:shadow-xl"
                             >
                                 {/* Imagem do evento */}
-                                <div className="relative aspect-[16/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                                <div className="relative aspect-[07/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
                                     {hasError || !image ? (
                                         <p className="text-center text-sm text-[#a38f78] px-4">
                                             Imagem em construção.
@@ -134,13 +135,12 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                     </div>
 
                                     {/* Botão CTA */}
-                                    <Link
+                                    <BuyTicketButton
                                         href={`/eventos/${event.id}`}
-                                        className="mt-auto inline-flex items-center gap-2 rounded-full hover:text-white color border-2 border-[#f97316]/30 bg-[#f97316] justify-center py-2 text-xs font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#ea580c] hover:border-[#f97316]/50"
-                                    >
-                                        <HiOutlineTicket className="h-4 w-4 md:h-5 md:w-5" />
-                                        Comprar Ingresso
-                                    </Link>
+                                        variant="primary"
+                                        size="sm"
+                                        className="mt-auto justify-center"
+                                    />
                                 </div>
                             </article>
                         );

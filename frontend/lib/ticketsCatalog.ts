@@ -248,7 +248,7 @@ export const fetchEventsList = async (
                 : [];
 
         if (eventsRaw.length > 0) {
-            cacheEvents.set(eventsCacheKey, eventsRaw, 5 * 60 * 1000);
+            cacheEvents.set(eventsCacheKey, eventsRaw, 1 * 60 * 1000);
         }
     }
 
@@ -282,6 +282,27 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
     const cachedCatalog = cacheCatalog.get(cacheKey);
     if (cachedCatalog) {
         console.log('[fetchTicketCatalog] ✅ Retornando catálogo do cache');
+        
+        // Stale-while-revalidate: retornar cache imediatamente e atualizar em background
+        // Isso melhora a performance sem bloquear a UI
+        // Atualizar mais agressivamente (após 30 segundos) para dados mais frescos
+        const scheduleUpdate = typeof window !== 'undefined' && 'requestIdleCallback' in window
+            ? (cb: () => void) => (window as any).requestIdleCallback(cb, { timeout: 1000 })
+            : (cb: () => void) => setTimeout(cb, 50);
+        
+        scheduleUpdate(async () => {
+            try {
+                // Buscar dados frescos em background (sem bloquear)
+                // Re-executar a busca completa, mas sem usar o cache do catálogo
+                const freshCatalog = await fetchTicketCatalogFresh(options);
+                // Atualizar cache com dados frescos (TTL: 1 minuto)
+                cacheCatalog.set(cacheKey, freshCatalog, 1 * 60 * 1000);
+                console.log('[fetchTicketCatalog] 🔄 Cache atualizado em background');
+            } catch (error) {
+                console.warn('[fetchTicketCatalog] ⚠️ Erro ao atualizar cache em background:', error);
+            }
+        });
+        
         return cachedCatalog;
     }
 
@@ -322,9 +343,9 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
                         ? eventsResponse.data
                         : [];
 
-                // Armazenar eventos no cache (5 minutos)
+                // Armazenar eventos no cache (1 minuto - reduzido para atualizações mais rápidas)
                 if (eventsRaw.length > 0) {
-                    cacheEvents.set(eventsCacheKey, eventsRaw, 5 * 60 * 1000);
+                    cacheEvents.set(eventsCacheKey, eventsRaw, 1 * 60 * 1000);
                 }
             }
 
@@ -364,9 +385,9 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
                                   ? ticketTypesResponse.data
                                   : [];
                             
-                            // Armazenar no cache (2 minutos)
+                            // Armazenar no cache (30 segundos - reduzido para preços atualizados rapidamente)
                             if (ticketTypes.length > 0) {
-                                cacheTicketTypes.set(eventId, ticketTypes, 2 * 60 * 1000);
+                                cacheTicketTypes.set(eventId, ticketTypes, 30 * 1000);
                             }
                         }
 
@@ -408,8 +429,8 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
                 return dateA - dateB;
             });
 
-            // Armazenar catálogo completo no cache (3 minutos)
-            cacheCatalog.set(cacheKey, sorted, 3 * 60 * 1000);
+            // Armazenar catálogo completo no cache (1 minuto - reduzido para atualizações mais rápidas)
+            cacheCatalog.set(cacheKey, sorted, 1 * 60 * 1000);
 
             return sorted;
         } finally {
@@ -423,6 +444,101 @@ export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}
 
     return requestPromise;
 };
+
+/**
+ * Busca catálogo fresco sem usar cache do catálogo (mas ainda usa cache de eventos/tickets)
+ * Usado para stale-while-revalidate
+ */
+async function fetchTicketCatalogFresh(options: FetchTicketCatalogOptions = {}): Promise<TicketProduct[]> {
+    const { limitEvents = 12, limitTicketsPerEvent, search, onlyWithAvailability = false } = options;
+    
+    // Buscar eventos (pode usar cache de eventos, mas força refresh se necessário)
+    const eventsCacheKey = `page_1_limit_${limitEvents}_search_${search || ''}`;
+    const cachedEvents = cacheEvents.get(eventsCacheKey);
+    let eventsRaw: RawEvent[];
+    
+    if (cachedEvents && Array.isArray(cachedEvents)) {
+        eventsRaw = cachedEvents;
+    } else {
+        const eventsResponse = await api.get('/events', {
+            params: {
+                page: 1,
+                limit: limitEvents,
+                search,
+            },
+        });
+
+        eventsRaw = Array.isArray(eventsResponse.data?.data?.events)
+            ? eventsResponse.data.data.events
+            : Array.isArray(eventsResponse.data?.events)
+              ? eventsResponse.data.events
+              : Array.isArray(eventsResponse.data)
+                ? eventsResponse.data
+                : [];
+
+        if (eventsRaw.length > 0) {
+            cacheEvents.set(eventsCacheKey, eventsRaw, 1 * 60 * 1000);
+        }
+    }
+
+    const filteredEvents = eventsRaw.filter(
+        (event) => event && event.isActive !== false && (event.status ?? 'published') !== 'cancelled',
+    );
+
+    const ticketsNested = await Promise.all(
+        filteredEvents.map(async (event) => {
+            try {
+                const eventId = event._id ?? event.id;
+                
+                // Buscar tickets (pode usar cache, mas força refresh se necessário)
+                const cachedTicketTypes = cacheTicketTypes.get(eventId);
+                let ticketTypes: RawTicketType[];
+                
+                if (cachedTicketTypes && Array.isArray(cachedTicketTypes)) {
+                    ticketTypes = cachedTicketTypes;
+                } else {
+                    const ticketTypesResponse = await api.get(`/events/${eventId}/ticket-types`, {
+                        params: {
+                            includeInactive: false,
+                        },
+                    });
+                    ticketTypes = Array.isArray(ticketTypesResponse.data?.data)
+                        ? ticketTypesResponse.data.data
+                        : Array.isArray(ticketTypesResponse.data)
+                          ? ticketTypesResponse.data
+                          : [];
+                    
+                    if (ticketTypes.length > 0) {
+                        cacheTicketTypes.set(eventId, ticketTypes, 30 * 1000);
+                    }
+                }
+
+                const normalizedTickets = ticketTypes
+                    .map((ticket) => normalizeTicketType(ticket, event, { onlyWithAvailability }))
+                    .filter((ticket): ticket is TicketProduct => Boolean(ticket));
+
+                if (limitTicketsPerEvent !== undefined && limitTicketsPerEvent > 0) {
+                    return normalizedTickets.slice(0, limitTicketsPerEvent);
+                }
+                return normalizedTickets;
+            } catch (error) {
+                console.error('[fetchTicketCatalogFresh] ❌ Erro ao carregar ingressos do evento', event._id ?? event.id, error);
+                return [];
+            }
+        }),
+    );
+
+    const flattened = ticketsNested.flat();
+
+    const sorted = flattened.sort((a, b) => {
+        const dateA = a.sortTimestamp ?? Number.POSITIVE_INFINITY;
+        const dateB = b.sortTimestamp ?? Number.POSITIVE_INFINITY;
+        if (dateA === dateB) return 0;
+        return dateA - dateB;
+    });
+
+    return sorted;
+}
 
 export type { FetchTicketCatalogOptions };
 

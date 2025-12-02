@@ -3,8 +3,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { HiArrowRight, HiChevronLeft, HiChevronRight, HiOutlineCalendar, HiOutlineMapPin, HiOutlineTicket } from 'react-icons/hi2';
+import { HiArrowRight, HiChevronLeft, HiChevronRight, HiOutlineCalendar, HiOutlineMapPin } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
+import BuyTicketButton from '@/components/shared/BuyTicketButton';
 
 export type SlideType = 'video' | 'image';
 
@@ -321,13 +322,12 @@ export default function HeroCarousel({
 
                         {/* Botão para ingressos */}
                         {currentSlideData.ctaLink && (
-                            <Link
+                            <BuyTicketButton
                                 href={currentSlideData.ctaLink}
-                                className="group flex max-w-fit items-center gap-2 rounded-full border-2 border-[#f97316]/30 bg-[#f97316] px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-white transition-all hover:bg-[#ea580c] hover:border-[#f97316]/50 md:px-6 md:py-3 md:text-sm"
-                            >
-                                <HiOutlineTicket className="h-4 w-4 md:h-5 md:w-5" />
-                                <span>Comprar Ingresso</span>
-                            </Link>
+                                variant="primary"
+                                size="md"
+                                className="max-w-fit"
+                            />
                         )}
                     </div>
                 </Container>
@@ -335,7 +335,7 @@ export default function HeroCarousel({
 
             {/* Navegação - Setas e Indicadores */}
             {slides.length > 1 && (
-                <div className="absolute bottom-6 right-6 z-1 flex items-center gap-4 md:bottom-8 md:right-8">
+                <div className="absolute bottom-6 right-6 z-10 flex items-center gap-4 md:bottom-8 md:right-8">
                     {/* Indicadores de slide (bullets) - estilo bullseye */}
                     <div className="flex items-center gap-2">
                         {slides.map((_, index) => (

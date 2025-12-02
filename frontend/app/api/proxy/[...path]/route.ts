@@ -10,10 +10,16 @@ import { NextRequest, NextResponse } from 'next/server';
 const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_BASE_URL) {
-    console.error('[API Proxy] No API_URL or NEXT_PUBLIC_API_URL configured. Using fallback.');
+    console.warn('[API Proxy] No API_URL or NEXT_PUBLIC_API_URL configured. Using production fallback.');
 }
 
+// Usar produção como fallback padrão (mais seguro que localhost)
 const API_URL = API_BASE_URL || 'https://api.ghubtech.com.br/api';
+
+// Log da URL configurada (apenas em desenvolvimento)
+if (process.env.NODE_ENV === 'development') {
+    console.log('[API Proxy] Configurado para:', API_URL);
+}
 
 // Métodos HTTP permitidos
 const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
@@ -167,7 +173,17 @@ async function handleRequest(
                     },
                 });
             } catch (httpsError: any) {
-                console.error('[API Proxy] HTTPS request error:', httpsError);
+                // Se for erro de conexão recusada em desenvolvimento, dar mensagem mais clara
+                if (httpsError.code === 'ECONNREFUSED' && process.env.NODE_ENV === 'development') {
+                    console.error('[API Proxy] ❌ Erro de conexão:', {
+                        message: 'Backend não está acessível',
+                        url: fullUrl,
+                        error: httpsError.code,
+                        hint: 'Verifique se o backend está rodando ou configure NEXT_PUBLIC_API_URL para a URL de produção'
+                    });
+                } else {
+                    console.error('[API Proxy] HTTPS request error:', httpsError);
+                }
                 // Fallback para fetch normal
             }
         }
@@ -201,16 +217,38 @@ async function handleRequest(
             },
         });
     } catch (error: any) {
-        console.error('[API Proxy] Error:', error);
-
         // Tratar diferentes tipos de erro
         if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+            console.error('[API Proxy] Request timeout');
             return NextResponse.json(
                 { success: false, message: 'Request timeout' },
                 { status: 504 }
             );
         }
 
+        // Se for erro de conexão recusada, dar mensagem mais útil
+        if (error.cause?.code === 'ECONNREFUSED' || error.code === 'ECONNREFUSED') {
+            const isDev = process.env.NODE_ENV === 'development';
+            console.error('[API Proxy] ❌ Conexão recusada:', {
+                url: fullUrl || 'unknown',
+                message: isDev 
+                    ? 'Backend não está acessível. Verifique se está rodando ou configure NEXT_PUBLIC_API_URL'
+                    : 'Servidor backend não está acessível',
+            });
+            
+            return NextResponse.json(
+                { 
+                    success: false, 
+                    message: isDev 
+                        ? 'Backend não está acessível. Verifique se o servidor está rodando.'
+                        : 'Servidor temporariamente indisponível',
+                    error: 'ECONNREFUSED'
+                },
+                { status: 503 } // Service Unavailable
+            );
+        }
+
+        console.error('[API Proxy] Error:', error);
         return NextResponse.json(
             { success: false, message: 'Internal server error', error: error.message },
             { status: 500 }
