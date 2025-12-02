@@ -751,6 +751,7 @@ export const createOrder = async (req: Request, res: Response) => {
  */
 export const listMyOrders = async (req: Request, res: Response) => {
     try {
+        console.log('[listMyOrders] 🚀 Função chamada');
         const user = (req as any).user;
         const userId = user?._id?.toString() || user?.id;
 
@@ -788,6 +789,16 @@ export const listMyOrders = async (req: Request, res: Response) => {
             ];
         }
 
+        console.log('[listMyOrders] 🔍 Filtros aplicados:', {
+            userId,
+            filters: JSON.stringify(filters),
+            page,
+            limit,
+            search,
+            status,
+            environment: process.env.NODE_ENV,
+        });
+
         // Calcular paginação
         const skip = (Number(page) - 1) * Number(limit);
 
@@ -807,6 +818,19 @@ export const listMyOrders = async (req: Request, res: Response) => {
 
         // Contar total de pedidos
         const total = await Order.countDocuments(filters);
+
+        console.log('[listMyOrders] 📦 Pedidos encontrados:', {
+            total,
+            ordersCount: orders.length,
+            ordersSummary: orders.map((o: any) => ({
+                orderNumber: o.orderNumber,
+                status: o.status,
+                paymentMethod: o.paymentMethod,
+                hasPaymentMethod: 'paymentMethod' in o,
+                orderKeys: Object.keys(o),
+            })),
+            environment: process.env.NODE_ENV,
+        });
 
         // Remover QR codes de pedidos pendentes (segurança)
         // IMPORTANTE: Para pedidos pagos, garantir que os tickets tenham QR codes
@@ -942,27 +966,12 @@ export const listMyOrders = async (req: Request, res: Response) => {
                                 }
 
                                 if (mpPayment && isPix) {
-                                    // Na Orders API, os dados do PIX podem estar em payment_method OU em point_of_interaction.transaction_data
-                                    const txData: any =
-                                        (mpPayment as any).point_of_interaction?.transaction_data || {};
-
-                                    const qrCode =
-                                        mpPayment.payment_method?.qr_code ||
-                                        txData.qr_code ||
-                                        null;
-                                    const qrCodeBase64 =
-                                        mpPayment.payment_method?.qr_code_base64 ||
-                                        txData.qr_code_base64 ||
-                                        null;
-                                    const ticketUrl =
-                                        mpPayment.payment_method?.ticket_url ||
-                                        txData.ticket_url ||
-                                        null;
-
+                                    // Na Orders API, os dados do PIX estão em payment_method, não em point_of_interaction
+                                    // (mesma lógica do getOrderById que funciona)
                                     pixInfo = {
-                                        qrCode,
-                                        qrCodeBase64,
-                                        ticketUrl,
+                                        qrCode: mpPayment.payment_method?.qr_code || null,
+                                        qrCodeBase64: mpPayment.payment_method?.qr_code_base64 || null,
+                                        ticketUrl: mpPayment.payment_method?.ticket_url || null,
                                         expiresAt: mpPayment.date_of_expiration
                                             ? new Date(mpPayment.date_of_expiration).toISOString()
                                             : null,
