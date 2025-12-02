@@ -114,11 +114,12 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
                     <input
                         type="text"
                         value={codeInput}
-                        onChange={handleInputChange}
+                        onChange={pixPaymentActive ? undefined : handleInputChange}
                         onKeyDown={handleKeyDown}
                         onBlur={handleBlur}
                         placeholder={placeholder}
                         disabled={pixPaymentActive || isValidating}
+                        readOnly={pixPaymentActive}
                         className={inputClassName}
                     />
                     {isValidating ? (

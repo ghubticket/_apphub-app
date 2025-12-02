@@ -23,8 +23,8 @@ export function CustomerDataForm({
     onEditClick,
     pixPaymentActive = false,
 }: CustomerDataFormProps) {
-    // Desabilitar completamente quando PIX está ativo
-    const isDisabled = disabled || pixPaymentActive;
+    // CRÍTICO: Quando PIX está ativo, sempre desabilitar (independente do estado de edição)
+    const isDisabled = pixPaymentActive ? true : disabled;
     const sharedClass = `${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${isDisabled ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''}`;
 
     return (
@@ -59,8 +59,9 @@ export function CustomerDataForm({
                         <input
                             type="text"
                             value={data.name}
-                            onChange={(event) => onChange('name', event.target.value)}
+                            onChange={isDisabled ? undefined : (event) => onChange('name', event.target.value)}
                             readOnly={isDisabled}
+                            disabled={isDisabled}
                             aria-readonly={isDisabled}
                             className={sharedClass}
                             placeholder="Como aparece no documento"
@@ -74,8 +75,9 @@ export function CustomerDataForm({
                         <input
                             type="email"
                             value={data.email}
-                            onChange={(event) => onChange('email', event.target.value)}
+                            onChange={isDisabled ? undefined : (event) => onChange('email', event.target.value)}
                             readOnly={isDisabled}
+                            disabled={isDisabled}
                             aria-readonly={isDisabled}
                             className={sharedClass}
                             placeholder="email@exemplo.com"
@@ -93,8 +95,9 @@ export function CustomerDataForm({
                             inputMode="numeric"
                             pattern="[0-9]*"
                             value={data.cpf}
-                            onChange={(event) => onChange('cpf', event.target.value)}
+                            onChange={isDisabled ? undefined : (event) => onChange('cpf', event.target.value)}
                             readOnly={isDisabled}
+                            disabled={isDisabled}
                             aria-readonly={isDisabled}
                             className={sharedClass}
                             placeholder="000.000.000-00"
@@ -110,8 +113,9 @@ export function CustomerDataForm({
                             inputMode="tel"
                             pattern="[0-9]*"
                             value={data.phone}
-                            onChange={(event) => onChange('phone', event.target.value)}
+                            onChange={isDisabled ? undefined : (event) => onChange('phone', event.target.value)}
                             readOnly={isDisabled}
+                            disabled={isDisabled}
                             aria-readonly={isDisabled}
                             className={sharedClass}
                             placeholder="(11) 99999-9999"

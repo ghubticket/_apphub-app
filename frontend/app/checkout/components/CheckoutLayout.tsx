@@ -489,7 +489,7 @@ export function CheckoutLayout() {
 
                         <CustomerDataForm
                             data={customerData}
-                            disabled={!isEditingCustomer || !!pixPayment.pixResult}
+                            disabled={!isEditingCustomer}
                             onChange={handleCustomerChange}
                             docTypeReady={true}
                             showEditToggle
