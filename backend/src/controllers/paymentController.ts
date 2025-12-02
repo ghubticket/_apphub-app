@@ -23,7 +23,9 @@ const validateAndGetOrder = async (orderId: string, userId: string, req: Request
     // OTIMIZAÇÃO: Usar .select() para limitar campos e .lean() para objetos simples
     // CRÍTICO: Incluir totalAmount no select - necessário para criar pagamento
     const order = await Order.findOne({ _id: orderId, deletedAt: null })
-        .select('status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount')
+        .select(
+            'status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount'
+        )
         .populate('event', 'name description')
         .populate('tickets', 'ticketType')
         .populate('customer', 'name email phone cpf')
@@ -101,21 +103,30 @@ export const createPixPayment = async (req: Request, res: Response) => {
         // NOVO: Se orderId começa com "fake-", criar pedido real primeiro
         let order: any;
         let createdOrderId: string | null = null;
-        
+
         if (orderId.startsWith('fake-')) {
             // Pedido fake - criar pedido real no backend
-            console.log('[createPixPayment] 🎭 Pedido fake detectado, recebendo dados do carrinho:', {
-                orderId,
-                bodyKeys: Object.keys(req.body),
-                hasCartItems: !!req.body.cartItems,
-                cartItemsType: Array.isArray(req.body.cartItems) ? 'array' : typeof req.body.cartItems,
-                cartItemsLength: Array.isArray(req.body.cartItems) ? req.body.cartItems.length : 'N/A',
-                hasCustomerData: !!req.body.customerData,
-                customerDataKeys: req.body.customerData ? Object.keys(req.body.customerData) : [],
-            });
-            
+            console.log(
+                '[createPixPayment] 🎭 Pedido fake detectado, recebendo dados do carrinho:',
+                {
+                    orderId,
+                    bodyKeys: Object.keys(req.body),
+                    hasCartItems: !!req.body.cartItems,
+                    cartItemsType: Array.isArray(req.body.cartItems)
+                        ? 'array'
+                        : typeof req.body.cartItems,
+                    cartItemsLength: Array.isArray(req.body.cartItems)
+                        ? req.body.cartItems.length
+                        : 'N/A',
+                    hasCustomerData: !!req.body.customerData,
+                    customerDataKeys: req.body.customerData
+                        ? Object.keys(req.body.customerData)
+                        : [],
+                }
+            );
+
             const { cartItems, customerData, promoterCode } = req.body;
-            
+
             if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
                 console.error('[createPixPayment] ❌ Erro: cartItems inválido:', {
                     cartItems,
@@ -163,12 +174,18 @@ export const createPixPayment = async (req: Request, res: Response) => {
                             cpf: customerData.cpf || undefined,
                             phone: customerData.phone || undefined,
                         },
-                        ...(promoterCode ? { promoterCode: promoterCode.toUpperCase().trim() } : {}),
+                        ...(promoterCode
+                            ? { promoterCode: promoterCode.toUpperCase().trim() }
+                            : {}),
                         allowReuse: false, // CRÍTICO: Não reutilizar pedidos existentes ao criar a partir de pedido fake
                     },
                     // Garantir que socket existe para evitar erro de remoteAddress
                     socket: req.socket || { remoteAddress: req.ip || 'unknown' },
-                    ip: req.ip || req.socket?.remoteAddress || req.headers['x-forwarded-for'] || 'unknown',
+                    ip:
+                        req.ip ||
+                        req.socket?.remoteAddress ||
+                        req.headers['x-forwarded-for'] ||
+                        'unknown',
                     // Adicionar método get() para compatibilidade com Express Request
                     get: (name: string) => {
                         if (name === 'user-agent') {
@@ -180,11 +197,11 @@ export const createPixPayment = async (req: Request, res: Response) => {
 
                 // Importar createOrder dinamicamente
                 const { createOrder } = await import('./ordersController');
-                
+
                 // Criar resposta mock para capturar o resultado
                 let orderResponseData: any = null;
                 let orderResponseStatus = 500;
-                
+
                 const mockRes = {
                     status: (code: number) => {
                         orderResponseStatus = code;
@@ -208,7 +225,10 @@ export const createPixPayment = async (req: Request, res: Response) => {
                 });
 
                 // Aceitar tanto 200 (ingressos adicionados) quanto 201 (novo pedido criado)
-                if ((orderResponseStatus !== 200 && orderResponseStatus !== 201) || !orderResponseData?.success) {
+                if (
+                    (orderResponseStatus !== 200 && orderResponseStatus !== 201) ||
+                    !orderResponseData?.success
+                ) {
                     console.error('[createPixPayment] ❌ Erro ao criar pedido:', {
                         status: orderResponseStatus,
                         success: orderResponseData?.success,
@@ -225,9 +245,11 @@ export const createPixPayment = async (req: Request, res: Response) => {
                 // Obter pedido criado
                 const createdOrder = orderResponseData.data.order;
                 createdOrderId = createdOrder._id;
-                
+
                 order = await Order.findById(createdOrderId)
-                    .select('status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt')
+                    .select(
+                        'status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt'
+                    )
                     .populate('event', 'name description')
                     .populate('tickets', 'ticketType')
                     .populate('customer', 'name email phone cpf')
@@ -241,7 +263,9 @@ export const createPixPayment = async (req: Request, res: Response) => {
                     });
                 }
 
-                console.log(`[createPixPayment] ✅ Pedido real criado a partir de pedido fake: ${order.orderNumber}`);
+                console.log(
+                    `[createPixPayment] ✅ Pedido real criado a partir de pedido fake: ${order.orderNumber}`
+                );
             } catch (createError: any) {
                 console.error('[createPixPayment] ❌ Erro ao criar pedido real:', createError);
                 return res.status(500).json({
@@ -343,11 +367,11 @@ export const createPixPayment = async (req: Request, res: Response) => {
         // Atualizar pedido com informações completas do pagamento (Orders API)
         // CRÍTICO: order vem de .lean(), então não tem método .save()
         // Preparar objeto de atualização com todos os campos necessários
-        
+
         // Para PIX recém-criado: sempre começar como 'pending' a menos que seja realmente 'paid'
         // Isso evita que pedidos sejam marcados como 'cancelled' prematuramente
         const isPaid = statusInfo.internalStatus === 'paid';
-        
+
         // REFATORADO: Ajustar expiresAt do pedido quando criar PIX
         // Se faltar pouco tempo no expiresAt do pedido, estender para +30min a partir de agora
         const PIX_TIMEOUT_MINUTES = 30;
@@ -458,7 +482,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
                             : pixPayment.qrCode,
                         // Código PIX para copiar/colar deve ser o qrCode "bruto", não o ticket_url
                         pixCode: pixPayment.qrCode || pixPayment.ticketUrl || null,
-                        paymentLink: `${dashboardUrl}/orders/${order._id}`,
+                        paymentLink: `${dashboardUrl}/dashboard/`,
                     });
 
                     console.log(
@@ -603,18 +627,27 @@ export const createCardPayment = async (req: Request, res: Response) => {
         // NOVO: Se orderId começa com "fake-", criar pedido real primeiro
         if (orderId.startsWith('fake-')) {
             // Pedido fake - criar pedido real no backend
-            console.log('[createCardPayment] 🎭 Pedido fake detectado, recebendo dados do carrinho:', {
-                orderId,
-                bodyKeys: Object.keys(req.body),
-                hasCartItems: !!req.body.cartItems,
-                cartItemsType: Array.isArray(req.body.cartItems) ? 'array' : typeof req.body.cartItems,
-                cartItemsLength: Array.isArray(req.body.cartItems) ? req.body.cartItems.length : 'N/A',
-                hasCustomerData: !!req.body.customerData,
-                customerDataKeys: req.body.customerData ? Object.keys(req.body.customerData) : [],
-            });
-            
+            console.log(
+                '[createCardPayment] 🎭 Pedido fake detectado, recebendo dados do carrinho:',
+                {
+                    orderId,
+                    bodyKeys: Object.keys(req.body),
+                    hasCartItems: !!req.body.cartItems,
+                    cartItemsType: Array.isArray(req.body.cartItems)
+                        ? 'array'
+                        : typeof req.body.cartItems,
+                    cartItemsLength: Array.isArray(req.body.cartItems)
+                        ? req.body.cartItems.length
+                        : 'N/A',
+                    hasCustomerData: !!req.body.customerData,
+                    customerDataKeys: req.body.customerData
+                        ? Object.keys(req.body.customerData)
+                        : [],
+                }
+            );
+
             const { cartItems, customerData, promoterCode } = req.body;
-            
+
             if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
                 console.error('[createCardPayment] ❌ Erro: cartItems inválido:', {
                     cartItems,
@@ -661,12 +694,18 @@ export const createCardPayment = async (req: Request, res: Response) => {
                             cpf: customerData.cpf || undefined,
                             phone: customerData.phone || undefined,
                         },
-                        ...(promoterCode ? { promoterCode: promoterCode.toUpperCase().trim() } : {}),
+                        ...(promoterCode
+                            ? { promoterCode: promoterCode.toUpperCase().trim() }
+                            : {}),
                         allowReuse: false, // CRÍTICO: Não reutilizar pedidos existentes ao criar a partir de pedido fake
                     },
                     // Garantir que socket existe para evitar erro de remoteAddress
                     socket: req.socket || { remoteAddress: req.ip || 'unknown' },
-                    ip: req.ip || req.socket?.remoteAddress || req.headers['x-forwarded-for'] || 'unknown',
+                    ip:
+                        req.ip ||
+                        req.socket?.remoteAddress ||
+                        req.headers['x-forwarded-for'] ||
+                        'unknown',
                     // Adicionar método get() para compatibilidade com Express Request
                     get: (name: string) => {
                         if (name === 'user-agent') {
@@ -678,11 +717,11 @@ export const createCardPayment = async (req: Request, res: Response) => {
 
                 // Importar createOrder dinamicamente
                 const { createOrder } = await import('./ordersController');
-                
+
                 // Criar resposta mock para capturar o resultado
                 let orderResponseData: any = null;
                 let orderResponseStatus = 500;
-                
+
                 const mockRes = {
                     status: (code: number) => {
                         orderResponseStatus = code;
@@ -706,7 +745,10 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 });
 
                 // Aceitar tanto 200 (ingressos adicionados) quanto 201 (novo pedido criado)
-                if ((orderResponseStatus !== 200 && orderResponseStatus !== 201) || !orderResponseData?.success) {
+                if (
+                    (orderResponseStatus !== 200 && orderResponseStatus !== 201) ||
+                    !orderResponseData?.success
+                ) {
                     console.error('[createPixPayment] ❌ Erro ao criar pedido:', {
                         status: orderResponseStatus,
                         success: orderResponseData?.success,
@@ -723,9 +765,11 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 // Obter pedido criado
                 const createdOrder = orderResponseData.data.order;
                 createdOrderId = createdOrder._id;
-                
+
                 order = await Order.findById(createdOrderId)
-                    .select('status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt cardAttempts')
+                    .select(
+                        'status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt cardAttempts'
+                    )
                     .populate('event', 'name description')
                     .populate('tickets', 'ticketType')
                     .populate('customer', 'name email phone cpf')
@@ -739,7 +783,9 @@ export const createCardPayment = async (req: Request, res: Response) => {
                     });
                 }
 
-                console.log(`[createCardPayment] ✅ Pedido real criado a partir de pedido fake: ${order.orderNumber}`);
+                console.log(
+                    `[createCardPayment] ✅ Pedido real criado a partir de pedido fake: ${order.orderNumber}`
+                );
             } catch (createError: any) {
                 console.error('[createCardPayment] ❌ Erro ao criar pedido real:', createError);
                 return res.status(500).json({
@@ -958,9 +1004,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
         if (paymentStatus === 'paid') {
             Object.assign(baseOrderUpdate, {
                 status: 'paid',
-                paidAt: cardPayment.dateApproved
-                    ? new Date(cardPayment.dateApproved)
-                    : new Date(),
+                paidAt: cardPayment.dateApproved ? new Date(cardPayment.dateApproved) : new Date(),
                 isActive: true,
                 cardAttempts: 0,
             });
@@ -1014,7 +1058,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
                     cardAttempts: newAttempts,
                 });
                 console.log(
-                        `📊 [createCardPayment] Tentativa falhou: cardAttempts ${previousAttempts} → ${newAttempts}, orderNumber=${order.orderNumber}`
+                    `📊 [createCardPayment] Tentativa falhou: cardAttempts ${previousAttempts} → ${newAttempts}, orderNumber=${order.orderNumber}`
                 );
             }
         } else {
@@ -1373,7 +1417,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
     try {
         const { type, data } = req.body;
         const action = (req.body as any).action; // Pode ser "order.processed", "order.updated", etc.
-        
+
         // Log inicial do webhook recebido
         console.log(`🔔 [handleWebhook] Webhook recebido:`, {
             type,
@@ -1394,8 +1438,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             (req.headers['x-hub-signature-256'] as string);
 
         const isProd = (process.env.NODE_ENV || 'development') === 'production';
-        const strictWebhook =
-            (process.env.MP_WEBHOOK_STRICT || 'false').toLowerCase() === 'true';
+        const strictWebhook = (process.env.MP_WEBHOOK_STRICT || 'false').toLowerCase() === 'true';
 
         // Em modo estrito de produção exigimos secret + assinatura válida.
         // Em modo não estrito, apenas logamos problemas de assinatura mas continuamos o processamento
@@ -1405,7 +1448,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
         } else {
             if (!secret || !sigHeader) {
                 console.warn(
-                    '[Webhook] Assinatura ausente ou secret não configurado (modo não estrito).',
+                    '[Webhook] Assinatura ausente ou secret não configurado (modo não estrito).'
                 );
             }
         }
@@ -1441,7 +1484,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             sigHeader,
             !!signatureValid
         );
-        
+
         // DEBUG: Log do status do webhook
         console.log(`🔍 [handleWebhook] Status do webhook na fila:`, {
             eventId,
@@ -1450,22 +1493,27 @@ export const handleWebhook = async (req: Request, res: Response) => {
             type,
             dataId: data?.id,
         });
-        
+
         // CRÍTICO: Para webhooks de order.processed, sempre processar mesmo se já foi processado antes
         // Isso garante que pedidos que ainda não foram atualizados sejam atualizados
         const isOrderProcessed = type === 'order' && action === 'order.processed';
         const shouldProcessAnyway = isOrderProcessed && queued.status === 'processed';
-        
+
         if (queued.status === 'processed' && !shouldProcessAnyway) {
-            console.log(`⏭️ [handleWebhook] Webhook já processado anteriormente, ignorando:`, { eventId });
+            console.log(`⏭️ [handleWebhook] Webhook já processado anteriormente, ignorando:`, {
+                eventId,
+            });
             return res.status(200).send('OK');
         }
 
         // Responder imediatamente ao Mercado Pago (200 OK)
         res.status(200).send('OK');
-        
+
         if (shouldProcessAnyway) {
-            console.log(`🔄 [handleWebhook] Reprocessando webhook order.processed para garantir atualização:`, { eventId });
+            console.log(
+                `🔄 [handleWebhook] Reprocessando webhook order.processed para garantir atualização:`,
+                { eventId }
+            );
         }
 
         // Processar notificação em background
@@ -1514,12 +1562,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
                         external_reference: data.external_reference,
                         metadata: { order_id: data.external_reference },
                         transactions: {
-                            payments: [paymentInfo]
-                        }
+                            payments: [paymentInfo],
+                        },
                     };
                 } else {
                     // Fallback: buscar do MP se webhook não enviou dados completos
-                    console.log(`⚠️ [webhook-order] Webhook não enviou dados completos, buscando do MP...`);
+                    console.log(
+                        `⚠️ [webhook-order] Webhook não enviou dados completos, buscando do MP...`
+                    );
                     orderInfo = (await paymentService.getOrderById(mpOrderId)) as any;
 
                     if (!orderInfo) {
@@ -1533,21 +1583,31 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 // CRÍTICO: Se paymentInfo ainda não existe, tentar usar dados do data diretamente
                 // Isso pode acontecer quando o webhook envia status no nível do data, não no payment
                 if (!paymentInfo && (data.status || data.status_detail)) {
-                    console.log(`⚠️ [webhook-order] PaymentInfo não encontrado, usando dados do data diretamente:`, {
-                        dataStatus: data.status,
-                        dataStatusDetail: data.status_detail,
-                    });
+                    console.log(
+                        `⚠️ [webhook-order] PaymentInfo não encontrado, usando dados do data diretamente:`,
+                        {
+                            dataStatus: data.status,
+                            dataStatusDetail: data.status_detail,
+                        }
+                    );
                     // Criar um paymentInfo mínimo a partir dos dados do data
                     paymentInfo = {
                         id: data.transactions?.payments?.[0]?.id || `PAY${data.id}`,
                         status: data.status || data.transactions?.payments?.[0]?.status,
-                        status_detail: data.status_detail || data.transactions?.payments?.[0]?.status_detail,
-                        payment_method: data.transactions?.payments?.[0]?.payment_method || { id: 'pix', type: 'bank_transfer' },
+                        status_detail:
+                            data.status_detail || data.transactions?.payments?.[0]?.status_detail,
+                        payment_method: data.transactions?.payments?.[0]?.payment_method || {
+                            id: 'pix',
+                            type: 'bank_transfer',
+                        },
                     };
                 }
 
                 // Buscar pedido pelo external_reference
-                const orderId = data.external_reference || orderInfo.external_reference || orderInfo.metadata?.order_id;
+                const orderId =
+                    data.external_reference ||
+                    orderInfo.external_reference ||
+                    orderInfo.metadata?.order_id;
 
                 if (!orderId) {
                     console.error('Order ID não encontrado na order do MP:', mpOrderId);
@@ -1568,16 +1628,22 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                 // Guardar status anterior para evitar disparar e-mail/aprovação duplicados
                 const wasPaidBefore = order.status === 'paid';
-                
+
                 // CRÍTICO: Se o pedido já está pago e o webhook está sendo reprocessado, verificar se precisa atualizar
                 // Se o pedido já está pago e o status do MP também é pago, não precisa fazer nada
                 if (wasPaidBefore && action === 'order.processed') {
                     const paymentStatusRaw = paymentInfo.status || data.status;
-                    const paymentStatusDetailRaw = paymentInfo.status_detail || data.status_detail || '';
-                    const statusInfo = getPaymentStatusInfo(paymentStatusRaw, paymentStatusDetailRaw);
-                    
+                    const paymentStatusDetailRaw =
+                        paymentInfo.status_detail || data.status_detail || '';
+                    const statusInfo = getPaymentStatusInfo(
+                        paymentStatusRaw,
+                        paymentStatusDetailRaw
+                    );
+
                     if (statusInfo.internalStatus === 'paid') {
-                        console.log(`✅ [webhook-order] Pedido ${order.orderNumber} já está pago e o status do MP confirma. Nenhuma ação necessária.`);
+                        console.log(
+                            `✅ [webhook-order] Pedido ${order.orderNumber} já está pago e o status do MP confirma. Nenhuma ação necessária.`
+                        );
                         return;
                     }
                 }
@@ -1585,8 +1651,9 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 // Obter informações completas do status
                 // CRÍTICO: Garantir que status_detail seja extraído corretamente
                 const paymentStatusRaw = paymentInfo.status || data.status;
-                const paymentStatusDetailRaw = paymentInfo.status_detail || data.status_detail || '';
-                
+                const paymentStatusDetailRaw =
+                    paymentInfo.status_detail || data.status_detail || '';
+
                 console.log(`🔍 [webhook-order] Extraindo status do pagamento:`, {
                     paymentInfoStatus: paymentInfo.status,
                     paymentInfoStatusDetail: paymentInfo.status_detail,
@@ -1596,12 +1663,9 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     finalStatusDetail: paymentStatusDetailRaw,
                 });
 
-                const statusInfo = getPaymentStatusInfo(
-                    paymentStatusRaw,
-                    paymentStatusDetailRaw
-                );
+                const statusInfo = getPaymentStatusInfo(paymentStatusRaw, paymentStatusDetailRaw);
                 const paymentStatus = statusInfo.internalStatus;
-                
+
                 // DEBUG: Log detalhado do status recebido
                 console.log(`🔔 [webhook-order] Status recebido do MP:`, {
                     mpOrderId,
@@ -1635,12 +1699,15 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
 
                 if (paymentStatus === 'paid') {
-                    console.log(`✅ [webhook-order] Pagamento APROVADO! Atualizando pedido ${order.orderNumber} para paid:`, {
-                        paymentStatus: paymentStatusRaw,
-                        paymentStatusDetail: paymentStatusDetailRaw,
-                        internalStatus: paymentStatus,
-                        previousOrderStatus: order.status,
-                    });
+                    console.log(
+                        `✅ [webhook-order] Pagamento APROVADO! Atualizando pedido ${order.orderNumber} para paid:`,
+                        {
+                            paymentStatus: paymentStatusRaw,
+                            paymentStatusDetail: paymentStatusDetailRaw,
+                            internalStatus: paymentStatus,
+                            previousOrderStatus: order.status,
+                        }
+                    );
                     order.status = 'paid';
 
                     // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
@@ -1687,7 +1754,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                         : paymentInfo.date_created
                           ? new Date(paymentInfo.date_created)
                           : new Date();
-                    
+
                     // Atualizar paymentOrderId se disponível
                     if (mpOrderId && !order.paymentOrderId) {
                         order.paymentOrderId = mpOrderId;
@@ -1744,26 +1811,33 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 await order.save();
 
                 // Log detalhado
-                console.log(`✅ [webhook-order] Pedido ${order.orderNumber} atualizado via webhook:`, {
-                    mpOrderId,
-                    orderId: order._id,
-                    orderStatus: order.status,
-                    paymentId: paymentInfo.id,
-                    paymentStatus: paymentStatusRaw,
-                    paymentStatusDetail: paymentStatusDetailRaw,
-                    internalStatus: paymentStatus,
-                    userMessage: statusInfo.userMessage,
-                    requiresAction: statusInfo.requiresAction,
-                    canRetry: statusInfo.canRetry,
-                    wasPaidBefore,
-                    action,
-                });
-                
+                console.log(
+                    `✅ [webhook-order] Pedido ${order.orderNumber} atualizado via webhook:`,
+                    {
+                        mpOrderId,
+                        orderId: order._id,
+                        orderStatus: order.status,
+                        paymentId: paymentInfo.id,
+                        paymentStatus: paymentStatusRaw,
+                        paymentStatusDetail: paymentStatusDetailRaw,
+                        internalStatus: paymentStatus,
+                        userMessage: statusInfo.userMessage,
+                        requiresAction: statusInfo.requiresAction,
+                        canRetry: statusInfo.canRetry,
+                        wasPaidBefore,
+                        action,
+                    }
+                );
+
                 // Marcar webhook como processado
                 try {
                     await WebhookEvent.updateOne(
                         { eventId },
-                        { status: 'processed', processedAt: new Date(), attempts: queued.attempts || 0 }
+                        {
+                            status: 'processed',
+                            processedAt: new Date(),
+                            attempts: queued.attempts || 0,
+                        }
                     );
                 } catch (updateError) {
                     console.warn('Erro ao marcar webhook como processado:', updateError);
@@ -1848,11 +1922,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
             const isPixOrder = order.paymentMethod === 'pix' || paymentMethod === 'pix';
 
             if (paymentStatus === 'paid') {
-                console.log(`✅ [webhook-payment] Pagamento APROVADO! Atualizando pedido ${order.orderNumber} para paid:`, {
-                    paymentStatus: paymentInfo.status,
-                    paymentStatusDetail: paymentInfo.status_detail,
-                    internalStatus: paymentStatus,
-                });
+                console.log(
+                    `✅ [webhook-payment] Pagamento APROVADO! Atualizando pedido ${order.orderNumber} para paid:`,
+                    {
+                        paymentStatus: paymentInfo.status,
+                        paymentStatusDetail: paymentInfo.status_detail,
+                        internalStatus: paymentStatus,
+                    }
+                );
                 order.status = 'paid';
 
                 // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
@@ -1949,20 +2026,23 @@ export const handleWebhook = async (req: Request, res: Response) => {
             await order.save();
 
             // Log detalhado
-            console.log(`✅ [webhook-payment] Pedido ${order.orderNumber} atualizado via webhook:`, {
-                paymentId,
-                orderId: order._id,
-                orderStatus: order.status,
-                paymentStatus: paymentInfo.status,
-                paymentStatusDetail: paymentInfo.status_detail,
-                internalStatus: paymentStatus,
-                userMessage: statusInfo.userMessage,
-                requiresAction: statusInfo.requiresAction,
-                canRetry: statusInfo.canRetry,
-                errorCode: paymentInfo.error_code,
-                errorDescription: paymentInfo.error_description,
-                wasPaidBefore,
-            });
+            console.log(
+                `✅ [webhook-payment] Pedido ${order.orderNumber} atualizado via webhook:`,
+                {
+                    paymentId,
+                    orderId: order._id,
+                    orderStatus: order.status,
+                    paymentStatus: paymentInfo.status,
+                    paymentStatusDetail: paymentInfo.status_detail,
+                    internalStatus: paymentStatus,
+                    userMessage: statusInfo.userMessage,
+                    requiresAction: statusInfo.requiresAction,
+                    canRetry: statusInfo.canRetry,
+                    errorCode: paymentInfo.error_code,
+                    errorDescription: paymentInfo.error_description,
+                    wasPaidBefore,
+                }
+            );
             // Marcar como processado
             await WebhookEvent.updateOne(
                 { eventId },
