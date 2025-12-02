@@ -15,6 +15,8 @@ import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { APP_NAME } from '@/lib/config';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { useOrdersPolling } from './hooks/useOrdersPolling';
+import PaymentSuccessModal from './components/PaymentSuccessModal';
 
 type TabKey = 'profile' | 'orders' | 'requests';
 type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'refunded';
@@ -252,6 +254,10 @@ export default function DashboardPage() {
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
     const [showSecurityModal, setShowSecurityModal] = useState(false);
     const modalScrollRef = useRef<HTMLDivElement | null>(null);
+    
+    // Estado para modal de pagamento aprovado
+    const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
+    const [paidOrderInfo, setPaidOrderInfo] = useState<{ orderNumber?: string; message?: string } | null>(null);
 
     // Função para verificar se é mobile
     const isMobileDevice = useCallback(() => {
@@ -402,10 +408,38 @@ export default function DashboardPage() {
         }
     }, [activeTab, fetchOrders, hasFetchedOrders, isAuthenticated, isReady]);
 
-    // Helper para verificar se é um grupo
+    // Helper para verificar se é um grupo (definido antes de ser usado)
     const isOrderGroup = (item: OrderSummary | OrderGroup): item is OrderGroup => {
         return 'orders' in item && Array.isArray((item as OrderGroup).orders);
     };
+
+    // Callback quando pedido é pago (detectado via polling)
+    const handleOrderPaid = useCallback((orderId: string, order: any) => {
+        // Atualizar lista de pedidos
+        fetchOrders();
+        
+        // Mostrar modal de sucesso
+        setPaidOrderInfo({
+            orderNumber: order.orderNumber || orderId,
+            message: 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.',
+        });
+        setShowPaymentSuccessModal(true);
+    }, [fetchOrders]);
+
+    // Polling de pedidos pendentes (apenas quando estiver na aba de pedidos)
+    const hasPendingOrders = useMemo(() => {
+        return orders.some(item => {
+            if (isOrderGroup(item)) {
+                return item.orders.some(o => o.status === 'pending');
+            }
+            return (item as OrderSummary).status === 'pending';
+        });
+    }, [orders]);
+
+    const { isPolling } = useOrdersPolling({
+        enabled: activeTab === 'orders' && hasPendingOrders && isAuthenticated && isReady,
+        onOrderPaid: handleOrderPaid,
+    });
 
     // Helper para encontrar pedido ativo ou criar ordem consolidada de grupo
     // Usar useMemo para garantir estabilidade e evitar recálculos desnecessários
@@ -814,6 +848,19 @@ export default function DashboardPage() {
                                                     Pagamento PIX Pendente
                                                 </span>
                                             </div>
+
+                                            {/* Indicador de polling ativo (aguardando pagamento) */}
+                                            {isPolling && (
+                                                <div className="mb-4 rounded-lg border border-emerald-300 bg-emerald-100/80 p-2.5">
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-600"></div>
+                                                        <p className="text-xs font-semibold text-emerald-800">
+                                                            Aguardando confirmação de pagamento em tempo real...
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <p className="mb-4 text-sm text-emerald-700">
                                                 Seu pedido ainda está pendente. Copie e cole o código PIX abaixo para finalizar o pagamento.
                                             </p>
@@ -1086,6 +1133,19 @@ export default function DashboardPage() {
                     </div>
                 </div>
             )}
+
+            {/* Modal de pagamento aprovado (detectado via polling) */}
+            <PaymentSuccessModal
+                isOpen={showPaymentSuccessModal}
+                onClose={() => {
+                    setShowPaymentSuccessModal(false);
+                    setPaidOrderInfo(null);
+                    // Recarregar pedidos para mostrar o pedido pago atualizado
+                    fetchOrders();
+                }}
+                orderNumber={paidOrderInfo?.orderNumber}
+                message={paidOrderInfo?.message}
+            />
         </>
     );
 }

@@ -11,6 +11,7 @@ type CustomerDataFormProps = {
     docTypeReady: boolean;
     showEditToggle?: boolean;
     onEditClick?: () => void;
+    pixPaymentActive?: boolean;
 };
 
 export function CustomerDataForm({
@@ -20,8 +21,11 @@ export function CustomerDataForm({
     docTypeReady,
     showEditToggle,
     onEditClick,
+    pixPaymentActive = false,
 }: CustomerDataFormProps) {
-    const sharedClass = `${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${disabled ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''}`;
+    // Desabilitar completamente quando PIX está ativo
+    const isDisabled = disabled || pixPaymentActive;
+    const sharedClass = `${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${isDisabled ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''}`;
 
     return (
         <div className="relative rounded-3xl border border-[#ded7ca] bg-white p-6">
@@ -39,7 +43,12 @@ export function CustomerDataForm({
                     <button
                         type="button"
                         onClick={onEditClick}
-                        className="rounded-full border border-[#ded7ca] bg-white/70 text-[0.65rem] font-semibold p-2 uppercase px-4 tracking-normal text-[#6f6b63] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
+                        disabled={pixPaymentActive}
+                        className={`rounded-full border border-[#ded7ca] bg-white/70 text-[0.65rem] font-semibold p-2 uppercase px-4 tracking-normal transition ${
+                            pixPaymentActive
+                                ? 'cursor-not-allowed text-[#7d796c] bg-[#f5f1e8]'
+                                : 'text-[#6f6b63] hover:border-[#a38f78] hover:text-[#1a1a1d]'
+                        }`}
                     >
                         {disabled ? 'Editar dados' : 'Concluir edição'}
                     </button>
@@ -55,8 +64,8 @@ export function CustomerDataForm({
                             type="text"
                             value={data.name}
                             onChange={(event) => onChange('name', event.target.value)}
-                            readOnly={disabled}
-                            aria-readonly={disabled}
+                            readOnly={isDisabled}
+                            aria-readonly={isDisabled}
                             className={sharedClass}
                             placeholder="Como aparece no documento"
                         />
@@ -70,8 +79,8 @@ export function CustomerDataForm({
                             type="email"
                             value={data.email}
                             onChange={(event) => onChange('email', event.target.value)}
-                            readOnly={disabled}
-                            aria-readonly={disabled}
+                            readOnly={isDisabled}
+                            aria-readonly={isDisabled}
                             className={sharedClass}
                             placeholder="email@exemplo.com"
                         />
@@ -89,8 +98,8 @@ export function CustomerDataForm({
                             pattern="[0-9]*"
                             value={data.cpf}
                             onChange={(event) => onChange('cpf', event.target.value)}
-                            readOnly={disabled}
-                            aria-readonly={disabled}
+                            readOnly={isDisabled}
+                            aria-readonly={isDisabled}
                             className={sharedClass}
                             placeholder="000.000.000-00"
                         />
@@ -106,8 +115,8 @@ export function CustomerDataForm({
                             pattern="[0-9]*"
                             value={data.phone}
                             onChange={(event) => onChange('phone', event.target.value)}
-                            readOnly={disabled}
-                            aria-readonly={disabled}
+                            readOnly={isDisabled}
+                            aria-readonly={isDisabled}
                             className={sharedClass}
                             placeholder="(11) 99999-9999"
                         />

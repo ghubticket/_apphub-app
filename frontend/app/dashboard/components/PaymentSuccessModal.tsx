@@ -1,0 +1,94 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { HiOutlineCheckCircle } from 'react-icons/hi2';
+
+interface PaymentSuccessModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    orderNumber?: string;
+    message?: string;
+}
+
+/**
+ * Modal de sucesso de pagamento
+ * Similar ao overlay do CardPaymentFormBrick, mas como modal standalone
+ */
+export default function PaymentSuccessModal({
+    isOpen,
+    onClose,
+    orderNumber,
+    message = 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.',
+}: PaymentSuccessModalProps) {
+    const [mounted, setMounted] = useState(false);
+    const [entering, setEntering] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setMounted(true);
+            const frame = requestAnimationFrame(() => {
+                setEntering(true);
+            });
+            return () => cancelAnimationFrame(frame);
+        } else {
+            setEntering(false);
+            const timeout = setTimeout(() => {
+                setMounted(false);
+            }, 250);
+            return () => clearTimeout(timeout);
+        }
+    }, [isOpen]);
+
+    if (!mounted) return null;
+
+    const activeClass = entering
+        ? 'opacity-100 translate-y-0 pointer-events-auto'
+        : 'opacity-0 translate-y-3 pointer-events-none';
+
+    return (
+        <div
+            className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300 ${activeClass}`}
+            onClick={onClose}
+        >
+            <div
+                className="relative mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl transition-all duration-300"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex flex-col items-center gap-6 p-8 text-center">
+                    {/* Ícone de sucesso */}
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#1f5d3d]">
+                        <HiOutlineCheckCircle className="h-12 w-12 text-white" />
+                    </div>
+
+                    {/* Título */}
+                    <h2 className="text-2xl font-bold uppercase text-[#1f5d3d]">
+                        Pagamento aprovado
+                    </h2>
+
+                    {/* Mensagem */}
+                    <div className="space-y-2 text-sm leading-relaxed text-[#1f5d3d]">
+                        <p>{message}</p>
+                        {orderNumber && (
+                            <p className="text-xs text-[#2b6b47]">
+                                Pedido: {orderNumber}
+                            </p>
+                        )}
+                        <p className="text-xs text-[#2b6b47]">
+                            Você receberá um e-mail com os detalhes do pedido.
+                        </p>
+                    </div>
+
+                    {/* Botão de fechar */}
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-full bg-[#1a1a1d] px-8 py-3 text-sm font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                    >
+                        Ver meus pedidos
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
