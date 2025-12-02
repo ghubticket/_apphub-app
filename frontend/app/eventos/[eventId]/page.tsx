@@ -341,7 +341,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                 }}
                                 variant="dark"
                                 size="lg"
-                                className="w-full"
+                                className="w-full items-center justify-center"
                             />
                         </div>
 

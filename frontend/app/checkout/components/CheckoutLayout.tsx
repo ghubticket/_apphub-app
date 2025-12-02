@@ -515,7 +515,7 @@ export function CheckoutLayout() {
 
     return (
         <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
-            <Container className="py-10">
+            <Container className="py-7">
                 <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr]">
                     <section className="space-y-6">
                         {checkoutState.timerActive && (

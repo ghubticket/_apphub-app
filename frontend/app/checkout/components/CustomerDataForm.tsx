@@ -47,7 +47,7 @@ export function CustomerDataForm({
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     Nome completo
                     <div className="relative">
                         <HiOutlineUser className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
@@ -62,7 +62,7 @@ export function CustomerDataForm({
                         />
                     </div>
                 </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     E-mail
                     <div className="relative">
                         <HiOutlineEnvelope className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
@@ -77,7 +77,7 @@ export function CustomerDataForm({
                         />
                     </div>
                 </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     CPF
                     <div className="relative">
                         <HiOutlineIdentification
@@ -96,7 +96,7 @@ export function CustomerDataForm({
                         />
                     </div>
                 </label>
-                <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     Celular
                     <div className="relative">
                         <HiOutlinePhone className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
