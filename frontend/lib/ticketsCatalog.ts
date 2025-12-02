@@ -22,8 +22,9 @@ const normalizeImageUrl = (imageUrl?: string | null): string | undefined => {
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
         try {
             const url = new URL(trimmed);
-            // Se for da nossa API, retornar apenas o pathname (sem /api se presente)
+            // Se for da nossa API ou Dashboard, retornar apenas o pathname (sem /api se presente)
             if (url.hostname.includes('api.ghubtech.com.br') || 
+                url.hostname.includes('dash.ghubtech.com.br') ||
                 url.hostname.includes('localhost') && (url.port === '3443' || url.port === '3001')) {
                 let path = url.pathname;
                 // Remover /api se estiver presente

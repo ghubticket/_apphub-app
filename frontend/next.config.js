@@ -22,6 +22,12 @@ const nextConfig = {
         hostname: 'api.ghubtech.com.br',
         pathname: '/uploads/**',
       },
+      // Permitir imagens do dashboard (pode ter URLs com /api/images/ ou /uploads/)
+      {
+        protocol: 'https',
+        hostname: 'dash.ghubtech.com.br',
+        pathname: '/**',
+      },
       // Permitir localhost para desenvolvimento
       {
         protocol: 'https',

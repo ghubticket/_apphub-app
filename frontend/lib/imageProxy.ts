@@ -12,6 +12,7 @@ const DEFAULT_FALLBACK_IMAGE = '/images/anita.jpg';
 // Domínios reconhecidos da API (para detecção)
 const API_DOMAINS = [
     'api.ghubtech.com.br',
+    'dash.ghubtech.com.br', // Dashboard também pode servir imagens
     'localhost:3443',
     'localhost:3001',
     '127.0.0.1:3443',
@@ -97,7 +98,7 @@ export function getProxiedImageUrl(imageUrl: string | null | undefined): string 
     
     // Se for uma URL local (começa com /), processar
     if (normalized.startsWith('/')) {
-        // Se for uma URL do proxy antigo, converter para URL direta
+        // Se for uma URL do proxy antigo (/api/images/), converter para URL direta
         if (normalized.startsWith('/api/images/')) {
             const path = normalized.replace('/api/images/', '');
             // Construir URL completa da API (remover /api do base URL)
