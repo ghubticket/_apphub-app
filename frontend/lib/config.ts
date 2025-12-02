@@ -5,36 +5,36 @@
 
 export const APP_CONFIG = {
   // Nome da marca/projeto
-  name: 'Pagode do Príncipe',
+  name: 'Toka',
   
   // Nome completo com prefixo (se necessário)
-  fullName: 'Pagode do Príncipe',
+  fullName: 'Toka',
   
   // Nome curto/abreviação (se necessário)
-  shortName: 'Pagode do Príncipe',
+  shortName: 'Toka',
   
   // Logo
   logo: {
-    src: '/images/pagode-do-principe.png',
-    alt: 'Logotipo Pagode do Príncipe',
+    src: '/images/toka.webp',
+    alt: 'Logotipo Toka',
   },
   
   // Informações de contato
   contact: {
-    email: 'contato@pagodedoprincipe.com.br',
-    privacyEmail: 'privacidade@pagodedoprincipe.com.br',
-    dpoEmail: 'dpo@pagodedoprincipe.com.br',
+    email: 'contato@toka.com.br',
+    privacyEmail: 'privacidade@toka.com.br',
+    dpoEmail: 'dpo@toka.com.br',
   },
   
   // URLs e links
   links: {
-    instagram: 'https://www.instagram.com/pagodedoprincipe/',
+    instagram: 'https://www.instagram.com/toka/',
     website: '/',
   },
   
   // Chaves de storage (mantendo compatibilidade com código existente)
   storage: {
-    cartKey: '5521-cart-items',
+    cartKey: 'toka-cart-items',
     activeOrderKey: '5521-active-order-id',
   },
 } as const;

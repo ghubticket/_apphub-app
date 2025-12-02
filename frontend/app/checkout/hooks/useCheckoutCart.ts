@@ -61,7 +61,7 @@ export function useCheckoutCart() {
         const [debouncedRefreshCart, cancelDebounce] = debounce(refreshCart, 50);
 
         const handleStorage = (event: StorageEvent) => {
-            if (event.key === '5521-cart-items') {
+            if (event.key === 'toka-cart-items') {
                 debouncedRefreshCart();
             }
         };

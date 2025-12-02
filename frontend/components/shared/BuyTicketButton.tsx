@@ -24,7 +24,7 @@ export default function BuyTicketButton({
     children = 'Comprar Ingresso',
 }: BuyTicketButtonProps) {
     // Estilos base
-    const baseStyles = 'inline-flex items-center gap-2 rounded-full font-semibold uppercase tracking-normal text-white transition-all';
+    const baseStyles = 'inline-flex items-center hover:text-white gap-2 rounded-full font-semibold uppercase tracking-normal text-white transition-all';
     
     // Variantes de cor
     const variantStyles = {

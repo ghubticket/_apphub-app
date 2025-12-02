@@ -29,7 +29,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
 
     return (
         <section className="py-16">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-0 md:pt-16">
                 {/* Header */}
                 <div className="mb-12 flex items-center justify-between">
                     <h2 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d] md:text-4xl">
@@ -72,7 +72,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                 className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-md transition-all hover:shadow-xl"
                             >
                                 {/* Imagem do evento */}
-                                <div className="relative aspect-[07/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                                <div className="relative aspect-[07/10] md:aspect-[09/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
                                     {hasError || !image ? (
                                         <p className="text-center text-sm text-[#a38f78] px-4">
                                             Imagem em construção.

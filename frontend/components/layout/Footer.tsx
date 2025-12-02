@@ -176,7 +176,7 @@ export default function Footer() {
                     <div className="w-full space-y-6 lg:max-w-md">
                         <div className="space-y-4">
 
-                            <img className='w-40' src='/images/pagode-do-principe-branco.png' alt='Festa do Branco' />
+                            <img className='w-40' src='/images/toka.branco.webp' alt='Festa do Branco' />
                             
                             <h2 className="text-2xl  font-bold uppercase leading-tight sm:text-3xl">
                                 Festa do Branco com Suel, Bruno Diegues, BG e Davi Quaresma
@@ -191,7 +191,7 @@ export default function Footer() {
                                 href="mailto:falecom@oprincipe.com.br"
                                 className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-xs font-semibold uppercase  text-black transition hover:bg-orange-100"
                             >
-                                falecom@oprincipe.com.br
+                                falecom@toka.com.br
                             </Link>
                         </div>
                     </div>
