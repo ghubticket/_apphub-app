@@ -852,13 +852,36 @@ export const listMyOrders = async (req: Request, res: Response) => {
                 let pixInfo: any = null;
                 // CRÍTICO: Para PIX, sempre usar Orders API (paymentOrderId), não Payment API
                 // Payment API não funciona para PIX criado via Orders API
+                
+                // Log para debug - verificar se está entrando na condição
+                if (order.status === 'pending') {
+                    console.log(`[listMyOrders] 🔍 Verificando pedido ${order.orderNumber}:`, {
+                        status: order.status,
+                        paymentMethod: order.paymentMethod,
+                        hasPaymentMethod: 'paymentMethod' in order,
+                        orderKeys: Object.keys(order),
+                        environment: process.env.NODE_ENV,
+                    });
+                }
+                
                 if (order.status === 'pending' && order.paymentMethod === 'pix') {
                     // Buscar paymentOrderId do banco (pode não estar no lean())
                     const orderDoc = await Order.findById(order._id)
-                        .select('paymentOrderId paymentId')
+                        .select('paymentOrderId paymentId paymentMethod')
                         .lean();
                     const paymentOrderId =
                         (orderDoc as any)?.paymentOrderId || (order as any).paymentOrderId;
+                    
+                    // Log adicional para debug
+                    console.log(`[listMyOrders] 🔍 Buscando paymentOrderId para pedido ${order.orderNumber}:`, {
+                        orderId: order._id,
+                        orderDocPaymentOrderId: (orderDoc as any)?.paymentOrderId,
+                        orderPaymentOrderId: (order as any).paymentOrderId,
+                        finalPaymentOrderId: paymentOrderId,
+                        orderDocPaymentMethod: (orderDoc as any)?.paymentMethod,
+                        orderPaymentMethod: (order as any).paymentMethod,
+                        environment: process.env.NODE_ENV,
+                    });
 
                     console.log(
                         `[listMyOrders] 🔍 Buscando PIX para pedido ${order.orderNumber}:`,
