@@ -46,11 +46,6 @@ export async function GET(
         
         // Log para debug (apenas em desenvolvimento)
         if (process.env.NODE_ENV === 'development') {
-            console.log('[Image Proxy] Fetching image from dashboard:', {
-                originalPath: imagePath,
-                finalImageUrl: imageUrl,
-                proxyPath: `/api/images/${imagePath}`,
-            });
         }
 
         // Configurar para ignorar verificação SSL em desenvolvimento (apenas para localhost HTTPS)

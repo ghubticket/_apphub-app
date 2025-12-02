@@ -161,7 +161,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         storageHelpers.clearCustomerData();
       } catch (err) {
         // Ignorar erro se módulo não estiver disponível
-        console.warn('[AuthContext] Não foi possível limpar dados do checkout:', err);
       }
     }
     setState({ ...DEFAULT_STATE });

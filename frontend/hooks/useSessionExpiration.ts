@@ -56,13 +56,11 @@ export const useSessionExpiration = () => {
         }
         // Se for 404, a rota não existe - não é um erro crítico, apenas logar e ignorar
         if (response.status === 404) {
-          console.warn(`[useSessionExpiration] Rota não encontrada (404): ${API_URL}/auth/check-session - Esta funcionalidade pode não estar disponível`);
           setSessionInfo(null);
           setShowWarning(false);
           return; // Não fazer logout, apenas ignorar silenciosamente
         }
         
-        console.error(`[useSessionExpiration] Erro HTTP ${response.status}:`, errorMessage);
         
         // Se for 401 (não autorizado), assumir que expirou
         if (response.status === 401) {
@@ -102,10 +100,8 @@ export const useSessionExpiration = () => {
         // Silenciar erro de rede - não é crítico para checkout
         // O usuário ainda pode usar o checkout normalmente
         if (process.env.NODE_ENV === 'development') {
-          console.warn('[useSessionExpiration] ⚠️ Erro de rede ao verificar sessão (não crítico):', error.message);
         }
       } else {
-        console.error('[useSessionExpiration] Erro ao verificar sessão:', error);
       }
       // Se erro de rede ou outro, não fazer logout automaticamente
       // Apenas limpar estado local
@@ -147,7 +143,6 @@ export const useSessionExpiration = () => {
         throw new Error('Falha ao renovar sessão');
       }
     } catch (error) {
-      console.error('Erro ao renovar sessão:', error);
       setShowWarning(false);
       logout();
     } finally {

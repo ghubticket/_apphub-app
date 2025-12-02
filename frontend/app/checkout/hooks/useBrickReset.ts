@@ -23,15 +23,12 @@ export function useBrickReset(): UseBrickResetReturn {
     // Resetar Mercado Pago Brick
     const resetBrick = useCallback(() => {
         if (typeof window === 'undefined' || !window.__MP_BRICK_RESET__) {
-            console.log('[useBrickReset] ⚠️ Brick não está disponível para reset');
             return;
         }
 
         try {
-            console.log('[useBrickReset] 🧹 Resetando Brick');
             window.__MP_BRICK_RESET__();
         } catch (brickErr) {
-            console.warn('[useBrickReset] ⚠️ Erro ao resetar Brick:', brickErr);
         }
     }, []);
 

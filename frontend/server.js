@@ -34,10 +34,6 @@ const keyPath = process.env.SSL_KEY_PATH || (latestCert ? certPath.replace('.pem
 
 // Verificar se os certificados existem
 if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
-    console.error('❌ Certificados SSL não encontrados!');
-    console.error(`   Certificado esperado em: ${certPath}`);
-    console.error(`   Chave esperada em: ${keyPath}`);
-    console.error('   Execute: .\\gerar-certificados.ps1');
     process.exit(1);
 }
 
@@ -52,18 +48,11 @@ app.prepare().then(() => {
             const parsedUrl = parse(req.url, true);
             await handle(req, res, parsedUrl);
         } catch (err) {
-            console.error('Erro ao processar requisição:', err);
             res.statusCode = 500;
             res.end('Erro interno do servidor');
         }
     }).listen(port, hostname, (err) => {
         if (err) throw err;
-        console.log('');
-        console.log('🚀 ========================================');
-        console.log('🚀  Next.js rodando com HTTPS! 🔒');
-        console.log('🚀 ========================================');
-        console.log(`📡  Porta HTTPS: ${port}`);
-        console.log(`🌍  URL Local: https://localhost:${port}`);
         if (hostname === '0.0.0.0') {
             // Tentar descobrir o IP da rede
             const os = require('os');
@@ -79,14 +68,9 @@ app.prepare().then(() => {
                 if (ip) break;
             }
             if (ip) {
-                console.log(`🌐  URL Rede: https://${ip}:${port} (acessível por outros dispositivos na rede)`);
             } else {
-                console.log(`🌐  URL Rede: https://[SEU_IP]:${port} (acessível por outros dispositivos na rede)`);
             }
         }
-        console.log(`📚  Ambiente: ${dev ? 'development' : 'production'}`);
-        console.log('🚀 ========================================');
-        console.log('');
     });
 });
 

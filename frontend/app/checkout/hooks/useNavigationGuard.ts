@@ -33,7 +33,6 @@ export function useNavigationGuard({ enabled, onNavigationAttempt, allowedPaths 
         if (prevPath === '/checkout' && currentPath !== '/checkout') {
             // CRÍTICO: Verificar flag global que permite navegação (ex: QR code PIX gerado)
             if (typeof window !== 'undefined' && (window as any).__ALLOW_NAVIGATION__) {
-                console.log('[useNavigationGuard] ✅ Navegação permitida pela flag __ALLOW_NAVIGATION__');
                 prevPathnameRef.current = currentPath;
                 return;
             }
@@ -41,20 +40,12 @@ export function useNavigationGuard({ enabled, onNavigationAttempt, allowedPaths 
             // Verificar se o novo path é permitido
             const isAllowed = allowedPaths.some(allowed => currentPath.startsWith(allowed));
             
-            console.log('[useNavigationGuard] 🚫 Tentativa de sair do checkout detectada:', {
-                prevPath,
-                currentPath,
-                isAllowed,
-                isNavigating: isNavigatingRef.current,
-            });
             
             if (!isAllowed && !isNavigatingRef.current) {
                 // Cancelar navegação voltando para checkout
-                console.log('[useNavigationGuard] ⛔ Bloqueando navegação, voltando para checkout');
                 window.history.pushState(null, '', '/checkout');
                 // Pequeno delay para garantir que o estado foi atualizado
                 setTimeout(() => {
-                    console.log('[useNavigationGuard] 🔔 Chamando onNavigationAttempt para mostrar modal');
                     onNavigationAttempt();
                 }, 0);
             }
@@ -90,10 +81,6 @@ export function useNavigationGuard({ enabled, onNavigationAttempt, allowedPaths 
                     !allowedPaths.some(allowed => href.startsWith(allowed)) &&
                     !isNavigatingRef.current
                 ) {
-                    console.log('[useNavigationGuard] 🔗 Link clicado bloqueado:', {
-                        href,
-                        enabled,
-                    });
                     e.preventDefault();
                     e.stopPropagation();
                     onNavigationAttempt();

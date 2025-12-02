@@ -34,21 +34,14 @@ export function usePixPolling({
         if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
-            console.log('[usePixPolling] 🛑 Polling parado');
         }
     }, []);
 
     // Iniciar polling para verificar status do pagamento
     const startPolling = useCallback((orderId: string) => {
-        console.log('[usePixPolling] 🚀 INICIANDO POLLING:', {
-            orderId,
-            currentOrderIdRef: orderIdRef.current,
-            timestamp: new Date().toISOString(),
-        });
         
         // Limpar polling anterior se existir
         if (pollingIntervalRef.current) {
-            console.log('[usePixPolling] 🧹 Limpando polling anterior');
             clearInterval(pollingIntervalRef.current);
         }
 
@@ -66,17 +59,12 @@ export function usePixPolling({
             
             // Verificar se ainda temos um orderId válido (não null)
             if (!currentOrderId) {
-                console.log('[usePixPolling] ⚠️ OrderId é null, parando polling');
                 stopPolling();
                 return;
             }
             
             // Se o orderId mudou de fake para real, atualizar e continuar
             if (currentOrderId !== orderId && currentOrderId.startsWith('fake-') === false) {
-                console.log('[usePixPolling] 🔄 OrderId atualizado de fake para real, continuando polling:', {
-                    oldOrderId: orderId,
-                    newOrderId: currentOrderId,
-                });
                 // Não parar - continuar com o novo orderId real
             }
 
@@ -86,7 +74,6 @@ export function usePixPolling({
                 
                 // Log removido para reduzir ruído - só logar a cada 10 tentativas ou em caso de mudança de status
                 if (attempts % 10 === 0) {
-                    console.log(`[usePixPolling] 🔍 Verificando status (tentativa ${attempts}/${maxAttempts})`);
                 }
                 
                 const response = await api.get(`/orders/${orderIdToCheck}`);
@@ -110,11 +97,6 @@ export function usePixPolling({
                     
                     // Se pedido foi pago, parar polling e mostrar sucesso
                     if (isPaid) {
-                        console.log('[usePixPolling] ✅ Pagamento aprovado! Parando polling:', {
-                            orderStatus: order.status,
-                            paymentStatus: order.paymentStatus,
-                            paymentStatusDetail: order.paymentStatusDetail,
-                        });
                         stopPolling();
                         setStatus('success');
                         setStatusMessage('Pagamento aprovado com sucesso!');
@@ -123,10 +105,6 @@ export function usePixPolling({
                     } else if (order.status === 'cancelled' || order.status === 'failed' || 
                                order.paymentStatus === 'cancelled' || order.paymentStatus === 'rejected') {
                         // Pedido cancelado ou falhou, parar polling
-                        console.log('[usePixPolling] ❌ Pagamento cancelado/falhou, parando polling:', {
-                            orderStatus: order.status,
-                            paymentStatus: order.paymentStatus,
-                        });
                         stopPolling();
                         setStatus('error');
                         const errorMessage = 'Pagamento não foi concluído. Tente gerar um novo QR Code.';
@@ -137,30 +115,15 @@ export function usePixPolling({
                         // Pedido ainda pendente - log removido para reduzir ruído
                     }
                 } else {
-                    console.warn('[usePixPolling] ⚠️ Resposta da API não contém dados do pedido:', {
-                        responseData: response.data,
-                    });
                 }
             } catch (err: any) {
                 const statusCode = err?.response?.status;
                 const errorMessage = err?.response?.data?.message || err?.message;
                 const orderIdToCheck = orderIdRef.current || orderId;
                 
-                console.error('[usePixPolling] ❌ Erro ao verificar status:', {
-                    statusCode,
-                    errorMessage,
-                    orderId: orderIdToCheck,
-                    originalOrderId: orderId,
-                    attempts,
-                });
                 
                 // Se pedido não encontrado (404), parar polling
                 if (statusCode === 404) {
-                    console.log('[usePixPolling] ⚠️ Pedido não encontrado durante polling (404), parando:', {
-                        orderId: orderIdToCheck,
-                        originalOrderId: orderId,
-                        attempts,
-                    });
                     stopPolling();
                     return; // Parar execução
                 }
@@ -169,7 +132,6 @@ export function usePixPolling({
 
             // Se excedeu tentativas, parar polling
             if (attempts >= maxAttempts) {
-                console.log('[usePixPolling] ⏰ Máximo de tentativas atingido, parando polling');
                 stopPolling();
             }
         };
@@ -180,12 +142,6 @@ export function usePixPolling({
         // Configurar intervalo para próximas verificações
         pollingIntervalRef.current = setInterval(executePoll, pollingInterval);
         
-        console.log('[usePixPolling] ✅ Polling iniciado com sucesso:', {
-            orderId,
-            interval: `${pollingInterval}ms`,
-            maxAttempts,
-            timestamp: new Date().toISOString(),
-        });
     }, [orderIdRef, setStatus, setStatusMessage, onPaymentSuccess, onPaymentError, stopPolling]);
 
     return {

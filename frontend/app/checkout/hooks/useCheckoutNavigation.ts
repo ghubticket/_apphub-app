@@ -43,7 +43,6 @@ export function useCheckoutNavigation(): UseCheckoutNavigationReturn {
     // CRÍTICO: Limpar tudo (pedido, carrinho, storage) ao voltar para home
     // Isso garante que ao voltar após criar PIX, tudo esteja zerado
     const navigateToHome = useCallback(() => {
-        console.log('[useCheckoutNavigation] 🏠 Navegando para home - limpando tudo');
         
         // Limpar storage relacionado ao pedido
         storage.clearOrderRelated();
@@ -67,7 +66,6 @@ export function useCheckoutNavigation(): UseCheckoutNavigationReturn {
     const navigateToDashboard = useCallback((options?: { clearStorage?: boolean; useReplace?: boolean }) => {
         const { clearStorage = true, useReplace = false } = options || {};
         
-        console.log('[useCheckoutNavigation] 📊 Navegando para dashboard', { clearStorage, useReplace });
 
         if (clearStorage) {
             // Limpar storage relacionado ao pedido
@@ -99,7 +97,6 @@ export function useCheckoutNavigation(): UseCheckoutNavigationReturn {
     ) => {
         const { clearStorage = false, useReplace = false } = options || {};
         
-        console.log('[useCheckoutNavigation] 🧭 Navegando para:', path, { clearStorage, useReplace });
 
         if (clearStorage) {
             // Limpar storage relacionado ao pedido

@@ -47,7 +47,6 @@ export function useRateLimit({
 
     // Resetar bloqueio
     const resetBlock = useCallback(() => {
-        console.log('[useRateLimit] 🔓 Resetando bloqueio de rate limit manualmente');
         lastCreateTimeRef.current = 0;
         setError(null);
     }, [lastCreateTimeRef, setError]);
@@ -77,7 +76,6 @@ export function useRateLimit({
         const blockSeconds = isDevelopment ? 10 : 300;
         const blockMinutes = Math.floor(blockSeconds / 60);
         const errorMessage = `Muitas tentativas de criar pedido. O sistema está temporariamente bloqueado. Aguarde ${isDevelopment ? `${blockSeconds} segundos` : `${blockMinutes} minutos`} ou recarregue a página para tentar novamente.`;
-        console.warn(`[useRateLimit] ⚠️ Rate limit atingido (429). Bloqueando tentativas automáticas por ${isDevelopment ? `${blockSeconds} segundos` : `${blockMinutes} minutos`}.`);
         
         // Limpar qualquer pedido inválido do storage
         const savedOrderId = orderIdRef.current || cachedOrderIdFromStorageRef.current;

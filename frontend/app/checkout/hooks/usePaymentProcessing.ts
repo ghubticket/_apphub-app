@@ -164,10 +164,8 @@ export function usePaymentProcessing({
                                     total: subtotal + platformFeeValue + fixedFeeValue,
                                 };
                             });
-                            console.log('[usePaymentProcessing] 📦 Carrinho carregado do storage:', currentCartItems.length, 'itens');
                         }
                     } catch (err) {
-                        console.error('[usePaymentProcessing] ❌ Erro ao carregar carrinho do storage:', err);
                     }
                 }
                 
@@ -177,18 +175,11 @@ export function usePaymentProcessing({
                         const storedCustomerData = storageHelpers.loadCustomerData(userId);
                         if (storedCustomerData && storedCustomerData.name && storedCustomerData.email) {
                             currentCustomerData = storedCustomerData;
-                            console.log('[usePaymentProcessing] 👤 Dados do cliente carregados do storage');
                         }
                     } catch (err) {
-                        console.error('[usePaymentProcessing] ❌ Erro ao carregar dados do cliente do storage:', err);
                     }
                 }
                 
-                console.log('[usePaymentProcessing] 🎭 Pedido fake detectado, preparando dados do carrinho:', {
-                    hasCartItems: !!currentCartItems,
-                    cartItemsLength: currentCartItems?.length,
-                    hasCustomerData: !!currentCustomerData,
-                });
                 
                 if (!currentCartItems || currentCartItems.length === 0) {
                     setStatus('error');
@@ -226,12 +217,6 @@ export function usePaymentProcessing({
                     payload.promoterCode = currentPromoterCode;
                 }
                 
-                console.log('[usePaymentProcessing] 📦 Dados preparados para criar pedido real:', {
-                    cartItemsCount: payload.cartItems.length,
-                    firstItem: payload.cartItems[0],
-                    customerName: payload.customerData.name,
-                    customerEmail: payload.customerData.email,
-                });
             }
             
             // Enviar requisição com deviceId no body e header
@@ -251,7 +236,6 @@ export function usePaymentProcessing({
             // NOVO: Se pedido real foi criado, atualizar orderId
             const realOrderId = paymentResult.createdOrderId || orderId;
             if (realOrderId !== orderId && realOrderId) {
-                console.log(`[usePaymentProcessing] ✅ Pedido real criado: ${realOrderId} (era fake: ${orderId})`);
                 // Atualizar storage com orderId real
                 storage.saveOrderId(realOrderId);
             }
@@ -335,13 +319,6 @@ export function usePaymentProcessing({
                 }
             }
         } catch (error: any) {
-            console.error('[usePaymentProcessing] ❌ Erro ao processar pagamento:', {
-                error,
-                status: error?.response?.status,
-                statusText: error?.response?.statusText,
-                data: error?.response?.data,
-                message: error?.message,
-            });
             
             setStatus('error');
             
@@ -360,15 +337,6 @@ export function usePaymentProcessing({
             
             // Log detalhado do erro do backend
             if (errorResponse) {
-                console.error('[usePaymentProcessing] 📋 Detalhes do erro do backend:', {
-                    message: errorMessage,
-                    errors: errorDetails,
-                    errorDetails: errorDetailsFull,
-                    statusCode,
-                    cardAttempts,
-                    maxCardAttempts,
-                    attemptsExhausted,
-                });
             }
             
             // CRÍTICO: Se esgotou tentativas, definir mensagem especial ANTES de qualquer outra coisa

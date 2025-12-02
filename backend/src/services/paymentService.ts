@@ -1035,14 +1035,7 @@ export const getOrderById = async (orderId: string) => {
         // Verificar cache primeiro
         const cached = mpOrderCache.get(orderId);
         if (cached && Date.now() - cached.timestamp < MP_ORDER_CACHE_TTL) {
-            console.log(`[paymentService] ✅ Retornando order do cache: ${orderId}`, {
-                cacheAge: Date.now() - cached.timestamp,
-                hasTransactions: !!cached.data?.transactions,
-                hasPayments: !!cached.data?.transactions?.payments,
-                paymentsLength: cached.data?.transactions?.payments?.length || 0,
-                firstPaymentMethod: cached.data?.transactions?.payments?.[0]?.payment_method?.type,
-                environment: process.env.NODE_ENV,
-            });
+            console.log(`[paymentService] ✅ Retornando order do cache: ${orderId}`);
             return cached.data;
         }
 

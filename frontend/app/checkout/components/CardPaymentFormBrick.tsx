@@ -72,26 +72,8 @@ export function CardPaymentFormBrick({
     const [overlayEntering, setOverlayEntering] = useState(false);
 
     useEffect(() => {
-        console.log('[CardPaymentFormBrick] 🔍 useEffect overlay:', {
-            status,
-            showOverlay,
-            error,
-            success,
-            overlayMounted,
-            statusMessage,
-            statusDetailsLength: statusDetails.length,
-        });
         
         if (showOverlay) {
-            console.log('[CardPaymentFormBrick] 🔴 Mostrando overlay:', {
-                status,
-                showOverlay,
-                error,
-                success,
-                statusMessage,
-                statusDetails,
-                errorMessages,
-            });
             setOverlayMounted(true);
             const frame = requestAnimationFrame(() => {
                 setOverlayEntering(true);
@@ -100,7 +82,6 @@ export function CardPaymentFormBrick({
         }
         // CRÍTICO: Quando não há overlay, desmontar imediatamente para não bloquear o formulário
         // Isso garante que quando um novo pedido é criado após erro, o formulário apareça imediatamente
-        console.log('[CardPaymentFormBrick] 🧹 Ocultando overlay (status:', status, ')');
         setOverlayEntering(false);
         // Desmontar imediatamente se status é 'idle' para garantir que não bloqueie o formulário
         if (status === 'idle') {
@@ -120,7 +101,6 @@ export function CardPaymentFormBrick({
 
     // Handler para quando o Brick estiver pronto
     const handleReady = useCallback(() => {
-        console.log('[CardPaymentFormBrick] ✅ handleReady chamado, notificando componente pai');
         // Notificar componente pai que Brick está pronto
         if (onReady) {
             onReady();
@@ -131,30 +111,13 @@ export function CardPaymentFormBrick({
     const handleError = useCallback((param: any) => {
         // Log apenas erros críticos
         if (param?.type === 'critical') {
-            console.error('[CardPaymentFormBrick] ⚠️ ERRO CRÍTICO NO BRICK:', {
-                type: param?.type,
-                message: param?.message,
-                cause: param?.cause,
-                detailed: param,
-            });
         } else {
-            console.warn('[CardPaymentFormBrick] ⚠️ Erro não crítico no Brick:', param);
         }
     }, []);
 
     // Handler para submit do Brick
     const handleBrickSubmit = useCallback(
         async (param: any) => {
-            console.log('[CardPaymentFormBrick] 📤 handleBrickSubmit chamado com:', {
-                hasToken: !!param.token,
-                payment_method_id: param.payment_method_id,
-                paymentMethodId: param.paymentMethodId,
-                issuer_id: param.issuer_id,
-                issuerId: param.issuerId,
-                installments: param.installments,
-                installments_count: param.installments_count,
-                hasPayer: !!param.payer,
-            });
 
             if (param.token) {
                 // Armazenar token e dados do Brick no form
@@ -175,12 +138,6 @@ export function CardPaymentFormBrick({
                         } : undefined,
                     };
 
-                    console.log('[CardPaymentFormBrick] 💾 Armazenando dados no form:', {
-                        token: brickData.token ? `${brickData.token.substring(0, 10)}...` : 'N/A',
-                        installments: brickData.installments,
-                        paymentMethodId: brickData.paymentMethodId,
-                        issuerId: brickData.issuerId,
-                    });
 
                     (form as any).__brickData = brickData;
 
@@ -199,13 +156,10 @@ export function CardPaymentFormBrick({
                         currentTarget: form,
                     } as unknown as FormEvent<HTMLFormElement>;
 
-                    console.log('[CardPaymentFormBrick] ✅ Chamando onSubmit do form...');
                     onSubmit(syntheticEvent);
                 } else {
-                    console.error('[CardPaymentFormBrick] ❌ Form não encontrado!');
                 }
             } else {
-                console.error('[CardPaymentFormBrick] ❌ Token não encontrado no param!');
             }
         },
         [onSubmit],

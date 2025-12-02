@@ -29,7 +29,6 @@ export function getMercadoPagoDeviceId(): string {
     if (window.MP_DEVICE_SESSION_ID) {
         const deviceId = window.MP_DEVICE_SESSION_ID;
         localStorage.setItem('mp-device-session-id', deviceId);
-        console.log('[deviceIdHelper] ✅ DeviceId obtido do SDK (window.MP_DEVICE_SESSION_ID):', deviceId.substring(0, 15) + '...');
         return deviceId;
     }
 
@@ -43,7 +42,6 @@ export function getMercadoPagoDeviceId(): string {
                            element.id;
             if (deviceId && deviceId.length > 10) {
                 localStorage.setItem('mp-device-session-id', deviceId);
-                console.log('[deviceIdHelper] ✅ DeviceId obtido do DOM:', deviceId.substring(0, 15) + '...');
                 return deviceId;
             }
         }
@@ -55,7 +53,6 @@ export function getMercadoPagoDeviceId(): string {
     const cachedDeviceId = localStorage.getItem('mp-device-session-id');
     if (cachedDeviceId && cachedDeviceId.length > 10 && !cachedDeviceId.startsWith('mp-')) {
         // Se o cached não é um fallback gerado, usar ele
-        console.log('[deviceIdHelper] ✅ DeviceId obtido do cache:', cachedDeviceId.substring(0, 15) + '...');
         return cachedDeviceId;
     }
 
@@ -68,7 +65,6 @@ export function getMercadoPagoDeviceId(): string {
                 const deviceId = mp.getDeviceId();
                 if (deviceId) {
                     localStorage.setItem('mp-device-session-id', deviceId);
-                    console.log('[deviceIdHelper] ✅ DeviceId obtido do MercadoPago.getDeviceId():', deviceId.substring(0, 15) + '...');
                     return deviceId;
                 }
             }
@@ -76,11 +72,9 @@ export function getMercadoPagoDeviceId(): string {
             // Tentar acessar diretamente
             if (mp.deviceId) {
                 localStorage.setItem('mp-device-session-id', mp.deviceId);
-                console.log('[deviceIdHelper] ✅ DeviceId obtido do MercadoPago.deviceId:', mp.deviceId.substring(0, 15) + '...');
                 return mp.deviceId;
             }
         } catch (error) {
-            console.warn('[deviceIdHelper] ⚠️ Erro ao obter DeviceId do objeto MercadoPago:', error);
         }
     }
 
@@ -122,9 +116,7 @@ export function getMercadoPagoDeviceId(): string {
             window.location.hostname === '127.0.0.1'
         );
         if (isDevelopment) {
-            console.warn('[deviceIdHelper] 🔧 DeviceId gerado (fallback - será substituído quando SDK gerar):', deviceId.substring(0, 20) + '...');
         } else {
-            console.log('[deviceIdHelper] ℹ️ DeviceId gerado (fallback):', deviceId.substring(0, 20) + '...');
         }
         return deviceId;
     };
@@ -157,7 +149,6 @@ export function waitForMercadoPagoDeviceId(timeout: number = 5000): Promise<stri
         if (window.MP_DEVICE_SESSION_ID && isRealDeviceId(window.MP_DEVICE_SESSION_ID)) {
             const deviceId = window.MP_DEVICE_SESSION_ID;
             localStorage.setItem('mp-device-session-id', deviceId);
-            console.log('[deviceIdHelper] ✅ DeviceId já disponível do SDK:', deviceId.substring(0, 15) + '...');
             resolve(deviceId);
             return;
         }
@@ -165,7 +156,6 @@ export function waitForMercadoPagoDeviceId(timeout: number = 5000): Promise<stri
         // Verificar se já está disponível no cache (mas não é fallback)
         const cachedDeviceId = localStorage.getItem('mp-device-session-id');
         if (cachedDeviceId && isRealDeviceId(cachedDeviceId)) {
-            console.log('[deviceIdHelper] ✅ DeviceId encontrado no cache:', cachedDeviceId.substring(0, 15) + '...');
             resolve(cachedDeviceId);
             return;
         }
@@ -177,7 +167,6 @@ export function waitForMercadoPagoDeviceId(timeout: number = 5000): Promise<stri
             if (window.MP_DEVICE_SESSION_ID && isRealDeviceId(window.MP_DEVICE_SESSION_ID)) {
                 const deviceId = window.MP_DEVICE_SESSION_ID;
                 localStorage.setItem('mp-device-session-id', deviceId);
-                console.log('[deviceIdHelper] ✅ DeviceId capturado do SDK após espera:', deviceId.substring(0, 15) + '...');
                 clearInterval(checkInterval);
                 clearTimeout(timeoutId);
                 resolve(deviceId);
@@ -196,9 +185,7 @@ export function waitForMercadoPagoDeviceId(timeout: number = 5000): Promise<stri
                     window.location.hostname === '127.0.0.1'
                 );
                 if (isDevelopment) {
-                    console.warn('[deviceIdHelper] ⏰ Timeout aguardando DeviceId do SDK, usando fallback');
                 } else {
-                    console.log('[deviceIdHelper] ℹ️ Timeout aguardando DeviceId do SDK, usando fallback');
                 }
                 resolve(fallbackDeviceId);
             }
@@ -214,9 +201,7 @@ export function waitForMercadoPagoDeviceId(timeout: number = 5000): Promise<stri
                 window.location.hostname === '127.0.0.1'
             );
             if (isDevelopment) {
-                console.warn('[deviceIdHelper] ⏰ Timeout aguardando DeviceId do SDK, usando fallback');
             } else {
-                console.log('[deviceIdHelper] ℹ️ Timeout aguardando DeviceId do SDK, usando fallback');
             }
             resolve(fallbackDeviceId);
         }, timeout);

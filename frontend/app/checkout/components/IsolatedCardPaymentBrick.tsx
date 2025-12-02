@@ -155,19 +155,9 @@ export function IsolatedCardPaymentBrick({
             
             // CRÍTICO: Validar amount antes de renderizar o Brick
             if (!brickAmount || brickAmount <= 0 || !Number.isFinite(brickAmount)) {
-                console.error('[IsolatedCardPaymentBrick] ❌ Amount inválido, não renderizando Brick:', {
-                    amount: amountRef.current,
-                    brickAmount,
-                    isValid: brickAmount > 0 && Number.isFinite(brickAmount),
-                });
                 return;
             }
             
-            console.log('[IsolatedCardPaymentBrick] 🚀 Renderizando CardPayment', {
-                hasPublicKey: !!publicKey,
-                publicKeyPrefix: publicKey ? publicKey.slice(0, 10) : null,
-                amount: brickAmount,
-            });
             root.render(
                 <CardPayment
                     initialization={{
@@ -196,7 +186,6 @@ export function IsolatedCardPaymentBrick({
                 />
             );
         } catch (error) {
-            console.error('[IsolatedCardPaymentBrick] ❌ Erro ao renderizar CardPayment:', error);
             // Limpar referências globais em caso de erro
             window.__MP_BRICK_CONTAINER__ = undefined;
             window.__MP_BRICK_ROOT__ = undefined;
@@ -212,7 +201,6 @@ export function IsolatedCardPaymentBrick({
         // Função global para resetar o previousIsVisibleRef (usado quando orderId muda)
         window.__MP_BRICK_RESET_VISIBILITY_REF__ = () => {
             previousIsVisibleRef.current = false;
-            console.log('[IsolatedCardPaymentBrick] ✅ previousIsVisibleRef resetado para false');
         };
         
         // Função global para resetar o Brick (forçar re-render para limpar estado de erro)
@@ -367,7 +355,6 @@ export function IsolatedCardPaymentBrick({
             if (document.body.contains(wrapperRef.current)) {
                 createPersistentContainer();
             } else {
-                console.log('[IsolatedCardPaymentBrick] ⏸️ Wrapper não está no DOM, aguardando...');
             }
         } else {
             const timer = setTimeout(() => {

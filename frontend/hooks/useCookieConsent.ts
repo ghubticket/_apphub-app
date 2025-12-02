@@ -34,7 +34,6 @@ export function useCookieConsent() {
                 }
             }
         } catch (error) {
-            console.error('Erro ao ler consentimento de cookies:', error);
             localStorage.removeItem(COOKIE_CONSENT_KEY);
         } finally {
             setIsLoading(false);
@@ -50,7 +49,6 @@ export function useCookieConsent() {
             localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(newConsent));
             setConsent(newConsent);
         } catch (error) {
-            console.error('Erro ao salvar consentimento de cookies:', error);
         }
     };
 
@@ -63,7 +61,6 @@ export function useCookieConsent() {
             localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(newConsent));
             setConsent(newConsent);
         } catch (error) {
-            console.error('Erro ao salvar consentimento de cookies:', error);
         }
     };
 
@@ -75,7 +72,6 @@ export function useCookieConsent() {
             localStorage.removeItem(COOKIE_CONSENT_KEY);
             setConsent(null);
         } catch (error) {
-            console.error('Erro ao resetar consentimento de cookies:', error);
         }
     };
 

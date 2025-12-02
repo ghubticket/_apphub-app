@@ -50,19 +50,15 @@ export function useOrderRestoration({
     // Função auxiliar para cancelar pedido no backend
     const cancelOrderInBackend = useCallback(async (orderId: string): Promise<boolean> => {
         try {
-            console.log('[useOrderRestoration] 🗑️ Cancelando pedido no backend:', orderId);
             await api.post(`/orders/${orderId}/cancel`);
-            console.log('[useOrderRestoration] ✅ Pedido cancelado com sucesso no backend');
             return true;
         } catch (err: any) {
             // Se pedido não encontrado (404), tratar como sucesso - pedido já foi cancelado/expirado
             if (err?.response?.status === 404) {
-                console.log('[useOrderRestoration] ⚠️ Pedido já não existe (404), tratando como sucesso:', orderId);
                 return true;
             }
 
             // Para outros erros, logar mas ainda assim retornar false
-            console.error('[useOrderRestoration] ❌ Erro ao cancelar pedido no backend:', err);
             return false;
         }
     }, []);
@@ -71,23 +67,14 @@ export function useOrderRestoration({
         // OTIMIZADO: Usar cache primeiro, só buscar do storage se necessário
         const orderId = orderIdRef.current || cachedOrderIdFromStorageRef.current || storage.loadOrderId();
         if (!orderId) {
-            console.log('[useOrderRestoration] ⚠️ refreshOrder chamado mas não há orderId');
             return;
         }
 
         // NOVO: Detectar pedidos fake e restaurá-los localmente sem buscar no backend
         if (orderId.startsWith('fake-')) {
-            console.log('[useOrderRestoration] 🎭 Pedido fake detectado, restaurando localmente:', orderId);
             
             // Verificar se o timer ainda está válido
             let savedStartTime = storage.loadTimer();
-            console.log('[useOrderRestoration] 🔍 Timer carregado:', {
-                savedStartTime,
-                savedStartTimeType: typeof savedStartTime,
-                savedStartTimeDate: savedStartTime ? new Date(savedStartTime).toISOString() : null,
-                now: Date.now(),
-                nowDate: new Date().toISOString(),
-            });
             
             // NOVO: Se timer não foi encontrado, tentar extrair do orderId fake
             // O orderId fake tem formato: fake-{timestamp}
@@ -96,22 +83,15 @@ export function useOrderRestoration({
                 if (timestampMatch && timestampMatch[1]) {
                     const extractedTimestamp = parseInt(timestampMatch[1], 10);
                     if (!isNaN(extractedTimestamp) && extractedTimestamp > 0) {
-                        console.log('[useOrderRestoration] 🔧 Timer não encontrado, extraindo do orderId:', {
-                            orderId,
-                            extractedTimestamp,
-                            extractedDate: new Date(extractedTimestamp).toISOString(),
-                        });
                         savedStartTime = extractedTimestamp;
                         // Salvar o timer extraído para futuras restaurações
                         storage.saveTimer(savedStartTime);
-                        console.log('[useOrderRestoration] 💾 Timer extraído salvo no localStorage');
                     }
                 }
             }
             
             // Se ainda não temos timer válido, limpar tudo
             if (!savedStartTime) {
-                console.log('[useOrderRestoration] ⚠️ Pedido fake sem timer válido e sem timestamp no orderId, limpando');
                 orderIdRef.current = null;
                 cachedOrderIdFromStorageRef.current = null;
                 storage.clearOrderRelated();
@@ -125,7 +105,6 @@ export function useOrderRestoration({
             const remaining = Math.max(0, CHECKOUT_TIMEOUT_MS - elapsed);
             
             if (remaining <= 0) {
-                console.log('[useOrderRestoration] ⏰ Pedido fake expirado, limpando');
                 orderIdRef.current = null;
                 cachedOrderIdFromStorageRef.current = null;
                 storage.clearOrderRelated();
@@ -147,9 +126,7 @@ export function useOrderRestoration({
                     totalAmount += itemTotal;
                     totalTickets += item.quantity;
                 });
-                console.log('[useOrderRestoration] 📦 Total calculado do carrinho:', { totalAmount, totalTickets, itemsCount: cartItems.length });
             } catch (err) {
-                console.error('[useOrderRestoration] ❌ Erro ao calcular total do carrinho:', err);
             }
             
             // Criar pedido fake localmente baseado no timer
@@ -169,14 +146,6 @@ export function useOrderRestoration({
                 isFake: true, // Flag para identificar pedido fake
             };
             
-            console.log('[useOrderRestoration] ✅ Pedido fake restaurado localmente:', {
-                orderId: fakeOrder._id,
-                expiresAt: fakeOrder.expiresAt,
-                remainingMinutes: Math.floor(remaining / 60000),
-                totalAmount: fakeOrder.totalAmount,
-                totalTickets: fakeOrder.totalTickets,
-                wasNull,
-            });
             
             setOrder(fakeOrder);
             orderIdRef.current = orderId;
@@ -184,7 +153,6 @@ export function useOrderRestoration({
             
             // IMPORTANTE: Mostrar modal de restauração se o pedido estava null antes
             if (wasNull && !hasShownModalRef.current) {
-                console.log('[useOrderRestoration] 🔔 Mostrando modal de restauração para pedido fake');
                 setShowRestoreModal(true);
                 hasShownModalRef.current = true;
             }
@@ -195,13 +163,11 @@ export function useOrderRestoration({
 
         // Evitar múltiplas buscas simultâneas do mesmo pedido
         if (fetchingOrderRef.current) {
-            console.log('[useOrderRestoration] ⏸️ Já está buscando pedido, ignorando chamada duplicada');
             return;
         }
         
         // OTIMIZADO: Cancelar requisição anterior se existir
         if (refreshOrderAbortControllerRef.current) {
-            console.log('[useOrderRestoration] 🛑 Cancelando requisição anterior de refreshOrder');
             refreshOrderAbortControllerRef.current.abort();
         }
         
@@ -209,35 +175,17 @@ export function useOrderRestoration({
         const abortController = new AbortController();
         refreshOrderAbortControllerRef.current = abortController;
         
-        console.log('[useOrderRestoration] 🔍 Buscando pedido:', orderId);
         fetchingOrderRef.current = true;
         setLoading(true);
         try {
             const response = await api.get(`/orders/${orderId}`, {
                 signal: abortController.signal,
             });
-            console.log('[useOrderRestoration] 📡 Resposta recebida do backend:', {
-                status: response.status,
-                hasData: !!response.data,
-                hasDataData: !!response.data?.data,
-                responseStructure: {
-                    success: response.data?.success,
-                    hasData: !!response.data?.data,
-                    dataType: typeof response.data?.data,
-                },
-            });
             // IMPORTANTE: O backend retorna { success: true, data: order }
             // O pedido está diretamente em response.data.data, não em response.data.data.order
             const orderData = response.data?.data;
             if (orderData) {
                 const wasNull = order === null;
-                console.log('[useOrderRestoration] ✅ Pedido encontrado:', {
-                    orderId: orderData._id,
-                    orderNumber: orderData.orderNumber,
-                    status: orderData.status,
-                    expiresAt: orderData.expiresAt,
-                    wasNull,
-                });
                 
                 // IMPORTANTE: Verificar se pedido PENDING expirou ao carregar a página (F5)
                 let hasExpired = false;
@@ -245,10 +193,6 @@ export function useOrderRestoration({
                     hasExpired = isOrderExpired(orderData.expiresAt);
                     
                     if (hasExpired) {
-                        console.log('[useOrderRestoration] ⏰ Pedido PENDING expirado ao carregar, cancelando:', {
-                            expiresAt: parseExpiresAt(orderData.expiresAt)?.toISOString(),
-                            now: new Date().toISOString(),
-                        });
                         
                         // Cancelar pedido expirado
                         await cancelOrderInBackend(orderData._id);
@@ -264,10 +208,6 @@ export function useOrderRestoration({
                         return; // Não continuar processamento
                     } else {
                         const remainingMinutes = Math.floor(getRemainingTime(orderData.expiresAt) / 60000);
-                        console.log('[useOrderRestoration] ✅ Pedido PENDING ainda válido, mantendo:', {
-                            expiresAt: parseExpiresAt(orderData.expiresAt)?.toISOString(),
-                            remainingMinutes,
-                        });
                     }
                 }
                 
@@ -284,11 +224,6 @@ export function useOrderRestoration({
                         const now = Date.now();
                         const startTime = now - (30 * 60 * 1000 - remaining); // 30 minutos
                         storage.saveTimer(startTime);
-                        console.log('[useOrderRestoration] 💾 Timer salvo no localStorage baseado no expiresAt do pedido:', {
-                            expiresAt: parseExpiresAt(orderData.expiresAt)?.toISOString(),
-                            startTime: new Date(startTime).toISOString(),
-                            remainingMinutes: Math.floor(remaining / 60000),
-                        });
                     }
                 }
                 
@@ -299,10 +234,6 @@ export function useOrderRestoration({
                     const hasPixActiveFlag = storage.getPixOrderActive();
                     
                     if (hasPixActiveFlag) {
-                        console.log('[useOrderRestoration] ⚠️ Pedido PIX pendente restaurado após recarregar, redirecionando para /dashboard:', {
-                            orderId: orderData._id,
-                            orderNumber: orderData.orderNumber,
-                        });
                         
                         // Limpar flags
                         storage.clearPixOrderActive();
@@ -319,7 +250,6 @@ export function useOrderRestoration({
                         return;
                     } else {
                         // Usuário voltou ao carrinho normalmente, limpar pedido PIX para permitir novo pedido
-                        console.log('[useOrderRestoration] 🧹 Pedido PIX pendente encontrado mas usuário voltou ao carrinho normalmente, limpando para permitir novo pedido');
                         orderIdRef.current = null;
                         cachedOrderIdFromStorageRef.current = null;
                         storage.clearOrderRelated();
@@ -332,14 +262,12 @@ export function useOrderRestoration({
                 // Mostrar modal se pedido foi restaurado (estava null e agora tem pedido PENDING válido)
                 // Mas apenas se NÃO for PIX (pedidos PIX são redirecionados acima)
                 if (wasNull && orderData.status === 'pending' && !hasExpired && !hasShownModalRef.current && orderData.paymentMethod !== 'pix') {
-                    console.log('[useOrderRestoration] 🔔 Mostrando modal de restauração');
                     setShowRestoreModal(true);
                     hasShownModalRef.current = true;
                 }
                 
                 // Se pedido foi cancelado ou pago, limpar
                 if (orderData.status === 'cancelled' || orderData.status === 'paid' || orderData.status === 'failed') {
-                    console.log('[useOrderRestoration] 🗑️ Pedido finalizado, limpando estado:', orderData.status);
                     orderIdRef.current = null;
                     cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
                     storage.clearOrderRelated();
@@ -351,13 +279,6 @@ export function useOrderRestoration({
                     }
                 }
             } else {
-                console.log('[useOrderRestoration] ⚠️ Resposta do backend não contém dados do pedido:', {
-                    hasResponse: !!response,
-                    hasData: !!response?.data,
-                    hasDataData: !!response?.data?.data,
-                    success: response?.data?.success,
-                    responseData: response?.data,
-                });
             }
             setLoading(false);
             fetchingOrderRef.current = false;
@@ -368,7 +289,6 @@ export function useOrderRestoration({
             
             // OTIMIZADO: Ignorar erros de cancelamento intencional
             if (err.name === 'AbortError' || err.name === 'CanceledError' || (err.code === 'ERR_CANCELED')) {
-                console.log('[useOrderRestoration] ⏸️ Requisição cancelada intencionalmente');
                 return;
             }
             
@@ -379,24 +299,8 @@ export function useOrderRestoration({
             if (status === 404 || status === 400 || status === 403) {
                 // Logs específicos por tipo de erro
                 if (status === 403) {
-                    console.log('[useOrderRestoration] 🔒 Erro 403 - Acesso negado ao pedido:', {
-                        orderId,
-                        message: errorMessage,
-                        reason: 'O usuário atual não é o dono do pedido ou não está autenticado corretamente',
-                        note: 'Pode ser erro temporário de autenticação ou pedido pertence a outro usuário',
-                    });
                 } else if (status === 404) {
-                    console.log('[useOrderRestoration] ❌ Erro 404 - Pedido não encontrado:', {
-                        orderId,
-                        message: errorMessage,
-                        reason: 'O pedido não existe mais ou foi deletado',
-                    });
                 } else if (status === 400) {
-                    console.log('[useOrderRestoration] ⚠️ Erro 400 - Requisição inválida:', {
-                        orderId,
-                        message: errorMessage,
-                        reason: 'Dados inválidos ou pedido em estado inválido',
-                    });
                 }
                 
                 // IMPORTANTE: Se for 403, verificar se o timer ainda está válido antes de limpar
@@ -413,24 +317,12 @@ export function useOrderRestoration({
                         const remaining = Math.max(0, 30 * 60 * 1000 - elapsed); // 30 minutos
                         timerStillValid = remaining > 0;
                         
-                        console.log('[useOrderRestoration] 🔍 Verificando timer do localStorage:', {
-                            savedStartTime: new Date(savedStartTime).toISOString(),
-                            elapsed: Math.floor(elapsed / 1000),
-                            remaining: Math.floor(remaining / 1000),
-                            remainingMinutes: Math.floor(remaining / 60000),
-                            timerStillValid,
-                        });
                     } else {
-                        console.log('[useOrderRestoration] ⚠️ Não há timer salvo no localStorage');
                     }
                     
                     // Se o timer ainda está válido, pode ser erro temporário de permissão
                     // Manter o orderId no storage para tentar novamente quando necessário
                     if (timerStillValid) {
-                        console.log('[useOrderRestoration] ⏸️ Erro 403 mas timer ainda válido, mantendo orderId para retry:', {
-                            orderId,
-                            remainingMinutes: Math.floor((30 * 60 * 1000 - (Date.now() - savedStartTime!)) / 60000),
-                        });
                         // Não limpar o orderId nem o timer, apenas limpar o estado do pedido
                         // O pedido será buscado novamente quando:
                         // 1. O usuário adicionar itens ao carrinho (lógica já existe no useEffect de criação)
@@ -442,12 +334,10 @@ export function useOrderRestoration({
                         setError(null);
                         return; // Não limpar orderId nem timer
                     } else {
-                        console.log('[useOrderRestoration] ⏰ Timer expirado ou não encontrado, limpando pedido');
                     }
                 }
                 
                 // Para 404, 400 ou 403 com timer expirado: limpar tudo
-                console.log('[useOrderRestoration] 🗑️ Limpando pedido (não encontrado/inválido ou timer expirado)');
                 orderIdRef.current = null;
                 cachedOrderIdFromStorageRef.current = null; // OTIMIZADO: Limpar cache
                 storage.clearOrderRelated();
@@ -456,7 +346,6 @@ export function useOrderRestoration({
                 setShowExpiredModal(false);
                 setError(null);
             } else {
-                console.error('[useOrderRestoration] ❌ Erro ao buscar pedido:', err);
             }
         }
     }, [

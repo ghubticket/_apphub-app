@@ -52,7 +52,6 @@ export const storageHelpers = {
                 return loaded;
             } catch {
                 // ignore parse errors
-                console.warn('[storageHelpers] ⚠️ Erro ao fazer parse dos dados salvos');
             }
         }
         
@@ -78,7 +77,6 @@ export const storageHelpers = {
     saveActiveOrderId: (orderId: string): void => {
         if (typeof window === 'undefined') return;
         window.sessionStorage.setItem(CHECKOUT_ACTIVE_ORDER_KEY, orderId);
-        console.log('[storageHelpers] 💾 OrderId salvo no storage:', orderId);
     },
 
     loadActiveOrderId: (): string | null => {
@@ -92,7 +90,6 @@ export const storageHelpers = {
         if (typeof window === 'undefined') return;
         const orderId = window.sessionStorage.getItem(CHECKOUT_ACTIVE_ORDER_KEY);
         window.sessionStorage.removeItem(CHECKOUT_ACTIVE_ORDER_KEY);
-        console.log('[storageHelpers] 🗑️ OrderId removido do storage:', orderId || 'null');
     },
 
     // Device ID
@@ -129,9 +126,6 @@ export const storageHelpers = {
         const oldTime = window.localStorage.getItem(CHECKOUT_TIMER_START_KEY);
         window.localStorage.removeItem(CHECKOUT_TIMER_START_KEY);
         if (oldTime) {
-            console.log('[storageHelpers] 🗑️ Timer antigo removido do localStorage:', {
-                oldStartTime: oldTime ? new Date(Number(oldTime)).toISOString() : null,
-            });
         }
     },
 };

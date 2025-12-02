@@ -40,7 +40,6 @@ export function isOrderExpired(expiresAt: string | Date | null | undefined, now:
 export function getRemainingTime(expiresAt: string | Date | null | undefined, now: number = Date.now()): number {
     const expiresAtDate = parseExpiresAt(expiresAt);
     if (!expiresAtDate) {
-        console.warn('[getRemainingTime] ⚠️ expiresAt é null/undefined');
         return 0;
     }
     
@@ -52,25 +51,8 @@ export function getRemainingTime(expiresAt: string | Date | null | undefined, no
     
     // Log para debug em caso de valores negativos ou muito grandes
     if (remaining < 0) {
-        console.warn('[getRemainingTime] ⚠️ Tempo restante negativo (já expirou):', {
-            expiresAt: expiresAtDate.toISOString(),
-            expiresAtTimestamp,
-            now,
-            nowISO: new Date(now).toISOString(),
-            remaining,
-            deviceTimeOffset: new Date().getTimezoneOffset(), // offset em minutos
-        });
     } else if (remaining > 31 * 60 * 1000) {
         // Mais de 31 minutos (suspeito se deveria ser 30)
-        console.warn('[getRemainingTime] ⚠️ Tempo restante muito grande (suspeito):', {
-            expiresAt: expiresAtDate.toISOString(),
-            expiresAtTimestamp,
-            now,
-            nowISO: new Date(now).toISOString(),
-            remaining,
-            remainingMinutes: Math.floor(remaining / 60000),
-            deviceTimeOffset: new Date().getTimezoneOffset(),
-        });
     }
     
     return Math.max(0, remaining);

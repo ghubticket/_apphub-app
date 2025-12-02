@@ -121,7 +121,6 @@ export function useCheckoutOrder(
         const savedOrderId = storage.loadOrderId();
         if (savedOrderId) {
             // Se há pedido no storage, não iniciar com loading (será verificado depois)
-            console.log('[useCheckoutOrder] ℹ️ Pedido encontrado no storage, não iniciando com loading');
             hasInitializedLoadingRef.current = true;
             return;
         }
@@ -131,7 +130,6 @@ export function useCheckoutOrder(
         const hasCustomerData = customerData.name && customerData.email;
         
         if (hasCartItems && hasCustomerData) {
-            console.log('[useCheckoutOrder] 🚀 Ativando loading inicial - condições para criar pedido atendidas');
             dispatch({ type: 'SET_LOADING', payload: true });
             hasInitializedLoadingRef.current = true;
         }
@@ -221,9 +219,6 @@ export function useCheckoutOrder(
     // Função para limpar pedido manualmente
     const clearOrder = useCallback(() => {
         const currentOrderId = orderIdRef.current;
-        console.log('[useCheckoutOrder] 🧹 Limpando pedido manualmente:', {
-            orderId: currentOrderId,
-        });
         orderIdRef.current = null;
         cachedOrderIdFromStorageRef.current = null;
         storage.clearOrderRelated();
@@ -258,14 +253,11 @@ export function useCheckoutOrder(
         
         if (savedOrderId) {
             orderIdRef.current = savedOrderId;
-            console.log('[useCheckoutOrder] 🔄 OrderId restaurado do storage:', savedOrderId);
         } else {
-            console.log('[useCheckoutOrder] ℹ️ Nenhum OrderId encontrado no storage');
             
             // Verificar se há flag de PIX ativo (recarregamento após gerar QR code)
             const pixOrderId = storage.getPixOrderActive();
             if (pixOrderId) {
-                console.log('[useCheckoutOrder] 🔍 Detectado recarregamento após gerar QR code PIX, verificando pedido pendente...');
                 
                 const checkPixOrder = async () => {
                     try {
@@ -280,10 +272,6 @@ export function useCheckoutOrder(
                         const pendingPixOrder = pendingOrders.find((o: any) => o.paymentMethod === 'pix' && o.status === 'pending');
                         
                         if (pendingPixOrder) {
-                            console.log('[useCheckoutOrder] ⚠️ Pedido PIX pendente encontrado, redirecionando para /dashboard:', {
-                                orderId: pendingPixOrder._id,
-                                orderNumber: pendingPixOrder.orderNumber,
-                            });
                             
                             storage.clearPixOrderActive();
                             navigation.allowNavigation();
@@ -295,7 +283,6 @@ export function useCheckoutOrder(
                             storage.clearPixOrderActive();
                         }
                     } catch (err: any) {
-                        console.log('[useCheckoutOrder] ℹ️ Erro ao verificar pedido PIX pendente:', err?.message);
                         storage.clearPixOrderActive();
                     }
                 };
@@ -351,7 +338,6 @@ export function useCheckoutOrder(
                 // CRÍTICO: Não verificar state.loading aqui também
                 // O loading pode estar ativo mas ainda precisamos criar o pedido
                 if (!creatingRef.current && (!state.order || state.order.status !== 'pending')) {
-                    console.log('[useCheckoutOrder] 🚀 Criando pedido automaticamente');
                     createOrder();
                 }
             }, 500);

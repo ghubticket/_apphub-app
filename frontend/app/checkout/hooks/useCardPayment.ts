@@ -105,7 +105,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                         setIsCheckoutReady(false);
                         
                         const timer = setTimeout(() => {
-                            console.log('[useCardPayment] ✅ Setando isCheckoutReady para true para permitir detecção de mudança');
                             setIsCheckoutReady(true);
                         }, 50);
                         
@@ -199,7 +198,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
                                         const resetVisibilityRef = window.__MP_BRICK_RESET_VISIBILITY_REF__;
                                         const nestedTimer1 = setTimeout(() => {
                                             if (previousOrderIdRef.current !== currentOrderId) {
-                                                console.log('[useCardPayment] ⚠️ OrderId mudou durante o delay, cancelando reset');
                                                 return;
                                             }
                                             
@@ -295,7 +293,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
 
         const finalOrderId = orderIdRef.current;
         if (!finalOrderId) {
-            console.error('[useCardPayment] ⚠️ orderIdRef está null após correção');
             setStatus('error');
             setStatusMessage('Pedido não encontrado');
             setStatusDetails(['Por favor, recarregue a página e tente novamente.']);
@@ -313,7 +310,6 @@ export function useCardPayment(orderId: string | null): UseCardPaymentReturn {
 
     // Marcar checkout como pronto quando Brick estiver pronto
     const handleBrickReady = useCallback(() => {
-        console.log('[useCardPayment] ✅ handleBrickReady chamado, marcando checkout como pronto');
         setIsCheckoutReady(true);
     }, []);
 
