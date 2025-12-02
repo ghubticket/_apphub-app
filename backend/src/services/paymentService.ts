@@ -1018,10 +1018,25 @@ export const getOrderById = async (orderId: string) => {
         }
 
         // Buscar do Mercado Pago
-        console.log(`[paymentService] 🔍 Buscando order no Mercado Pago: ${orderId}`);
+        console.log(`[paymentService] 🔍 Buscando order no Mercado Pago: ${orderId}`, {
+            environment: process.env.NODE_ENV,
+            isSandbox: getAccessToken().startsWith('TEST-'),
+        });
         const client = createMercadoPagoClient();
         const orderApi = new Order(client);
         const response = await orderApi.get({ id: orderId });
+        
+        // Log da estrutura da resposta para debug
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`[paymentService] 📋 Estrutura da resposta do MP para order ${orderId}:`, {
+                hasResponse: !!response,
+                responseKeys: response ? Object.keys(response) : [],
+                hasTransactions: !!(response as any)?.transactions,
+                hasPayments: !!((response as any)?.transactions?.payments),
+                paymentsCount: ((response as any)?.transactions?.payments)?.length || 0,
+                firstPaymentKeys: ((response as any)?.transactions?.payments?.[0]) ? Object.keys((response as any).transactions.payments[0]) : [],
+            });
+        }
         
         // Armazenar no cache
         mpOrderCache.set(orderId, {
@@ -1041,7 +1056,15 @@ export const getOrderById = async (orderId: string) => {
         
         return response as any;
     } catch (error: any) {
-        console.error('Erro ao buscar order:', error);
+        console.error('❌ Erro ao buscar order:', {
+            orderId,
+            message: error?.message,
+            status: error?.response?.status,
+            statusText: error?.response?.statusText,
+            responseData: error?.response?.data,
+            environment: process.env.NODE_ENV,
+            isSandbox: getAccessToken().startsWith('TEST-'),
+        });
         throw new Error(`Erro ao buscar order: ${error.message || 'Erro desconhecido'}`);
     }
 };
