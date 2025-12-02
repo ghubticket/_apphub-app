@@ -509,7 +509,7 @@ export default function TicketCatalog({ tickets, className, variant = 'default' 
                 return (
                     <article
                         key={ticket.id}
-                        className="group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-[#ded7ca] bg-white/80 p-6 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)] transition hover:-translate-y-1 hover:shadow-[0_45px_65px_-35px_rgba(20,20,32,0.4)]"
+                        className="group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-[#ded7ca] bg-white/80 p-6 transition hover:-translate-y-1 hover:shadow-[0_45px_65px_-35px_rgba(20,20,32,0.4)]"
                     >
                         <div className="flex flex-col gap-5">
                             <div className="flex items-start justify-between gap-4">

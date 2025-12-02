@@ -13,7 +13,7 @@ import {
 import InputField from '@/components/forms/InputField';
 import PasswordField from '@/components/forms/PasswordField';
 import Button from '@/components/shared/Button';
-import Container from '@/components/shared/Container';
+import PageContainer from '@/components/shared/PageContainer';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { APP_NAME } from '@/lib/config';
@@ -283,21 +283,18 @@ function CadastroPageContent() {
 
     if (isSubmitting) {
         return (
-            <main className="bg-[#faf7f0] pt-32 pb-20">
-                <Container>
-                    <LoadingSpinner 
-                        message="Criando sua conta..." 
-                        submessage="Aguarde enquanto processamos seus dados"
-                        fullscreen={false}
-                    />
-                </Container>
-            </main>
+            <PageContainer bgColor="bg-[#faf7f0]">
+                <LoadingSpinner 
+                    message="Criando sua conta..." 
+                    submessage="Aguarde enquanto processamos seus dados"
+                    fullscreen={false}
+                />
+            </PageContainer>
         );
     }
 
     return (
-        <main className="bg-[#faf7f0] pt-32 pb-20">
-            <Container>
+        <PageContainer bgColor="bg-[#faf7f0]">
                 <div className="mb-12 text-center hidden md:block">
                     <h1 className="text-4xl uppercase font-bold text-[#1a1a1d]">
                         Criar Conta
@@ -476,19 +473,20 @@ function CadastroPageContent() {
                     </form>
                 </div>
             </div>
-        </Container>
-        </main>
+        </PageContainer>
     );
 }
 
 export default function CadastroPage() {
     return (
         <Suspense fallback={
-            <div className="flex min-h-screen items-center justify-center">
-                <div className="text-center">
-                    <p className="text-lg text-gray-600">Carregando...</p>
+            <PageContainer bgColor="bg-[#faf7f0]">
+                <div className="flex items-center justify-center min-h-[400px]">
+                    <div className="text-center">
+                        <p className="text-[#6f6b63]">Carregando...</p>
+                    </div>
                 </div>
-            </div>
+            </PageContainer>
         }>
             <CadastroPageContent />
         </Suspense>

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineUser, HiOutlineHeart } from 'react-icons/hi2';
-import Container from '@/components/shared/Container';
+import PageContainer from '@/components/shared/PageContainer';
 import TicketCatalog from '@/components/tickets/TicketCatalog';
 import EventSelectionSummary from '@/components/tickets/EventSelectionSummary';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -170,23 +170,32 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
     // Mostrar loading enquanto carrega
     if (loading) {
         return (
-            <main className="bg-[#f5f1e8] pt-24 md:pt-28" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
-                <Container className="pb-8">
-                    <LoadingSpinner 
-                        message="Carregando evento..." 
-                        submessage="Aguarde enquanto buscamos as informações"
-                        fullscreen={false}
-                    />
-                </Container>
-            </main>
+            <PageContainer 
+                bgColor="bg-[#f5f1e8]" 
+                paddingTop={6}
+                paddingBottom="pb-8"
+                fullHeight
+                containerClassName="pb-8"
+            >
+                <LoadingSpinner 
+                    message="Carregando evento..." 
+                    submessage="Aguarde enquanto buscamos as informações"
+                    fullscreen={false}
+                />
+            </PageContainer>
         );
     }
 
     // Mostrar erro se houver
     if (error) {
         return (
-            <main className="bg-[#f5f1e8] pt-24 md:pt-28" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
-                <Container className="pb-8">
+            <PageContainer 
+                bgColor="bg-[#f5f1e8]" 
+                paddingTop={0}
+                paddingBottom="pb-8"
+                fullHeight
+                containerClassName="pb-8"
+            >
                     <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center">
                         <p className="text-lg font-semibold text-red-800">{error}</p>
                         <button
@@ -196,19 +205,22 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                             Tentar novamente
                         </button>
                     </div>
-                </Container>
-            </main>
+            </PageContainer>
         );
     }
 
     return (
-        <main className="bg-[#f5f1e8] pt-24 md:pt-28">
-            <Container className="pb-8">
+        <PageContainer 
+            bgColor="bg-[#f5f1e8]" 
+            paddingTop={6}
+            paddingBottom="pb-8"
+            containerClassName="pb-8"
+        >
                 <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[1.2fr_1fr] lg:gap-10 lg:items-start">
                     {/* Coluna Esquerda: Foto e Sobre - DESKTOP: col-start-1, MOBILE: hidden (foto aparece acima) */}
                     <section className="hidden lg:block space-y-6 lg:col-start-1 lg:col-end-2">
                         {/* Poster do Evento */}
-                        <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                        <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white">
                             <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca] flex items-center justify-center">
                                 {imageError || !primaryTicket?.image ? (
                                     <p className="text-center text-sm text-[#a38f78] px-4">
@@ -242,7 +254,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                         </div>
                       
                         {/* Seção Sobre */}
-                        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 lg:p-8 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 lg:p-8 ">
                             <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
                             <div
                                 className="text-sm text-[#4c4c55] prose prose-sm max-w-none 
@@ -344,7 +356,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
 
                         {/* Foto do Evento - MOBILE: aparece entre informações e ingressos, DESKTOP: hidden (fica na coluna esquerda) */}
                         <div className="lg:hidden">
-                            <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                            <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white">
                                 <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca] flex items-center justify-center">
                                     {imageError || !primaryTicket?.image ? (
                                         <p className="text-center text-sm text-[#a38f78] px-4">
@@ -385,7 +397,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
 
                         {/* Seção Sobre - MOBILE: aparece abaixo dos ingressos, DESKTOP: hidden (fica na coluna esquerda) */}
                         <div className="lg:hidden">
-                            <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_30px_60px_-35px_rgba(20,20,32,0.35)]">
+                            <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 ">
                                 <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
                                 <div
                                     className="text-sm text-[#4c4c55] prose prose-sm max-w-none 
@@ -424,8 +436,7 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                             </div>
                         </div>
                     </section>
-                </div>
-            </Container>
-        </main>
-    );
-}
+                    </div>
+            </PageContainer>
+        );
+    }

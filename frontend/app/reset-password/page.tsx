@@ -8,7 +8,7 @@ import AuthCard from '@/components/auth/AuthCard';
 import PasswordField from '@/components/forms/PasswordField';
 import Button from '@/components/shared/Button';
 import api from '@/lib/api';
-import Container from '@/components/shared/Container';
+import PageContainer from '@/components/shared/PageContainer';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 function ResetPasswordContent() {
@@ -102,23 +102,20 @@ function ResetPasswordContent() {
 
     if (isSubmitting) {
         return (
-            <main className="bg-[#faf7f0] pt-32 pb-12">
-                <Container>
-                    <LoadingSpinner 
-                        message="Redefinindo senha..." 
-                        submessage="Aguarde enquanto processamos sua solicitação"
-                        fullscreen={false}
-                    />
-                </Container>
-            </main>
+            <PageContainer bgColor="bg-[#faf7f0]" paddingBottom="pb-12">
+                <LoadingSpinner 
+                    message="Redefinindo senha..." 
+                    submessage="Aguarde enquanto processamos sua solicitação"
+                    fullscreen={false}
+                />
+            </PageContainer>
         );
     }
 
     const isTokenMissing = !token;
 
     return (
-        <main className=" bg-[#faf7f0] pt-32 pb-20">
-            <Container>
+        <PageContainer bgColor="bg-[#faf7f0]">
                 <div className="mx-auto max-w-lg">
                     <AuthCard
                         title="Nova senha"
@@ -198,8 +195,7 @@ function ResetPasswordContent() {
                         )}
                     </AuthCard>
                 </div>
-            </Container>
-        </main>
+        </PageContainer>
     );
 }
 
@@ -207,15 +203,13 @@ export default function ResetPasswordPage() {
     return (
         <Suspense
             fallback={
-                <main className="min-h-screen bg-[#faf7f0] pt-32 pb-20">
-                    <Container>
-                        <div className="mx-auto max-w-lg animate-pulse space-y-6">
-                            <div className="h-8 w-2/3 rounded bg-[#e5dfd4]" />
-                            <div className="h-4 w-full rounded bg-[#e5dfd4]" />
-                            <div className="h-64 w-full rounded-3xl bg-[#e5dfd4]" />
-                        </div>
-                    </Container>
-                </main>
+                <PageContainer bgColor="bg-[#faf7f0]">
+                    <div className="mx-auto max-w-lg animate-pulse space-y-6">
+                        <div className="h-8 w-2/3 rounded bg-[#e5dfd4]" />
+                        <div className="h-4 w-full rounded bg-[#e5dfd4]" />
+                        <div className="h-64 w-full rounded-3xl bg-[#e5dfd4]" />
+                    </div>
+                </PageContainer>
             }
         >
             <ResetPasswordContent />

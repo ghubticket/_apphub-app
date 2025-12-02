@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import TicketCatalog from '@/components/tickets/TicketCatalog';
-import Container from '@/components/shared/Container';
+import PageContainer from '@/components/shared/PageContainer';
 import type { TicketProduct } from '@/types/ticket';
 import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -49,11 +49,11 @@ export default function TicketsPage() {
     const hasTickets = useMemo(() => tickets.length > 0, [tickets]);
 
     return (
-        <main
-            className="bg-[#f5f1e8]"
-            style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
+        <PageContainer 
+            bgColor="bg-[#f5f1e8]" 
+            fullHeight
+            containerClassName="py-12"
         >
-            <Container className="py-12">
                 <header className="mb-10 space-y-3">
                     <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
                         Ingressos disponíveis
@@ -93,8 +93,7 @@ export default function TicketsPage() {
                         </div>
                     )}
                 </section>
-            </Container>
-        </main>
+        </PageContainer>
     );
 }
 

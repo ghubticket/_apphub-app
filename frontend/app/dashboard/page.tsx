@@ -10,7 +10,7 @@ import {
     HiOutlineExclamationTriangle,
     HiOutlineChevronDown,
 } from 'react-icons/hi2';
-import Container from '@/components/shared/Container';
+import PageContainer from '@/components/shared/PageContainer';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { APP_NAME } from '@/lib/config';
@@ -952,8 +952,7 @@ export default function DashboardPage() {
 
     return (
         <>
-            <main className="bg-[#faf7f0] pt-32 pb-20">
-                <Container>
+            <PageContainer bgColor="bg-[#faf7f0]">
                     <header className="mb-10 space-y-3 hidden md:block">
                         <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
                             Área do Cliente
@@ -1012,8 +1011,7 @@ export default function DashboardPage() {
                             {renderActiveTabContent()}
                         </section>
                     </section>
-                </Container>
-            </main>
+            </PageContainer>
 
             {activeOrder ? (
                 <TicketModal

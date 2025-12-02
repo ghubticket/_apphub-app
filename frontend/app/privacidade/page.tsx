@@ -1,15 +1,15 @@
 'use client';
 
-import Container from '@/components/shared/Container';
+import PageContainer from '@/components/shared/PageContainer';
 import { APP_NAME, PRIVACY_EMAIL, DPO_EMAIL, COMPANY_NAME, LGPD_LAW } from '@/lib/config';
 
 export default function PrivacidadePage() {
     return (
-        <main
-            className="bg-[#faf7f0]"
-            style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}
+        <PageContainer 
+            bgColor="bg-[#faf7f0]" 
+            fullHeight
+            containerClassName="py-12"
         >
-            <Container className="py-12">
                 <header className="mb-10 space-y-3">
                     <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
                         Documentos Legais
@@ -327,8 +327,7 @@ export default function PrivacidadePage() {
                         </p>
                     </section>
                 </div>
-            </Container>
-        </main>
+        </PageContainer>
     );
 }
 

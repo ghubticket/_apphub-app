@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import InputField from '@/components/forms/InputField';
 import PasswordField from '@/components/forms/PasswordField';
 import Button from '@/components/shared/Button';
-import Container from '@/components/shared/Container';
+import PageContainer from '@/components/shared/PageContainer';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { sanitizeInput, isValidCpf } from '@/utils/sanitize';
@@ -203,21 +203,18 @@ function LoginPageContent() {
 
     if (isSubmitting) {
         return (
-            <main className="bg-[#faf7f0] pt-32 pb-20">
-                <Container>
-                    <LoadingSpinner 
-                        message="Entrando..." 
-                        submessage="Aguarde enquanto validamos suas informações"
-                        fullscreen={false}
-                    />
-                </Container>
-            </main>
+            <PageContainer bgColor="bg-[#faf7f0]">
+                <LoadingSpinner 
+                    message="Entrando..." 
+                    submessage="Aguarde enquanto validamos suas informações"
+                    fullscreen={false}
+                />
+            </PageContainer>
         );
     }
 
     return (
-        <main className="bg-[#faf7f0] pt-32 pb-20">
-            <Container>
+        <PageContainer bgColor="bg-[#faf7f0]">
                 <header className="mb-10 space-y-3 hidden md:block">
                     <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">Área do Cliente</span>
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -377,8 +374,7 @@ function LoginPageContent() {
                         </div>
                     </div>
                 </div>
-            </Container>
-        </main>
+        </PageContainer>
     );
 }
 
@@ -386,15 +382,13 @@ function LoginPageContent() {
 export default function LoginPage() {
     return (
         <Suspense fallback={
-            <main className="bg-[#faf7f0] pt-32 pb-20">
-                <Container>
-                    <div className="flex items-center justify-center min-h-[400px]">
-                        <div className="text-center">
-                            <p className="text-[#6f6b63]">Carregando...</p>
-                        </div>
+            <PageContainer bgColor="bg-[#faf7f0]">
+                <div className="flex items-center justify-center min-h-[400px]">
+                    <div className="text-center">
+                        <p className="text-[#6f6b63]">Carregando...</p>
                     </div>
-                </Container>
-            </main>
+                </div>
+            </PageContainer>
         }>
             <LoginPageContent />
         </Suspense>

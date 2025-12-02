@@ -6,6 +6,7 @@ import { HiOutlineEnvelope } from 'react-icons/hi2';
 import AuthCard from '@/components/auth/AuthCard';
 import InputField from '@/components/forms/InputField';
 import Button from '@/components/shared/Button';
+import PageContainer from '@/components/shared/PageContainer';
 import api from '@/lib/api';
 import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -63,21 +64,18 @@ export default function RecuperarSenhaPage() {
 
     if (isSubmitting) {
         return (
-            <main className="bg-[#faf7f0] pt-32 pb-12">
-                <div className="container mx-auto w-full max-w-screen-xl px-4 sm:px-6 lg:px-8">
-                    <LoadingSpinner 
-                        message="Enviando e-mail..." 
-                        submessage="Aguarde enquanto processamos sua solicitação"
-                        fullscreen={false}
-                    />
-                </div>
-            </main>
+            <PageContainer bgColor="bg-[#faf7f0]" paddingBottom="pb-12">
+                <LoadingSpinner 
+                    message="Enviando e-mail..." 
+                    submessage="Aguarde enquanto processamos sua solicitação"
+                    fullscreen={false}
+                />
+            </PageContainer>
         );
     }
 
     return (
-        <main className="bg-[#faf7f0] pt-32 pb-12">
-            <div className="container mx-auto w-full max-w-screen-xl px-4 sm:px-6 lg:px-8 ">
+        <PageContainer bgColor="bg-[#faf7f0]" paddingBottom="pb-12">
                 <AuthCard
                     title="Redefinir senha"
                     description="Vamos enviar um link seguro para você escolher uma nova senha. Ele expira em 30 minutos por segurança."
@@ -151,8 +149,7 @@ export default function RecuperarSenhaPage() {
                         </p>
                     </form>
                 </AuthCard>
-            </div>
-        </main>
+        </PageContainer>
     );
 }
 

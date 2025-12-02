@@ -224,7 +224,7 @@ export default function Header() {
                                     alt={APP_LOGO_ALT}
                                     width={120}
                                     height={48}
-                                    className="h-auto w-20 md:w-28 lg:w-20"
+                                    className="h-auto w-14 md:w-28 lg:w-20"
                                     priority
                                 />
                             </Link>
