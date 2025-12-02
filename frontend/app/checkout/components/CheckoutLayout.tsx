@@ -508,6 +508,7 @@ export function CheckoutLayout() {
                             totalAmount={displayTotalAmount}
                             customerEmail={customerData.email}
                             onCancelOrder={handleCancelOrderAndGoHome}
+                            orderNumber={order?.orderNumber}
                         />
                     </section>
                 </div>

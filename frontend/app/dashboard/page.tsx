@@ -16,7 +16,7 @@ import api from '@/lib/api';
 import { APP_NAME } from '@/lib/config';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useOrdersPolling } from './hooks/useOrdersPolling';
-import PaymentSuccessModal from './components/PaymentSuccessModal';
+import PaymentSuccessModal from '@/components/shared/PaymentSuccessModal';
 
 type TabKey = 'profile' | 'orders' | 'requests';
 type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'refunded';

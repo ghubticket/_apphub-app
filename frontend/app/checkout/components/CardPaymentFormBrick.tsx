@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { IsolatedCardPaymentBrick } from './IsolatedCardPaymentBrick';
+import PaymentSuccessModal from '@/components/shared/PaymentSuccessModal';
+import PaymentErrorModal from './PaymentErrorModal';
 
 type PaymentStatusState = 'idle' | 'processing' | 'success' | 'error';
 
@@ -23,6 +25,7 @@ type CardPaymentFormBrickProps = {
     onReady?: () => void;
     amount: number;
     publicKey: string;
+    orderNumber?: string;
 };
 
 export function CardPaymentFormBrick({
@@ -42,21 +45,14 @@ export function CardPaymentFormBrick({
     onReady,
     amount,
     publicKey,
+    orderNumber,
 }: CardPaymentFormBrickProps) {
     // O Brick isolado gerencia sua própria montagem persistente
     // Este componente apenas gerencia overlay e comunicação
 
-    // Overlay para sucesso E erro
-    // CRÍTICO: Usar useMemo para garantir que showOverlay seja recalculado quando status mudar
-    const showOverlay = useMemo(() => status === 'success' || status === 'error', [status]);
-    const processing = status === 'processing';
+    // Status para modais
     const success = status === 'success';
     const error = status === 'error';
-    const overlayMessage =
-        statusMessage ||
-        (success
-            ? 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.'
-            : 'Não foi possível processar o pagamento. Tente novamente.');
     const successMessages = success && statusDetails.length
         ? statusDetails
         : success && statusMessage
@@ -67,37 +63,12 @@ export function CardPaymentFormBrick({
         : error && statusMessage
             ? [statusMessage]
             : [];
+    const overlayMessage =
+        statusMessage ||
+        (success
+            ? 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.'
+            : 'Não foi possível processar o pagamento. Tente novamente.');
 
-    const [overlayMounted, setOverlayMounted] = useState(false);
-    const [overlayEntering, setOverlayEntering] = useState(false);
-
-    useEffect(() => {
-        
-        if (showOverlay) {
-            setOverlayMounted(true);
-            const frame = requestAnimationFrame(() => {
-                setOverlayEntering(true);
-            });
-            return () => cancelAnimationFrame(frame);
-        }
-        // CRÍTICO: Quando não há overlay, desmontar imediatamente para não bloquear o formulário
-        // Isso garante que quando um novo pedido é criado após erro, o formulário apareça imediatamente
-        setOverlayEntering(false);
-        // Desmontar imediatamente se status é 'idle' para garantir que não bloqueie o formulário
-        if (status === 'idle') {
-            setOverlayMounted(false);
-            return;
-        }
-        // Para outros status, aguardar animação de saída
-        const timeout = setTimeout(() => {
-            setOverlayMounted(false);
-        }, 250);
-        return () => clearTimeout(timeout);
-    }, [showOverlay, status, error, success, statusMessage, statusDetails]);
-
-    const overlayActiveClass = overlayEntering
-        ? 'opacity-100 translate-y-0 pointer-events-auto'
-        : 'opacity-0 translate-y-3 pointer-events-none';
 
     // Handler para quando o Brick estiver pronto
     const handleReady = useCallback(() => {
@@ -187,7 +158,7 @@ export function CardPaymentFormBrick({
                 </div>
             ) : null}
             
-            <form id="checkout-card-form" className={`relative space-y-4 ${!isCheckoutReady ? 'hidden' : ''}`} onSubmit={onSubmit} aria-busy={processing} autoComplete="off">
+            <form id="checkout-card-form" className={`relative space-y-4 ${!isCheckoutReady ? 'hidden' : ''}`} onSubmit={onSubmit} aria-busy={isProcessing} autoComplete="off">
                 {/* Brick isolado - montado uma única vez, apenas ocultado/mostrado */}
                 {/* CRÍTICO: Sempre renderizar o Brick mesmo quando não está pronto para permitir montagem inicial */}
                 {/* O Brick gerencia sua própria visibilidade internamente */}
@@ -201,130 +172,25 @@ export function CardPaymentFormBrick({
                 />
             </form>
 
-            {/* Overlay de status - para sucesso E erro */}
-            {overlayMounted && (success || error) ? (
-                <>
-                    {/* Backdrop fixo que cobre toda a tela */}
-                    <div
-                        className={`fixed inset-0 z-[9998] bg-black/50 transition-opacity duration-300 ${overlayEntering ? 'opacity-100' : 'opacity-0'}`}
-                        aria-hidden="true"
-                        onClick={(e) => {
-                            // Permitir fechar overlay de erro ao clicar no backdrop
-                            if (error && onStatusDismiss) {
-                                onStatusDismiss();
-                            }
-                        }}
-                    />
-                    {/* Overlay de conteúdo */}
-                    <div
-                        className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-300 ease-out ${overlayActiveClass}`}
-                        onClick={(e) => {
-                            // Prevenir fechar ao clicar no conteúdo
-                            e.stopPropagation();
-                        }}
-                    >
-                        <div
-                            className={`relative w-full max-w-md rounded-3xl border px-6 py-10 text-center shadow-2xl ${
-                                success
-                                    ? 'border-[#b6f0d2] bg-[#f1fff6]'
-                                    : error
-                                        ? 'border-rose-200 bg-white/95'
-                                        : 'border-[#ded7ca] bg-white/95'
-                            }`}
-                        >
-                            {success ? (
-                                <div className="flex w-full flex-col items-center gap-6">
-                                    <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-[#1f5d3d]">
-                                        <h1 className="text-2xl font-bold uppercase text-[#1f5d3d]">
-                                            Pagamento aprovado
-                                        </h1>
-                                        <div className="mt-4 space-y-2 text-sm leading-relaxed">
-                                            {successMessages.length > 0 ? (
-                                                successMessages.map((msg, index) => (
-                                                    <p key={`${msg}-${index}`} className="leading-relaxed">
-                                                        {msg}
-                                                    </p>
-                                                ))
-                                            ) : (
-                                                <p className="leading-relaxed">{overlayMessage}</p>
-                                            )}
-                                        </div>
-                                        {redirectCountdown !== null ? (
-                                            <p className="mt-4 text-sm font-semibold text-[#2b6b47]">
-                                                Redirecionaremos você em {redirectCountdown}s para ver seus pedidos.
-                                            </p>
-                                        ) : null}
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={onNavigateTodashboard}
-                                        className="rounded-full bg-[#1a1a1d] px-6 py-3 text-[0.65rem] font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
-                                    >
-                                        Ver meus pedidos
-                                    </button>
-                                </div>
-                            ) : error ? (
-                                <div className="flex w-full flex-col items-center gap-6">
-                                    <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-rose-700">
-                                        <h1 className="text-2xl font-bold uppercase text-rose-600">
-                                            Pagamento negado
-                                        </h1>
-                                        <div className="mt-4 space-y-2 text-sm leading-relaxed">
-                                            {(() => {
-                                                // Exibir apenas UMA mensagem de erro, priorizando a primeira vinda do backend/Mercado Pago
-                                                const primaryMessage = errorMessages[0] || overlayMessage;
-
-                                                if (!primaryMessage) {
-                                                    return null;
-                                                }
-
-                                                // Segurança: sempre tratar mensagem como texto simples para evitar XSS
-                                                return <p className="leading-relaxed">{primaryMessage}</p>;
-                                            })()}
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        {maxAttemptsReached ? (
-                                            // Esgotou tentativas: mostrar apenas botão para criar novo pedido
-                                            onStartNewOrder && (
-                                                <button
-                                                    type="button"
-                                                    onClick={onStartNewOrder}
-                                                    className="rounded-full border border-rose-300 bg-white px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-rose-700 transition hover:border-rose-400 hover:bg-rose-50"
-                                                >
-                                                    Criar novo pedido
-                                                </button>
-                                            )
-                                        ) : (
-                                            // Ainda há tentativas: mostrar botões normais
-                                            <>
-                                                {onStatusDismiss && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={onStatusDismiss}
-                                                        className="rounded-full border border-rose-300 bg-white px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-rose-700 transition hover:border-rose-400 hover:bg-rose-50"
-                                                    >
-                                                        Tentar novamente
-                                                    </button>
-                                                )}
-                                                {onCancelOrder && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={onCancelOrder}
-                                                        className="rounded-full border border-[#1a1a1d] px-6 py-3 text-[0.85rem] font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
-                                                    >
-                                                        Não, prefiro cancelar
-                                                    </button>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-                </>
-            ) : null}
+            {/* Modais padronizadas de sucesso e erro */}
+            <PaymentSuccessModal
+                isOpen={success}
+                onClose={onNavigateTodashboard || (() => {})}
+                orderNumber={orderNumber}
+                message={successMessages.length > 0 ? successMessages[0] : overlayMessage}
+                redirectCountdown={redirectCountdown}
+            />
+            <PaymentErrorModal
+                isOpen={error}
+                onClose={onStatusDismiss || (() => {})}
+                onRetry={onStatusDismiss}
+                onCancel={onCancelOrder}
+                onStartNewOrder={onStartNewOrder}
+                message={errorMessages[0] || overlayMessage}
+                errorDetails={errorMessages}
+                maxAttemptsReached={maxAttemptsReached}
+                orderNumber={orderNumber}
+            />
         </div>
     );
 }

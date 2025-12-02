@@ -8,17 +8,19 @@ interface PaymentSuccessModalProps {
     onClose: () => void;
     orderNumber?: string;
     message?: string;
+    redirectCountdown?: number | null;
 }
 
 /**
- * Modal de sucesso de pagamento
- * Similar ao overlay do CardPaymentFormBrick, mas como modal standalone
+ * Modal de sucesso de pagamento padronizado
+ * Usado em checkout e dashboard
  */
 export default function PaymentSuccessModal({
     isOpen,
     onClose,
     orderNumber,
     message = 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.',
+    redirectCountdown = null,
 }: PaymentSuccessModalProps) {
     const [mounted, setMounted] = useState(false);
     const [entering, setEntering] = useState(false);
@@ -71,6 +73,11 @@ export default function PaymentSuccessModal({
                         {orderNumber && (
                             <p className="text-xs text-[#2b6b47]">
                                 Pedido: {orderNumber}
+                            </p>
+                        )}
+                        {redirectCountdown !== null && (
+                            <p className="mt-4 text-sm font-semibold text-[#2b6b47]">
+                                Redirecionaremos você em {redirectCountdown}s para ver seus pedidos.
                             </p>
                         )}
                         <p className="text-xs text-[#2b6b47]">

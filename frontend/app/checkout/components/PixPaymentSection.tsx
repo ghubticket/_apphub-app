@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { HiOutlineClipboardDocument, HiOutlineTicket } from 'react-icons/hi2';
 import type { PixPaymentResult } from '../types';
+import PaymentSuccessModal from '@/components/shared/PaymentSuccessModal';
 
 type PixPaymentSectionProps = {
     pixResult: PixPaymentResult | null;
@@ -19,6 +20,7 @@ type PixPaymentSectionProps = {
     pixStatusMessage: string;
     redirectCountdown: number | null;
     onNavigateToOrders: () => void;
+    orderNumber?: string;
 };
 
 export function PixPaymentSection({
@@ -35,64 +37,18 @@ export function PixPaymentSection({
     pixStatusMessage,
     redirectCountdown,
     onNavigateToOrders,
+    orderNumber,
 }: PixPaymentSectionProps) {
-    const showOverlay = pixStatus === 'success';
-    const [overlayMounted, setOverlayMounted] = useState(false);
-    const [overlayEntering, setOverlayEntering] = useState(false);
-
-    useEffect(() => {
-        if (showOverlay) {
-            setOverlayMounted(true);
-            const frame = requestAnimationFrame(() => setOverlayEntering(true));
-            return () => cancelAnimationFrame(frame);
-        }
-        setOverlayEntering(false);
-        const timeout = setTimeout(() => {
-            setOverlayMounted(false);
-        }, 250);
-        return () => clearTimeout(timeout);
-    }, [showOverlay]);
-
-    const overlayActiveClass = overlayEntering
-        ? 'opacity-100 translate-y-0 pointer-events-auto'
-        : 'opacity-0 translate-y-3 pointer-events-none';
     return (
         <div className="relative">
-            {overlayMounted ? (
-                <div
-                    className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-all duration-300 ${overlayActiveClass}`}
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget && pixStatus === 'success') {
-                            onNavigateToOrders();
-                        }
-                    }}
-                >
-                    <div className="relative w-full max-w-md rounded-3xl border border-[#b6f0d2] bg-[#f1fff6] p-8 shadow-2xl">
-                        {pixStatus === 'success' ? (
-                            <div className="flex w-full max-w-md flex-col items-center gap-0">
-                                <div className="w-full px-6 py-6 text-center text-sm leading-relaxed text-[#1f5d3d]">
-                                    <h1 className="text-2xl font-bold uppercase text-[#1f5d3d]">
-                                        Pagamento aprovado
-                                    </h1>
-                                   
-                                    {redirectCountdown !== null ? (
-                                        <p className="mt-4 text-sm font-semibold text-[#2b6b47]">
-                                            Redirecionaremos você em {redirectCountdown}s para ver seus pedidos.
-                                        </p>
-                                    ) : null}
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={onNavigateToOrders}
-                                    className="rounded-full bg-[#1a1a1d] px-6 py-3 text-[0.65rem] font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
-                                >
-                                    Ver meus pedidos
-                                </button>
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
-            ) : null}
+            {/* Modal padronizada de sucesso */}
+            <PaymentSuccessModal
+                isOpen={pixStatus === 'success'}
+                onClose={onNavigateToOrders}
+                orderNumber={orderNumber}
+                message={pixStatusMessage || 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.'}
+                redirectCountdown={redirectCountdown}
+            />
             <form className="mt-6 space-y-4" onSubmit={onSubmit}>
                 {!pixResult ? (
                     <>

@@ -33,6 +33,7 @@ interface PaymentSectionProps {
     totalAmount: number;
     customerEmail: string;
     onCancelOrder?: () => void;
+    orderNumber?: string;
 }
 
 export function PaymentSection({ 
@@ -44,6 +45,7 @@ export function PaymentSection({
     totalAmount,
     customerEmail,
     onCancelOrder,
+    orderNumber,
 }: PaymentSectionProps) {
     const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
     
@@ -100,6 +102,7 @@ export function PaymentSection({
                             onStatusDismiss={cardPayment.dismissStatus}
                             maxAttemptsReached={cardPayment.maxAttemptsReached}
                             onStartNewOrder={onCancelOrder} // Usar mesmo handler que cancela e vai para home
+                            orderNumber={orderNumber}
                             onNavigateTodashboard={() => {
                                 // CRÍTICO: Limpar todo o estado do checkout antes de redirecionar
                                 // Isso garante que não haja dados residuais após o pagamento aprovado
@@ -156,6 +159,7 @@ export function PaymentSection({
                             pixStatusMessage={pixPayment.statusMessage}
                             redirectCountdown={pixPayment.redirectCountdown}
                             onNavigateToOrders={pixPayment.onNavigateToOrders}
+                            orderNumber={orderNumber}
                         />
                     ) : (
                         <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-xs text-[#7d796c]">
