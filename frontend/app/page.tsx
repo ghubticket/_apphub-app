@@ -10,6 +10,7 @@ import HeroCarousel, { type HeroSlide } from '@/components/home/HeroVideo';
 import { fetchEventsList, type EventSummary } from '@/lib/ticketsCatalog';
 import { APP_NAME } from '@/lib/config';
 import { getProxiedImageUrl } from '@/lib/imageProxy';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 export default function Home() {
     // Limpar qualquer estado de processamento de pagamento ao entrar na HOME
@@ -124,15 +125,23 @@ export default function Home() {
 
     return (
         <main className="bg-[#f5f1e8]">
-            {/* Hero com carrossel - ocupa 100% da tela */}
-            <HeroCarousel slides={heroSlides} autoplayInterval={6000} />
+            {loading ? (
+                <LoadingSpinner 
+                    message="Carregando eventos..." 
+                    submessage="Aguarde enquanto buscamos os melhores eventos para você"
+                />
+            ) : (
+                <>
+                    {/* Hero com carrossel - ocupa 100% da tela */}
+                    <HeroCarousel slides={heroSlides} autoplayInterval={6000} />
 
-            {/* Seção Próximos Eventos */}
-            {!loading && <UpcomingEvents events={events} />}
+                    {/* Seção Próximos Eventos */}
+                    <UpcomingEvents events={events} />
 
-            {/* Seção Fotos */}
-            <PhotosCarousel />
-
+                    {/* Seção Fotos */}
+                    <PhotosCarousel />
+                </>
+            )}
         </main>
     );
 }

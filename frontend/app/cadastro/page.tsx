@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 import { APP_NAME } from '@/lib/config';
 import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
 import { useRouter } from 'next/navigation';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import {
     sanitizeInput,
     normalizePhone,
@@ -279,6 +280,20 @@ function CadastroPageContent() {
             setIsSubmitting(false);
         }
     };
+
+    if (isSubmitting) {
+        return (
+            <main className="bg-[#faf7f0] pt-32 pb-20">
+                <Container>
+                    <LoadingSpinner 
+                        message="Criando sua conta..." 
+                        submessage="Aguarde enquanto processamos seus dados"
+                        fullscreen={false}
+                    />
+                </Container>
+            </main>
+        );
+    }
 
     return (
         <main className="bg-[#faf7f0] pt-32 pb-20">

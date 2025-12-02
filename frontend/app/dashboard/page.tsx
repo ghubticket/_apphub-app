@@ -14,6 +14,7 @@ import Container from '@/components/shared/Container';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { APP_NAME } from '@/lib/config';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 type TabKey = 'profile' | 'orders' | 'requests';
 type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'refunded';
@@ -522,9 +523,10 @@ export default function DashboardPage() {
     const renderOrdersContent = () => {
         if (ordersLoading) {
             return (
-                <div className="flex items-center justify-center rounded-2xl border border-[#ded7ca] bg-white/60 p-10 text-sm font-medium text-[#7d796c]">
-                    Carregando seus pedidos...
-                </div>
+                <LoadingSpinner 
+                    message="Carregando seus pedidos..." 
+                    submessage="Aguarde enquanto buscamos suas informações"
+                />
             );
         }
 

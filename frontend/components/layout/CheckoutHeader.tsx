@@ -23,14 +23,14 @@ export default function CheckoutHeader() {
 
     return (
         <header className="bg-[#ffffff]">
-            <Container className="flex items-center justify-between py-6">
+            <Container className="flex items-center justify-between py-3 md:py-5">
                 <Link href="/" className="flex items-center gap-3" onClick={handleLogoClick}>
                     <Image
                         src={APP_LOGO}
                         alt={APP_LOGO_ALT}
                         width={120}
                         height={48}
-                        className="h-10 w-auto"
+                        className="h-6 w-auto"
                         priority
                     />
                 </Link>

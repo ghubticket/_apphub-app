@@ -12,6 +12,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { sanitizeInput, isValidCpf } from '@/utils/sanitize';
 import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 type LoginFormFields = 'email' | 'password';
 
@@ -199,6 +200,20 @@ function LoginPageContent() {
     };
 
     const emailSuggestions = useEmailSuggestions(formData.email);
+
+    if (isSubmitting) {
+        return (
+            <main className="bg-[#faf7f0] pt-32 pb-20">
+                <Container>
+                    <LoadingSpinner 
+                        message="Entrando..." 
+                        submessage="Aguarde enquanto validamos suas informações"
+                        fullscreen={false}
+                    />
+                </Container>
+            </main>
+        );
+    }
 
     return (
         <main className="bg-[#faf7f0] pt-32 pb-20">

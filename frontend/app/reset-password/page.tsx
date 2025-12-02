@@ -9,6 +9,7 @@ import PasswordField from '@/components/forms/PasswordField';
 import Button from '@/components/shared/Button';
 import api from '@/lib/api';
 import Container from '@/components/shared/Container';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 function ResetPasswordContent() {
     const router = useRouter();
@@ -98,6 +99,20 @@ function ResetPasswordContent() {
             setIsSubmitting(false);
         }
     };
+
+    if (isSubmitting) {
+        return (
+            <main className="bg-[#faf7f0] pt-32 pb-12">
+                <Container>
+                    <LoadingSpinner 
+                        message="Redefinindo senha..." 
+                        submessage="Aguarde enquanto processamos sua solicitação"
+                        fullscreen={false}
+                    />
+                </Container>
+            </main>
+        );
+    }
 
     const isTokenMissing = !token;
 

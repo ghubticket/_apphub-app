@@ -5,6 +5,7 @@ import TicketCatalog from '@/components/tickets/TicketCatalog';
 import Container from '@/components/shared/Container';
 import type { TicketProduct } from '@/types/ticket';
 import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 export default function TicketsPage() {
     const [tickets, setTickets] = useState<TicketProduct[]>([]);
@@ -71,9 +72,10 @@ export default function TicketsPage() {
 
                 <section className="space-y-6">
                     {loading ? (
-                        <div className="flex items-center justify-center rounded-3xl border border-[#ded7ca] bg-white/70 p-10 text-sm font-medium text-[#7d796c]">
-                            Carregando opções de ingressos...
-                        </div>
+                        <LoadingSpinner 
+                            message="Carregando opções de ingressos..." 
+                            submessage="Buscando os melhores eventos disponíveis"
+                        />
                     ) : error ? (
                         <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
                             {error}

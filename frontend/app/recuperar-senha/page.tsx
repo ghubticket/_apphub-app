@@ -8,6 +8,7 @@ import InputField from '@/components/forms/InputField';
 import Button from '@/components/shared/Button';
 import api from '@/lib/api';
 import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 export default function RecuperarSenhaPage() {
     const [email, setEmail] = useState('');
@@ -59,6 +60,20 @@ export default function RecuperarSenhaPage() {
     };
 
     const emailSuggestions = useEmailSuggestions(email);
+
+    if (isSubmitting) {
+        return (
+            <main className="bg-[#faf7f0] pt-32 pb-12">
+                <div className="container mx-auto w-full max-w-screen-xl px-4 sm:px-6 lg:px-8">
+                    <LoadingSpinner 
+                        message="Enviando e-mail..." 
+                        submessage="Aguarde enquanto processamos sua solicitação"
+                        fullscreen={false}
+                    />
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="bg-[#faf7f0] pt-32 pb-12">
