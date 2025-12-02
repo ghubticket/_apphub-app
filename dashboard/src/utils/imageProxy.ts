@@ -3,7 +3,73 @@
  * Protege a URL da API backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api';
+// Prioridade: API_URL (server-side) > NEXT_PUBLIC_API_URL > fallback
+const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api';
+
+// Fallback de imagem padrão (vazio para o dashboard)
+const DEFAULT_FALLBACK_IMAGE = '';
+
+// Domínios reconhecidos da API (para detecção)
+const API_DOMAINS = [
+    'api.ghubtech.com.br',
+    'localhost:3443',
+    'localhost:3001',
+    '127.0.0.1:3443',
+    '127.0.0.1:3001'
+];
+
+/**
+ * Verifica se uma URL é de uma imagem da nossa API
+ */
+export function isApiImageUrl(url: string): boolean {
+    if (!url || typeof url !== 'string') return false;
+    
+    // Verificar se contém a API_BASE_URL configurada
+    if (url.includes(API_BASE_URL)) return true;
+    
+    // Verificar se contém algum dos domínios conhecidos
+    if (API_DOMAINS.some(domain => url.includes(domain))) return true;
+    
+    // URLs relativas (sem protocolo e sem /) são consideradas da API
+    return !url.startsWith('http') && !url.startsWith('/');
+}
+
+/**
+ * Extrai o caminho de uma URL de imagem da API
+ */
+function extractImagePath(url: string): string | null {
+    try {
+        const urlObj = new URL(url);
+        let path = urlObj.pathname;
+        
+        // Remover /api se estiver presente no caminho
+        if (path.startsWith('/api/')) {
+            path = path.substring(5);
+        } else if (path.startsWith('/')) {
+            path = path.substring(1);
+        }
+        
+        // Adicionar query string se existir
+        return path ? `${path}${urlObj.search}` : null;
+    } catch (error) {
+        // Fallback: tentar extrair com regex
+        const uploadsMatch = url.match(/\/(uploads\/.+)$/);
+        if (uploadsMatch) return uploadsMatch[1];
+        
+        const pathMatch = url.match(/https?:\/\/[^\/]+(\/.+)$/);
+        if (pathMatch) {
+            let path = pathMatch[1];
+            if (path.startsWith('/api/')) {
+                path = path.substring(5);
+            } else if (path.startsWith('/')) {
+                path = path.substring(1);
+            }
+            return path || null;
+        }
+        
+        return null;
+    }
+}
 
 /**
  * Converte uma URL de imagem da API para usar o proxy do Next.js
@@ -16,111 +82,45 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.co
  * // Retorna: /api/images/uploads/events/image.jpg
  */
 export function getProxiedImageUrl(imageUrl: string | null | undefined): string {
-    // Se não houver URL, retornar fallback
-    if (!imageUrl) {
-        return '';
-    }
-
-    // Normalizar a string (trim)
-    const normalized = imageUrl.trim();
-    if (!normalized) {
-        return '';
-    }
-
-    // Se já for uma URL local que começa com /, verificar se já é do proxy
-    if (normalized.startsWith('/')) {
-        // Se já for do proxy, retornar como está
-        if (normalized.startsWith('/api/images/')) {
-            return normalized;
-        }
-        // Se for outra URL local (ex: /images/...), retornar como está
-        return normalized;
-    }
-
-    // Se for uma URL externa (http:// ou https://)
-    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
-        // Verificar se é da nossa API (incluindo localhost para desenvolvimento)
-        const isApiUrl = normalized.includes(API_BASE_URL) || 
-                        normalized.includes('api.ghubtech.com.br') ||
-                        normalized.includes('localhost:3443') ||
-                        normalized.includes('localhost:3001');
-        
-        if (isApiUrl) {
-            // Extrair o caminho após a base URL
-            try {
-                const url = new URL(normalized);
-                let path = url.pathname;
-                
-                // Remover /api se estiver presente no caminho
-                if (path.startsWith('/api/')) {
-                    path = path.substring(5); // Remove '/api/'
-                } else if (path.startsWith('/')) {
-                    // Se começa com / mas não tem /api/, apenas remover a barra inicial
-                    path = path.substring(1);
-                }
-                
-                // Garantir que o caminho não esteja vazio
-                if (!path) {
-                    if (process.env.NODE_ENV === 'development') {
-                        console.warn('[getProxiedImageUrl] Empty path after processing:', normalized);
-                    }
-                    return '';
-                }
-                
-                // Retornar URL do proxy (sempre começa com /)
-                return `/api/images/${path}${url.search}`;
-            } catch (error) {
-                // Se falhar ao parsear URL, tentar extrair manualmente
-                if (process.env.NODE_ENV === 'development') {
-                    console.warn('[getProxiedImageUrl] Failed to parse URL, trying regex:', normalized, error);
-                }
-                
-                // Tentar extrair caminho que começa com /uploads/
-                const uploadsMatch = normalized.match(/\/(uploads\/.+)$/);
-                if (uploadsMatch) {
-                    return `/api/images/${uploadsMatch[1]}`;
-                }
-                
-                // Tentar extrair qualquer caminho após o domínio
-                const pathMatch = normalized.match(/https?:\/\/[^\/]+(\/.+)$/);
-                if (pathMatch) {
-                    let extractedPath = pathMatch[1];
-                    // Remover /api/ se presente
-                    if (extractedPath.startsWith('/api/')) {
-                        extractedPath = extractedPath.substring(5);
-                    } else if (extractedPath.startsWith('/')) {
-                        extractedPath = extractedPath.substring(1);
-                    }
-                    return `/api/images/${extractedPath}`;
-                }
-                
-                // Se não conseguir extrair, retornar vazio
-                if (process.env.NODE_ENV === 'development') {
-                    console.error('[getProxiedImageUrl] Could not extract path from URL:', normalized);
-                }
-                return '';
-            }
-        }
-        
-        // Se for outra URL externa, retornar como está (mas pode querer bloquear isso)
-        return normalized;
-    }
-
-    // Se for um caminho relativo (sem / e sem http), assumir que é da API
-    // Garantir que não comece com / para evitar duplicação
-    const cleanPath = normalized.startsWith('/') ? normalized.substring(1) : normalized;
-    // Garantir que a URL do proxy sempre comece com /
-    return `/api/images/${cleanPath}`;
-}
-
-/**
- * Verifica se uma URL é de uma imagem da nossa API
- */
-export function isApiImageUrl(url: string): boolean {
-    if (!url || typeof url !== 'string') return false;
+    // Retornar fallback se não houver URL
+    if (!imageUrl) return DEFAULT_FALLBACK_IMAGE;
     
-    return url.includes(API_BASE_URL) || 
-           url.includes('api.ghubtech.com.br') ||
-           (!url.startsWith('http') && !url.startsWith('/'));
+    // Normalizar e validar
+    const normalized = imageUrl.trim();
+    if (!normalized) return DEFAULT_FALLBACK_IMAGE;
+    
+    // Se já for uma URL do proxy, retornar como está
+    if (normalized.startsWith('/api/images/')) {
+        return normalized;
+    }
+    
+    // Se for outra URL local, retornar como está
+    if (normalized.startsWith('/')) {
+        return normalized;
+    }
+    
+    // Se for uma URL completa (http:// ou https://)
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+        // Verificar se é da nossa API
+        if (isApiImageUrl(normalized)) {
+            const path = extractImagePath(normalized);
+            
+            if (!path) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('[getProxiedImageUrl] Failed to extract path from URL:', normalized);
+                }
+                return DEFAULT_FALLBACK_IMAGE;
+            }
+            
+            return `/api/images/${path}`;
+        }
+        
+        // Se for outra URL externa, retornar como está
+        return normalized;
+    }
+    
+    // Se for um caminho relativo (assumir que é da API)
+    const cleanPath = normalized.startsWith('/') ? normalized.substring(1) : normalized;
+    return `/api/images/${cleanPath}`;
 }
 

@@ -23,7 +23,13 @@ export async function GET(
         
         // URL da API backend (usar variável de ambiente)
         // Prioridade: API_URL (server-side) > NEXT_PUBLIC_API_URL > fallback
-        let apiBaseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api';
+        let apiBaseUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
+        
+        // Fallback caso não haja variável de ambiente configurada
+        if (!apiBaseUrl) {
+            console.error('[Image Proxy] No API_URL or NEXT_PUBLIC_API_URL configured. Using fallback.');
+            apiBaseUrl = 'https://api.ghubtech.com.br/api';
+        }
         
         // SEMPRE remover /api do final do apiBaseUrl, pois as imagens estão diretamente em /uploads/
         // As imagens não estão em /api/uploads/, estão em /uploads/
@@ -46,13 +52,12 @@ export async function GET(
         if (process.env.NODE_ENV === 'development') {
             console.log('[Image Proxy] Fetching image:', {
                 imagePath,
-                originalApiBaseUrl: process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api',
                 cleanedApiBaseUrl: cleanBaseUrl,
                 imageUrl,
                 env: {
                     NODE_ENV: process.env.NODE_ENV,
-                    API_URL: process.env.API_URL ? 'set' : 'not set',
-                    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ? 'set' : 'not set',
+                    API_URL: process.env.API_URL ? `set (${process.env.API_URL})` : 'not set',
+                    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ? `set (${process.env.NEXT_PUBLIC_API_URL})` : 'not set',
                 }
             });
         }
@@ -71,6 +76,10 @@ export async function GET(
             method: 'GET',
             headers: {
                 'Accept': 'image/*',
+                'User-Agent': 'EventHub-Image-Proxy/1.0',
+                ...(process.env.NODE_ENV === 'development' && {
+                    'X-Proxy-Source': 'frontend-dev'
+                })
             },
             // Timeout de 10 segundos
             signal: AbortSignal.timeout(10000),
@@ -90,6 +99,8 @@ export async function GET(
                         method: 'GET',
                         headers: { 
                             'Accept': 'image/*',
+                            'User-Agent': 'EventHub-Image-Proxy/1.0',
+                            'X-Proxy-Source': 'frontend-dev-https',
                         },
                         rejectUnauthorized: false, // Desabilitar verificação SSL apenas em dev localhost
                     };

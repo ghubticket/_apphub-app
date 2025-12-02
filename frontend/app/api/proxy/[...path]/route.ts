@@ -6,7 +6,14 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 // URL da API backend (apenas server-side)
-const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api';
+// Prioridade: API_URL (server-side) > NEXT_PUBLIC_API_URL > fallback
+const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+    console.error('[API Proxy] No API_URL or NEXT_PUBLIC_API_URL configured. Using fallback.');
+}
+
+const API_URL = API_BASE_URL || 'https://api.ghubtech.com.br/api';
 
 // Métodos HTTP permitidos
 const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
@@ -63,7 +70,7 @@ async function handleRequest(
 
         // Reconstruir o caminho da API
         const apiPath = path.join('/');
-        const apiUrl = `${API_BASE_URL}/${apiPath}`;
+        const apiUrl = `${API_URL}/${apiPath}`;
 
         // Obter query parameters
         const searchParams = request.nextUrl.searchParams;
@@ -73,6 +80,10 @@ async function handleRequest(
         // Obter headers da requisição original (exceto alguns que não devem ser repassados)
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
+            'User-Agent': 'EventHub-API-Proxy/1.0',
+            ...(process.env.NODE_ENV === 'development' && {
+                'X-Proxy-Source': 'frontend-api-proxy-dev'
+            })
         };
 
         // Repassar Authorization se existir
