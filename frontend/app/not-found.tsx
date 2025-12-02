@@ -1,28 +1,28 @@
 'use client';
 
 import Link from 'next/link';
-import { HiOutlineHome, HiOutlineEmojiSad, HiOutlineArrowLeft } from 'react-icons/hi2';
+import { HiOutlineHome, HiOutlineArrowLeft } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import BuyTicketButton from '@/components/shared/BuyTicketButton';
 
 export default function NotFound() {
     return (
-        <main className="min-h-screen bg-gradient-to-br from-[#f5f1e8] via-[#faf7f0] to-[#ded7ca] flex items-center justify-center py-20 px-4">
+        <main className="pt-44 bg-gradient-to-br from-[#f5f1e8] via-[#faf7f0] to-[#ded7ca] flex items-center justify-center py-20 px-4">
             <Container className="max-w-2xl">
                 <div className="text-center space-y-8">
                     {/* Ícone grande e animado */}
                     <div className="flex justify-center">
                         <div className="relative">
-                            <div className="text-9xl md:text-[12rem] text-[#f97316] animate-bounce">
-                                <HiOutlineEmojiSad />
+                            <div className="text-9xl md:text-[12rem] animate-bounce">
+                                😢
                             </div>
-                            <div className="absolute -top-4 -right-4 text-6xl md:text-8xl text-[#a38f78] animate-pulse">
+                            <div className="absolute -top-4 -right-4 text-6xl md:text-8xl text-[#a38f78] animate-pulse font-bold">
                                 4
                             </div>
-                            <div className="absolute top-8 -left-4 text-6xl md:text-8xl text-[#a38f78] animate-pulse" style={{ animationDelay: '0.15s' }}>
+                            <div className="absolute top-8 -left-4 text-6xl md:text-8xl text-[#a38f78] animate-pulse font-bold" style={{ animationDelay: '0.15s' }}>
                                 0
                             </div>
-                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-6xl md:text-8xl text-[#a38f78] animate-pulse" style={{ animationDelay: '0.3s' }}>
+                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-6xl md:text-8xl text-[#a38f78] animate-pulse font-bold" style={{ animationDelay: '0.3s' }}>
                                 4
                             </div>
                         </div>
@@ -57,7 +57,7 @@ export default function NotFound() {
                             <HiOutlineHome className="h-5 w-5" />
                             Voltar ao Início
                         </Link>
-                        
+
                         <button
                             type="button"
                             onClick={() => window.history.back()}
@@ -69,7 +69,7 @@ export default function NotFound() {
                     </div>
 
                     {/* Sugestão de eventos */}
-                    <div className="pt-8">
+                    <div className="">
                         <p className="text-sm text-[#7d796c] mb-4">
                             Ou que tal explorar nossos eventos?
                         </p>
