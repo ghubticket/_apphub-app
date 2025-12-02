@@ -226,30 +226,18 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                     <p className="text-center text-sm text-[#a38f78] px-4">
                                         Imagem do evento em construção
                                     </p>
-                                ) : (() => {
-                                    const imageSrc = getProxiedImageUrl(primaryTicket.image);
-                                    return imageSrc.startsWith('/api/images/') ? (
-                                        // Para URLs do proxy, usar img normal (Next.js Image não funciona bem com rotas de API)
-                                        <img
-                                            src={imageSrc}
-                                            alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                            className="absolute inset-0 w-full h-full object-cover"
-                                            loading="eager"
-                                            onError={() => setImageError(true)}
-                                        />
-                                    ) : (
-                                        <Image
-                                            src={imageSrc}
-                                            alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                            fill
-                                            className="object-cover"
-                                            priority
-                                            sizes="(max-width: 768px) 100vw, 50vw"
-                                            unoptimized={false}
-                                            onError={() => setImageError(true)}
-                                        />
-                                    );
-                                })()}
+                                ) : (
+                                    <Image
+                                        src={getProxiedImageUrl(primaryTicket.image)}
+                                        alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                        fill
+                                        className="object-cover"
+                                        priority
+                                        sizes="(max-width: 768px) 100vw, 50vw"
+                                        unoptimized={false}
+                                        onError={() => setImageError(true)}
+                                    />
+                                )}
                             </div>
                         </div>
                       
@@ -362,30 +350,18 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                                         <p className="text-center text-sm text-[#a38f78] px-4">
                                             Imagem do evento em construção
                                         </p>
-                                    ) : (() => {
-                                        const imageSrc = getProxiedImageUrl(primaryTicket.image);
-                                        return imageSrc.startsWith('/api/images/') ? (
-                                            // Para URLs do proxy, usar img normal (Next.js Image não funciona bem com rotas de API)
-                                            <img
-                                                src={imageSrc}
-                                                alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                                className="absolute inset-0 w-full h-full object-cover"
-                                                loading="eager"
-                                                onError={() => setImageError(true)}
-                                            />
-                                        ) : (
-                                            <Image
-                                                src={imageSrc}
-                                                alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
-                                                fill
-                                                className="object-cover"
-                                                priority
-                                                sizes="100vw"
-                                                unoptimized={true}
-                                                onError={() => setImageError(true)}
-                                            />
-                                        );
-                                    })()}
+                                    ) : (
+                                        <Image
+                                            src={getProxiedImageUrl(primaryTicket.image)}
+                                            alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                            fill
+                                            className="object-cover"
+                                            priority
+                                            sizes="100vw"
+                                            unoptimized={true}
+                                            onError={() => setImageError(true)}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         </div>

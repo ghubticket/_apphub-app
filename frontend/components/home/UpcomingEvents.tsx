@@ -77,14 +77,6 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                         <p className="text-center text-sm text-[#a38f78] px-4">
                                             Imagem em construção.
                                         </p>
-                                    ) : imageSrc.startsWith('/api/images/') ? (
-                                        // Para URLs do proxy, usar img normal (Next.js Image não funciona bem com rotas de API)
-                                        <img
-                                            src={imageSrc}
-                                            alt={event.name || 'Evento'}
-                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                            onError={() => handleImageError(event.id)}
-                                        />
                                     ) : (
                                         <Image
                                             src={imageSrc}

@@ -7,12 +7,26 @@ import { generateQRCode } from '../services/qrCodeService';
 import User from '../models/User';
 import { sendCourtesyTicketEmail } from '../services/emailTemplates';
 import { generateTicketPDF } from '../services/pdfService';
+import { isR2Configured } from '../services/r2Service';
 
 // Helpers to build public URL for uploaded files
 function fileUrl(req: Request, filename?: string | null) {
     if (!filename) return undefined;
     const base = `${req.protocol}://${req.get('host')}`;
     return `${base}/uploads/events/${filename}`;
+}
+
+// Helper para obter URL da imagem (R2 ou local)
+function getImageUrl(req: Request, file: any): string | undefined {
+    if (!file) return undefined;
+    
+    // Se R2 estiver configurado e tiver r2Url, usar R2
+    if (isR2Configured() && (file as any).r2Url) {
+        return (file as any).r2Url;
+    }
+    
+    // Caso contrário, usar URL local
+    return fileUrl(req, file.filename);
 }
 
 // Sanitizar endereço: remover caracteres perigosos e limitar tamanho
@@ -98,8 +112,8 @@ export const createEvent = async (req: Request, res: Response) => {
                 return num;
             })(),
             organizer: req.user?._id,
-            coverImage: fileUrl(req, cover),
-            squareImage: fileUrl(req, square),
+            coverImage: getImageUrl(req, coverFile),
+            squareImage: getImageUrl(req, squareFile),
         });
 
         res.status(201).json({ success: true, message: 'Evento criado com sucesso', data: event });
@@ -209,10 +223,10 @@ export const updateEvent = async (req: Request, res: Response) => {
     try {
         const updates: any = { ...req.body };
         const filesMap = req.files as FilesMap;
-        const cover = filesMap?.cover?.[0]?.filename || null;
-        const square = filesMap?.square?.[0]?.filename || null;
-        if (cover) updates.coverImage = fileUrl(req, cover);
-        if (square) updates.squareImage = fileUrl(req, square);
+        const coverFile = filesMap?.cover?.[0] || null;
+        const squareFile = filesMap?.square?.[0] || null;
+        if (coverFile) updates.coverImage = getImageUrl(req, coverFile);
+        if (squareFile) updates.squareImage = getImageUrl(req, squareFile);
         // Sanitizar endereço se estiver sendo atualizado
         if (updates.address) {
             updates.address = sanitizeAddress(updates.address);

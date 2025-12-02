@@ -233,19 +233,6 @@ export default function HeroCarousel({
                                     <p className="text-center text-sm text-[#a38f78] px-4">
                                         IMAGEM em construção.
                                     </p>
-                                ) : slide.imageUrl.startsWith('/api/images/') ? (
-                                    // Para URLs do proxy, usar img normal (Next.js Image não funciona bem com rotas de API)
-                                    <img
-                                        src={slide.imageUrl}
-                                        alt={`Slide ${index + 1}`}
-                                        className="absolute inset-0 w-full h-full object-cover"
-                                        loading={index === currentSlide ? 'eager' : 'lazy'}
-                                        onError={() => {
-                                            setImageErrors((prev) => 
-                                                prev.includes(index) ? prev : [...prev, index]
-                                            );
-                                        }}
-                                    />
                                 ) : (
                                     <Image
                                         src={slide.imageUrl}

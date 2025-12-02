@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate, isAdmin } from '../middleware/auth';
 import { eventImageUpload, validatePngMagicBytes } from '../middleware/upload';
+import { uploadToR2 } from '../middleware/r2Upload';
 import {
     createEvent,
     listEvents,
@@ -87,7 +88,7 @@ router.get('/:id', getEvent);
  *     responses:
  *       201: { description: Criado }
  */
-router.post('/', authenticate, isAdmin, uploadFields, validatePngMagicBytes, createEvent);
+router.post('/', authenticate, isAdmin, uploadFields, validatePngMagicBytes, uploadToR2, createEvent);
 
 /**
  * @swagger
@@ -117,7 +118,7 @@ router.post('/', authenticate, isAdmin, uploadFields, validatePngMagicBytes, cre
  *     responses:
  *       200: { description: Atualizado }
  */
-router.put('/:id', authenticate, isAdmin, uploadFields, validatePngMagicBytes, updateEvent);
+router.put('/:id', authenticate, isAdmin, uploadFields, validatePngMagicBytes, uploadToR2, updateEvent);
 
 /**
  * @swagger

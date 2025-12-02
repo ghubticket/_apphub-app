@@ -89,7 +89,7 @@ export default function Home() {
         return events.slice(0, 4).map((event) => {
             // Usar a imagem do backend (coverImage ou squareImage), mesma da página de ingressos
             const eventImage = event.coverImage || event.squareImage;
-            // Se houver imagem do evento, usar o proxy; caso contrário, usar fallback
+            // Se houver imagem do evento, usar a URL direta (R2); caso contrário, usar fallback
             const imageUrl = eventImage ? getProxiedImageUrl(eventImage) : '/images/Banner-4-1600x838-5.png';
             
             return {

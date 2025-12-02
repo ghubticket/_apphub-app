@@ -5,12 +5,11 @@ import type { TicketProduct } from '@/types/ticket';
 import { cacheEvents, cacheTicketTypes, cacheCatalog, generateCacheKey } from './cache';
 
 /**
- * Normaliza URLs de imagem para retornar caminho relativo (será convertido para proxy depois)
+ * Normaliza URLs de imagem para retornar URL completa (R2, API, etc)
  * @param imageUrl - URL da imagem (pode ser completa, relativa ou apenas filename)
- * @returns Caminho relativo normalizado ou undefined se não houver URL
+ * @returns URL completa normalizada ou undefined se não houver URL
  * 
- * NOTA: URLs completas da API serão convertidas para caminhos relativos
- * que serão processados pelo getProxiedImageUrl para usar o proxy
+ * NOTA: URLs do R2 são retornadas diretamente. URLs antigas da API são mantidas para compatibilidade.
  */
 const normalizeImageUrl = (imageUrl?: string | null): string | undefined => {
     if (!imageUrl || typeof imageUrl !== 'string') return undefined;
@@ -18,50 +17,18 @@ const normalizeImageUrl = (imageUrl?: string | null): string | undefined => {
     const trimmed = imageUrl.trim();
     if (!trimmed) return undefined;
     
-    // Se for uma URL completa, extrair o caminho para usar no proxy
+    // Se for uma URL completa (R2, API, etc), retornar como está
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-        try {
-            const url = new URL(trimmed);
-            let path = url.pathname;
-            
-            // Se for do dashboard ou da API, extrair o caminho
-            // O proxy do frontend vai buscar do dashboard
-            if (url.hostname.includes('dash.ghubtech.com.br') || 
-                url.hostname.includes('api.ghubtech.com.br') ||
-                url.hostname.includes('localhost') && (url.port === '3443' || url.port === '3001')) {
-                
-                // Se a URL já tiver /api/images/, extrair apenas o path após isso
-                if (path.startsWith('/api/images/')) {
-                    return path.substring(12); // Remover '/api/images/'
-                }
-                
-                // Se for /uploads/..., retornar o caminho completo
-                if (path.startsWith('/uploads/')) {
-                    return path.substring(1); // Remover / inicial
-                }
-                
-                // Remover /api se estiver presente
-                if (path.startsWith('/api/')) {
-                    path = path.substring(5);
-                } else if (path.startsWith('/')) {
-                    path = path.substring(1);
-                }
-                return path;
-            }
-            // Se for outra URL externa, retornar como está (será tratada pelo getProxiedImageUrl)
-            return trimmed;
-        } catch {
-            // Se falhar ao parsear, tratar como caminho relativo
-        }
+        return trimmed;
     }
     
-    // Se começar com /, é um caminho relativo - remover / inicial
+    // Se começar com /, retornar como está (caminho relativo)
     if (trimmed.startsWith('/')) {
-        return trimmed.substring(1);
+        return trimmed;
     }
     
     // Caso contrário, assumir que é apenas o filename e construir o caminho
-    // Remover qualquer /uploads/events/ que possa estar no início do filename
+    // Isso é para compatibilidade com dados antigos
     const cleanFilename = trimmed.replace(/^\/?uploads\/events\//, '');
     return `uploads/events/${cleanFilename}`;
 };
