@@ -1176,11 +1176,17 @@ export const createCardPayment = async (req: Request, res: Response) => {
             messages = filteredFriendly.length > 0 ? filteredFriendly : uniqueFriendly;
         }
 
+        // Variável para armazenar o número de tentativas atualizado para retornar no response
+        let finalCardAttempts = currentAttempts;
+        
         if (order) {
             try {
                 const previousAttempts = order.cardAttempts || 0;
                 const newAttempts = previousAttempts + 1;
                 const maxAttempts = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
+                
+                // CRÍTICO: Guardar o valor atualizado para retornar na resposta
+                finalCardAttempts = newAttempts;
 
                 const updateData: any = {
                     paymentStatus: 'failed',
@@ -1194,6 +1200,9 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 if (newAttempts >= maxAttempts) {
                     updateData.status = 'failed';
                     updateData.isActive = false;
+                    updateData.paymentStatusDetail = 'max_attempts';
+                    updateData.paymentMessage = 'Você excedeu o número máximo de tentativas para este pedido.';
+                    updateData.paymentAdminMessage = 'Limite de tentativas excedido (cartão).';
                 } else {
                     // Manter pending para permitir nova tentativa
                     updateData.status = 'pending';
@@ -1217,15 +1226,25 @@ export const createCardPayment = async (req: Request, res: Response) => {
                         await ticketType.save();
                     }
                 }
-            } catch (persistError) {}
+            } catch (persistError) {
+                // Se falhar ao atualizar, usar o valor que já tínhamos
+            }
         }
 
-        return res.status(400).json({
+        // Determinar status HTTP baseado em se esgotou tentativas
+        // Se esgotou tentativas, retornar 429 (Too Many Requests) para indicar limite excedido
+        const httpStatus = finalCardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS ? 429 : 400;
+        
+        return res.status(httpStatus).json({
             success: false,
-            message: errorMessage,
-            errors: uniqueFriendly,
+            message: finalCardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS
+                ? 'Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido para tentar novamente.'
+                : errorMessage,
+            errors: finalCardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS
+                ? ['Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido.']
+                : uniqueFriendly,
             errorDetails: errorDetails, // Incluir detalhes completos do erro
-            cardAttempts: order?.cardAttempts ?? currentAttempts,
+            cardAttempts: finalCardAttempts, // Retornar o valor atualizado após incremento
             maxCardAttempts: MAX_CARD_PAYMENT_ATTEMPTS,
         });
     }
