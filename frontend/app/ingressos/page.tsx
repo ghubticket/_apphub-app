@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import TicketCatalog from '@/components/tickets/TicketCatalog';
 import PageContainer from '@/components/shared/PageContainer';
+import DynamicMetadata from '@/components/seo/DynamicMetadata';
+import StructuredData from '@/components/seo/StructuredData';
 import type { TicketProduct } from '@/types/ticket';
 import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { generateBreadcrumbStructuredData } from '@/lib/seo';
 
 export default function TicketsPage() {
     const [tickets, setTickets] = useState<TicketProduct[]>([]);
@@ -48,8 +51,21 @@ export default function TicketsPage() {
 
     const hasTickets = useMemo(() => tickets.length > 0, [tickets]);
 
+    // Breadcrumb structured data
+    const breadcrumbData = generateBreadcrumbStructuredData([
+        { name: 'Início', url: '/' },
+        { name: 'Ingressos', url: '/ingressos' },
+    ]);
+
     return (
-        <PageContainer 
+        <>
+            <DynamicMetadata
+                title="Ingressos Disponíveis"
+                description="Escolha entre os melhores eventos disponíveis. Compre ingressos online com segurança e receba por email."
+                url="/ingressos"
+            />
+            <StructuredData data={breadcrumbData} />
+            <PageContainer 
             bgColor="bg-[#f5f1e8]" 
             fullHeight
             containerClassName="py-12"
@@ -94,6 +110,7 @@ export default function TicketsPage() {
                     )}
                 </section>
         </PageContainer>
+        </>
     );
 }
 

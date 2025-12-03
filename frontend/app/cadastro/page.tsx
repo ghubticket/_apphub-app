@@ -18,6 +18,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { APP_NAME } from '@/lib/config';
 import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
+import DynamicMetadata from '@/components/seo/DynamicMetadata';
 import { useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import {
@@ -316,7 +317,14 @@ function CadastroPageContent() {
     }
 
     return (
-        <PageContainer bgColor="bg-[#faf7f0]">
+        <>
+            <DynamicMetadata
+                title="Cadastro"
+                description="Crie sua conta na Toka e comece a comprar ingressos para os melhores eventos. Cadastro rápido e seguro."
+                url="/cadastro"
+                noindex={true}
+            />
+            <PageContainer bgColor="bg-[#faf7f0]">
                 <div className="mb-12 text-center hidden md:block">
                     <h1 className="text-4xl uppercase font-bold text-[#1a1a1d]">
                         Criar Conta
@@ -496,6 +504,7 @@ function CadastroPageContent() {
                 </div>
             </div>
         </PageContainer>
+        </>
     );
 }
 

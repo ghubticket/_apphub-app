@@ -10,11 +10,14 @@ import TicketCatalog from '@/components/tickets/TicketCatalog';
 import EventSelectionSummary from '@/components/tickets/EventSelectionSummary';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import BuyTicketButton from '@/components/shared/BuyTicketButton';
+import DynamicMetadata from '@/components/seo/DynamicMetadata';
+import StructuredData from '@/components/seo/StructuredData';
 import type { TicketProduct } from '@/types/ticket';
 import { fetchTicketCatalog } from '@/lib/ticketsCatalog';
 import api from '@/lib/api';
 import { APP_NAME } from '@/lib/config';
 import { getProxiedImageUrl } from '@/lib/imageProxy';
+import { generateEventStructuredData, generateBreadcrumbStructuredData } from '@/lib/seo';
 
 type EventTicketsPageProps = {
     params: {
@@ -209,12 +212,56 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
         );
     }
 
+    // Preparar dados para SEO
+    const eventName = primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento';
+    const eventDescription = eventData?.description 
+        ? eventData.description.replace(/<[^>]*>/g, '').substring(0, 155) + '...'
+        : `Ingressos para ${eventName}. ${primaryTicket?.eventDate ? `Data: ${primaryTicket.eventDate}.` : ''} ${primaryTicket?.location ? `Local: ${primaryTicket.location}.` : ''} Compre agora com ${APP_NAME}!`;
+    const eventImage = primaryTicket?.image ? getProxiedImageUrl(primaryTicket.image) : undefined;
+    const eventUrl = `/eventos/${eventId}`;
+    const eventDate = primaryTicket?.eventDateIso || primaryTicket?.eventDate;
+    
+    // Structured data para o evento
+    const eventStructuredData = useMemo(() => {
+        if (!primaryTicket) return null;
+        
+        return generateEventStructuredData({
+            name: eventName,
+            description: eventData?.description?.replace(/<[^>]*>/g, '') || undefined,
+            image: eventImage,
+            date: eventDate,
+            startDate: eventDate,
+            location: primaryTicket.location,
+            price: minPrice > 0 ? minPrice : undefined,
+            currency: 'BRL',
+            id: eventId,
+            url: eventUrl,
+        });
+    }, [primaryTicket, eventName, eventData, eventImage, eventDate, minPrice, eventId, eventUrl]);
+    
+    // Breadcrumb structured data
+    const breadcrumbData = generateBreadcrumbStructuredData([
+        { name: 'Início', url: '/' },
+        { name: 'Ingressos', url: '/ingressos' },
+        { name: eventName, url: eventUrl },
+    ]);
+
     return (
-        <PageContainer 
-            bgColor="bg-[#f5f1e8]" 
-            paddingBottom="pb-8"
-            containerClassName="pb-8"
-        >
+        <>
+            <DynamicMetadata
+                title={eventName}
+                description={eventDescription}
+                image={eventImage}
+                url={eventUrl}
+                type="event"
+            />
+            {eventStructuredData && <StructuredData data={eventStructuredData} />}
+            <StructuredData data={breadcrumbData} />
+            <PageContainer 
+                bgColor="bg-[#f5f1e8]" 
+                paddingBottom="pb-8"
+                containerClassName="pb-8"
+            >
                 <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[1.2fr_1fr] lg:gap-10 lg:items-start">
                     {/* Coluna Esquerda: Foto e Sobre - DESKTOP: col-start-1, MOBILE: hidden (foto aparece acima) */}
                     <section className="hidden lg:block space-y-6 lg:col-start-1 lg:col-end-2">
@@ -413,5 +460,6 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
                     </section>
                     </div>
             </PageContainer>
-        );
-    }
+        </>
+    );
+}

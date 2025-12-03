@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { sanitizeInput, isValidCpf } from '@/utils/sanitize';
 import { useEmailSuggestions } from '@/hooks/useEmailSuggestions';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import DynamicMetadata from '@/components/seo/DynamicMetadata';
 
 type LoginFormFields = 'email' | 'password';
 
@@ -214,7 +215,14 @@ function LoginPageContent() {
     }
 
     return (
-        <PageContainer bgColor="bg-[#faf7f0]">
+        <>
+            <DynamicMetadata
+                title="Login"
+                description="Faça login na sua conta Toka para acessar seus ingressos e acompanhar seus pedidos."
+                url="/login"
+                noindex={true}
+            />
+            <PageContainer bgColor="bg-[#faf7f0]">
                 <header className="mb-10 space-y-3 hidden md:block">
                     <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">Área do Cliente</span>
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -375,6 +383,7 @@ function LoginPageContent() {
                     </div>
                 </div>
         </PageContainer>
+        </>
     );
 }
 

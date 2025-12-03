@@ -6,10 +6,12 @@ import EventCarousel from '@/components/home/EventCarousel';
 import UpcomingEvents from '@/components/home/UpcomingEvents';
 import PhotosCarousel from '@/components/home/PhotosCarousel';
 import HeroCarousel, { type HeroSlide } from '@/components/home/HeroVideo';
+import StructuredData from '@/components/seo/StructuredData';
 import { fetchEventsList, type EventSummary } from '@/lib/ticketsCatalog';
 import { APP_NAME } from '@/lib/config';
 import { getProxiedImageUrl } from '@/lib/imageProxy';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { generateBreadcrumbStructuredData } from '@/lib/seo';
 
 export default function Home() {
     // Limpar qualquer estado de processamento de pagamento ao entrar na HOME
@@ -111,25 +113,33 @@ export default function Home() {
         });
     }, [events, hasEvents]);
 
+    // Breadcrumb structured data
+    const breadcrumbData = generateBreadcrumbStructuredData([
+        { name: 'Início', url: '/' },
+    ]);
+
     return (
-        <main className="bg-[#f5f1e8]">
-            {loading ? (
-                <LoadingSpinner 
-                    message="Carregando eventos..." 
-                    submessage="Aguarde enquanto buscamos os melhores eventos para você"
-                />
-            ) : (
-                <>
-                    {/* Hero com carrossel - ocupa 100% da tela */}
-                    <HeroCarousel slides={heroSlides} autoplayInterval={6000} />
+        <>
+            <StructuredData data={breadcrumbData} />
+            <main className="bg-[#f5f1e8]">
+                {loading ? (
+                    <LoadingSpinner 
+                        message="Carregando eventos..." 
+                        submessage="Aguarde enquanto buscamos os melhores eventos para você"
+                    />
+                ) : (
+                    <>
+                        {/* Hero com carrossel - ocupa 100% da tela */}
+                        <HeroCarousel slides={heroSlides} autoplayInterval={6000} />
 
-                    {/* Seção Próximos Eventos */}
-                    <UpcomingEvents events={events} />
+                        {/* Seção Próximos Eventos */}
+                        <UpcomingEvents events={events} />
 
-                    {/* Seção Fotos */}
-                    <PhotosCarousel />
-                </>
-            )}
-        </main>
+                        {/* Seção Fotos */}
+                        <PhotosCarousel />
+                    </>
+                )}
+            </main>
+        </>
     );
 }
