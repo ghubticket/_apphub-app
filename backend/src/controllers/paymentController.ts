@@ -1029,7 +1029,85 @@ export const createCardPayment = async (req: Request, res: Response) => {
         };
 
         const interpretMessage = (msg: string) => {
-            const normalized = msg.toLowerCase();
+            const normalized = msg.toLowerCase().trim();
+            
+            // Filtrar mensagens em inglês genéricas que não devem ser exibidas
+            const englishGenericMessages = [
+                'the following transactions failed',
+                '^failed$',
+                '^transaction failed$',
+                '^payment failed$',
+            ];
+            
+            for (const pattern of englishGenericMessages) {
+                const regex = new RegExp(pattern, 'i');
+                if (regex.test(normalized)) {
+                    return true; // Ignorar essa mensagem
+                }
+            }
+
+            // Extrair status_detail de mensagens no formato "PAYMENT_ID: status_detail"
+            // Exemplo: "PAY01KBK0TMEC6PVYX9RRH72F4VEM: high_risk"
+            // O payment ID do MP geralmente começa com PAY e tem ~30 caracteres
+            const paymentIdPattern = /^[a-z0-9]{15,}:\s*([a-z_0-9]+)$/i;
+            const paymentIdMatch = normalized.match(paymentIdPattern);
+            if (paymentIdMatch && paymentIdMatch[1]) {
+                const statusDetail = paymentIdMatch[1].trim();
+                // Usar o paymentStatusMapper para obter mensagem traduzida
+                // Tentar primeiro com status "failed"
+                let statusInfo = getPaymentStatusInfo('failed', statusDetail);
+                // Se não encontrou ou é mensagem genérica, tentar com "rejected"
+                if (!statusInfo || statusInfo.userMessage.includes('Status desconhecido') || statusInfo.userMessage.includes(statusDetail)) {
+                    statusInfo = getPaymentStatusInfo('rejected', statusDetail);
+                }
+                
+                // Se encontrou uma mensagem traduzida válida, usar ela
+                if (statusInfo && statusInfo.userMessage && 
+                    !statusInfo.userMessage.includes('Status desconhecido') &&
+                    !statusInfo.userMessage.toLowerCase().includes(statusDetail.toLowerCase())) {
+                    appendFriendly(statusInfo.userMessage);
+                    return true;
+                }
+            }
+            
+            // Tentar extrair status_detail diretamente da string (caso o regex não tenha capturado)
+            // Buscar por padrões conhecidos de status_detail na mensagem
+            const directStatusMatch = normalized.match(/:\s*([a-z_0-9]+)$/i);
+            if (directStatusMatch && directStatusMatch[1]) {
+                const statusDetail = directStatusMatch[1].trim();
+                if (statusDetail.length > 3 && statusDetail !== 'failed') { // Ignorar "failed" genérico
+                    let statusInfo = getPaymentStatusInfo('failed', statusDetail);
+                    if (!statusInfo || statusInfo.userMessage.includes('Status desconhecido')) {
+                        statusInfo = getPaymentStatusInfo('rejected', statusDetail);
+                    }
+                    if (statusInfo && statusInfo.userMessage && 
+                        !statusInfo.userMessage.includes('Status desconhecido') &&
+                        !statusInfo.userMessage.toLowerCase().includes(statusDetail.toLowerCase())) {
+                        appendFriendly(statusInfo.userMessage);
+                        return true;
+                    }
+                }
+            }
+
+            // Tentar extrair status_detail de outras formas
+            // Verificar se a mensagem contém algum status_detail conhecido
+            const knownStatusDetails = [
+                'high_risk', 'rejected_by_issuer', 'insufficient_amount', 
+                'bad_filled_card_data', 'invalid_card_token', 'max_attempts_exceeded',
+                'card_disabled', 'required_call_for_authorize', 'processing_error',
+                'invalid_installments', 'pending_challenge', '3ds_challenge_expired',
+                '3ds_challenge_failed', 'cc_rejected_high_risk', 'cc_rejected_insufficient_amount'
+            ];
+            
+            for (const statusDetail of knownStatusDetails) {
+                if (normalized.includes(statusDetail)) {
+                    const statusInfo = getPaymentStatusInfo('failed', statusDetail);
+                    appendFriendly(statusInfo.userMessage);
+                    return true;
+                }
+            }
+
+            // Casos específicos conhecidos
             if (normalized.includes('rejected_by_issuer')) {
                 appendFriendly(
                     'Transação recusada pelo emissor do cartão. Entre em contato com o banco ou utilize outro cartão.'
@@ -1042,20 +1120,60 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 );
                 return true;
             }
+            
             return false;
         };
 
         messages.forEach((msg) => {
             if (!interpretMessage(msg)) {
-                appendFriendly(msg);
+                // Se não foi interpretado, verificar se é uma mensagem que deve ser ignorada
+                const normalized = msg.toLowerCase().trim();
+                const shouldIgnore = [
+                    'the following transactions failed',
+                    'failed',
+                    'transaction failed',
+                    'payment failed',
+                ].some(pattern => normalized === pattern);
+                
+                if (!shouldIgnore) {
+                    // Tentar ver se contém algum padrão de payment ID que podemos ignorar
+                    const isPaymentIdPattern = /^[a-z0-9]{20,}:/.test(normalized);
+                    if (!isPaymentIdPattern) {
+                        appendFriendly(msg);
+                    }
+                }
             }
         });
 
         const uniqueFriendly = Array.from(new Set(friendlyMessages));
-        errorMessage = uniqueFriendly[0];
+        
+        // Garantir que há pelo menos uma mensagem amigável em português
+        if (uniqueFriendly.length === 0) {
+            uniqueFriendly.push('Não foi possível processar o pagamento. Verifique os dados do cartão e tente novamente.');
+        }
+        
+        // Filtrar mensagens em inglês genéricas que possam ter passado
+        const filteredFriendly = uniqueFriendly.filter(msg => {
+            const normalized = msg.toLowerCase().trim();
+            const englishPatterns = [
+                'the following transactions failed',
+                '^failed$',
+                '^transaction failed$',
+                '^payment failed$',
+            ];
+            return !englishPatterns.some(pattern => {
+                const regex = new RegExp(pattern, 'i');
+                return regex.test(normalized);
+            });
+        });
+        
+        errorMessage = filteredFriendly[0] || uniqueFriendly[0] || 'Não foi possível processar o pagamento. Tente novamente.';
 
-        if (!messages.length) {
-            messages = uniqueFriendly;
+        if (!messages.length || messages.every(m => {
+            const norm = String(m).toLowerCase().trim();
+            return ['the following transactions failed', 'failed'].includes(norm);
+        })) {
+            messages = filteredFriendly.length > 0 ? filteredFriendly : uniqueFriendly;
         }
 
         if (order) {
