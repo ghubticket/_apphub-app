@@ -6,12 +6,13 @@ import Container from '@/components/shared/Container';
 interface CheckoutLoadingStateProps {
     cartLoading: boolean;
     orderLoading: boolean;
+    isRestoring?: boolean; // Indica se está restaurando pedido existente
 }
 
 /**
- * Componente de loading fullscreen para criação de pedido
+ * Componente de loading fullscreen para criação/restauração de pedido
  */
-function FullscreenOrderLoading() {
+function FullscreenOrderLoading({ isRestoring = false }: { isRestoring?: boolean }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f5f1e8]/95 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-6">
@@ -21,10 +22,19 @@ function FullscreenOrderLoading() {
                     <div className="absolute inset-0 h-16 w-16 animate-ping rounded-full border-4 border-[#f97316] opacity-20"></div>
                 </div>
                 
-                {/* Mensagem */}
+                {/* Mensagem - diferente para criar vs restaurar */}
                 <div className="text-center">
-                    <p className="text-lg font-semibold text-[#1a1a1d]">Criando pedido...</p>
-                    <p className="mt-2 text-sm text-[#7d796c]">Aguarde enquanto processamos sua solicitação</p>
+                    {isRestoring ? (
+                        <>
+                            <p className="text-lg font-semibold text-[#1a1a1d]">Estamos restaurando seu pedido...</p>
+                            <p className="mt-2 text-sm text-[#7d796c]">Aguarde enquanto buscamos suas informações</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-lg font-semibold text-[#1a1a1d]">Criando pedido...</p>
+                            <p className="mt-2 text-sm text-[#7d796c]">Aguarde enquanto processamos sua solicitação</p>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
@@ -41,7 +51,7 @@ function FullscreenOrderLoading() {
  * 
  * TEMPORÁRIO: setTimeout de 10 segundos para visualização
  */
-export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ cartLoading, orderLoading }: CheckoutLoadingStateProps) {
+export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ cartLoading, orderLoading, isRestoring = false }: CheckoutLoadingStateProps) {
     const [showLoading, setShowLoading] = useState(false);
     const orderLoadingRef = useRef(orderLoading);
 
@@ -60,12 +70,12 @@ export const CheckoutLoadingState = React.memo(function CheckoutLoadingState({ c
     }, [orderLoading]);
 
     // Determinar qual loading mostrar
-    // Mostrar loading somente enquanto o pedido está efetivamente sendo criado
+    // Mostrar loading somente enquanto o pedido está efetivamente sendo criado/restaurado
     const shouldShowFullscreen = orderLoading && showLoading;
 
-    // Se estiver criando pedido, mostrar loading fullscreen
+    // Se estiver criando/restaurando pedido, mostrar loading fullscreen
     if (shouldShowFullscreen) {
-        return <FullscreenOrderLoading />;
+        return <FullscreenOrderLoading isRestoring={isRestoring} />;
     }
 
     // Se estiver carregando carrinho, mostrar loading normal

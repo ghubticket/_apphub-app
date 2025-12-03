@@ -1,6 +1,6 @@
 import { MercadoPagoConfig, Order, Payment } from 'mercadopago';
 import { isValidCpf as isValidCpfBackend, normalizeCpf as normalizeCpfBackend } from '../utils/cpf';
-import { mapMpStatusDetailToMessage } from '../utils/mercadoPago';
+import { getPaymentStatusInfo } from '../utils/paymentStatusMapper';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
@@ -531,34 +531,16 @@ export const createPixPayment = async (
     }
 };
 
-const mapMpRejection = (statusDetail?: string) => {
-    const code = (statusDetail || '').toLowerCase();
-    const table: Record<string, string> = {
-        cc_rejected_insufficient_amount: 'Pagamento recusado por saldo ou limite insuficiente.',
-        cc_rejected_bad_filled_security_code:
-            'Código de segurança incorreto. Confira os três dígitos no verso do cartão.',
-        cc_rejected_bad_filled_date: 'Data de validade incorreta.',
-        cc_rejected_bad_filled_other: 'Dados do cartão incorretos. Confira número, data e código.',
-        cc_rejected_issuer_unavailable:
-            'Emissor indisponível no momento. Tente novamente em alguns minutos.',
-        cc_rejected_call_for_authorize:
-            'Transação necessita autorização do banco emissor. Entre em contato com o banco.',
-        cc_rejected_card_disabled:
-            'Cartão desabilitado. Ative-o junto ao banco emissor antes de tentar novamente.',
-        cc_rejected_card_error: 'O emissor não pôde processar o pagamento agora.',
-        cc_rejected_blacklist: 'Pagamento recusado por segurança. Utilize outro cartão.',
-        cc_rejected_high_risk:
-            'Pagamento recusado pela análise de risco. Utilize outro cartão ou método.',
-        cc_rejected_other_reason: 'Pagamento recusado pelo emissor do cartão.',
-        cc_rejected_3ds_mandatory:
-            'É necessário concluir a verificação 3D Secure para este cartão.',
-        rejected_by_issuer:
-            'Transação recusada pelo emissor do cartão. Entre em contato com o banco.',
-    };
-    return (
-        table[code] ||
-        'Pagamento recusado pelo emissor. Tente outro cartão ou entre em contato com o banco.'
-    );
+/**
+ * Helper function para obter mensagem amigável de status_detail
+ * Agora usa o mapeamento centralizado do paymentStatusMapper
+ */
+const mapMpRejection = (statusDetail?: string, status?: string) => {
+    if (!statusDetail) {
+        return 'Pagamento recusado pelo emissor. Tente outro cartão ou entre em contato com o banco.';
+    }
+    const statusInfo = getPaymentStatusInfo(status || 'rejected', statusDetail);
+    return statusInfo.userMessage;
 };
 
 /**
@@ -738,7 +720,9 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         const allowedStatuses = new Set(['approved', 'authorized', 'in_process', 'pending']);
 
         if (paymentStatus && !allowedStatuses.has(paymentStatus) && !isProcessedAccredited) {
-            const userMessage = mapMpStatusDetailToMessage(paymentStatusDetail);
+            // Usar mapeamento centralizado para obter mensagem amigável
+            const statusInfo = getPaymentStatusInfo(paymentStatus, paymentStatusDetail || '');
+            const userMessage = statusInfo.userMessage;
             const detailPayload = {
                 status: paymentInfo.status,
                 status_detail: paymentStatusDetail,
@@ -797,7 +781,10 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         if (!error?.response?.data && error?.orderResponse?.transactions?.payments?.[0]) {
             const rejectedPayment = error.orderResponse.transactions.payments[0];
             const statusDetail = rejectedPayment.status_detail || rejectedPayment.status_reason;
-            const userMessage = mapMpStatusDetailToMessage(statusDetail);
+            const paymentStatus = rejectedPayment.status || 'rejected';
+            // Usar mapeamento centralizado para obter mensagem amigável
+            const statusInfo = getPaymentStatusInfo(paymentStatus, statusDetail || '');
+            const userMessage = statusInfo.userMessage;
             const detailPayload = {
                 status: rejectedPayment.status,
                 status_detail: statusDetail,
@@ -848,7 +835,8 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
 
             let issuerMessage: string | null = null;
             if (containsIssuerRejection) {
-                issuerMessage = mapMpStatusDetailToMessage('rejected_by_issuer');
+                const statusInfo = getPaymentStatusInfo('rejected', 'rejected_by_issuer');
+                issuerMessage = statusInfo.userMessage;
                 collectedMessages.push(issuerMessage);
             }
 

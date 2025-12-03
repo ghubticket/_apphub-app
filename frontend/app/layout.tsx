@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import { Quicksand, Jost } from 'next/font/google';
 import { AuthProvider } from '@/context/AuthContext';
+import { GlobalErrorProvider } from '@/context/GlobalErrorContext';
 import LayoutShell from '@/components/layout/LayoutShell';
 import SessionExpirationModal from '@/components/SessionExpirationModal';
+import GlobalErrorModal from '@/components/shared/GlobalErrorModal';
 import StructuredData from '@/components/seo/StructuredData';
 import { generateMetadata as generateSEOMetadata, generateOrganizationStructuredData } from '@/lib/seo';
 import './globals.scss';
@@ -74,8 +76,11 @@ export default function RootLayout({
             </head>
             <body>
                 <AuthProvider>
-                    <LayoutShell>{children}</LayoutShell>
-                    <SessionExpirationModal />
+                    <GlobalErrorProvider>
+                        <LayoutShell>{children}</LayoutShell>
+                        <SessionExpirationModal />
+                        <GlobalErrorModal />
+                    </GlobalErrorProvider>
                 </AuthProvider>
             </body>
         </html>

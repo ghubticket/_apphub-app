@@ -56,21 +56,8 @@ export function usePaymentProcessing({
     const navigation = useCheckoutNavigation();
     const storage = useCheckoutStorage();
 
-    // Mapear detalhes de erro do Mercado Pago
-    const getErrorDetailMessage = useCallback((paymentStatusDetail: string): string => {
-        const detailMessages: Record<string, string> = {
-            'cc_rejected_insufficient_amount': 'Saldo insuficiente no cartão.',
-            'cc_rejected_bad_filled_card_number': 'Número do cartão inválido.',
-            'cc_rejected_bad_filled_date': 'Data de validade inválida.',
-            'cc_rejected_bad_filled_other': 'Dados do cartão inválidos.',
-            'cc_rejected_call_for_authorize': 'Cartão requer autorização. Entre em contato com o banco.',
-            'cc_rejected_card_error': 'Erro no cartão. Verifique os dados e tente novamente.',
-            'cc_rejected_high_risk': 'Pagamento recusado por segurança.',
-            'cc_rejected_invalid_installments': 'Número de parcelas inválido.',
-            'cc_rejected_max_attempts': 'Muitas tentativas. Tente novamente mais tarde.',
-        };
-        return detailMessages[paymentStatusDetail] || 'Tente novamente ou use outro cartão.';
-    }, []);
+    // O backend já retorna mensagens traduzidas via paymentStatusMapper
+    // Esta função foi mantida apenas como fallback, mas o backend deve sempre retornar statusInfo.userMessage
 
     // Filtrar mensagens de erro em inglês
     const filterEnglishErrorMessages = useCallback((errorDetails: string[]): string[] => {
@@ -242,6 +229,7 @@ export function usePaymentProcessing({
             
             // Verificar status do pagamento
             const paymentStatus = paymentResult?.paymentStatus || paymentResult?.status;
+            // Usar mensagem traduzida do backend (statusInfo.userMessage) que já vem do paymentStatusMapper
             const paymentMessage = statusInfo?.userMessage || paymentResult?.paymentMessage || paymentResult?.message;
             const paymentStatusDetail = paymentResult?.paymentStatusDetail || paymentResult?.statusDetail;
 
@@ -301,12 +289,18 @@ export function usePaymentProcessing({
                         'Você vai precisar criar um novo pedido para tentar novamente.',
                     ]);
                 } else {
+                    // Usar mensagem traduzida do backend que já vem do paymentStatusMapper
                     setStatusMessage(paymentMessage || 'Pagamento não aprovado');
                     const remainingAttempts = maxCardAttempts - (cardAttempts || 0);
                     const errorDetails: string[] = [];
                     
-                    if (paymentStatusDetail) {
-                        errorDetails.push(getErrorDetailMessage(paymentStatusDetail));
+                    // O backend já retorna a mensagem traduzida em statusInfo.userMessage
+                    // Se não tiver, usar fallback genérico
+                    if (paymentMessage) {
+                        errorDetails.push(paymentMessage);
+                    } else if (paymentStatusDetail) {
+                        // Fallback: se não tiver mensagem do backend, usar mensagem genérica
+                        errorDetails.push('Tente novamente ou use outro cartão.');
                     } else {
                         errorDetails.push('Tente novamente ou use outro cartão.');
                     }
@@ -401,7 +395,6 @@ export function usePaymentProcessing({
         onCountdownUpdate,
         navigation,
         storage,
-        getErrorDetailMessage,
         filterEnglishErrorMessages,
     ]);
 

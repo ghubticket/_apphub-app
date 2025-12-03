@@ -1,4 +1,5 @@
 import axios, { AxiosHeaders } from 'axios';
+import { shouldTriggerGlobalError, getErrorType, triggerGlobalError } from './globalErrorHandler';
 
 /**
  * API Client com Proxy Automático
@@ -17,6 +18,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.co
 
 // URL base que será usada (proxy ou API direta)
 const apiBaseURL = USE_PROXY ? PROXY_BASE_URL : API_BASE_URL;
+
+// Contador para evitar mostrar múltiplas modais ao mesmo tempo
+let globalErrorShown = false;
+let globalErrorTimeout: NodeJS.Timeout | null = null;
 
 
 const api = axios.create({
@@ -59,8 +64,19 @@ api.interceptors.request.use(
 
 // Interceptor para tratar erros
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Resetar flag quando há resposta bem-sucedida
+    if (globalErrorShown) {
+      globalErrorShown = false;
+      if (globalErrorTimeout) {
+        clearTimeout(globalErrorTimeout);
+        globalErrorTimeout = null;
+      }
+    }
+    return response;
+  },
   (error) => {
+    // Tratar erro 401 (não autenticado)
     if (error.response?.status === 401) {
       const requestUrl: string = error.config?.url || '';
       const shouldBypassRedirect = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'].some((endpoint) =>
@@ -83,7 +99,42 @@ api.interceptors.response.use(
         sessionStorage.removeItem('user');
         window.location.href = '/login';
       }
+      return Promise.reject(error);
     }
+
+    // Verificar se deve disparar erro global (erros críticos: 500+, rede, etc.)
+    if (shouldTriggerGlobalError(error) && typeof window !== 'undefined') {
+      // Evitar mostrar múltiplas modais ao mesmo tempo
+      if (!globalErrorShown) {
+        globalErrorShown = true;
+        const errorType = getErrorType(error);
+        
+        // Determinar mensagem baseada no tipo de erro
+        let message: string | undefined;
+        if (errorType === 'network') {
+          message = 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.';
+        } else if (errorType === 'server') {
+          const status = error.response?.status;
+          message = status === 500
+            ? 'Ocorreu um erro interno no servidor. Nossa equipe já foi notificada e está trabalhando para resolver. Por favor, tente novamente em alguns minutos.'
+            : 'Estamos enfrentando uma instabilidade técnica. Nossa equipe já foi notificada. Por favor, tente novamente em alguns minutos.';
+        } else if (errorType === 'maintenance') {
+          message = 'Estamos realizando uma manutenção programada. O serviço voltará em breve. Agradecemos sua compreensão.';
+        }
+
+        triggerGlobalError({
+          errorType,
+          message,
+        });
+
+        // Permitir nova modal após 30 segundos (evitar spam)
+        globalErrorTimeout = setTimeout(() => {
+          globalErrorShown = false;
+          globalErrorTimeout = null;
+        }, 30000);
+      }
+    }
+
     return Promise.reject(error);
   }
 );

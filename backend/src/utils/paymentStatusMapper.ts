@@ -184,6 +184,346 @@ const TRANSACTION_STATUS_MAP: Record<
         },
     },
 
+    // Status: pending (API antiga)
+    pending: {
+        pending_waiting_payment: {
+            userMessage: 'Aguardando pagamento. Complete o pagamento para confirmar seu ingresso.',
+            adminMessage: 'Pagamento offline pendente, aguardando que o usuário realize o pagamento.',
+            color: 'warning',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'pending',
+        },
+        pending_waiting_transfer: {
+            userMessage: 'Aguardando transferência bancária. Complete o pagamento para confirmar seu ingresso.',
+            adminMessage: 'Pagamento por transferência bancária pendente, aguardando confirmação.',
+            color: 'warning',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'pending',
+        },
+        pending_challenge: {
+            userMessage: 'Autenticação 3D Secure pendente. Complete a verificação.',
+            adminMessage: 'Pagamento com cartão de crédito aguardando confirmação por desafio 3DS.',
+            color: 'warning',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'pending',
+        },
+        pending: {
+            userMessage: 'Pagamento pendente. Aguarde a confirmação...',
+            adminMessage: 'Pagamento está pendente e aguardando processamento.',
+            color: 'warning',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'pending',
+        },
+    },
+
+    // Status: in_process (API antiga)
+    in_process: {
+        pending_contingency: {
+            userMessage: 'Pagamento em processamento. Você será notificado por e-mail quando for confirmado.',
+            adminMessage: 'Pagamento está sendo processado offline e será confirmado em até 2 dias úteis.',
+            color: 'warning',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'processing',
+        },
+        pending_review_manual: {
+            userMessage: 'Pagamento em análise. Você será notificado por e-mail quando for confirmado.',
+            adminMessage: 'Pagamento está aguardando revisão manual e será confirmado em até 2 dias úteis.',
+            color: 'warning',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'processing',
+        },
+        offline_process: {
+            userMessage: 'Pagamento em processamento offline. Aguarde a confirmação...',
+            adminMessage: 'Pagamento está sendo processado de forma offline devido à falta de processamento online.',
+            color: 'warning',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'processing',
+        },
+        in_process: {
+            userMessage: 'Pagamento em processamento. Aguarde alguns instantes...',
+            adminMessage: 'Pagamento está em processamento e ainda não foi concluído.',
+            color: 'warning',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'processing',
+        },
+    },
+
+    // Status: authorized (API antiga)
+    authorized: {
+        pending_capture: {
+            userMessage: 'Pagamento autorizado. Aguardando confirmação...',
+            adminMessage: 'Pagamento foi autorizado e aguarda captura.',
+            color: 'warning',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'processing',
+        },
+        authorized: {
+            userMessage: 'Pagamento autorizado. Aguardando confirmação...',
+            adminMessage: 'Pagamento foi autorizado e está aguardando captura.',
+            color: 'warning',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'processing',
+        },
+    },
+
+    // Status: cancelled (API antiga)
+    cancelled: {
+        expired: {
+            userMessage: 'Tempo de pagamento expirado. Você pode tentar novamente.',
+            adminMessage: 'Pagamento foi cancelado após ficar pendente por 30 dias.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'cancelled',
+        },
+        by_collector: {
+            userMessage: 'Pagamento cancelado pelo vendedor.',
+            adminMessage: 'Pagamento foi cancelado pelo collector (vendedor).',
+            color: 'error',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'cancelled',
+        },
+        by_payer: {
+            userMessage: 'Pagamento cancelado.',
+            adminMessage: 'Pagamento foi cancelado pelo pagador.',
+            color: 'error',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'cancelled',
+        },
+        cancelled: {
+            userMessage: 'Pagamento cancelado.',
+            adminMessage: 'Pagamento foi cancelado.',
+            color: 'error',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'cancelled',
+        },
+    },
+
+    // Status: rejected (API antiga - usado principalmente em webhooks)
+    rejected: {
+        cc_rejected_insufficient_amount: {
+            userMessage: 'Saldo insuficiente. Verifique seu saldo ou use outro cartão.',
+            adminMessage: 'O cartão possui saldo insuficiente para realizar o pagamento.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_bad_filled_card_number: {
+            userMessage: 'Número do cartão inválido. Verifique os dígitos informados.',
+            adminMessage: 'O número do cartão informado está incorreto ou inválido.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_bad_filled_date: {
+            userMessage: 'Data de validade incorreta. Verifique a data do cartão.',
+            adminMessage: 'A data de validade do cartão informada está incorreta.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_bad_filled_security_code: {
+            userMessage: 'Código de segurança incorreto. Confira os dígitos no verso do cartão.',
+            adminMessage: 'O código de segurança (CVV) do cartão informado está incorreto.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_bad_filled_other: {
+            userMessage: 'Dados do cartão incorretos. Confira número, data e código de segurança.',
+            adminMessage: 'Os dados do cartão informados estão incorretos ou incompletos.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_call_for_authorize: {
+            userMessage: 'Transação necessita autorização do banco. Entre em contato com seu banco.',
+            adminMessage: 'É necessário autorizar o pagamento do valor ao Mercado Pago. Contate o banco emissor.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_card_disabled: {
+            userMessage: 'Cartão desabilitado. Ative-o junto ao banco emissor ou use outro cartão.',
+            adminMessage: 'O cartão está desabilitado. O telefone para ativação está no verso do cartão.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_card_error: {
+            userMessage: 'Não foi possível processar o pagamento com este cartão. Tente novamente ou use outro cartão.',
+            adminMessage: 'Ocorreu um erro ao processar o pagamento com o cartão informado.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_blacklist: {
+            userMessage: 'Pagamento recusado por segurança. Utilize outro cartão ou método de pagamento.',
+            adminMessage: 'O pagamento foi recusado por questões de segurança do sistema.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_high_risk: {
+            userMessage: 'Seu pagamento foi recusado. Escolha outra forma de pagamento. Recomendamos meios de pagamento em dinheiro.',
+            adminMessage: 'O pagamento foi recusado pela análise de risco do sistema antifraude.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: false,
+            internalStatus: 'failed',
+        },
+        cc_rejected_invalid_installments: {
+            userMessage: 'Quantidade de parcelas inválida para este cartão. Escolha outra opção.',
+            adminMessage: 'O cartão não processa pagamentos na quantidade de parcelas selecionada.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_duplicated_payment: {
+            userMessage: 'Você já efetuou um pagamento com esse valor. Caso precise pagar novamente, utilize outro cartão.',
+            adminMessage: 'Foi detectado um pagamento duplicado para esta compra. Verifique lançamentos anteriores.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_max_attempts: {
+            userMessage: 'Você atingiu o limite de tentativas permitido. Escolha outro cartão ou outra forma de pagamento.',
+            adminMessage: 'O número máximo de tentativas de pagamento foi excedido para este cartão.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: false,
+            internalStatus: 'failed',
+        },
+        cc_rejected_other_reason: {
+            userMessage: 'O cartão não processa o pagamento. Tente outro cartão ou entre em contato com o banco.',
+            adminMessage: 'O pagamento foi recusado pelo emissor do cartão por motivo não especificado.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_3ds_mandatory: {
+            userMessage: 'É necessário concluir a verificação 3D Secure para este cartão. Complete a autenticação.',
+            adminMessage: 'O pagamento requer verificação 3D Secure obrigatória que não foi concluída.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_3ds_challenge: {
+            userMessage: 'Verificação 3D Secure não concluída. Tente novamente e finalize a autenticação.',
+            adminMessage: 'O desafio 3D Secure não foi superado corretamente.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_issuer_unavailable: {
+            userMessage: 'Emissor do cartão indisponível no momento. Tente novamente em alguns minutos.',
+            adminMessage: 'O banco emissor do cartão está temporariamente indisponível.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_amount_rate_limit_exceeded: {
+            userMessage: 'Limite de transações excedido. Tente novamente mais tarde ou com outro cartão.',
+            adminMessage: 'O pagamento foi rejeitado porque superou o limite (CAP - Capacidade Máxima Permitida) do meio de pagamento.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_high_risk_fraud: {
+            userMessage: 'Pagamento recusado por suspeita de fraude. Utilize outro cartão ou método de pagamento.',
+            adminMessage: 'O pagamento foi recusado devido à detecção de possível fraude pelo sistema antifraude.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: false,
+            internalStatus: 'failed',
+        },
+        rejected_by_bank: {
+            userMessage: 'Operação recusada pelo banco. Contate o banco ou tente outro cartão.',
+            adminMessage: 'A transferência bancária foi rejeitada devido a um erro com o banco.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        rejected_by_issuer: {
+            userMessage: 'Transação recusada pelo emissor do cartão. Contate o banco ou tente outro cartão.',
+            adminMessage: 'O pagamento foi recusado pelo banco emissor do cartão.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        rejected_by_regulations: {
+            userMessage: 'Pagamento recusado devido a regulamentações. Entre em contato com o banco.',
+            adminMessage: 'O pagamento foi recusado devido a políticas e regulamentações do emissor.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        rejected_insufficient_data: {
+            userMessage: 'Pagamento recusado. Complete os dados do titular e tente novamente.',
+            adminMessage: 'O pagamento foi rejeitado devido à falta de todas as informações obrigatórias necessárias no envio.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        insufficient_amount: {
+            userMessage: 'Pagamento recusado por valores insuficientes. Verifique seu saldo ou use outro cartão.',
+            adminMessage: 'O pagamento foi rejeitado por valores insuficientes no cartão ou conta.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        cc_rejected_card_type_not_allowed: {
+            userMessage: 'O pagamento foi rejeitado porque o usuário não tem a função crédito habilitada em seu cartão múltiplo (débito e crédito).',
+            adminMessage: 'Cartão múltiplo sem função crédito habilitada.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+        rejected: {
+            userMessage: 'Pagamento recusado. Tente novamente ou entre em contato com o suporte.',
+            adminMessage: 'O pagamento foi recusado pelo sistema ou emissor.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
+    },
+
     // Status: failed
     failed: {
         bad_filled_card_data: {
@@ -305,6 +645,22 @@ const TRANSACTION_STATUS_MAP: Record<
             canRetry: true,
             internalStatus: 'failed',
         },
+        in_review: {
+            userMessage: 'Pagamento em análise. O status está sendo verificado.',
+            adminMessage: 'Transação falhou e seu status é desconhecido ou contém informações sensíveis.',
+            color: 'warning',
+            requiresAction: false,
+            canRetry: false,
+            internalStatus: 'processing',
+        },
+        failed: {
+            userMessage: 'Pagamento falhou. Tente novamente ou entre em contato com o suporte.',
+            adminMessage: 'Transação falhou sem motivo específico identificado.',
+            color: 'error',
+            requiresAction: true,
+            canRetry: true,
+            internalStatus: 'failed',
+        },
     },
 };
 
@@ -395,13 +751,19 @@ const ORDER_STATUS_MAP: Record<
 
 /**
  * Obtém informações completas sobre um status de pagamento
+ * 
+ * Esta função tenta encontrar o mapeamento mais específico possível:
+ * 1. Procura por status + status_detail exatos
+ * 2. Procura por status_detail em qualquer status (para casos onde status_detail é mais específico)
+ * 3. Procura apenas pelo status (fallback)
+ * 4. Retorna mensagem padrão se nada for encontrado
  */
 export const getPaymentStatusInfo = (status: string, statusDetail: string): PaymentStatusInfo => {
     // Normalizar status e statusDetail
     const normalizedStatus = status?.toLowerCase() || 'unknown';
     const normalizedDetail = statusDetail?.toLowerCase() || 'unknown';
 
-    // Tentar encontrar no mapeamento de transação
+    // 1. Tentar encontrar no mapeamento de transação com status + detail exatos
     const transactionInfo = TRANSACTION_STATUS_MAP[normalizedStatus]?.[normalizedDetail];
 
     if (transactionInfo) {
@@ -412,7 +774,7 @@ export const getPaymentStatusInfo = (status: string, statusDetail: string): Paym
         };
     }
 
-    // Tentar encontrar no mapeamento de order
+    // 2. Tentar encontrar no mapeamento de order com status + detail exatos
     const orderInfo = ORDER_STATUS_MAP[normalizedStatus]?.[normalizedDetail];
 
     if (orderInfo) {
@@ -423,12 +785,62 @@ export const getPaymentStatusInfo = (status: string, statusDetail: string): Paym
         };
     }
 
-    // Status desconhecido - retornar padrão
+    // 3. Se status_detail está preenchido, tentar encontrar em qualquer status
+    // Isso é útil para status_detail que são específicos (ex: cc_rejected_*)
+    if (normalizedDetail && normalizedDetail !== 'unknown' && normalizedDetail !== normalizedStatus) {
+        // Procurar em todos os status do TRANSACTION_STATUS_MAP
+        for (const [statusKey, statusMap] of Object.entries(TRANSACTION_STATUS_MAP)) {
+            if (statusMap[normalizedDetail]) {
+                return {
+                    status: normalizedStatus,
+                    statusDetail: normalizedDetail,
+                    ...statusMap[normalizedDetail],
+                };
+            }
+        }
+
+        // Procurar em todos os status do ORDER_STATUS_MAP
+        for (const [statusKey, statusMap] of Object.entries(ORDER_STATUS_MAP)) {
+            if (statusMap[normalizedDetail]) {
+                return {
+                    status: normalizedStatus,
+                    statusDetail: normalizedDetail,
+                    ...statusMap[normalizedDetail],
+                };
+            }
+        }
+    }
+
+    // 4. Tentar encontrar apenas pelo status (sem detail específico)
+    // Procurar primeiro valor do mapeamento do status
+    if (TRANSACTION_STATUS_MAP[normalizedStatus]) {
+        const firstEntry = Object.entries(TRANSACTION_STATUS_MAP[normalizedStatus])[0];
+        if (firstEntry) {
+            return {
+                status: normalizedStatus,
+                statusDetail: normalizedDetail,
+                ...firstEntry[1],
+            };
+        }
+    }
+
+    if (ORDER_STATUS_MAP[normalizedStatus]) {
+        const firstEntry = Object.entries(ORDER_STATUS_MAP[normalizedStatus])[0];
+        if (firstEntry) {
+            return {
+                status: normalizedStatus,
+                statusDetail: normalizedDetail,
+                ...firstEntry[1],
+            };
+        }
+    }
+
+    // 5. Status desconhecido - retornar padrão com mensagem amigável
     return {
         status: normalizedStatus,
         statusDetail: normalizedDetail,
-        userMessage: `Status: ${status} - ${statusDetail}. Entre em contato com o suporte se necessário.`,
-        adminMessage: `Status desconhecido: ${status} / ${statusDetail}. Verificar documentação do Mercado Pago.`,
+        userMessage: `Status: ${status}${statusDetail && statusDetail !== 'unknown' ? ` - ${statusDetail}` : ''}. Entre em contato com o suporte se necessário.`,
+        adminMessage: `Status desconhecido: ${status}${statusDetail && statusDetail !== 'unknown' ? ` / ${statusDetail}` : ''}. Verificar documentação do Mercado Pago.`,
         color: 'warning',
         requiresAction: true,
         canRetry: true,

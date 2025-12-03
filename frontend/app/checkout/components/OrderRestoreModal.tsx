@@ -93,9 +93,9 @@ export function OrderRestoreModal({ order, onContinue, onCancel, onClose }: Orde
                         </p>
                         <div className="rounded-xl border border-amber-200 bg-white/50 p-3 text-xs text-amber-700">
                             <p className="font-semibold mb-1">
-                                Estamos restaurando seu pedido para você continuar de onde parou.
+                                Seu pedido foi restaurado com sucesso. Você pode continuar de onde parou.
                             </p>
-                            <p>Se não finalizar a tempo, ele será cancelado automaticamente.</p>
+                            <p>Se não finalizar o pagamento a tempo, ele será cancelado automaticamente.</p>
                         </div>
                     </div>
                 </div>

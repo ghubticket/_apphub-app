@@ -435,29 +435,38 @@ export function CheckoutLayout() {
         savedOrderIdRef.current = storageHelpers.loadActiveOrderId();
     }
     
+    // Determinar se está restaurando pedido (há pedido no storage) vs criando novo
+    const isRestoringOrder = useMemo(() => {
+        return !!savedOrderIdRef.current;
+    }, []);
+    
     const shouldShowInitialLoading = useMemo(() => {
         // Se já está carregando (cart ou order), mostrar loading
         if (cartLoading || orderLoading) {
             return true;
         }
         
-        // Verificar se há pedido no storage - se houver, não mostrar loading de criação
-        if (savedOrderIdRef.current) {
-            return false;
+        // Se há pedido no storage mas ainda não carregou, mostrar loading de restauração
+        if (savedOrderIdRef.current && !order) {
+            return true;
         }
         
         // Se não há pedido e não há pedido no storage, mas há itens no carrinho e dados do cliente, mostrar loading
         // Isso faz o loading aparecer IMEDIATAMENTE ao entrar no checkout para criar novo pedido
-        if (!order && summarizedCart.length > 0 && customerData.name && customerData.email) {
+        if (!order && !savedOrderIdRef.current && summarizedCart.length > 0 && customerData.name && customerData.email) {
             return true;
         }
         
         return false;
     }, [cartLoading, orderLoading, order, summarizedCart.length, customerData.name, customerData.email]);
-
+    
     // Mostrar loading
     if (shouldShowInitialLoading) {
-        return <CheckoutLoadingState cartLoading={cartLoading} orderLoading={orderLoading || (!order && summarizedCart.length > 0)} />;
+        return <CheckoutLoadingState 
+            cartLoading={cartLoading} 
+            orderLoading={orderLoading || (!order && (savedOrderIdRef.current ? true : summarizedCart.length > 0))} 
+            isRestoring={isRestoringOrder && !order}
+        />;
     }
 
     // Mostrar erro
