@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 // Usar a mesma configuração de API que o resto da aplicação
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:3443/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 const WARNING_TIME_MS = 2 * 60 * 1000; // 2 minutos antes de expirar
 const CHECK_INTERVAL_MS = 30 * 1000; // Verificar a cada 30 segundos
 

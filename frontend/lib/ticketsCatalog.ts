@@ -82,6 +82,7 @@ type RawTicketType = {
     maxQuantity?: number;
     soldQuantity?: number;
     maxPerPurchase?: number;
+    maxPerCPF?: number;
     isVIP?: boolean;
     isActive?: boolean;
     isOnSale?: boolean;
@@ -165,6 +166,7 @@ const normalizeTicketType = (
         image: normalizeImageUrl(event.coverImage || event.squareImage),
         stock: availableQuantity,
         maxPerOrder: ticket.maxPerPurchase ?? undefined,
+        maxPerCPF: ticket.maxPerCPF ?? undefined,
         isVip: ticket.isVIP ?? false,
         isOnSale: ticket.isOnSale ?? true,
         sortTimestamp: Number.isFinite(sortTimestamp) ? sortTimestamp : undefined,

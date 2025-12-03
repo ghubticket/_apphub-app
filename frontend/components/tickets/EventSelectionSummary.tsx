@@ -22,6 +22,8 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
     const [isCreatingVipOrder, setIsCreatingVipOrder] = useState<Record<string, boolean>>({});
     const [isProcessing, setIsProcessing] = useState(false);
     const [appliedPromoterCode, setAppliedPromoterCode] = useState<string | null>(null);
+    const [hasVipTickets, setHasVipTickets] = useState<Record<string, boolean>>({});
+    const [isCheckingVipTickets, setIsCheckingVipTickets] = useState(true); // Estado para controlar verificação de VIP
 
     // Ler código de desconto do sessionStorage ou da URL
     useEffect(() => {
@@ -41,6 +43,97 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
             setAppliedPromoterCode(savedCode);
         }
     }, [searchParams, eventId]);
+
+    // Verificar se usuário já tem VIP para os tickets deste evento
+    useEffect(() => {
+        const checkVipTickets = async () => {
+            // CRÍTICO: Marcar como verificando ANTES de qualquer coisa
+            setIsCheckingVipTickets(true);
+            
+            if (!isReady || !isAuthenticated || !user || !eventId || tickets.length === 0) {
+                // Se não está autenticado, limpar estado e marcar como verificado
+                if (!isReady || !isAuthenticated) {
+                    setHasVipTickets({});
+                }
+                setIsCheckingVipTickets(false);
+                return;
+            }
+
+            try {
+                const response = await api.get('/orders', {
+                    params: {
+                        limit: 100, // Buscar todos os pedidos recentes
+                    },
+                });
+
+                const orders = response.data?.data?.orders || [];
+                const vipTicketsMap: Record<string, boolean> = {};
+
+                // Verificar cada ticket VIP
+                tickets.forEach((ticket) => {
+                    if (!ticket.isVip || !ticket.ticketTypeId) return;
+
+                    // Contar quantos tickets VIP deste tipo o usuário já tem
+                    let vipCount = 0;
+                    
+                    orders.forEach((order: any) => {
+                        // Verificar se é pedido VIP pago
+                        if (order.status !== 'paid' || order.paymentMethod !== 'vip_free') {
+                            return;
+                        }
+                        
+                        // Verificar se é do mesmo evento
+                        const orderEventId = String(order.event?._id || order.event || '');
+                        const ticketEventId = String(ticket.eventId || '');
+                        if (orderEventId !== ticketEventId) {
+                            return;
+                        }
+                        
+                        // Contar tickets VIP confirmados/usados deste tipo
+                        const orderTickets = order.tickets || [];
+                        orderTickets.forEach((t: any) => {
+                            const tTicketTypeId = String(t.ticketType?._id || t.ticketType || t.ticketTypeId || '');
+                            const ticketTypeIdStr = String(ticket.ticketTypeId || '');
+                            
+                            if (tTicketTypeId === ticketTypeIdStr && 
+                                (t.status === 'confirmed' || t.status === 'used')) {
+                                vipCount++;
+                            }
+                        });
+                    });
+
+                    // CRÍTICO: Verificar se já atingiu o limite maxPerCPF
+                    // Se maxPerCPF está configurado e já tem >= maxPerCPF, bloquear
+                    // Se não tem maxPerCPF mas já tem pelo menos 1, também bloquear
+                    const maxPerCPF = ticket.maxPerCPF || 1; // Se não tem limite, assume 1
+                    const hasReachedLimit = vipCount >= maxPerCPF;
+
+                    if (hasReachedLimit) {
+                        vipTicketsMap[ticket.id] = true;
+                    }
+                });
+
+                // CRÍTICO: Atualizar estado apenas se houver mudanças
+                setHasVipTickets((prev) => {
+                    // Verificar se há diferenças
+                    const hasChanges = Object.keys(vipTicketsMap).some(
+                        (key) => vipTicketsMap[key] !== prev[key]
+                    ) || Object.keys(prev).some(
+                        (key) => !vipTicketsMap[key] && prev[key]
+                    );
+
+                    return hasChanges ? vipTicketsMap : prev;
+                });
+            } catch (error) {
+                // Erro silencioso - não bloquear interface
+            } finally {
+                // CRÍTICO: Sempre marcar como verificado, mesmo em caso de erro
+                setIsCheckingVipTickets(false);
+            }
+        };
+
+        checkVipTickets();
+    }, [isReady, isAuthenticated, user, eventId, tickets]);
 
     const currencyFormatter = useMemo(
         () =>
@@ -97,6 +190,11 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
 
     const handleCreateVipOrder = useCallback(
         async (ticket: TicketProduct) => {
+            // CRÍTICO: Verificar se já tem VIP antes de tentar criar
+            if (hasVipTickets[ticket.id]) {
+                return;
+            }
+
             if (!isReady || !isAuthenticated || !user) {
                 return;
             }
@@ -125,9 +223,19 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                 };
 
                 const response = await api.post('/orders', orderPayload);
-                const orderData = response.data?.data?.order;
+                
+                // CRÍTICO: Verificar se a resposta é de sucesso
+                if (!response.data?.success) {
+                    throw new Error(response.data?.message || 'Erro ao criar pedido');
+                }
 
-                if (orderData) {
+                const orderData = response.data?.data?.order;
+                const isVIP = response.data?.data?.isVIP;
+
+                // CRÍTICO: Só redirecionar se for VIP e tiver dados do pedido
+                if (orderData && isVIP === true) {
+                    // NÃO atualizar o estado aqui - deixar o useEffect detectar quando voltar à página
+                    // Redirecionar apenas para VIPs criados com sucesso
                     setTimeout(() => {
                         router.push('/dashboard');
                     }, 1000);
@@ -135,7 +243,27 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                     throw new Error('Resposta inválida do servidor');
                 }
             } catch (error: any) {
-                // Erro silencioso ao criar pedido VIP
+                // CRÍTICO: Se o backend rejeitou (ex: limite excedido), marcar como tendo VIP
+                // Isso garante que o botão desapareça mesmo se houver erro
+                const status = error?.response?.status;
+                const errorMessage = error?.response?.data?.message || '';
+                const errorErrors = error?.response?.data?.errors || [];
+                
+                // Verificar se é erro de limite excedido ou VIP já solicitado
+                const isLimitError = status === 400 && (
+                    errorMessage.includes('Limite') || 
+                    errorMessage.includes('VIP') ||
+                    errorMessage.includes('cortesia') ||
+                    errorErrors.some((e: string) => e.includes('Limite') || e.includes('VIP') || e.includes('cortesia'))
+                );
+
+                if (isLimitError) {
+                    // Marcar como tendo VIP para esconder o botão
+                    setHasVipTickets((prev) => ({
+                        ...prev,
+                        [ticket.id]: true,
+                    }));
+                }
             } finally {
                 setIsCreatingVipOrder((prev) => {
                     const newState = { ...prev };
@@ -144,7 +272,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                 });
             }
         },
-        [isReady, isAuthenticated, user, router, isCreatingVipOrder],
+        [isReady, isAuthenticated, user, router, isCreatingVipOrder, hasVipTickets],
     );
 
     // Calcular subtotal baseado nas quantidades selecionadas
@@ -292,60 +420,80 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                         </div>
                                     </div>
 
-                                    <div className='flex gap-2 items-center'>
-                                        <div className="flex items-center rounded-[100rem] bg-white px-[0.8rem] py-[0.5rem]">
-                                            <button
-                                                type="button"
-                                                onClick={() => updateQuantity(ticket, -1)}
-                                                disabled={quantity <= 0}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
-                                            >
-                                                <HiOutlineMinusSmall className="text-sm" />
-                                            </button>
-                                            <span className="min-w-[24px] text-center text-[0.75rem] font-semibold text-[#1a1a1d]">
-                                                {quantity}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() => updateQuantity(ticket, 1)}
-                                                disabled={isSoldOut || maxReached}
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
-                                            >
-                                                <HiOutlinePlusSmall className="text-sm" />
-                                            </button>
+                                    {/* Seletor de quantidade - apenas se NÃO for VIP ou se NÃO tiver VIP já */}
+                                    {!ticket.isVip || !hasVipTickets[ticket.id] ? (
+                                        <div className='flex gap-2 items-center'>
+                                            <div className="flex items-center rounded-[100rem] bg-white px-[0.8rem] py-[0.5rem]">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateQuantity(ticket, -1)}
+                                                    disabled={quantity <= 0}
+                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                                                >
+                                                    <HiOutlineMinusSmall className="text-sm" />
+                                                </button>
+                                                <span className="min-w-[24px] text-center text-[0.75rem] font-semibold text-[#1a1a1d]">
+                                                    {quantity}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateQuantity(ticket, 1)}
+                                                    disabled={isSoldOut || maxReached}
+                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                                                >
+                                                    <HiOutlinePlusSmall className="text-sm" />
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : null}
                                 </div>
-                                {/* Botão VIP - criar pedido direto */}
-                                {ticket.isVip && quantity > 0 && (
+                                
+                                {/* Alerta VIP com limite por CPF */}
+                                {ticket.isVip && ticket.maxPerCPF && !hasVipTickets[ticket.id] && (
+                                    <div className="mt-3 rounded-lg bg-[#f97316]/10 border border-[#f97316]/30 px-3 py-2.5">
+                                        <p className="text-[0.75rem] font-medium text-[#f97316]">
+                                            ⚠️ Limite de <strong>{ticket.maxPerCPF} ingresso{ticket.maxPerCPF > 1 ? 's' : ''} por CPF</strong>
+                                        </p>
+                                    </div>
+                                )}
+                                
+                                {/* Alerta se já tem VIP */}
+                                {ticket.isVip && hasVipTickets[ticket.id] && (
+                                    <p className="text-[0.75rem] pl-7 pt-1 font-medium text-[#f97316]">
+                                       ✅ Ingresso Vip Já Solicitado!
+                                </p>
+                                )}
+                                
+                                {/* Botão VIP - criar pedido direto - APENAS se NÃO tem VIP E verificação concluída */}
+                                {ticket.isVip && quantity > 0 && !hasVipTickets[ticket.id] && !isCheckingVipTickets && isReady && isAuthenticated && (
                                     <button
                                         type="button"
                                         onClick={() => handleCreateVipOrder(ticket)}
-                                        disabled={!isReady || !isAuthenticated || isCreatingVipOrder[ticket.id]}
+                                        disabled={isCreatingVipOrder[ticket.id]}
                                         className="mt-3 w-full rounded-full bg-[#1f5d3d] px-4 py-2.5 text-[0.75rem] font-semibold uppercase tracking-normal text-white transition hover:bg-[#2b6b47] disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {!isReady || !isAuthenticated ? (
-                                            <>
-                                                <HiOutlineLockClosed className="mr-1 inline text-sm" />
-                                                Login necessário
-                                            </>
-                                        ) : isCreatingVipOrder[ticket.id] ? (
-                                            'Gerando sua Corteria...'
+                                        {isCreatingVipOrder[ticket.id] ? (
+                                            'Gerando sua Cortesia...'
                                         ) : (
                                             'Pegar minha Cortesia'
                                         )}
                                     </button>
                                 )}
+                                
+                                {/* Mensagem se não está autenticado e é VIP */}
+                                {ticket.isVip && quantity > 0 && !hasVipTickets[ticket.id] && (!isReady || !isAuthenticated) && (
+                                    <div className="mt-3 w-full rounded-full bg-gray-400 px-4 py-2.5 text-[0.75rem] font-semibold uppercase tracking-normal text-white text-center">
+                                        <HiOutlineLockClosed className="mr-1 inline text-sm" />
+                                        Login necessário
+                                    </div>
+                                )}
                             </div>
                         );
                     })
                 ) : (
-                    <div className="mt-2 rounded-2xl border border-dashed border-[#e2ddd1] bg-[#fafbfc] px-4 py-6 text-center">
-                        <p className="text-[0.75rem] font-semibold text-[#4c4c55]">
-                            Você não possui ingressos selecionados
-                        </p>
-                        <p className="mt-1 text-[0.7rem] text-[#7d796c]">
-                            Escolha uma opção acima para começar sua compra.
+                    <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-6 text-center">
+                        <p className="text-[0.90rem] font-light text-[#4c4c55]">
+                            Vendas não Iniciadas!
                         </p>
                     </div>
                 )}

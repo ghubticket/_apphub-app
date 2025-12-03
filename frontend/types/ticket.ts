@@ -17,6 +17,7 @@ export type TicketProduct = {
     image?: string;
     stock?: number;
     maxPerOrder?: number;
+    maxPerCPF?: number;
     isVip?: boolean;
     isOnSale?: boolean;
     sortTimestamp?: number;

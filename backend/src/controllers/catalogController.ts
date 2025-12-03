@@ -166,6 +166,7 @@ export const getCatalog = async (req: Request, res: Response) => {
                         maxQuantity: 1,
                         soldQuantity: 1,
                         maxPerPurchase: 1,
+                        maxPerCPF: 1,
                         isVIP: 1,
                         isActive: 1,
                         salesStart: 1,

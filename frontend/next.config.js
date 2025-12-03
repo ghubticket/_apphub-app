@@ -27,17 +27,18 @@ const nextConfig = {
         hostname: 'api.ghubtech.com.br',
         pathname: '/uploads/**',
       },
-      // Permitir localhost para desenvolvimento
-      {
-        protocol: 'https',
-        hostname: 'localhost',
-        port: '3443',
-        pathname: '/uploads/**',
-      },
+      // Permitir localhost para desenvolvimento (HTTP apenas)
       {
         protocol: 'http',
         hostname: 'localhost',
         port: '3001',
+        pathname: '/uploads/**',
+      },
+      // Permitir localhost HTTPS (para compatibilidade com dados antigos)
+      {
+        protocol: 'https',
+        hostname: 'localhost',
+        port: '3443',
         pathname: '/uploads/**',
       },
     ],

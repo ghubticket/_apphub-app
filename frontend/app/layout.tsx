@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Quicksand, Jost } from 'next/font/google';
 import { AuthProvider } from '@/context/AuthContext';
 import LayoutShell from '@/components/layout/LayoutShell';
@@ -43,15 +43,18 @@ export const metadata: Metadata = {
         ],
     },
     manifest: '/manifest.json',
-    themeColor: [
-        { media: '(prefers-color-scheme: light)', color: '#f5f1e8' },
-        { media: '(prefers-color-scheme: dark)', color: '#1a1a1d' },
-    ],
     appleWebApp: {
         capable: true,
         statusBarStyle: 'default',
         title: 'Toka',
     },
+};
+
+export const viewport: Viewport = {
+    themeColor: [
+        { media: '(prefers-color-scheme: light)', color: '#f5f1e8' },
+        { media: '(prefers-color-scheme: dark)', color: '#1a1a1d' },
+    ],
 };
 
 export default function RootLayout({

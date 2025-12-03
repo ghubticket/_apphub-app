@@ -159,8 +159,21 @@ export async function validateAvailabilityAndLimits(
     // Verificar limite acumulado por CPF (se configurado)
     // CRÍTICO: Esta validação deve funcionar para TODOS os tipos de ingresso, incluindo VIP
     if (ticketType.maxPerCPF && cpfToValidate) {
-        // Importar função dinamicamente para evitar dependência circular
+        // Importar funções dinamicamente para evitar dependência circular
         const ordersController = await import('../controllers/ordersController');
+        const { cacheTicketCounts, generateTicketCountCacheKey } = await import('../services/cacheService');
+        
+        // CRÍTICO: Para VIPs, invalidar cache ANTES da validação para garantir dados atualizados
+        // Isso previne que cache antigo permita criar múltiplos VIPs
+        if (ticketType.isVIP) {
+            const cacheKey = generateTicketCountCacheKey(
+                eventId,
+                ticketTypeId,
+                cpfToValidate,
+                emailToValidate || undefined
+            );
+            cacheTicketCounts.delete(cacheKey);
+        }
 
         const purchasedByCPF = await ordersController.countPurchasedTicketsByCPFOrEmail(
             eventId,
@@ -168,6 +181,7 @@ export async function validateAvailabilityAndLimits(
             cpfToValidate,
             undefined
         );
+        
         const totalAfterPurchase = purchasedByCPF + quantity;
 
         if (totalAfterPurchase > ticketType.maxPerCPF) {

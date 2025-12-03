@@ -25,7 +25,16 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [tickets, setTickets] = useState<TicketProduct[]>([]);
-    const [eventData, setEventData] = useState<{ description?: string } | null>(null);
+    const [eventData, setEventData] = useState<{ 
+        description?: string;
+        name?: string;
+        date?: string;
+        location?: string;
+        city?: string;
+        state?: string;
+        coverImage?: string;
+        squareImage?: string;
+    } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [imageError, setImageError] = useState(false);
@@ -53,6 +62,13 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                     if (event) {
                         setEventData({
                             description: event.description,
+                            name: event.name,
+                            date: event.date,
+                            location: event.location,
+                            city: event.city,
+                            state: event.state,
+                            coverImage: event.coverImage,
+                            squareImage: event.squareImage,
                         });
                     }
                 } catch (eventErr) {
@@ -67,10 +83,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
                 const eventTickets = catalog.filter((ticket) => ticket.eventId === eventId);
 
-                if (!eventTickets.length) {
-                    setError('Não encontramos ingressos para este evento.');
-                }
-
+                // Não setar erro se não houver ingressos - apenas mostrar mensagem no box
                 setTickets(eventTickets);
             } catch (err: any) {
                 setError(
@@ -111,9 +124,8 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     };
 
     const handleShareWhatsApp = () => {
-        const eventName = primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento';
-        const eventDate = primaryTicket?.eventDate ?? '';
-        const eventLocation = primaryTicket?.location ?? '';
+        const eventDate = primaryTicket?.eventDate ?? eventData?.date ?? '';
+        const eventLocation = primaryTicket?.location ?? eventData?.location ?? '';
         const eventUrl = typeof window !== 'undefined' ? window.location.href : '';
 
         const message = `🎫 ${eventName}${eventDate ? `\n📅 ${eventDate}` : ''}${eventLocation ? `\n📍 ${eventLocation}` : ''}\n\n🔗 ${eventUrl}`;
@@ -123,9 +135,8 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     };
 
     const handleShareInstagram = async () => {
-        const eventName = primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento';
-        const eventDate = primaryTicket?.eventDate ?? '';
-        const eventLocation = primaryTicket?.location ?? '';
+        const eventDate = primaryTicket?.eventDate ?? eventData?.date ?? '';
+        const eventLocation = primaryTicket?.location ?? eventData?.location ?? '';
         const eventUrl = typeof window !== 'undefined' ? window.location.href : '';
 
         const text = `🎫 ${eventName}${eventDate ? `\n📅 ${eventDate}` : ''}${eventLocation ? `\n📍 ${eventLocation}` : ''}\n\n🔗 ${eventUrl}`;
@@ -157,21 +168,41 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     }, [tickets]);
 
     // Preparar dados para SEO (ANTES de qualquer return)
-    const eventName = useMemo(() => primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento', [primaryTicket]);
-    const eventImage = useMemo(() => primaryTicket?.image ? getProxiedImageUrl(primaryTicket.image) : undefined, [primaryTicket]);
+    const eventName = useMemo(() => 
+        primaryTicket?.eventName ?? 
+        primaryTicket?.name ?? 
+        eventData?.name ?? 
+        'Evento', 
+        [primaryTicket, eventData]
+    );
+    const eventImage = useMemo(() => {
+        if (primaryTicket?.image) return getProxiedImageUrl(primaryTicket.image);
+        if (eventData?.coverImage) return getProxiedImageUrl(eventData.coverImage);
+        if (eventData?.squareImage) return getProxiedImageUrl(eventData.squareImage);
+        return undefined;
+    }, [primaryTicket, eventData]);
     const eventUrl = useMemo(() => `/eventos/${eventId}`, [eventId]);
-    const eventDate = useMemo(() => primaryTicket?.eventDateIso || primaryTicket?.eventDate, [primaryTicket]);
+    const eventDate = useMemo(() => 
+        primaryTicket?.eventDateIso || 
+        primaryTicket?.eventDate || 
+        eventData?.date, 
+        [primaryTicket, eventData]
+    );
     
     const eventDescription = useMemo(() => {
         if (eventData?.description) {
             return eventData.description.replace(/<[^>]*>/g, '').substring(0, 155) + '...';
         }
-        return `Ingressos para ${eventName}. ${primaryTicket?.eventDate ? `Data: ${primaryTicket.eventDate}.` : ''} ${primaryTicket?.location ? `Local: ${primaryTicket.location}.` : ''} Compre agora com ${APP_NAME}!`;
+        const eventDate = primaryTicket?.eventDate ?? eventData?.date ?? '';
+        const eventLocation = primaryTicket?.location ?? eventData?.location ?? '';
+        return `Ingressos para ${eventName}. ${eventDate ? `Data: ${eventDate}.` : ''} ${eventLocation ? `Local: ${eventLocation}.` : ''} Compre agora com ${APP_NAME}!`;
     }, [eventData, eventName, primaryTicket]);
     
     // Structured data para o evento
     const eventStructuredData = useMemo(() => {
-        if (!primaryTicket) return null;
+        if (!primaryTicket && !eventData) return null;
+        
+        const location = primaryTicket?.location ?? eventData?.location;
         
         return generateEventStructuredData({
             name: eventName,
@@ -179,13 +210,13 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
             image: eventImage,
             date: eventDate,
             startDate: eventDate,
-            location: primaryTicket.location,
+            location: location,
             price: minPrice > 0 ? minPrice : undefined,
             currency: 'BRL',
             id: eventId,
             url: eventUrl,
         });
-    }, [primaryTicket, eventName, eventData, eventImage, eventDate, minPrice, eventId, eventUrl]);
+    }, [primaryTicket, eventData, eventName, eventImage, eventDate, minPrice, eventId, eventUrl]);
     
     // Breadcrumb structured data
     const breadcrumbData = useMemo(() => generateBreadcrumbStructuredData([
@@ -251,14 +282,14 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                         {/* Poster do Evento */}
                         <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white">
                             <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca] flex items-center justify-center">
-                                {imageError || !primaryTicket?.image ? (
+                                {imageError || !eventImage ? (
                                     <p className="text-center text-sm text-[#a38f78] px-4">
                                         Imagem do evento em construção
                                     </p>
                                 ) : (
                                     <Image
-                                        src={getProxiedImageUrl(primaryTicket.image)}
-                                        alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                        src={eventImage}
+                                        alt={eventName}
                                         fill
                                         className="object-cover"
                                         priority
@@ -315,7 +346,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                         {/* Título do Evento com Favoritar */}
                         <div className="flex items-start justify-between gap-4">
                             <h1 className="flex-1 text-2xl md:text-3xl font-bold text-[#1a1a1d] leading-tight">
-                                {primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento'}
+                                {eventName}
                             </h1>
                             <button
                                 type="button"
@@ -328,17 +359,17 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
                         {/* Detalhes do Evento */}
                         <div className="space-y-4 rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
-                            {primaryTicket?.eventDate && (
+                            {(primaryTicket?.eventDate || eventData?.date) && (
                                 <div className="flex items-center gap-3 text-sm text-[#4c4c55]">
                                     <HiOutlineCalendar className="text-lg text-[#a38f78] flex-shrink-0" />
-                                    <span className="text-[#1a1a1d]">{primaryTicket.eventDate}</span>
+                                    <span className="text-[#1a1a1d]">{primaryTicket?.eventDate || eventData?.date}</span>
                                 </div>
                             )}
 
-                            {primaryTicket?.location && (
+                            {(primaryTicket?.location || eventData?.location) && (
                                 <div className="flex items-start gap-3 text-sm text-[#4c4c55]">
                                     <HiOutlineMapPin className="text-lg text-[#a38f78] flex-shrink-0 mt-0.5" />
-                                    <span className="text-[#1a1a1d]">{primaryTicket.location}</span>
+                                    <span className="text-[#1a1a1d]">{primaryTicket?.location || eventData?.location}</span>
                                 </div>
                             )}
 
@@ -375,14 +406,14 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                         <div className="lg:hidden">
                             <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white">
                                 <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca] flex items-center justify-center">
-                                    {compactImageError || !primaryTicket?.image ? (
+                                    {compactImageError || !eventImage ? (
                                         <p className="text-center text-sm text-[#a38f78] px-4">
                                             Imagem do evento em construção
                                         </p>
                                     ) : (
                                         <Image
-                                            src={getProxiedImageUrl(primaryTicket.image)}
-                                            alt={primaryTicket?.eventName ?? primaryTicket?.name ?? 'Imagem do evento'}
+                                            src={eventImage}
+                                            alt={eventName}
                                             fill
                                             className="object-cover"
                                             priority

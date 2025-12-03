@@ -215,6 +215,80 @@ export const createOrder = async (req: Request, res: Response) => {
         const normalizedCustomerEmail = normalizeEmail(customerData?.email);
         const normalizedUserEmail = normalizeEmail(user?.email);
 
+        // CRÍTICO: Validação especial para VIPs - verificar se já tem pedido VIP pago ANTES de validar limites
+        // Isso previne que cache ou timing permitam criar múltiplos VIPs
+        if (ticketType.isVIP && ticketType.maxPerCPF && cpfToValidate) {
+            const { hashCPFForSearch } = await import('../utils/encryption');
+            const cpfHash = hashCPFForSearch(cpfToValidate);
+            
+            if (cpfHash) {
+                // Buscar diretamente no banco usando agregação para contar tickets VIP confirmados
+                const eventObjectId = new mongoose.Types.ObjectId(eventId);
+                const ticketTypeObjectId = new mongoose.Types.ObjectId(ticketTypeId);
+                
+                const vipCountResult = await Order.aggregate([
+                    {
+                        $match: {
+                            event: eventObjectId,
+                            status: 'paid',
+                            paymentMethod: 'vip_free',
+                            deletedAt: null,
+                            'customerData.cpfHash': cpfHash,
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: 'tickets',
+                            let: { orderId: '$_id' },
+                            pipeline: [
+                                {
+                                    $match: {
+                                        $expr: {
+                                            $and: [
+                                                { $eq: ['$order', '$$orderId'] },
+                                                { $eq: ['$ticketType', ticketTypeObjectId] },
+                                                { $in: ['$status', ['confirmed', 'used']] },
+                                                { $eq: ['$deletedAt', null] },
+                                            ],
+                                        },
+                                    },
+                                },
+                            ],
+                            as: 'vipTickets',
+                        },
+                    },
+                    {
+                        $match: {
+                            'vipTickets.0': { $exists: true },
+                        },
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            totalVipTickets: { $sum: { $size: '$vipTickets' } },
+                        },
+                    },
+                ]);
+
+                const totalVipTickets = vipCountResult.length > 0 && vipCountResult[0].totalVipTickets 
+                    ? vipCountResult[0].totalVipTickets 
+                    : 0;
+
+                // Se já tem VIP, bloquear
+                const maxAllowed = ticketType.maxPerCPF || 1;
+                if (totalVipTickets >= maxAllowed) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Limite acumulado por CPF excedido',
+                        errors: [
+                            `Você já possui ${totalVipTickets} cortesia(s) VIP para este evento. ` +
+                            `Limite máximo: ${ticketType.maxPerCPF} ingresso(s) por CPF.`,
+                        ],
+                    });
+                }
+            }
+        }
+
         // REFATORADO: Validação de disponibilidade e limites usando serviço
         const availabilityValidation = await orderService.validateAvailabilityAndLimits(
             eventId!,
@@ -305,6 +379,24 @@ export const createOrder = async (req: Request, res: Response) => {
                 // Buscar pedido completo (não lean) para atualizar
                 const orderToUpdate = await Order.findById(existingOrder._id);
                 if (orderToUpdate) {
+                    // CRÍTICO: Validar limites ANTES de adicionar ingressos ao pedido existente
+                    // Isso é especialmente importante para VIPs com maxPerCPF
+                    const reuseAvailabilityValidation = await orderService.validateAvailabilityAndLimits(
+                        eventId!,
+                        ticketTypeId!,
+                        quantity!,
+                        ticketType,
+                        cpfToValidate,
+                        emailToValidate
+                    );
+                    if (!reuseAvailabilityValidation.isValid) {
+                        return res.status(reuseAvailabilityValidation.error!.status).json({
+                            success: false,
+                            message: reuseAvailabilityValidation.error!.message,
+                            errors: reuseAvailabilityValidation.error!.errors,
+                        });
+                    }
+
                     // Pedido já está pending ou failed, pode ser atualizado normalmente
                     // Não precisa mudar status - já está em estado válido para adicionar ingressos
                     // Verificar disponibilidade antes de adicionar
@@ -314,6 +406,18 @@ export const createOrder = async (req: Request, res: Response) => {
                             success: false,
                             message: 'Estoque insuficiente',
                             errors: [`Disponível: ${availableQuantity}, Solicitado: ${quantity}`],
+                        });
+                    }
+
+                    // CRÍTICO: Para VIPs, não permitir adicionar a pedidos existentes
+                    // VIPs devem ser pedidos únicos, não podem ser adicionados a pedidos anteriores
+                    if (isReallyVIP) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Ingresso VIP já solicitado',
+                            errors: [
+                                'Você já possui um pedido VIP para este evento. Não é possível adicionar mais ingressos VIP ao pedido existente.',
+                            ],
                         });
                     }
 
@@ -648,6 +752,19 @@ export const createOrder = async (req: Request, res: Response) => {
             ticketType.soldQuantity += quantity;
             await ticketType.save();
 
+            // CRÍTICO: Invalidar cache de contagem de tickets quando VIP é criado
+            // Isso garante que a próxima validação de maxPerCPF use dados atualizados
+            if (isReallyVIP && cpfToValidate) {
+                const { cacheTicketCounts, generateTicketCountCacheKey } = await import('../services/cacheService');
+                const cacheKey = generateTicketCountCacheKey(
+                    eventId!,
+                    ticketTypeId!,
+                    cpfToValidate,
+                    emailToValidate || undefined
+                );
+                cacheTicketCounts.delete(cacheKey);
+            }
+
             // Popular dados para resposta
             const populatedOrder = await Order.findById(order._id)
                 .populate('event', 'name date location address')
@@ -756,12 +873,17 @@ export const listMyOrders = async (req: Request, res: Response) => {
 
         // Buscar pedidos com paginação
         // IMPORTANTE: Incluir _id do evento para permitir agrupamento no frontend
+        // CRÍTICO: Popular ticketType dentro dos tickets para permitir verificação de VIP no frontend
         const orders = await Order.find(filters)
             .populate('event', '_id name date location coverImage')
             .populate({
                 path: 'tickets',
-                select: 'code qrCode status price',
+                select: 'code qrCode status price ticketType',
                 match: { deletedAt: null },
+                populate: {
+                    path: 'ticketType',
+                    select: '_id name isVIP',
+                },
             })
             .sort({ createdAt: -1 })
             .skip(skip)

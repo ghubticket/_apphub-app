@@ -67,74 +67,80 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                         const imageSrc = getProxiedImageUrl(image);
 
                         return (
-                            <article
+                            <Link
                                 key={event.id}
-                                className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-md transition-all hover:shadow-xl"
+                                href={`/eventos/${event.id}`}
+                                className="block"
                             >
-                                {/* Imagem do evento */}
-                                <div className="relative aspect-[07/10] md:aspect-[09/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
-                                    {hasError || !image ? (
-                                        <p className="text-center text-sm text-[#a38f78] px-4">
-                                            Imagem em construção.
-                                        </p>
-                                    ) : (
-                                        <Image
-                                            src={imageSrc}
-                                            alt={event.name || 'Evento'}
-                                            fill
-                                            className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                            sizes="(max-width: 768px) 100vw, 50vw"
-                                            unoptimized={false}
-                                            onError={() => handleImageError(event.id)}
-                                        />
-                                    )}
-                                </div>
-
-                                {/* Conteúdo do card */}
-                                <div className="flex flex-1 flex-col p-6">
-                                    {/* Nome do evento */}
-                                    <h3 className="mb-4 text-xl font-bold leading-tight text-[#1a1a1d]">
-                                        {event.name ?? 'Evento em destaque'}
-                                    </h3>
-
-                                    {/* Local e data - sempre exibir com ícones */}
-                                    <div className="mb-6 space-y-3 text-sm text-[#6f6b63]">
-                                        {/* Local com ícone */}
-                                        {event.location || (event.city && event.state) ? (
-                                            <div className="flex items-center gap-2 mt-0">
-                                                <HiOutlineMapPin className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
-                                                <p>
-                                                    {event.location || `${event.city}, ${event.state}`}
-                                                </p>
-                                            </div>
-                                        ) : null}
-                                        {/* Data com ícone */}
-                                        {event.formattedDate || event.date ? (
-                                            <div className="flex items-center gap-2 mt-0">
-                                                <HiOutlineCalendar className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
-                                                <p>
-                                                    {event.formattedDate ||
-                                                        (event.date
-                                                            ? new Date(event.date).toLocaleDateString('pt-BR', {
-                                                                day: 'numeric',
-                                                                month: 'long',
-                                                                year: 'numeric'
-                                                            })
-                                                            : '')}
-                                                </p>
-                                            </div>
-                                        ) : null}
+                                <article
+                                    className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-md transition-all hover:shadow-xl cursor-pointer"
+                                >
+                                    {/* Imagem do evento */}
+                                    <div className="relative aspect-[07/10] md:aspect-[09/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                                        {hasError || !image ? (
+                                            <p className="text-center text-sm text-[#a38f78] px-4">
+                                                Imagem em construção.
+                                            </p>
+                                        ) : (
+                                            <Image
+                                                src={imageSrc}
+                                                alt={event.name || 'Evento'}
+                                                fill
+                                                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                                sizes="(max-width: 768px) 100vw, 50vw"
+                                                unoptimized={false}
+                                                onError={() => handleImageError(event.id)}
+                                            />
+                                        )}
                                     </div>
 
-                                    {/* Botão CTA */}
-                                    <BuyTicketButton
-                                        href={`/eventos/${event.id}`}
-                                        variant="primary"
-                                        size="sm"
-                                        className="mt-auto justify-center"
-                                    />
-                                </div>
-                            </article>
+                                    {/* Conteúdo do card */}
+                                    <div className="flex flex-1 flex-col p-6">
+                                        {/* Nome do evento */}
+                                        <h3 className="mb-4 text-xl font-bold leading-tight text-[#1a1a1d]">
+                                            {event.name ?? 'Evento em destaque'}
+                                        </h3>
+
+                                        {/* Local e data - sempre exibir com ícones */}
+                                        <div className="mb-6 space-y-3 text-sm text-[#6f6b63]">
+                                            {/* Local com ícone */}
+                                            {event.location || (event.city && event.state) ? (
+                                                <div className="flex items-center gap-2 mt-0">
+                                                    <HiOutlineMapPin className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
+                                                    <p>
+                                                        {event.location || `${event.city}, ${event.state}`}
+                                                    </p>
+                                                </div>
+                                            ) : null}
+                                            {/* Data com ícone */}
+                                            {event.formattedDate || event.date ? (
+                                                <div className="flex items-center gap-2 mt-0">
+                                                    <HiOutlineCalendar className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
+                                                    <p>
+                                                        {event.formattedDate ||
+                                                            (event.date
+                                                                ? new Date(event.date).toLocaleDateString('pt-BR', {
+                                                                    day: 'numeric',
+                                                                    month: 'long',
+                                                                    year: 'numeric'
+                                                                })
+                                                                : '')}
+                                                    </p>
+                                                </div>
+                                            ) : null}
+                                        </div>
+
+                                        {/* Botão CTA - não precisa de href pois o card inteiro é clicável */}
+                                        <div className="mt-auto">
+                                            <BuyTicketButton
+                                                variant="primary"
+                                                size="sm"
+                                                className="w-full justify-center pointer-events-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </article>
+                            </Link>
                         );
                     })}
                 </div>
