@@ -1,6 +1,7 @@
 import express from 'express';
 import { connectDatabase } from '../config/database';
 import rateLimit from 'express-rate-limit';
+import logger from '../utils/logger';
 
 const router = express.Router();
 
@@ -104,9 +105,79 @@ async function checkDatabaseConnection(): Promise<boolean> {
         // Por exemplo, fazer uma query simples
         return true;
     } catch (error) {
-        console.error('Database connection check failed:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Database connection check failed:', { error: errorMessage });
         return false;
     }
 }
+
+// Endpoint de teste para logs do Datadog
+router.get('/test-logs', (req, res) => {
+    try {
+        // Teste 1: Log de info
+        logger.info('🔍 Test log - Datadog connection', {
+            timestamp: new Date().toISOString(),
+            service: 'eventhub-backend',
+            test: true,
+            level: 'info',
+            message: 'Este é um log de teste para verificar se o Datadog está recebendo logs',
+        });
+
+        // Teste 2: Log de warning
+        logger.warn('⚠️ Test warning log', {
+            timestamp: new Date().toISOString(),
+            service: 'eventhub-backend',
+            test: true,
+            level: 'warn',
+            message: 'Este é um log de aviso de teste',
+        });
+
+        // Teste 3: Log de erro (simulado)
+        logger.error('❌ Test error log', {
+            timestamp: new Date().toISOString(),
+            service: 'eventhub-backend',
+            test: true,
+            level: 'error',
+            message: 'Este é um log de erro de teste (não é um erro real)',
+            simulated: true,
+        });
+
+        // Teste 4: Log com metadata complexa
+        logger.info('📊 Test log with complex metadata', {
+            timestamp: new Date().toISOString(),
+            service: 'eventhub-backend',
+            test: true,
+            orderId: 'test-123',
+            customerId: 'test-456',
+            amount: 100.50,
+            paymentMethod: 'test',
+            metadata: {
+                userAgent: req.headers['user-agent'],
+                ip: req.ip,
+                path: req.path,
+            },
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Logs de teste enviados ao Datadog!',
+            timestamp: new Date().toISOString(),
+            instructions: {
+                step1: 'Acesse: https://us5.datadoghq.com/logs',
+                step2: 'Filtre por: service:eventhub-backend',
+                step3: 'Ou filtre por: test:true',
+                step4: 'Você deve ver 4 logs de teste',
+            },
+        });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Erro ao gerar logs de teste:', { error: errorMessage });
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao gerar logs de teste',
+            error: errorMessage,
+        });
+    }
+});
 
 export default router;
