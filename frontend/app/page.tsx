@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Container from '@/components/shared/Container';
-import AboutSection from '@/components/home/AboutSection';
 import EventCarousel from '@/components/home/EventCarousel';
 import UpcomingEvents from '@/components/home/UpcomingEvents';
 import PhotosCarousel from '@/components/home/PhotosCarousel';
