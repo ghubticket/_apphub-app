@@ -119,6 +119,10 @@ desktop.ini
 *.tgz
 .yarn-integrity
 
+# Uploads locais (em produção usa R2/Cloudflare)
+backend/uploads/
+uploads/
+
 # ===========================================
 # FRONTEND SPECIFIC
 # ===========================================

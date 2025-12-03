@@ -46,19 +46,7 @@ const PORT = Number(process.env.PORT) || 3001;
 // Middlewares de Segurança
 // ====================================
 
-// Sentry request handler - captura contexto de requisições
-// Deve ser o PRIMEIRO middleware após a inicialização
-if (process.env.SENTRY_DSN) {
-    app.use(Sentry.Handlers.requestHandler({
-        // Incluir dados da requisição no contexto
-        user: ['id', 'email'],
-        ip: true,
-        request: ['headers', 'method', 'query_string', 'url'],
-    }));
-    
-    // Tracing handler - monitora performance das rotas
-    app.use(Sentry.Handlers.tracingHandler());
-}
+// Sentry request handler será configurado após as rotas
 
 // Helmet - Headers de segurança
 // Configurar para permitir imagens do próprio servidor
@@ -235,18 +223,20 @@ app.use(generalRateLimit);
 
 // Compressão de Respostas - Reduz tamanho de JSON e outros conteúdos
 // OTIMIZAÇÃO: Comprime respostas para reduzir tráfego de rede
-app.use(compression({
-    filter: (req: Request, res: Response) => {
-        // Comprimir apenas se o cliente suporta
-        if (req.headers['x-no-compression']) {
-            return false;
-        }
-        // Usar compressão padrão do compression
-        return compression.filter(req, res);
-    },
-    level: 6, // Nível de compressão (0-9, 6 é um bom equilíbrio)
-    threshold: 1024, // Comprimir apenas respostas maiores que 1KB
-}));
+app.use(
+    compression({
+        filter: (req: Request, res: Response) => {
+            // Comprimir apenas se o cliente suporta
+            if (req.headers['x-no-compression']) {
+                return false;
+            }
+            // Usar compressão padrão do compression
+            return compression.filter(req, res);
+        },
+        level: 6, // Nível de compressão (0-9, 6 é um bom equilíbrio)
+        threshold: 1024, // Comprimir apenas respostas maiores que 1KB
+    })
+);
 
 // Servir arquivos estáticos de upload com cache forte e proteção simples de hotlink
 const __allowedUploadOrigins = [
@@ -258,19 +248,19 @@ app.use('/uploads', (req: Request, res: Response, next) => {
     const referer = req.get('referer') || '';
     const userAgent = req.get('user-agent') || '';
     const isProd = (process.env.NODE_ENV || 'development') === 'production';
-    
+
     // Permitir requisições de proxies (dashboard e frontend)
     // Os proxies enviam User-Agent específico
-    const isProxyRequest = 
+    const isProxyRequest =
         userAgent.includes('EventHub-Image-Proxy') ||
         userAgent.includes('EventHub-Dashboard-Proxy') ||
         userAgent.includes('Image-Proxy');
-    
+
     // Se for requisição de proxy, permitir sempre
     if (isProxyRequest) {
         return next();
     }
-    
+
     // Em produção, verificar Referer apenas se existir
     // Se não houver Referer, permitir (pode ser requisição direta ou de proxy)
     if (isProd && referer) {
@@ -364,21 +354,6 @@ app.use('/api/novidades', newsletterRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/delivery', deliveryRoutes);
 
-// Sentry error handler - deve ser configurado DEPOIS de todas as rotas
-// e ANTES de qualquer outro error middleware
-if (process.env.SENTRY_DSN) {
-    app.use(Sentry.Handlers.errorHandler({
-        // Não reportar erros 4xx como erros críticos
-        shouldHandleError(error) {
-            const status = typeof error.status === 'number' ? error.status : Number(error.status);
-            if (status && status < 500) {
-                return false;
-            }
-            return true;
-        },
-    }));
-}
-
 /**
  * @swagger
  * /:
@@ -458,6 +433,41 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // ====================================
+// Middleware de Erro - Captura erros não tratados
+// ====================================
+// Deve estar DEPOIS de todas as rotas e ANTES do handler 404
+
+app.use((error: any, req: Request, res: Response, next: NextFunction) => {
+    // Se já foi respondido, passar para o próximo
+    if (res.headersSent) {
+        return next(error);
+    }
+
+    // Capturar erro no Sentry se for erro inesperado (500+)
+    const statusCode = error?.statusCode || error?.status || 500;
+    if (statusCode >= 500 && process.env.SENTRY_DSN) {
+        Sentry.captureException(error, {
+            tags: {
+                component: 'express',
+                statusCode: statusCode.toString(),
+            },
+            extra: {
+                method: req.method,
+                path: req.path,
+                url: req.originalUrl || req.url,
+            },
+        });
+    }
+
+    // Responder com erro
+    res.status(statusCode).json({
+        success: false,
+        message: error?.message || 'Erro interno do servidor',
+        ...(process.env.NODE_ENV !== 'production' && { stack: error?.stack }),
+    });
+});
+
+// ====================================
 // Tratamento de Erros 404
 // ====================================
 
@@ -488,7 +498,7 @@ const startServer = async () => {
         const sslOptions = isRailway ? null : getSSLOptions();
         const httpsPort = Number(process.env.HTTPS_PORT) || 3443;
         const useHttps = sslOptions !== null && !isRailway;
-        
+
         // Iniciar servidor
         if (useHttps) {
             // Servidor HTTPS
@@ -503,7 +513,6 @@ const startServer = async () => {
         if (process.env.ORDER_EXPIRATION_ENABLED !== 'false') {
             startOrderExpirationScheduler();
         }
-
 
         // Worker: reprocessamento de webhooks pendentes/fracassados
         startWebhookWorker(async (payload: any) => {
@@ -524,7 +533,7 @@ const startServer = async () => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
         logger.error('❌ Erro ao iniciar servidor:', { error: errorMessage, stack: errorStack });
-        
+
         // Capturar erro fatal de inicialização no Sentry
         if (process.env.SENTRY_DSN) {
             Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
@@ -536,7 +545,7 @@ const startServer = async () => {
                 level: 'fatal',
             });
         }
-        
+
         process.exit(1);
     }
 };
