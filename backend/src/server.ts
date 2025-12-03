@@ -506,7 +506,9 @@ const startServer = async () => {
             }
         });
     } catch (error) {
-        logger.error('❌ Erro ao iniciar servidor:', { error: error.message, stack: error.stack });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        logger.error('❌ Erro ao iniciar servidor:', { error: errorMessage, stack: errorStack });
         process.exit(1);
     }
 };
