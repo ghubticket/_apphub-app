@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Event, TicketType } from '../models';
 import { cacheCatalog, generateCacheKey } from '../services/cacheService';
+import { captureControllerError } from '../utils/sentryErrorHandler';
 
 /**
  * Endpoint otimizado para retornar catálogo completo (eventos + ticket types)
@@ -196,6 +197,17 @@ export const getCatalog = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('[getCatalog] ❌ Erro:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'catalogController',
+            action: 'getCatalog',
+            statusCode: 500,
+            extra: {
+                search: req.query?.search,
+                limitEvents: req.query?.limitEvents,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar catálogo',

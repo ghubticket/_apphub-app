@@ -8,6 +8,7 @@ import User from '../models/User';
 import { sendCourtesyTicketEmail } from '../services/emailTemplates';
 import { generateTicketPDF } from '../services/pdfService';
 import { isR2Configured } from '../services/r2Service';
+import { captureControllerError } from '../utils/sentryErrorHandler';
 
 // Helpers to build public URL for uploaded files
 function fileUrl(req: Request, filename?: string | null) {
@@ -119,12 +120,34 @@ export const createEvent = async (req: Request, res: Response) => {
         res.status(201).json({ success: true, message: 'Evento criado com sucesso', data: event });
     } catch (error: any) {
         console.error('Erro ao criar evento:', error);
+        
+        // Se for erro de validação, não enviar ao Sentry
+        if (error.name === 'ValidationError' || error.code === 11000) {
+            const errorMessage = error.errors
+                ? Object.values(error.errors)
+                      .map((e: any) => e.message)
+                      .join(', ')
+                : error.message;
+            return res.status(400).json({
+                success: false,
+                message: 'Erro ao criar evento',
+                errors: [errorMessage],
+            });
+        }
+        
+        // Erro inesperado - enviar ao Sentry
+        captureControllerError(error, req, {
+            controller: 'eventsController',
+            action: 'createEvent',
+            statusCode: 500,
+        });
+        
         const errorMessage = error.errors
             ? Object.values(error.errors)
                   .map((e: any) => e.message)
                   .join(', ')
             : error.message;
-        res.status(400).json({
+        res.status(500).json({
             success: false,
             message: 'Erro ao criar evento',
             errors: [errorMessage],
@@ -193,6 +216,13 @@ export const listEvents = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('[listEvents] ❌ Erro:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'eventsController',
+            action: 'listEvents',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao listar eventos',
@@ -211,6 +241,15 @@ export const getEvent = async (req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: 'Evento não encontrado' });
         res.json({ success: true, data: event });
     } catch (error: any) {
+        captureControllerError(error, req, {
+            controller: 'eventsController',
+            action: 'getEvent',
+            statusCode: 500,
+            extra: {
+                eventId: req.params?.id,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao obter evento',
@@ -274,7 +313,25 @@ export const updateEvent = async (req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: 'Evento não encontrado' });
         res.json({ success: true, message: 'Evento atualizado com sucesso', data: event });
     } catch (error: any) {
-        res.status(400).json({
+        // Se for erro de validação, não enviar ao Sentry
+        if (error.name === 'ValidationError' || error.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Erro ao atualizar evento',
+                errors: [error.message],
+            });
+        }
+        
+        captureControllerError(error, req, {
+            controller: 'eventsController',
+            action: 'updateEvent',
+            statusCode: 500,
+            extra: {
+                eventId: req.params?.id,
+            },
+        });
+        
+        res.status(500).json({
             success: false,
             message: 'Erro ao atualizar evento',
             errors: [error.message],
@@ -301,7 +358,25 @@ export const updateEventStatus = async (req: Request, res: Response) => {
             data: event,
         });
     } catch (error: any) {
-        res.status(400).json({
+        // Se for erro de validação, não enviar ao Sentry
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Erro ao atualizar status do evento',
+                errors: [error.message],
+            });
+        }
+        
+        captureControllerError(error, req, {
+            controller: 'eventsController',
+            action: 'updateEventStatus',
+            statusCode: 500,
+            extra: {
+                eventId: req.params?.id,
+            },
+        });
+        
+        res.status(500).json({
             success: false,
             message: 'Erro ao atualizar status do evento',
             errors: [error.message],
@@ -343,6 +418,16 @@ export const deleteEvent = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao deletar evento:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'eventsController',
+            action: 'deleteEvent',
+            statusCode: 500,
+            extra: {
+                eventId: req.params?.id,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao remover evento',
@@ -439,6 +524,15 @@ export const getEventTicketStats = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
+        captureControllerError(error, req, {
+            controller: 'eventsController',
+            action: 'getEventStats',
+            statusCode: 500,
+            extra: {
+                eventId: req.params?.id,
+            },
+        });
+        
         return res.status(500).json({
             success: false,
             message: 'Erro ao buscar estatísticas',
@@ -715,6 +809,16 @@ export const distributeVip = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao distribuir VIP:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'eventsController',
+            action: 'distributeVIP',
+            statusCode: 500,
+            extra: {
+                eventId: req.params?.id,
+            },
+        });
+        
         return res
             .status(500)
             .json({ success: false, message: 'Erro ao distribuir VIP', errors: [error.message] });

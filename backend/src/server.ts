@@ -524,6 +524,19 @@ const startServer = async () => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
         logger.error('❌ Erro ao iniciar servidor:', { error: errorMessage, stack: errorStack });
+        
+        // Capturar erro fatal de inicialização no Sentry
+        if (process.env.SENTRY_DSN) {
+            Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
+                tags: {
+                    component: 'server',
+                    action: 'startServer',
+                    errorType: 'server_startup_failed',
+                },
+                level: 'fatal',
+            });
+        }
+        
         process.exit(1);
     }
 };

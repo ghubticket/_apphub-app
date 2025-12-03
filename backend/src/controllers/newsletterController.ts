@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import NewsletterSubscription from '../models/NewsletterSubscription';
+import { captureControllerError } from '../utils/sentryErrorHandler';
 
 const extractIpAddress = (req: Request): string | undefined => {
     const forwarded = req.headers['x-forwarded-for'];
@@ -50,7 +51,7 @@ export const subscribeToNewsletter = async (req: Request, res: Response) => {
         console.error('Erro ao inscrever email em novidades:', error);
 
         if (error.code === 11000) {
-            // Duplicated key - already registered
+            // Duplicated key - already registered (não é erro)
             return res.status(200).json({
                 success: true,
                 message: 'Email já inscrito na lista de novidades',
@@ -59,6 +60,16 @@ export const subscribeToNewsletter = async (req: Request, res: Response) => {
                 },
             });
         }
+
+        // Erro inesperado - enviar ao Sentry
+        captureControllerError(error, req, {
+            controller: 'newsletterController',
+            action: 'subscribeToNewsletter',
+            statusCode: 500,
+            extra: {
+                email: req.body?.email,
+            },
+        });
 
         return res.status(500).json({
             success: false,

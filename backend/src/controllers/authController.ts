@@ -5,6 +5,7 @@ import Session from '../models/Session';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailTemplates';
+import { captureControllerError } from '../utils/sentryErrorHandler';
 
 /**
  * Controller para registro de usuário
@@ -76,7 +77,7 @@ export const register = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Erro no registro:', error);
 
-        // Erro de validação do Mongoose
+        // Erro de validação do Mongoose - não enviar ao Sentry (erro esperado)
         if (error.name === 'ValidationError') {
             const errors = Object.values(error.errors).map((err: any) => ({
                 field: err.path,
@@ -90,7 +91,7 @@ export const register = async (req: Request, res: Response) => {
             });
         }
 
-        // Erro de duplicação
+        // Erro de duplicação - não enviar ao Sentry (erro esperado)
         if (error.code === 11000) {
             return res.status(409).json({
                 success: false,
@@ -98,6 +99,17 @@ export const register = async (req: Request, res: Response) => {
                 errors: ['Este email já está sendo usado'],
             });
         }
+
+        // Erro inesperado - enviar ao Sentry
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'register',
+            statusCode: 500,
+            extra: {
+                email: req.body?.email,
+                hasPassword: !!req.body?.password,
+            },
+        });
 
         res.status(500).json({
             success: false,

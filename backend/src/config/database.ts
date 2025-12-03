@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import * as Sentry from '@sentry/node';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -26,8 +27,26 @@ export const connectDatabase = async (): Promise<void> => {
         };
 
         await mongoose.connect(MONGODB_URI, options);
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Erro ao conectar ao MongoDB:', error);
+        
+        // Capturar erro de conexão no Sentry
+        if (process.env.SENTRY_DSN) {
+            Sentry.captureException(error, {
+                tags: {
+                    component: 'database',
+                    action: 'connectDatabase',
+                    errorType: 'database_connection_failed',
+                },
+                extra: {
+                    hasMongoUri: !!process.env.MONGODB_URI,
+                    errorName: error?.name,
+                    errorMessage: error?.message,
+                },
+                level: 'fatal', // Erro fatal - servidor não pode iniciar
+            });
+        }
+        
         process.exit(1); // Encerra o processo se não conseguir conectar
     }
 };

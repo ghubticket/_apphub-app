@@ -53,4 +53,3 @@ if (process.env.SENTRY_DSN) {
         ],
     });
 }
-

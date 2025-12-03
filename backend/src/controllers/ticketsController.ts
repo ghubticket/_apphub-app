@@ -3,6 +3,7 @@ import { Ticket, TicketType, Event, Order, User, QrNonce } from '../models';
 import { verifyAndDecode } from '../services/qrCodeService';
 import ValidationAttempt from '../models/ValidationAttempt';
 import { checkUserBlocked } from './usersController';
+import { captureControllerError } from '../utils/sentryErrorHandler';
 
 /**
  * Helper: Registra tentativa de validação e detecta padrões suspeitos

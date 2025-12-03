@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import TicketType from '../models/TicketType';
 import Event from '../models/Event';
+import { captureControllerError } from '../utils/sentryErrorHandler';
 
 // Criar tipo de ingresso
 export const createTicketType = async (req: Request, res: Response) => {
@@ -125,7 +126,17 @@ export const createTicketType = async (req: Request, res: Response) => {
             });
         }
 
-        res.status(400).json({
+        // Se chegou aqui, é um erro inesperado - enviar ao Sentry
+        captureControllerError(error, req, {
+            controller: 'ticketTypesController',
+            action: 'createTicketType',
+            statusCode: 500,
+            extra: {
+                eventId: req.params?.eventId,
+            },
+        });
+
+        res.status(500).json({
             success: false,
             message: error.message || 'Erro ao criar tipo de ingresso',
             errors: validationErrors,

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PromoterCode, Order, Event } from '../models';
 import mongoose from 'mongoose';
+import { captureControllerError } from '../utils/sentryErrorHandler';
 
 /**
  * Criar novo código de promotor
@@ -102,12 +103,34 @@ export const createPromoterCode = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao criar código de promotor:', error);
+        
+        // Se for erro de validação, não enviar ao Sentry
+        if (error.name === 'ValidationError' || error.code === 11000) {
+            const errorMessage = error.errors
+                ? Object.values(error.errors)
+                      .map((e: any) => e.message)
+                      .join(', ')
+                : error.message;
+            return res.status(400).json({
+                success: false,
+                message: 'Erro ao criar código de promotor',
+                errors: [errorMessage],
+            });
+        }
+        
+        // Erro inesperado - enviar ao Sentry
+        captureControllerError(error, req, {
+            controller: 'promoterCodesController',
+            action: 'createPromoterCode',
+            statusCode: 500,
+        });
+        
         const errorMessage = error.errors
             ? Object.values(error.errors)
                   .map((e: any) => e.message)
                   .join(', ')
             : error.message;
-        res.status(400).json({
+        res.status(500).json({
             success: false,
             message: 'Erro ao criar código de promotor',
             errors: [errorMessage],
@@ -170,6 +193,13 @@ export const listPromoterCodes = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao listar códigos de promotor:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'promoterCodesController',
+            action: 'listPromoterCodes',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao listar códigos de promotor',
@@ -206,6 +236,16 @@ export const getPromoterCodeById = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao buscar código de promotor:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'promoterCodesController',
+            action: 'getPromoterCode',
+            statusCode: 500,
+            extra: {
+                codeId: req.params?.id,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar código de promotor',
@@ -280,12 +320,36 @@ export const updatePromoterCode = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao atualizar código de promotor:', error);
+        
+        // Se for erro de validação, não enviar ao Sentry
+        if (error.name === 'ValidationError' || error.code === 11000) {
+            const errorMessage = error.errors
+                ? Object.values(error.errors)
+                      .map((e: any) => e.message)
+                      .join(', ')
+                : error.message;
+            return res.status(400).json({
+                success: false,
+                message: 'Erro ao atualizar código de promotor',
+                errors: [errorMessage],
+            });
+        }
+        
+        captureControllerError(error, req, {
+            controller: 'promoterCodesController',
+            action: 'updatePromoterCode',
+            statusCode: 500,
+            extra: {
+                codeId: req.params?.id,
+            },
+        });
+        
         const errorMessage = error.errors
             ? Object.values(error.errors)
                   .map((e: any) => e.message)
                   .join(', ')
             : error.message;
-        res.status(400).json({
+        res.status(500).json({
             success: false,
             message: 'Erro ao atualizar código de promotor',
             errors: [errorMessage],
@@ -318,6 +382,16 @@ export const togglePromoterCode = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao alterar status do código:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'promoterCodesController',
+            action: 'togglePromoterCodeStatus',
+            statusCode: 500,
+            extra: {
+                codeId: req.params?.id,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao alterar status do código',
@@ -350,6 +424,16 @@ export const deletePromoterCode = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao deletar código de promotor:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'promoterCodesController',
+            action: 'deletePromoterCode',
+            statusCode: 500,
+            extra: {
+                codeId: req.params?.id,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao deletar código de promotor',
@@ -401,6 +485,16 @@ export const validatePromoterCode = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao validar código:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'promoterCodesController',
+            action: 'validatePromoterCode',
+            statusCode: 500,
+            extra: {
+                code: req.body?.code,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             valid: false,
@@ -465,6 +559,16 @@ export const getPromoterCodeStats = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao buscar estatísticas:', error);
+        
+        captureControllerError(error, req, {
+            controller: 'promoterCodesController',
+            action: 'getPromoterCodeStats',
+            statusCode: 500,
+            extra: {
+                codeId: req.params?.id,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar estatísticas',

@@ -13,6 +13,7 @@ import {
     sendPaymentPendingEmail,
 } from '../services/emailTemplates';
 import { generateTicketPDF } from '../services/pdfService';
+import { captureControllerError } from '../utils/sentryErrorHandler';
 
 const MAX_CARD_PAYMENT_ATTEMPTS = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
 
@@ -551,6 +552,16 @@ export const createPixPayment = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao criar pagamento PIX:', error);
+
+        // Capturar erro no Sentry
+        captureControllerError(error, req, {
+            controller: 'paymentController',
+            action: 'createPixPayment',
+            statusCode: 500,
+            extra: {
+                orderId: req.params?.orderId,
+            },
+        });
 
         // Extrair informações detalhadas do erro do Mercado Pago
         let errorDetails: any = null;
@@ -1107,6 +1118,17 @@ export const createCardPayment = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Erro ao criar pagamento com cartão:', error);
+
+        // Capturar erro no Sentry
+        captureControllerError(error, req, {
+            controller: 'paymentController',
+            action: 'createCardPayment',
+            statusCode: 500,
+            extra: {
+                orderId: req.params?.orderId,
+                hasToken: !!req.body?.token,
+            },
+        });
 
         // Extrair informações detalhadas do erro do Mercado Pago
         let errorDetails: any = null;

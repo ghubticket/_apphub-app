@@ -8,6 +8,7 @@ import * as orderService from '../services/orderService';
 import { generateQRCode } from '../services/qrCodeService';
 import { generateTicketPDF } from '../services/pdfService';
 import { logAudit, createAuditContextFromRequest } from '../services/auditService';
+import { captureControllerError } from '../utils/sentryErrorHandler';
 
 const MAX_CARD_PAYMENT_ATTEMPTS = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
 const ORDER_NUMBER_LENGTH = 10;
@@ -730,6 +731,18 @@ export const createOrder = async (req: Request, res: Response) => {
             });
         } catch (error: any) {
             console.error('Erro ao criar pedido:', error);
+            
+            captureControllerError(error, req, {
+                controller: 'ordersController',
+                action: 'createOrder',
+                statusCode: 500,
+                extra: {
+                    eventId: req.body?.eventId,
+                    ticketTypeId: req.body?.ticketTypeId,
+                    quantity: req.body?.quantity,
+                },
+            });
+            
             return res.status(500).json({
                 success: false,
                 message: 'Erro ao criar pedido',
@@ -738,6 +751,16 @@ export const createOrder = async (req: Request, res: Response) => {
         }
     } catch (outerError: any) {
         console.error('Erro ao criar pedido (pré-transação):', outerError);
+        
+        captureControllerError(outerError, req, {
+            controller: 'ordersController',
+            action: 'createOrder',
+            statusCode: 500,
+            extra: {
+                stage: 'pre-transaction',
+            },
+        });
+        
         return res.status(500).json({
             success: false,
             message: 'Erro ao criar pedido',
