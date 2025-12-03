@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import path from 'path';
+import logger from './utils/logger';
 import { connectDatabase } from './config/database';
 import { setupSwagger } from './config/swagger';
 import { generalRateLimit } from './middleware/rateLimiting';
@@ -185,7 +186,7 @@ app.use(
             ) {
                 if (!warnedCorsOrigins.has(normalizedOrigin)) {
                     warnedCorsOrigins.add(normalizedOrigin);
-                    console.warn(`[CORS] Permitindo origin Vercel preview: ${normalizedOrigin}`);
+                    logger.warn(`[CORS] Permitindo origin Vercel preview: ${normalizedOrigin}`);
                 }
                 return callback(null, true);
             }
@@ -505,7 +506,7 @@ const startServer = async () => {
             }
         });
     } catch (error) {
-        console.error('❌ Erro ao iniciar servidor:', error);
+        logger.error('❌ Erro ao iniciar servidor:', { error: error.message, stack: error.stack });
         process.exit(1);
     }
 };
