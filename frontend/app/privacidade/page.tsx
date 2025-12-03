@@ -1,7 +1,7 @@
 'use client';
 
 import PageContainer from '@/components/shared/PageContainer';
-import { APP_NAME, PRIVACY_EMAIL, DPO_EMAIL, COMPANY_NAME, LGPD_LAW } from '@/lib/config';
+import { PRIVACY_EMAIL, DPO_EMAIL, COMPANY_NAME, LGPD_LAW } from '@/lib/config';
 
 export default function PrivacidadePage() {
     return (

@@ -1,7 +1,7 @@
 'use client';
 
 import PageContainer from '@/components/shared/PageContainer';
-import { APP_NAME, CONTACT_EMAIL, COMPANY_NAME } from '@/lib/config';
+import {CONTACT_EMAIL, COMPANY_NAME } from '@/lib/config';
 
 export default function TermosPage() {
     return (
