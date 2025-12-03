@@ -41,9 +41,9 @@ async function recordValidationAttempt(
 
             if (recentReplayAttempt) {
                 // Já existe tentativa recente - não criar novo registro, apenas logar e marcar como suspeito
-                console.warn(
-                    `⚠️ Tentativa de replay ignorada (cooldown): QR ${ticketCode} já teve replay registrado há menos de ${REPLAY_COOLDOWN_MINUTES} minutos`
-                );
+                if (process.env.NODE_ENV !== 'production') {
+                    console.log(`QR ${ticketCode} já teve replay registrado há menos de ${REPLAY_COOLDOWN_MINUTES} minutos`);
+                }
 
                 // Ainda assim, verificar padrões suspeitos para marcar usuário
                 if (ticket?.holder) {
@@ -81,7 +81,10 @@ async function recordValidationAttempt(
         return attempt;
     } catch (error: any) {
         // Não falhar a validação se o registro der erro
-        console.error('Erro ao registrar tentativa de validação:', error);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('Erro ao registrar tentativa de validação:', error);
+        }
+        return null;
     }
 }
 
@@ -115,9 +118,7 @@ async function checkSuspiciousPatterns(holderId: string, ticketCode: string) {
         }
 
         await user.save();
-    } catch (error: any) {
-        console.error('Erro ao verificar padrões suspeitos:', error);
-    }
+    } catch (error: any) {}
 }
 
 /**
@@ -140,9 +141,7 @@ async function checkMultiEventUsage(ticketCode: string) {
                 }
             }
         }
-    } catch (error: any) {
-        console.error('Erro ao verificar uso em múltiplos eventos:', error);
-    }
+    } catch (error: any) {}
 }
 
 /**
@@ -182,7 +181,6 @@ export const getTicketByCode = async (req: Request, res: Response) => {
             data: ticket,
         });
     } catch (error: any) {
-        console.error('Erro ao buscar ingresso:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar ingresso',
@@ -354,9 +352,9 @@ export const validateTicket = async (req: Request, res: Response) => {
                 presentHolderId = holderId;
             } else {
                 // Se holder informado não está no pedido, usar o holder do ticket
-                console.warn(
-                    `⚠️ Holder informado (${holderId}) não está no pedido. Usando holder do ticket.`
-                );
+                if (process.env.NODE_ENV !== 'production') {
+                    console.log('Holder informado não está no pedido. Usando holder do ticket.');
+                }
             }
         }
 
@@ -445,35 +443,29 @@ export const validateTicket = async (req: Request, res: Response) => {
                     if (holderUser && holderUser.role === 'CLIENTE') {
                         if (isHolderTryingToReuse) {
                             // Holder original tentando reutilizar
-                            console.warn(
-                                `⚠️ SUSPEITO: Holder original tentando usar QR já utilizado!`,
-                                {
-                                    ticketCode: code,
-                                    holder:
-                                        (currentTicket.holder as any)?.name || currentTicket.holder,
+                            if (process.env.NODE_ENV !== 'production') {
+                                console.log('Holder tentando reutilizar QR:', {
+                                    holder: (currentTicket.holder as any)?.name || currentTicket.holder,
                                     firstPassedHolder: firstPassedHolderName,
                                     firstUsedAt: currentTicket.usedAt,
                                     firstUsedBy:
                                         (currentTicket.usedBy as any)?.name || currentTicket.usedBy,
                                     attemptedBy: validatorId,
                                     isDifferentPerson,
-                                }
-                            );
+                                });
+                            }
 
                             holderUser.isSuspicious = true;
                             holderUser.suspiciousReason = `Tentativa de reutilizar QR code já validado. QR foi usado por ${firstPassedHolderName} em ${currentTicket.usedAt?.toLocaleString('pt-BR')}`;
                         } else {
                             // Outra pessoa tentando usar QR do holder (possível fraude)
-                            console.warn(
-                                `⚠️ SUSPEITO: Tentativa de usar QR code de outra pessoa!`,
-                                {
-                                    ticketCode: code,
-                                    holder:
-                                        (currentTicket.holder as any)?.name || currentTicket.holder,
+                            if (process.env.NODE_ENV !== 'production') {
+                                console.log('Outra pessoa tentando usar QR do holder:', {
+                                    holder: (currentTicket.holder as any)?.name || currentTicket.holder,
                                     firstPassedHolder: firstPassedHolderName,
                                     attemptedBy: validatorId,
-                                }
-                            );
+                                });
+                            }
 
                             holderUser.isSuspicious = true;
                             holderUser.suspiciousReason = `Tentativa de usar QR code já validado. QR foi usado por ${firstPassedHolderName} em ${currentTicket.usedAt?.toLocaleString('pt-BR')}`;
@@ -546,7 +538,6 @@ export const validateTicket = async (req: Request, res: Response) => {
             data: populatedTicket,
         });
     } catch (error: any) {
-        console.error('Erro ao validar ingresso:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao validar ingresso',
@@ -584,7 +575,6 @@ export const listMyTickets = async (req: Request, res: Response) => {
             data: tickets,
         });
     } catch (error: any) {
-        console.error('Erro ao listar ingressos:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao listar ingressos',
@@ -825,7 +815,6 @@ export const getValidationHistory = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro ao buscar histórico de validações:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar histórico de validações',
@@ -865,7 +854,6 @@ export const listEventTickets = async (req: Request, res: Response) => {
             data: tickets,
         });
     } catch (error: any) {
-        console.error('Erro ao listar ingressos do evento:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao listar ingressos do evento',
@@ -1027,7 +1015,6 @@ export const scanSecureQr = async (req: Request, res: Response) => {
 
         return res.json({ success: true, data: { ticket, ts } });
     } catch (error: any) {
-        console.error('Erro ao ler QR:', error);
         return res
             .status(400)
             .json({ success: false, message: error?.message || 'Falha ao validar QR' });

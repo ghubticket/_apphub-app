@@ -47,15 +47,8 @@ export async function detectMultipleOrdersSameIP(
                     orderCount: recentOrders + 1,
                     timeWindow: timeWindowMinutes,
                 },
-            });
-
-            console.warn(
-                `⚠️ Alerta: ${recentOrders + 1} pedidos do mesmo IP em ${timeWindowMinutes} minutos`
-            );
-        }
-    } catch (error) {
-        console.error('Erro ao detectar múltiplas compras do mesmo IP:', error);
-    }
+            });}
+    } catch (error) {}
 }
 
 /**
@@ -108,15 +101,8 @@ export async function detectSameCPFDifferentEmails(context: DetectionContext): P
                     emails: Array.from(uniqueEmails),
                     orderCount: ordersWithSameCPF.length + 1,
                 },
-            });
-
-            console.warn(
-                `⚠️ Alerta: CPF ${normalizedCPF} usado com ${uniqueEmails.size} emails diferentes`
-            );
-        }
-    } catch (error) {
-        console.error('Erro ao detectar CPF com emails diferentes:', error);
-    }
+            });}
+    } catch (error) {}
 }
 
 /**
@@ -149,15 +135,8 @@ export async function detectMultipleOrdersShortTime(
                     timeWindow: timeWindowSeconds,
                     userId: context.userId,
                 },
-            });
-
-            console.warn(
-                `⚠️ Alerta: ${recentOrders + 1} pedidos criados em ${timeWindowSeconds} segundos`
-            );
-        }
-    } catch (error) {
-        console.error('Erro ao detectar múltiplos pedidos em tempo curto:', error);
-    }
+            });}
+    } catch (error) {}
 }
 
 /**

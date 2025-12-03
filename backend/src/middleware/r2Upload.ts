@@ -43,16 +43,12 @@ export const uploadToR2 = async (req: Request, res: Response, next: NextFunction
                 // Atualizar path para URL do R2 (para compatibilidade)
                 file.path = r2Url;
             } catch (error: any) {
-                // Se falhar o upload para R2, manter arquivo local
-                console.error(`Erro ao fazer upload para R2: ${error.message}`);
-                // Continuar com arquivo local
+                // Se falhar o upload para R2, manter arquivo local// Continuar com arquivo local
             }
         }
 
         next();
-    } catch (error: any) {
-        console.error('Erro no middleware de upload R2:', error);
-        // Em caso de erro, continuar com arquivos locais
+    } catch (error: any) {// Em caso de erro, continuar com arquivos locais
         next();
     }
 };

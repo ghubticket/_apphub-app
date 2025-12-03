@@ -119,8 +119,6 @@ export const createEvent = async (req: Request, res: Response) => {
 
         res.status(201).json({ success: true, message: 'Evento criado com sucesso', data: event });
     } catch (error: any) {
-        console.error('Erro ao criar evento:', error);
-        
         // Se for erro de validação, não enviar ao Sentry
         if (error.name === 'ValidationError' || error.code === 11000) {
             const errorMessage = error.errors
@@ -188,8 +186,6 @@ export const listEvents = async (req: Request, res: Response) => {
 
         const skip = (Number(page) - 1) * Number(limit);
 
-        console.log('[listEvents] 🔍 Filtros aplicados:', JSON.stringify(filters, null, 2));
-
         const [events, total] = await Promise.all([
             Event.find(filters)
                 .select('name description date location city state coverImage squareImage status isActive ticketFee platformFeePercentage createdAt')
@@ -199,8 +195,6 @@ export const listEvents = async (req: Request, res: Response) => {
                 .lean(),
             Event.countDocuments(filters),
         ]);
-
-        console.log(`[listEvents] ✅ Encontrados ${events.length} eventos (total: ${total})`);
 
         res.json({
             success: true,
@@ -215,8 +209,6 @@ export const listEvents = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('[listEvents] ❌ Erro:', error);
-        
         captureControllerError(error, req, {
             controller: 'eventsController',
             action: 'listEvents',
@@ -417,8 +409,6 @@ export const deleteEvent = async (req: Request, res: Response) => {
             message: 'Evento removido com sucesso (soft delete)',
         });
     } catch (error: any) {
-        console.error('Erro ao deletar evento:', error);
-        
         captureControllerError(error, req, {
             controller: 'eventsController',
             action: 'deleteEvent',
@@ -774,23 +764,18 @@ export const distributeVip = async (req: Request, res: Response) => {
                     );
 
                     if (emailResult.success) {
-                        console.log(
-                            `✅ Email de cortesia com PDF enviado para ${customerEmail} (distributeVip)`
-                        );
+                        // Email enviado com sucesso
                     } else {
-                        console.error(
-                            `❌ Erro ao enviar email de cortesia para ${customerEmail}:`,
-                            emailResult.error
-                        );
+                        // Email falhou, mas não interromper a distribuição
                     }
                 } else {
-                    console.warn(
-                        `⚠️ Não foi possível enviar email de cortesia. Email: ${customerEmail}, Tickets com QR: ${ticketsWithQR.length}`
-                    );
+                    // Sem email válido ou sem tickets com QR code
                 }
             }
         } catch (emailError) {
-            console.error('Erro ao enviar email de cortesia (distributeVip):', emailError);
+            if (process.env.NODE_ENV !== 'production') {
+                console.log('Erro ao enviar email de cortesia:', emailError);
+            }
             // Não falhar a distribuição se o email falhar
         }
 
@@ -808,8 +793,6 @@ export const distributeVip = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro ao distribuir VIP:', error);
-        
         captureControllerError(error, req, {
             controller: 'eventsController',
             action: 'distributeVIP',

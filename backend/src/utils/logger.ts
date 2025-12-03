@@ -63,13 +63,17 @@ const consoleFormat = format.combine(
 // Transports
 const transports: winston.transport[] = [];
 
-// Console transport (sempre ativo)
-transports.push(
-  new winston.transports.Console({
-    format: NODE_ENV === 'production' ? customFormat : consoleFormat,
-    level: process.env.LOG_LEVEL || (NODE_ENV === 'production' ? 'info' : 'debug'),
-  })
-);
+// Console transport - DESABILITADO (Sentry faz todo o monitoramento)
+// Não logar em nenhum ambiente - Sentry captura tudo
+// Descomente apenas se precisar de debug emergencial
+// if (process.env.ENABLE_CONSOLE_LOGS === 'true') {
+//   transports.push(
+//     new winston.transports.Console({
+//       format: customFormat,
+//       level: 'error', // Apenas erros críticos
+//     })
+//   );
+// }
 
 // File transport para produção (opcional)
 if (NODE_ENV === 'production' && process.env.LOG_FILE_PATH) {

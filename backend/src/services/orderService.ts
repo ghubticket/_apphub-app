@@ -162,41 +162,16 @@ export async function validateAvailabilityAndLimits(
         // Importar função dinamicamente para evitar dependência circular
         const ordersController = await import('../controllers/ordersController');
 
-        console.log('[validateAvailabilityAndLimits] 🔍 Validando limite por CPF:', {
-            eventId,
-            ticketTypeId,
-            ticketTypeName: ticketType.name,
-            isVIP: ticketType.isVIP,
-            maxPerCPF: ticketType.maxPerCPF,
-            cpfToValidate: cpfToValidate ? `${cpfToValidate.substring(0, 3)}.***.***-**` : 'null',
-            quantity,
-        });
-
         const purchasedByCPF = await ordersController.countPurchasedTicketsByCPFOrEmail(
             eventId,
             ticketTypeId,
             cpfToValidate,
             undefined
         );
-
-        console.log('[validateAvailabilityAndLimits] 📊 Contagem de ingressos já comprados:', {
-            purchasedByCPF,
-            quantity,
-            totalAfterPurchase: purchasedByCPF + quantity,
-            maxPerCPF: ticketType.maxPerCPF,
-        });
-
         const totalAfterPurchase = purchasedByCPF + quantity;
 
         if (totalAfterPurchase > ticketType.maxPerCPF) {
             const remaining = Math.max(0, ticketType.maxPerCPF - purchasedByCPF);
-            console.log('[validateAvailabilityAndLimits] ❌ Limite por CPF excedido:', {
-                purchasedByCPF,
-                quantity,
-                totalAfterPurchase,
-                maxPerCPF: ticketType.maxPerCPF,
-                remaining,
-            });
             return {
                 isValid: false,
                 error: {
@@ -210,22 +185,8 @@ export async function validateAvailabilityAndLimits(
                 },
             };
         }
-
-        console.log('[validateAvailabilityAndLimits] ✅ Limite por CPF OK:', {
-            purchasedByCPF,
-            quantity,
-            totalAfterPurchase,
-            maxPerCPF: ticketType.maxPerCPF,
-        });
     } else if (ticketType.maxPerCPF && !cpfToValidate) {
         // CRÍTICO: Se há limite por CPF mas CPF não foi fornecido, bloquear
-        console.warn(
-            '[validateAvailabilityAndLimits] ⚠️ Limite por CPF configurado mas CPF não fornecido:',
-            {
-                ticketTypeName: ticketType.name,
-                maxPerCPF: ticketType.maxPerCPF,
-            }
-        );
         return {
             isValid: false,
             error: {
@@ -386,9 +347,6 @@ export async function returnStockFromOrder(oldOrder: any) {
         if (oldTicketType && qty > 0) {
             oldTicketType.soldQuantity = Math.max(0, oldTicketType.soldQuantity - qty);
             await oldTicketType.save();
-            console.log(
-                `🔄 [orderService] Devolvendo ${qty} ingressos ao estoque (ticketType: ${ticketTypeId})`
-            );
         }
     }
 }
@@ -408,10 +366,6 @@ export async function cancelOrderAndReturnStock(oldOrder: any) {
         await Ticket.updateMany(
             { order: oldOrder._id, deletedAt: null },
             { status: 'cancelled', deletedAt: new Date() }
-        );
-
-        console.log(
-            `✅ [orderService] Pedido ${oldOrder.orderNumber} cancelado e ingressos devolvidos ao estoque`
         );
     }
 }
@@ -466,9 +420,6 @@ export async function cancelPreviousPendingOrders(
         const failedOrdersToClean = await Order.find(failedFilters).populate('tickets');
 
         if (pendingOrdersToCancel.length > 0) {
-            console.log(
-                `🔄 [orderService] Cancelando ${pendingOrdersToCancel.length} pedido(s) pendente(s) anterior(es)`
-            );
             // Executar cancelamentos em paralelo
             await Promise.all(
                 pendingOrdersToCancel.map((oldOrder) => cancelOrderAndReturnStock(oldOrder))
@@ -476,16 +427,10 @@ export async function cancelPreviousPendingOrders(
         }
 
         if (failedOrdersToClean.length > 0) {
-            console.log(
-                `🔄 [orderService] Limpando ${failedOrdersToClean.length} pedido(s) failed anterior(es) - devolvendo estoque`
-            );
             // Executar limpeza em paralelo
             await Promise.all(
                 failedOrdersToClean.map(async (oldOrder) => {
                     await returnStockFromOrder(oldOrder);
-                    console.log(
-                        `✅ [orderService] Estoque devolvido do pedido failed ${oldOrder.orderNumber}`
-                    );
                 })
             );
         }
@@ -548,7 +493,6 @@ export async function sendVIPOrderEmail(populatedOrder: any) {
         const customerName = customerData?.name || customer?.name;
 
         if (!customerEmail || customerEmail === 'Não informado' || customerEmail.trim() === '') {
-            console.warn(`⚠️ Email não informado para cortesia. Pedido: ${orderNumber}`);
             return;
         }
 
@@ -617,15 +561,6 @@ export async function sendVIPOrderEmail(populatedOrder: any) {
             ]
         );
 
-        if (emailResult.success) {
-            console.log(`✅ Email de cortesia com PDF enviado para ${customerEmail}`);
-        } else {
-            console.error(
-                `❌ Erro ao enviar email de cortesia para ${customerEmail}:`,
-                emailResult.error
-            );
-        }
-    } catch (emailError) {
-        console.error('Erro ao enviar email de cortesia:', emailError);
-    }
+        if (emailResult.success) {} else {}
+    } catch (emailError) {}
 }

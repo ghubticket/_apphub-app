@@ -114,7 +114,13 @@ async function checkDatabaseConnection(): Promise<boolean> {
 
 // Rota de teste do Sentry (APENAS PARA DESENVOLVIMENTO/TESTE)
 // ATENÇÃO: Remover ou proteger em produção!
+// Opcional: Adicionar verificação de ambiente para desabilitar em produção
 router.get('/test-sentry', (req, res) => {
+    // Opcional: Desabilitar em produção
+    // if (process.env.NODE_ENV === 'production') {
+    //     return res.status(404).json({ success: false, message: 'Rota não encontrada' });
+    // }
+    
     try {
         // Forçar um erro para testar o Sentry
         throw new Error('Teste de erro do Sentry - Esta é uma rota de teste');

@@ -17,13 +17,13 @@ export function getSSLOptions(): SSLOptions | null {
     function findLatestCert(): string | null {
         if (!fs.existsSync(certsDir)) {
             if (process.env.NODE_ENV !== 'production') {
-                console.log(`   [findLatestCert] Pasta não existe: ${certsDir}`);
+                console.log('Certificates directory not found:', certsDir);
             }
             return null;
         }
         const allFiles = fs.readdirSync(certsDir);
         if (process.env.NODE_ENV !== 'production') {
-            console.log(`   [findLatestCert] Todos os arquivos: ${allFiles.join(', ')}`);
+            console.log('Files in certificates directory:', allFiles);
         }
         const certs = allFiles
             .filter((f) => f.startsWith('localhost+') && f.endsWith('.pem') && !f.includes('-key'))
@@ -38,9 +38,8 @@ export function getSSLOptions(): SSLOptions | null {
             .sort((a, b) => b.mtime - a.mtime);
 
         if (process.env.NODE_ENV !== 'production') {
-            console.log(`   [findLatestCert] Certificados filtrados: ${certs.length}`);
             if (certs.length > 0) {
-                console.log(`   [findLatestCert] Certificado mais recente: ${certs[0].path}`);
+                console.log('Latest certificate found:', certs[0].name);
             }
         }
 
@@ -53,25 +52,24 @@ export function getSSLOptions(): SSLOptions | null {
 
     // Debug: verificar qual branch será executado
     if (process.env.NODE_ENV !== 'production') {
-        console.log(`   [SSL Logic] SSL_CERT_PATH definido: ${!!process.env.SSL_CERT_PATH}`);
-        console.log(`   [SSL Logic] latestCert existe: ${!!latestCert}`);
+        console.log('SSL Config - Checking certificate paths...');
     }
 
     if (process.env.SSL_CERT_PATH) {
         if (process.env.NODE_ENV !== 'production') {
-            console.log(`   [SSL Logic] Usando SSL_CERT_PATH do .env`);
+            console.log('Using SSL_CERT_PATH from environment:', process.env.SSL_CERT_PATH);
         }
         certPath = process.env.SSL_CERT_PATH;
         keyPath = process.env.SSL_KEY_PATH || certPath.replace('.pem', '-key.pem');
     } else if (latestCert) {
         if (process.env.NODE_ENV !== 'production') {
-            console.log(`   [SSL Logic] Usando latestCert encontrado`);
+            console.log('Using latest certificate found:', latestCert);
         }
         certPath = latestCert;
         keyPath = certPath.replace('.pem', '-key.pem');
     } else {
         if (process.env.NODE_ENV !== 'production') {
-            console.log(`   [SSL Logic] Usando fallback`);
+            console.log('No latest certificate found, using fallback');
         }
         // Fallback: procurar qualquer certificado localhost+
         const allCerts = fs.existsSync(certsDir)
@@ -99,30 +97,18 @@ export function getSSLOptions(): SSLOptions | null {
 
     // Debug: mostrar caminhos
     if (process.env.NODE_ENV !== 'production') {
-        console.log('🔍 [SSL Debug] Procurando certificados...');
-        console.log(`   Pasta: ${certsDir}`);
-        console.log(`   Existe pasta: ${fs.existsSync(certsDir)}`);
+        console.log('SSL Config - Certificate paths:', { certPath, keyPath });
         if (fs.existsSync(certsDir)) {
             const files = fs.readdirSync(certsDir);
-            console.log(`   Arquivos encontrados: ${files.join(', ')}`);
+            console.log('Files in certificates directory:', files);
         }
-        console.log(`   SSL_CERT_PATH env: ${process.env.SSL_CERT_PATH || 'não definido'}`);
-        console.log(`   latestCert encontrado: ${latestCert || 'null'}`);
-        console.log(`   Certificado final: ${certPath}`);
-        console.log(`   Chave final: ${keyPath}`);
-        console.log(`   Certificado existe: ${fs.existsSync(certPath)}`);
-        console.log(`   Chave existe: ${fs.existsSync(keyPath)}`);
     }
 
     // Verificar se os arquivos existem
     if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
-        console.warn('⚠️  Certificados SSL não encontrados. Servidor rodará em HTTP.');
-        console.warn(`   Certificado esperado em: ${certPath}`);
-        console.warn(`   Chave esperada em: ${keyPath}`);
-        console.warn(`   Certificado existe: ${fs.existsSync(certPath)}`);
-        console.warn(`   Chave existe: ${fs.existsSync(keyPath)}`);
-        console.warn('   Para usar HTTPS, execute: .\\fix-certificado-desktop.ps1');
-        console.warn('   E configure SSL_ENABLED=true no .env');
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('SSL certificates not found:', { certPath, keyPath });
+        }
         return null;
     }
 
@@ -132,7 +118,9 @@ export function getSSLOptions(): SSLOptions | null {
             cert: fs.readFileSync(certPath),
         };
     } catch (error) {
-        console.error('❌ Erro ao ler certificados SSL:', error);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('Error reading SSL certificates:', error);
+        }
         return null;
     }
 }

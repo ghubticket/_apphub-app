@@ -14,9 +14,6 @@ dotenv.config();
 function getAccessToken(): string {
     const accessToken = process.env.MP_ACCESS_TOKEN?.trim();
     if (!accessToken || accessToken === '') {
-        console.error('❌ ERRO CRÍTICO: MP_ACCESS_TOKEN não está configurado no .env');
-        console.error('   Por favor, adicione MP_ACCESS_TOKEN=SEU_TOKEN no arquivo backend/.env');
-        console.error('   Para obter o token, consulte: backend/COMO_CONFIGURAR_CREDENCIAIS.md');
         throw new Error(
             'MP_ACCESS_TOKEN não está configurado. Por favor, configure no arquivo .env antes de usar o serviço de pagamento.'
         );
@@ -218,16 +215,6 @@ export const createPixPayment = async (
 
         // CRÍTICO: Validar que totalAmount está presente e é um número válido
         if (totalAmount === undefined || totalAmount === null || isNaN(Number(totalAmount))) {
-            console.error('❌ ERRO CRÍTICO: totalAmount inválido:', {
-                totalAmount,
-                type: typeof totalAmount,
-                params: {
-                    orderId,
-                    orderNumber,
-                    totalAmount,
-                    hasCustomerData: !!customerData,
-                },
-            });
             throw new Error(
                 `totalAmount é obrigatório e deve ser um número válido. Recebido: ${totalAmount} (tipo: ${typeof totalAmount})`
             );
@@ -260,28 +247,21 @@ export const createPixPayment = async (
             process.env.NODE_ENV !== 'production';
 
         // Log para debug
-        console.log('🔍 [paymentService] Verificando conversão de email:', {
-            originalEmail: customerData.email,
-            isSandbox,
-            forceSandbox,
-            tokenStartsWithTest: currentToken.startsWith('TEST-'),
-            nodeEnv: process.env.NODE_ENV,
-            currentTokenPrefix: currentToken.substring(0, 10),
-        });
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('PIX Payment - Sandbox check:', {
+                nodeEnv: process.env.NODE_ENV,
+                currentTokenPrefix: currentToken.substring(0, 10),
+            });
+        }
 
         if (isSandbox && !payerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = payerEmail.split('@')[0] || 'test';
             payerEmail = `${emailName}@testuser.com`;
-            console.log(
-                `🔧 [paymentService] Email convertido para sandbox: "${customerData.email}" → "${payerEmail}"`
-            );
         } else if (isSandbox && payerEmail.endsWith('@testuser.com')) {
-            console.log(`✅ [paymentService] Email já está no formato sandbox: "${payerEmail}"`);
+            // Email já está no formato correto para sandbox
         } else {
-            console.log(
-                `ℹ️ [paymentService] Ambiente não é sandbox, mantendo email original: "${payerEmail}"`
-            );
+            // Produção - manter email original
         }
 
         // Criar Order usando Orders API (modo automático)
@@ -342,9 +322,6 @@ export const createPixPayment = async (
                               };
                           }
                           // Se telefone inválido, não incluir (opcional no MP)
-                          console.warn(
-                              `⚠️ [paymentService] Telefone inválido ignorado ao enviar para Orders API: ${customerData.phone} (digits=${allDigits})`
-                          );
                           return undefined;
                       })()
                     : undefined,
@@ -387,11 +364,7 @@ export const createPixPayment = async (
 
         // Log para debug - payload completo antes de enviar
         if (process.env.NODE_ENV !== 'production') {
-            console.log(
-                '🔍 DEBUG - Payload completo antes de enviar ao Mercado Pago:',
-                JSON.stringify(orderData, null, 2)
-            );
-            console.log('🔍 DEBUG - Headers da requisição:', {
+            console.log('PIX Payment - Request headers:', {
                 'X-Idempotency-Key': idempotencyKey.substring(0, 20) + '...',
                 Authorization: 'Bearer ' + currentToken.substring(0, 20) + '...',
                 'X-meli-session-id': deviceId || 'não fornecido',
@@ -430,22 +403,24 @@ export const createPixPayment = async (
         };
     } catch (error: any) {
         // Log detalhado do erro para debug
-        console.error('❌ Erro ao criar pagamento PIX (Orders API):', {
-            message: error?.message,
-            code: error?.code,
-            status: error?.response?.status,
-            statusText: error?.response?.statusText,
-            responseData: error?.response?.data,
-            errors: error?.errors,
-            requestInfo: {
-                orderId: params.orderId,
-                totalAmount: params.totalAmount,
-                customerEmail: params.customerData.email,
-                customerName: params.customerData.name,
-                hasPhone: !!params.customerData.phone,
-                hasCpf: !!params.customerData.cpf,
-            },
-        });
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('PIX Payment Error:', {
+                message: error?.message,
+                code: error?.code,
+                status: error?.response?.status,
+                statusText: error?.response?.statusText,
+                responseData: error?.response?.data,
+                errors: error?.errors,
+                requestInfo: {
+                    orderId: params.orderId,
+                    totalAmount: params.totalAmount,
+                    customerEmail: params.customerData.email,
+                    customerName: params.customerData.name,
+                    hasPhone: !!params.customerData.phone,
+                    hasCpf: !!params.customerData.cpf,
+                },
+            });
+        }
 
         // Tratamento específico para erro de autenticação
         if (
@@ -468,21 +443,11 @@ export const createPixPayment = async (
             );
             if (sandboxEmailError) {
                 // CRÍTICO: Se recebemos erro de email sandbox, significa que estamos em sandbox
-                // mas a conversão não foi aplicada. Converter agora e tentar novamente.
-                console.error(
-                    '❌ ERRO: Email sandbox não foi convertido corretamente. Tentando novamente com email convertido...'
-                );
-
-                // Converter email para sandbox
+                // mas a conversão não foi aplicada. Converter agora e tentar novamente.// Converter email para sandbox
                 let fallbackEmail = params.customerData.email;
                 if (!fallbackEmail.endsWith('@testuser.com')) {
                     const emailName = fallbackEmail.split('@')[0] || 'test';
-                    fallbackEmail = `${emailName}@testuser.com`;
-                    console.log(
-                        `🔧 FALLBACK: Convertendo email e tentando novamente: "${params.customerData.email}" → "${fallbackEmail}"`
-                    );
-
-                    // Tentar novamente com email convertido (recursão controlada)
+                    fallbackEmail = `${emailName}@testuser.com`;// Tentar novamente com email convertido (recursão controlada)
                     // Atualizar params com email convertido
                     const retryParams = {
                         ...params,
@@ -495,11 +460,7 @@ export const createPixPayment = async (
                     // Tentar criar pagamento novamente com email convertido
                     // Usar um flag para evitar loop infinito
                     if (!(error as any).__retryAttempted) {
-                        (error as any).__retryAttempted = true;
-                        console.log(
-                            '🔄 Tentando criar pagamento novamente com email convertido...'
-                        );
-                        return createPixPayment(retryParams, deviceId);
+                        (error as any).__retryAttempted = true;return createPixPayment(retryParams, deviceId);
                     }
                 }
 
@@ -531,11 +492,6 @@ export const createPixPayment = async (
                     return e.message;
                 })
                 .join(', ');
-
-            console.error(
-                '❌ Detalhes completos do erro do Mercado Pago:',
-                JSON.stringify(errorDetails, null, 2)
-            );
             throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
         }
 
@@ -564,11 +520,8 @@ export const createPixPayment = async (
                         return e.message;
                     })
                     .join(', ');
-
-                console.error(
-                    '❌ Detalhes completos do erro do Mercado Pago (response.data):',
-                    JSON.stringify(errorDetails, null, 2)
-                );
+                console.log('Mercado Pago Error Details:', JSON.stringify(errorDetails, null, 2));
+                throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
                 throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
             }
             throw new Error(`Erro do Mercado Pago: ${mpError.message || JSON.stringify(mpError)}`);
@@ -665,11 +618,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         }
         if (!lastName || lastName.trim().length === 0) {
             // Se lastName estiver vazio, usar firstName como fallback
-            const fallbackLastName = firstName;
-            console.warn(
-                `⚠️ [paymentService] lastName vazio, usando firstName como fallback: ${fallbackLastName}`
-            );
-        }
+            const fallbackLastName = firstName;}
 
         const identificationType = (cardholder?.identification?.type || 'CPF').toUpperCase();
         const identificationNumberRaw = cardholder?.identification?.number || customerData.cpf;
@@ -697,13 +646,6 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = payerEmail.split('@')[0] || 'test';
             payerEmail = `${emailName}@testuser.com`;
-            console.log(
-                `🔧 [paymentService] Email convertido para sandbox: "${
-                    cardholder?.email || customerData.email
-                }" → "${payerEmail}" (isSandbox=${isSandbox}, forceSandbox=${forceSandbox}, nodeEnv=${
-                    process.env.NODE_ENV
-                })`
-            );
         }
 
         // Criar Order usando Orders API (modo automático)
@@ -736,9 +678,6 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                               };
                           }
                           // Se telefone inválido, não incluir (opcional no MP)
-                          console.warn(
-                              `⚠️ [paymentService] Telefone inválido ignorado: ${customerData.phone} (area_code: ${areaCode}, number: ${phoneNumber})`
-                          );
                           return undefined;
                       })()
                     : undefined,
@@ -851,10 +790,9 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         if (error?.orderResponse) {
             debugPayload.orderResponse = error.orderResponse;
         }
-        console.error(
-            'Erro ao criar pagamento com cartão (Orders API):',
-            JSON.stringify(debugPayload, null, 2)
-        );
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('Card Payment Error:', JSON.stringify(debugPayload, null, 2));
+        }
 
         if (!error?.response?.data && error?.orderResponse?.transactions?.payments?.[0]) {
             const rejectedPayment = error.orderResponse.transactions.payments[0];
@@ -1035,24 +973,25 @@ export const getOrderById = async (orderId: string) => {
         // Verificar cache primeiro
         const cached = mpOrderCache.get(orderId);
         if (cached && Date.now() - cached.timestamp < MP_ORDER_CACHE_TTL) {
-            console.log(`[paymentService] ✅ Retornando order do cache: ${orderId}`);
             return cached.data;
         }
 
         // Buscar do Mercado Pago
-        console.log(`[paymentService] 🔍 Buscando order no Mercado Pago: ${orderId}`, {
-            environment: process.env.NODE_ENV,
-            isSandbox: getAccessToken().startsWith('TEST-'),
-        });
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('Fetching order from MP:', {
+                orderId,
+                isSandbox: getAccessToken().startsWith('TEST-'),
+            });
+        }
         const client = createMercadoPagoClient();
         const orderApi = new Order(client);
         const response = await orderApi.get({ id: orderId });
 
         // Log da estrutura da resposta para debug
         if (process.env.NODE_ENV !== 'production') {
-            console.log(`[paymentService] 📋 Estrutura da resposta do MP para order ${orderId}:`, {
-                hasResponse: !!response,
-                responseKeys: response ? Object.keys(response) : [],
+            console.log('MP Order Response Structure:', {
+                orderId: (response as any)?.id,
+                status: (response as any)?.status,
                 hasTransactions: !!(response as any)?.transactions,
                 hasPayments: !!(response as any)?.transactions?.payments,
                 paymentsCount: (response as any)?.transactions?.payments?.length || 0,
@@ -1080,15 +1019,13 @@ export const getOrderById = async (orderId: string) => {
 
         return response as any;
     } catch (error: any) {
-        console.error('❌ Erro ao buscar order:', {
-            orderId,
-            message: error?.message,
-            status: error?.response?.status,
-            statusText: error?.response?.statusText,
-            responseData: error?.response?.data,
-            environment: process.env.NODE_ENV,
-            isSandbox: getAccessToken().startsWith('TEST-'),
-        });
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('Error fetching order:', {
+                orderId,
+                error: error.message,
+                isSandbox: getAccessToken().startsWith('TEST-'),
+            });
+        }
         throw new Error(`Erro ao buscar order: ${error.message || 'Erro desconhecido'}`);
     }
 };
@@ -1102,9 +1039,7 @@ export const cancelOrderById = async (orderId: string) => {
         const orderApi = new Order(client);
         const response = await orderApi.cancel({ id: orderId });
         return response as any;
-    } catch (error: any) {
-        console.error('Erro ao cancelar order:', error);
-        throw new Error(`Erro ao cancelar order: ${error.message || 'Erro desconhecido'}`);
+    } catch (error: any) {throw new Error(`Erro ao cancelar order: ${error.message || 'Erro desconhecido'}`);
     }
 };
 
@@ -1126,9 +1061,7 @@ export const getPaymentById = async (paymentId: string) => {
         ) {
             // Payment não encontrado
             return null;
-        }
-        console.error('Erro ao buscar pagamento:', error);
-        throw new Error(`Erro ao buscar pagamento: ${message}`);
+        }throw new Error(`Erro ao buscar pagamento: ${message}`);
     }
 };
 
@@ -1185,8 +1118,6 @@ export const processWebhookNotification = async (data: any) => {
         }
 
         return null;
-    } catch (error: any) {
-        console.error('Erro ao processar notificação:', error);
-        throw new Error(`Erro ao processar notificação: ${error.message || 'Erro desconhecido'}`);
+    } catch (error: any) {throw new Error(`Erro ao processar notificação: ${error.message || 'Erro desconhecido'}`);
     }
 };

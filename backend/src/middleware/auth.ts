@@ -86,10 +86,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
                 message: 'Token expirado',
                 errors: ['Faça login novamente'],
             });
-        }
-
-        console.error('Erro na autenticação:', error);
-        return res.status(500).json({
+        }return res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
             errors: ['Erro ao processar autenticação'],
@@ -209,9 +206,7 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
         }
 
         next();
-    } catch (error: any) {
-        console.error('Error in isAdmin middleware:', error);
-        res.status(500).json({
+    } catch (error: any) {res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
             errors: [error.message],

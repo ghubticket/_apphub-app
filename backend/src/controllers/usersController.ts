@@ -57,10 +57,7 @@ export const listSuspiciousUsers = async (req: Request, res: Response) => {
             success: true,
             data: enrichedUsers,
         });
-    } catch (error: any) {
-        console.error('Erro ao listar usuários suspeitos:', error);
-        
-        captureControllerError(error, req, {
+    } catch (error: any) {captureControllerError(error, req, {
             controller: 'usersController',
             action: 'listSuspiciousUsers',
             statusCode: 500,
@@ -114,10 +111,7 @@ export const toggleSuspicious = async (req: Request, res: Response) => {
             message: `Usuário ${user.isSuspicious ? 'marcado como suspeito' : 'removido da lista de suspeitos'}`,
             data: user,
         });
-    } catch (error: any) {
-        console.error('Erro ao atualizar status de suspeito:', error);
-        
-        captureControllerError(error, req, {
+    } catch (error: any) {captureControllerError(error, req, {
             controller: 'usersController',
             action: 'toggleSuspicious',
             statusCode: 500,
@@ -178,10 +172,7 @@ export const toggleBlacklist = async (req: Request, res: Response) => {
             message: `Usuário ${user.isBlacklisted ? 'adicionado à blacklist' : 'removido da blacklist'}`,
             data: user,
         });
-    } catch (error: any) {
-        console.error('Erro ao atualizar blacklist:', error);
-        
-        captureControllerError(error, req, {
+    } catch (error: any) {captureControllerError(error, req, {
             controller: 'usersController',
             action: 'toggleBlacklist',
             statusCode: 500,
@@ -218,8 +209,6 @@ export const checkUserBlocked = async (
         }
 
         return { blocked: false };
-    } catch (error: any) {
-        console.error('Erro ao verificar bloqueio:', error);
-        return { blocked: false };
+    } catch (error: any) {return { blocked: false };
     }
 };

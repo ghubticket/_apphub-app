@@ -447,17 +447,13 @@ orderSchema.post(['find', 'findOne', 'findOneAndUpdate'], function (docs: any) {
             if (doc.customerData.cpf && isEncrypted(doc.customerData.cpf)) {
                 try {
                     doc.customerData.cpf = decryptSensitiveData(doc.customerData.cpf);
-                } catch (error) {
-                    console.error('Erro ao descriptografar CPF do pedido:', error);
-                }
+                } catch (error) {}
             }
             // Descriptografar telefone
             if (doc.customerData.phone && isEncrypted(doc.customerData.phone)) {
                 try {
                     doc.customerData.phone = decryptSensitiveData(doc.customerData.phone);
-                } catch (error) {
-                    console.error('Erro ao descriptografar telefone do pedido:', error);
-                }
+                } catch (error) {}
             }
             // Não expor hashes
             delete doc.customerData.cpfHash;
@@ -475,18 +471,14 @@ orderSchema.methods.toJSON = function () {
         if (orderObject.customerData.cpf && isEncrypted(orderObject.customerData.cpf)) {
             try {
                 orderObject.customerData.cpf = decryptSensitiveData(orderObject.customerData.cpf);
-            } catch (error) {
-                console.error('Erro ao descriptografar CPF no toJSON:', error);
-            }
+            } catch (error) {}
         }
         if (orderObject.customerData.phone && isEncrypted(orderObject.customerData.phone)) {
             try {
                 orderObject.customerData.phone = decryptSensitiveData(
                     orderObject.customerData.phone
                 );
-            } catch (error) {
-                console.error('Erro ao descriptografar telefone no toJSON:', error);
-            }
+            } catch (error) {}
         }
         // Não expor hashes
         delete orderObject.customerData.cpfHash;

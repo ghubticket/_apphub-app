@@ -60,9 +60,7 @@ export const register = async (req: Request, res: Response) => {
                 customerRole: user.role,
                 loginLink: `${dashboardUrl}/login`,
             });
-        } catch (emailError) {
-            console.error('Erro ao enviar email de boas-vindas:', emailError);
-            // Não falhar o registro se o email falhar
+        } catch (emailError) {// Não falhar o registro se o email falhar
         }
 
         // Retornar dados do usuário (sem senha) e token
@@ -74,10 +72,7 @@ export const register = async (req: Request, res: Response) => {
                 token,
             },
         });
-    } catch (error: any) {
-        console.error('Erro no registro:', error);
-
-        // Erro de validação do Mongoose - não enviar ao Sentry (erro esperado)
+    } catch (error: any) {// Erro de validação do Mongoose - não enviar ao Sentry (erro esperado)
         if (error.name === 'ValidationError') {
             const errors = Object.values(error.errors).map((err: any) => ({
                 field: err.path,
@@ -260,7 +255,12 @@ export const login = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro no login:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'login',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -345,10 +345,7 @@ export const refreshToken = async (req: Request, res: Response) => {
                 expiresIn: 900, // 15 minutos em segundos
             },
         });
-    } catch (error: any) {
-        console.error('Erro no refresh token:', error);
-
-        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+    } catch (error: any) {if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
             return res.status(401).json({
                 success: false,
                 message: 'Refresh token inválido',
@@ -390,8 +387,7 @@ export const checkSession = async (req: Request, res: Response) => {
                     timeRemaining = Math.max(0, expiresAt.getTime() - Date.now());
 
                     if (process.env.NODE_ENV !== 'production') {
-                        console.log('[checkSession] Access token válido:', {
-                            expiresAt: expiresAt.toISOString(),
+                        console.log('Access token válido:', {
                             timeRemainingMs: timeRemaining,
                             timeRemainingMinutes: Math.floor(timeRemaining / 60000),
                         });
@@ -399,11 +395,7 @@ export const checkSession = async (req: Request, res: Response) => {
                 }
             } catch (error: any) {
                 // Token expirado ou inválido, tentar refresh token
-                if (process.env.NODE_ENV !== 'production') {
-                    console.log(
-                        '[checkSession] Access token inválido/expirado, tentando refresh token'
-                    );
-                }
+                if (process.env.NODE_ENV !== 'production') {}
             }
         }
 
@@ -433,31 +425,21 @@ export const checkSession = async (req: Request, res: Response) => {
                             timeRemaining = Math.max(0, expiresAt.getTime() - Date.now());
 
                             if (process.env.NODE_ENV !== 'production') {
-                                console.log('[checkSession] Refresh token válido:', {
-                                    expiresAt: expiresAt.toISOString(),
+                                console.log('Refresh token válido:', {
                                     timeRemainingMs: timeRemaining,
                                     timeRemainingMinutes: Math.floor(timeRemaining / 60000),
                                 });
                             }
                         } else {
-                            if (process.env.NODE_ENV !== 'production') {
-                                console.log('[checkSession] Sessão não encontrada ou inativa');
-                            }
+                            if (process.env.NODE_ENV !== 'production') {}
                         }
                     }
                 } catch (error: any) {
                     // Refresh token inválido
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.log(
-                            '[checkSession] Refresh token inválido/expirado:',
-                            error.message
-                        );
-                    }
+                    if (process.env.NODE_ENV !== 'production') {}
                 }
             } else {
-                if (process.env.NODE_ENV !== 'production') {
-                    console.log('[checkSession] Sem refresh token ou sessionId');
-                }
+                if (process.env.NODE_ENV !== 'production') {}
             }
         }
 
@@ -472,8 +454,13 @@ export const checkSession = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('[checkSession] Erro ao verificar sessão:', error);
         // Retornar resposta de erro estruturada
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'checkSession',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao verificar sessão',
@@ -505,7 +492,12 @@ export const logout = async (req: Request, res: Response) => {
             message: 'Logout realizado com sucesso',
         });
     } catch (error: any) {
-        console.error('Erro no logout:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'logout',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -527,7 +519,12 @@ export const getMe = async (req: Request, res: Response) => {
             data: user,
         });
     } catch (error: any) {
-        console.error('Erro ao obter dados do usuário:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'getMe',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -571,8 +568,6 @@ export const updateProfile = async (req: Request, res: Response) => {
             data: user.toJSON(),
         });
     } catch (error: any) {
-        console.error('Erro ao atualizar perfil:', error);
-
         if (error.name === 'ValidationError') {
             const errors = Object.values(error.errors).map((err: any) => ({
                 field: err.path,
@@ -585,6 +580,12 @@ export const updateProfile = async (req: Request, res: Response) => {
                 errors,
             });
         }
+
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'updateProfile',
+            statusCode: 500,
+        });
 
         res.status(500).json({
             success: false,
@@ -644,8 +645,6 @@ export const changePassword = async (req: Request, res: Response) => {
             message: 'Senha alterada com sucesso',
         });
     } catch (error: any) {
-        console.error('Erro ao alterar senha:', error);
-
         if (error.name === 'ValidationError') {
             const errors = Object.values(error.errors).map((err: any) => ({
                 field: err.path,
@@ -658,6 +657,12 @@ export const changePassword = async (req: Request, res: Response) => {
                 errors,
             });
         }
+
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'changePassword',
+            statusCode: 500,
+        });
 
         res.status(500).json({
             success: false,
@@ -736,14 +741,17 @@ export const forgotPassword = async (req: Request, res: Response) => {
                 resetLink,
                 expirationMinutes: EXPIRATION_MINUTES,
             });
-        } catch (emailError) {
-            console.error('Erro ao enviar email de redefinição de senha:', emailError);
-            // Mesmo que o email falhe, não revelar nada ao cliente
+        } catch (emailError) {// Mesmo que o email falhe, não revelar nada ao cliente
         }
 
         return genericResponse();
     } catch (error: any) {
-        console.error('Erro no fluxo de esqueci minha senha:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'forgotPassword',
+            statusCode: 500,
+        });
+        
         return res.json({
             success: true,
             message:
@@ -824,10 +832,7 @@ export const resetPassword = async (req: Request, res: Response) => {
                 { isActive: false }
             );
         } catch (sessionError) {
-            console.error(
-                'Erro ao invalidar sessões após reset de senha (não bloqueante):',
-                sessionError
-            );
+            // Erro ao invalidar sessões - não bloquear reset de senha
         }
 
         return res.json({
@@ -835,7 +840,12 @@ export const resetPassword = async (req: Request, res: Response) => {
             message: 'Senha redefinida com sucesso. Faça login com sua nova senha.',
         });
     } catch (error: any) {
-        console.error('Erro ao redefinir senha com token:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'resetPassword',
+            statusCode: 500,
+        });
+        
         return res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -857,9 +867,7 @@ export const getActiveSessions = async (req: Request, res: Response) => {
             success: true,
             data: sessions,
         });
-    } catch (error: any) {
-        console.error('Erro ao obter sessões:', error);
-        res.status(500).json({
+    } catch (error: any) {res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
             errors: ['Erro ao obter sessões'],
@@ -897,7 +905,12 @@ export const invalidateSession = async (req: Request, res: Response) => {
             message: 'Sessão invalidada com sucesso',
         });
     } catch (error: any) {
-        console.error('Erro ao invalidar sessão:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'invalidateSession',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -920,7 +933,12 @@ export const invalidateAllSessions = async (req: Request, res: Response) => {
             message: 'Todas as sessões foram invalidadas com sucesso',
         });
     } catch (error: any) {
-        console.error('Erro ao invalidar todas as sessões:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'invalidateAllSessions',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -970,7 +988,12 @@ export const getSessionStats = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Error getting session stats:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'getSessionStats',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -1026,7 +1049,12 @@ export const getUserById = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro ao buscar usuário:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'getUserById',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar usuário',
@@ -1104,7 +1132,12 @@ export const getAllUsers = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro ao listar usuários:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'getAllUsers',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -1144,7 +1177,12 @@ export const updateUserStatus = async (req: Request, res: Response) => {
             data: user,
         });
     } catch (error: any) {
-        console.error('Erro ao atualizar status do usuário:', error);
+        captureControllerError(error, req, {
+            controller: 'authController',
+            action: 'updateUserStatus',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',

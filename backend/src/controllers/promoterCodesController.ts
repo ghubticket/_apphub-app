@@ -101,10 +101,7 @@ export const createPromoterCode = async (req: Request, res: Response) => {
             message: 'Código de promotor criado com sucesso',
             data: populated,
         });
-    } catch (error: any) {
-        console.error('Erro ao criar código de promotor:', error);
-        
-        // Se for erro de validação, não enviar ao Sentry
+    } catch (error: any) {// Se for erro de validação, não enviar ao Sentry
         if (error.name === 'ValidationError' || error.code === 11000) {
             const errorMessage = error.errors
                 ? Object.values(error.errors)
@@ -191,10 +188,7 @@ export const listPromoterCodes = async (req: Request, res: Response) => {
                 },
             },
         });
-    } catch (error: any) {
-        console.error('Erro ao listar códigos de promotor:', error);
-        
-        captureControllerError(error, req, {
+    } catch (error: any) {captureControllerError(error, req, {
             controller: 'promoterCodesController',
             action: 'listPromoterCodes',
             statusCode: 500,
@@ -234,10 +228,7 @@ export const getPromoterCodeById = async (req: Request, res: Response) => {
             success: true,
             data: code,
         });
-    } catch (error: any) {
-        console.error('Erro ao buscar código de promotor:', error);
-        
-        captureControllerError(error, req, {
+    } catch (error: any) {captureControllerError(error, req, {
             controller: 'promoterCodesController',
             action: 'getPromoterCode',
             statusCode: 500,
@@ -318,10 +309,7 @@ export const updatePromoterCode = async (req: Request, res: Response) => {
             message: 'Código de promotor atualizado com sucesso',
             data: code,
         });
-    } catch (error: any) {
-        console.error('Erro ao atualizar código de promotor:', error);
-        
-        // Se for erro de validação, não enviar ao Sentry
+    } catch (error: any) {// Se for erro de validação, não enviar ao Sentry
         if (error.name === 'ValidationError' || error.code === 11000) {
             const errorMessage = error.errors
                 ? Object.values(error.errors)
@@ -380,10 +368,7 @@ export const togglePromoterCode = async (req: Request, res: Response) => {
             message: `Código ${code.isActive ? 'ativado' : 'desativado'} com sucesso`,
             data: code,
         });
-    } catch (error: any) {
-        console.error('Erro ao alterar status do código:', error);
-        
-        captureControllerError(error, req, {
+    } catch (error: any) {captureControllerError(error, req, {
             controller: 'promoterCodesController',
             action: 'togglePromoterCodeStatus',
             statusCode: 500,
@@ -422,10 +407,7 @@ export const deletePromoterCode = async (req: Request, res: Response) => {
             success: true,
             message: 'Código de promotor removido com sucesso',
         });
-    } catch (error: any) {
-        console.error('Erro ao deletar código de promotor:', error);
-        
-        captureControllerError(error, req, {
+    } catch (error: any) {captureControllerError(error, req, {
             controller: 'promoterCodesController',
             action: 'deletePromoterCode',
             statusCode: 500,
@@ -483,10 +465,7 @@ export const validatePromoterCode = async (req: Request, res: Response) => {
                 // O cálculo do desconto será feito no backend quando criar o pedido
             },
         });
-    } catch (error: any) {
-        console.error('Erro ao validar código:', error);
-        
-        captureControllerError(error, req, {
+    } catch (error: any) {captureControllerError(error, req, {
             controller: 'promoterCodesController',
             action: 'validatePromoterCode',
             statusCode: 500,
@@ -557,10 +536,7 @@ export const getPromoterCodeStats = async (req: Request, res: Response) => {
                 commission, // Comissão (futuro)
             },
         });
-    } catch (error: any) {
-        console.error('Erro ao buscar estatísticas:', error);
-        
-        captureControllerError(error, req, {
+    } catch (error: any) {captureControllerError(error, req, {
             controller: 'promoterCodesController',
             action: 'getPromoterCodeStats',
             statusCode: 500,

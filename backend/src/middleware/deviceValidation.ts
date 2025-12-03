@@ -30,10 +30,7 @@ export const validateMobileDevice = (req: Request, res: Response, next: NextFunc
 
     // Em desenvolvimento, permitir acesso de qualquer dispositivo (para testes)
     if (process.env.NODE_ENV === 'development') {
-        console.warn(
-            '⚠️ Acesso de dispositivo não-mobile detectado (permitido apenas em dev):',
-            userAgent
-        );
+        console.log('Development mode: allowing non-mobile device:', userAgent);
         return next();
     }
 
@@ -75,7 +72,6 @@ export const validateUserAgent = (req: Request, res: Response, next: NextFunctio
 
     // Em produção, bloquear User-Agents suspeitos
     if (!userAgent || suspiciousPatterns.some((pattern) => pattern.test(userAgent))) {
-        console.warn('⚠️ User-Agent suspeito bloqueado:', userAgent);
         return res.status(403).json({
             success: false,
             message: 'Acesso negado',
@@ -108,7 +104,6 @@ export const validateOrigin = (req: Request, res: Response, next: NextFunction) 
 
     // Validar origem apenas em produção
     if (origin && !allowedOrigins.some((allowed) => origin.startsWith(allowed || ''))) {
-        console.warn('⚠️ Origem não permitida:', origin);
         return res.status(403).json({
             success: false,
             message: 'Acesso negado',

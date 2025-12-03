@@ -215,19 +215,6 @@ export const createOrder = async (req: Request, res: Response) => {
         const normalizedCustomerEmail = normalizeEmail(customerData?.email);
         const normalizedUserEmail = normalizeEmail(user?.email);
 
-        // Log para debug - verificar se CPF está sendo passado
-        console.log('[createOrder] 🔍 Dados do cliente para validação:', {
-            hasCustomerDataCPF: !!customerData?.cpf,
-            hasUserCPF: !!user?.cpf,
-            cpfToValidate: cpfToValidate ? `${cpfToValidate.substring(0, 3)}.***.***-**` : 'null',
-            hasCustomerDataEmail: !!customerData?.email,
-            hasUserEmail: !!user?.email,
-            emailToValidate: emailToValidate ? `${emailToValidate.substring(0, 3)}***@***` : 'null',
-            ticketTypeName: ticketType?.name,
-            ticketTypeIsVIP: ticketType?.isVIP,
-            ticketTypeMaxPerCPF: ticketType?.maxPerCPF,
-        });
-
         // REFATORADO: Validação de disponibilidade e limites usando serviço
         const availabilityValidation = await orderService.validateAvailabilityAndLimits(
             eventId!,
@@ -266,18 +253,6 @@ export const createOrder = async (req: Request, res: Response) => {
         // Garantir que isVIP seja boolean true E que ticketType.isVIP seja explicitamente true
         const isReallyVIP = Boolean(isVIP) && Boolean(ticketType?.isVIP === true);
 
-        if (isVIP && !isReallyVIP) {
-            console.error(
-                '[createOrder] ⚠️ ATENÇÃO: isVIP calculado como true mas ticketType.isVIP não é explicitamente true!',
-                {
-                    calculatedIsVIP: isVIP,
-                    ticketTypeIsVIP: ticketType?.isVIP,
-                    ticketTypeId: ticketType?._id,
-                    ticketTypeName: ticketType?.name,
-                }
-            );
-        }
-
         // REFATORADO: Buscar pedido existente usando serviço
         const existingOrder = await orderService.findExistingOrder(
             eventId!,
@@ -292,36 +267,21 @@ export const createOrder = async (req: Request, res: Response) => {
             // Isso evita criar múltiplos pedidos para o mesmo evento/cliente
             const orderStatus = existingOrder.status;
             const paymentMethod = existingOrder.paymentMethod;
-            console.log(
-                `♻️ [createOrder] Pedido existente encontrado para mesmo evento/cliente, adicionando ingressos: orderNumber=${existingOrder.orderNumber}, status=${orderStatus}, paymentMethod=${paymentMethod}`
-            );
-
+            
             // CRÍTICO: Se o pedido existente tem status 'failed', verificar se ainda pode ser reutilizado
             // Permitir reutilização até esgotar tentativas (MAX_CARD_PAYMENT_ATTEMPTS)
             if (orderStatus === 'failed') {
                 const cardAttempts = existingOrder.cardAttempts || 0;
                 if (cardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS) {
                     // Esgotou tentativas: cancelar pedido e criar novo
-                    console.log(
-                        `⚠️ [createOrder] Pedido failed esgotou tentativas (${cardAttempts}/${MAX_CARD_PAYMENT_ATTEMPTS}), cancelando e criando novo pedido`
-                    );
                     try {
                         await orderService.cancelOrderAndReturnStock(existingOrder);
-                        console.log(
-                            `✅ [createOrder] Pedido failed cancelado (tentativas esgotadas), criando novo pedido`
-                        );
                     } catch (cancelError) {
-                        console.error(
-                            `❌ [createOrder] Erro ao cancelar pedido failed:`,
-                            cancelError
-                        );
+                        // Erro ao cancelar - continuar mesmo assim
                     }
                     // Não reutilizar - continuar para criar novo pedido
                 } else {
-                    // Ainda pode tentar: reutilizar o pedido failed
-                    console.log(
-                        `♻️ [createOrder] Pedido failed pode ser reutilizado (${cardAttempts}/${MAX_CARD_PAYMENT_ATTEMPTS} tentativas), resetando status para pending`
-                    );
+                    // Ainda pode tentar: reutilizar o pedido failed, resetando status para pending
                     const orderToUpdate = await Order.findById(existingOrder._id);
                     if (orderToUpdate) {
                         // Resetar status para pending para permitir nova tentativa
@@ -330,15 +290,9 @@ export const createOrder = async (req: Request, res: Response) => {
                         orderToUpdate.isActive = true;
                         // Não alterar expiresAt - manter o tempo original do pedido
                         await orderToUpdate.save();
-                        console.log(
-                            `✅ [createOrder] Pedido resetado para pending (mantendo expiresAt original: ${orderToUpdate.expiresAt}), pode tentar pagamento novamente`
-                        );
                         // Continuar para reutilizar o pedido (código abaixo)
                     } else {
                         // Não encontrou pedido, continuar para criar novo
-                        console.log(
-                            `⚠️ [createOrder] Pedido não encontrado no banco, criando novo`
-                        );
                     }
                 }
             }
@@ -497,11 +451,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
             reusableOrder = await Order.findOne(reusableOrderFilters).lean();
 
-            if (reusableOrder) {
-                console.log(
-                    `♻️ [createOrder] Pedido reutilizado: orderNumber=${reusableOrder.orderNumber}, cardAttempts=${reusableOrder.cardAttempts || 0}, MAX=${MAX_CARD_PAYMENT_ATTEMPTS}`
-                );
-                return res.status(200).json({
+            if (reusableOrder) {return res.status(200).json({
                     success: true,
                     message: 'Pedido pendente reutilizado. Continue com o pagamento.',
                     data: {
@@ -534,17 +484,11 @@ export const createOrder = async (req: Request, res: Response) => {
             orderStatus = 'paid';
             paymentMethod = 'vip_free';
             ticketStatus = 'confirmed';
-            console.log(
-                '[createOrder] ✅ Criando pedido VIP (status=paid, paymentMethod=vip_free)'
-            );
         } else {
             // Outros: aguarda pagamento (será integrado depois)
             // CRÍTICO: PIX, cartão, etc. SEMPRE começam como pending
             orderStatus = 'pending';
             ticketStatus = 'pending';
-            console.log(
-                '[createOrder] ✅ Criando pedido normal (status=pending, aguardando pagamento)'
-            );
         }
 
         const finalCustomerEmail =
@@ -660,7 +604,7 @@ export const createOrder = async (req: Request, res: Response) => {
                     paymentMethod: order.paymentMethod,
                 },
             }).catch((error) => {
-                console.error('Erro ao registrar auditoria (não crítico):', error);
+                // Erro ao registrar auditoria - não bloquear criação
             });
 
             // Detectar padrões suspeitos (executar em background, não bloquear criação)
@@ -672,7 +616,7 @@ export const createOrder = async (req: Request, res: Response) => {
                     email: finalCustomerEmail,
                     userId: userId || undefined,
                 }).catch((error) => {
-                    console.error('Erro ao detectar padrões suspeitos (não crítico):', error);
+                    // Erro ao detectar padrões suspeitos - não bloquear criação
                 });
             });
 
@@ -729,10 +673,7 @@ export const createOrder = async (req: Request, res: Response) => {
                     requiresPayment: !isReallyVIP,
                 },
             });
-        } catch (error: any) {
-            console.error('Erro ao criar pedido:', error);
-            
-            captureControllerError(error, req, {
+        } catch (error: any) {captureControllerError(error, req, {
                 controller: 'ordersController',
                 action: 'createOrder',
                 statusCode: 500,
@@ -750,8 +691,6 @@ export const createOrder = async (req: Request, res: Response) => {
             });
         }
     } catch (outerError: any) {
-        console.error('Erro ao criar pedido (pré-transação):', outerError);
-        
         captureControllerError(outerError, req, {
             controller: 'ordersController',
             action: 'createOrder',
@@ -958,7 +897,12 @@ export const listMyOrders = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro ao listar pedidos:', error);
+        captureControllerError(error, req, {
+            controller: 'ordersController',
+            action: 'listMyOrders',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao listar pedidos',
@@ -1070,7 +1014,12 @@ export const listAllOrders = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro ao listar todos os pedidos:', error);
+        captureControllerError(error, req, {
+            controller: 'ordersController',
+            action: 'listAllOrders',
+            statusCode: 500,
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao listar pedidos',
@@ -1130,34 +1079,9 @@ export const getOrderById = async (req: Request, res: Response) => {
         const requestUserId = userId ? String(userId) : null;
         const isOwner = orderCustomerId && requestUserId && orderCustomerId === requestUserId;
 
-        // OTIMIZAÇÃO: Reduzir logs verbosos - só logar se não estiver em produção ou se for primeira vez
-        const shouldLogPermission = process.env.NODE_ENV !== 'production' || !(global as any).__lastPermissionLogTime || Date.now() - (global as any).__lastPermissionLogTime > 10000;
-        if (shouldLogPermission) {
-            console.log('[getOrderById] 🔍 Verificando permissão:', {
-                orderId: id,
-                orderCustomerId,
-                requestUserId,
-                isAdmin,
-                isOwner,
-                orderCustomerType: typeof order.customer,
-                requestUserType: typeof userId,
-                orderCustomerValue: order.customer,
-                requestUserValue: userId,
-            });
-            (global as any).__lastPermissionLogTime = Date.now();
-        }
+        // Verificar permissões
 
-        if (!isAdmin && !isOwner) {
-            console.log('[getOrderById] ❌ Acesso negado:', {
-                orderId: id,
-                reason:
-                    !isAdmin && !isOwner
-                        ? 'Usuário não é admin nem dono do pedido'
-                        : 'Desconhecido',
-                orderCustomerId,
-                requestUserId,
-            });
-            return res.status(403).json({
+        if (!isAdmin && !isOwner) {return res.status(403).json({
                 success: false,
                 message: 'Acesso negado',
             });
@@ -1179,22 +1103,8 @@ export const getOrderById = async (req: Request, res: Response) => {
                 try {
                     const orderDoc = await Order.findById(order._id);
                     if (!orderDoc || orderDoc.status !== 'pending') {
-                        console.log(`⏭️ [getOrderById] Pulando sincronização:`, {
-                            orderId: order._id,
-                            orderNumber: order.orderNumber,
-                            reason: !orderDoc ? 'orderDoc não encontrado' : 'status não é pending',
-                            currentStatus: orderDoc?.status,
-                        });
                         return;
                     }
-                    
-                    console.log(`🔄 [getOrderById] Iniciando sincronização com MP:`, {
-                        orderId: orderDoc._id,
-                        orderNumber: orderDoc.orderNumber,
-                        paymentMethod: orderDoc.paymentMethod,
-                        paymentOrderId: (orderDoc as any).paymentOrderId,
-                        paymentId: orderDoc.paymentId,
-                    });
 
                     let paymentInfo: any = null;
                     let mpStatus: string | null = null;
@@ -1216,18 +1126,6 @@ export const getOrderById = async (req: Request, res: Response) => {
                                     ''
                                 ).toLowerCase();
                                 
-                                // DEBUG: Log detalhado do que veio do MP
-                                console.log(`📦 [getOrderById] Dados do MP recebidos:`, {
-                                    orderId: orderDoc._id,
-                                    orderNumber: orderDoc.orderNumber,
-                                    mpPaymentStatus: mpPayment.status,
-                                    mpPaymentStatusDetail: mpPayment.status_detail,
-                                    mpOrderStatus: mpOrder?.status,
-                                    mpOrderStatusDetail: mpOrder?.status_detail,
-                                    finalMpStatus: mpStatus,
-                                    paymentInfoStatusDetail: paymentInfo.status_detail,
-                                });
-                                
                                 // CRÍTICO: Garantir que status_detail seja capturado do payment
                                 if (!paymentInfo.status_detail && mpPayment.status_detail) {
                                     paymentInfo.status_detail = mpPayment.status_detail;
@@ -1247,13 +1145,8 @@ export const getOrderById = async (req: Request, res: Response) => {
                                 }
                             }
                         } catch (orderError) {
-                            if (process.env.NODE_ENV !== 'production') {
-                                console.warn(
-                                    '[getOrderById] Erro ao buscar order no MP:',
-                                    orderError
-                                );
-                            }
-                            return; // Não continuar se não conseguir buscar
+                            // Erro ao buscar order do MP - não continuar
+                            return;
                         }
                     } else if (orderDoc.paymentId) {
                         // Para cartão ou fallback PIX: usar Payment API
@@ -1269,13 +1162,7 @@ export const getOrderById = async (req: Request, res: Response) => {
                             }
                         } catch (paymentError) {
                             // Payment API pode não funcionar para PIX Orders API, ignorar erro
-                            if (process.env.NODE_ENV !== 'production') {
-                                console.warn(
-                                    '[getOrderById] Erro ao buscar payment no MP:',
-                                    paymentError
-                                );
-                            }
-                            return; // Não continuar se não conseguir buscar
+                            return;
                         }
                     }
 
@@ -1288,34 +1175,13 @@ export const getOrderById = async (req: Request, res: Response) => {
                         mpStatus === 'processed' &&
                         String(paymentInfo?.status_detail || '')
                             .toLowerCase()
-                            .includes('accredited');
-
-                    console.log(`🔍 [getOrderById] Verificando status do MP para sincronização:`, {
-                        orderId: orderDoc._id,
-                        orderNumber: orderDoc.orderNumber,
-                        mpStatus,
-                        paymentStatusDetail: paymentInfo?.status_detail,
-                        isProcessedAccredited,
-                        currentOrderStatus: orderDoc.status,
-                    });
-
-                    if (mpStatus === 'approved' || isProcessedAccredited) {
-                        console.log(`✅ [getOrderById] Pagamento APROVADO detectado! Atualizando pedido ${orderDoc.orderNumber}:`, {
-                            mpStatus,
-                            paymentStatusDetail: paymentInfo?.status_detail,
-                            isProcessedAccredited,
-                            previousStatus: orderDoc.status,
-                        });
-                        orderDoc.status = 'paid';
+                            .includes('accredited');if (mpStatus === 'approved' || isProcessedAccredited) {orderDoc.status = 'paid';
                         orderDoc.paymentStatus = 'approved';
                         orderDoc.paymentStatusDetail = paymentInfo?.status_detail || 'accredited';
                         if (paymentInfo?.date_approved) {
                             (orderDoc as any).paidAt = new Date(paymentInfo.date_approved);
                         }
-                        await orderDoc.save();
-                        console.log(`✅ [getOrderById] Pedido ${orderDoc.orderNumber} atualizado para 'paid' com sucesso!`);
-
-                        // REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
+                        await orderDoc.save();// REFATORADO: Não liberar reservas - pedidos não usam mais reservas separadas
                         // O pedido PENDING já funciona como reserva e quando pago, o estoque já está bloqueado corretamente
 
                         // CRÍTICO: Confirmar APENAS tickets deste pedido específico
@@ -1326,17 +1192,9 @@ export const getOrderById = async (req: Request, res: Response) => {
                             deletedAt: null,
                         });
 
-                        console.log(
-                            `📋 [getOrderById] Confirmando ${tickets.length} ticket(s) do pedido ${orderDoc.orderNumber} (${orderDoc._id})`
-                        );
-
                         for (const ticket of tickets) {
                             // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
-                            if (String(ticket.order) !== String(orderDoc._id)) {
-                                console.error(
-                                    `⚠️ [getOrderById] ERRO CRÍTICO: Ticket ${ticket._id} não pertence ao pedido ${orderDoc._id}! Pulando...`
-                                );
-                                continue;
+                            if (String(ticket.order) !== String(orderDoc._id)) {continue;
                             }
 
                             if (ticket.status === 'pending') {
@@ -1347,9 +1205,6 @@ export const getOrderById = async (req: Request, res: Response) => {
                                     ticket.qrCode = await generateQRCode(ticket.code);
                                 }
                                 await ticket.save();
-                                console.log(
-                                    `✅ [getOrderById] Ticket ${ticket._id} confirmado para pedido ${orderDoc.orderNumber}`
-                                );
                             }
                         }
 
@@ -1433,26 +1288,11 @@ export const getOrderById = async (req: Request, res: Response) => {
                                                 },
                                             ]
                                         );
-
-                                        console.log(
-                                            `✅ [getOrderById] Email de confirmação (PIX) enviado para ${customer.email}`
-                                        );
                                     }
                                 }
                             } catch (emailError) {
-                                console.error(
-                                    '[getOrderById] Erro ao enviar email de confirmação (PIX):',
-                                    emailError
-                                );
+                                // Erro ao enviar email - não bloquear processo
                             }
-                        }
-
-                        if (process.env.NODE_ENV !== 'production') {
-                            console.log(
-                                `[getOrderById] Pedido ${String(orderDoc._id)} (${
-                                    isPixOrder ? 'PIX' : 'Cartão'
-                                }): MP aprovou. Atualizando para paid e gerando QR codes.`
-                            );
                         }
                     }
                     // REGRA: Se o MP cancelou, SEMPRE seguir o MP (100% alinhamento)
@@ -1463,29 +1303,11 @@ export const getOrderById = async (req: Request, res: Response) => {
                         orderDoc.paymentStatusDetail = paymentInfo?.status_detail || mpStatus;
                         await orderDoc.save();
 
-                        if (process.env.NODE_ENV !== 'production') {
-                            const now = new Date();
-                            const paymentMethod = isPixOrder ? 'PIX' : 'Cartão';
-                            if (isPixOrder && mpExpiration && now < mpExpiration) {
-                                console.log(
-                                    `[getOrderById] ${paymentMethod} pedido ${String(orderDoc._id)}: MP cancelou ANTES da expiração (expira em ${Math.round((mpExpiration.getTime() - now.getTime()) / (60 * 1000))} min). Seguindo MP e cancelando.`
-                                );
-                            } else {
-                                console.log(
-                                    `[getOrderById] ${paymentMethod} pedido ${String(orderDoc._id)}: MP cancelou (status: ${mpStatus}). Seguindo MP e cancelando.`
-                                );
-                            }
-                        }
+                        // MP cancelou - seguir status do MP
                     }
                 } catch (syncError) {
                     // Não bloquear a resposta em caso de erro na sincronização
-                    if (process.env.NODE_ENV !== 'production') {
-                        const paymentMethod = isPixOrder ? 'PIX' : 'Cartão';
-                        console.warn(
-                            `[getOrderById] Erro ao sincronizar status ${paymentMethod}:`,
-                            syncError
-                        );
-                    }
+                    // Erro silencioso - não é crítico para a resposta
                 }
             });
         }
@@ -1524,17 +1346,7 @@ export const getOrderById = async (req: Request, res: Response) => {
             const paymentOrderId =
                 (orderDocForPix as any)?.paymentOrderId || (freshOrder as any).paymentOrderId;
 
-            // OTIMIZAÇÃO: Reduzir logs verbosos - só logar se não estiver em produção ou se for primeira vez
-            const shouldLog = process.env.NODE_ENV !== 'production' || !(global as any).__lastPixLogTime || Date.now() - (global as any).__lastPixLogTime > 10000;
-            if (shouldLog) {
-                console.log(`[getOrderById] 🔍 Buscando PIX para pedido ${freshOrder.orderNumber}:`, {
-                    hasPaymentOrderId: !!paymentOrderId,
-                    paymentOrderId,
-                    hasPaymentId: !!freshOrder.paymentId,
-                    paymentId: freshOrder.paymentId,
-                });
-                (global as any).__lastPixLogTime = Date.now();
-            }
+            // Buscar informações do PIX
 
             try {
                 const paymentService = await import('../services/paymentService');
@@ -1568,51 +1380,13 @@ export const getOrderById = async (req: Request, res: Response) => {
                                       )
                                     : null,
                             };
-                            // OTIMIZAÇÃO: Reduzir logs verbosos - só logar se não estiver em produção ou se for primeira vez
-                            const shouldLogPixInfo = process.env.NODE_ENV !== 'production' || !(global as any).__lastPixInfoLogTime || Date.now() - (global as any).__lastPixInfoLogTime > 10000;
-                            if (shouldLogPixInfo) {
-                                console.log(
-                                    `[getOrderById] ✅ Informações PIX encontradas via Orders API para pedido ${freshOrder.orderNumber}`,
-                                    {
-                                        paymentOrderId,
-                                        hasQrCode: !!pixInfo.qrCodeBase64,
-                                        hasTicketUrl: !!pixInfo.ticketUrl,
-                                        hasQrCodeString: !!pixInfo.qrCode,
-                                    }
-                                );
-                                (global as any).__lastPixInfoLogTime = Date.now();
-                            }
-                        } else {
-                            console.warn(
-                                `[getOrderById] ⚠️ Pedido PIX ${freshOrder.orderNumber} não é PIX no Orders API`,
-                                {
-                                    paymentOrderId,
-                                    paymentMethodType: mpPayment?.payment_method?.type,
-                                    paymentMethodId: mpPayment?.payment_method_id,
-                                }
-                            );
                         }
                     } catch (orderError: any) {
-                        console.error(
-                            `[getOrderById] Erro ao buscar order ${paymentOrderId} no MP:`,
-                            orderError.message
-                        );
                         // Não tentar Payment API para PIX - não funciona
                     }
-                } else {
-                    console.warn(
-                        `[getOrderById] ⚠️ Pedido PIX ${freshOrder.orderNumber} não tem paymentOrderId salvo no banco`,
-                        {
-                            hasPaymentId: !!freshOrder.paymentId,
-                            paymentId: freshOrder.paymentId,
-                        }
-                    );
                 }
             } catch (error: any) {
-                console.error(
-                    `[getOrderById] Erro geral ao buscar informações do PIX:`,
-                    error.message
-                );
+                // Erro ao buscar informações do PIX - ignorar
             }
         }
 
@@ -1631,7 +1405,15 @@ export const getOrderById = async (req: Request, res: Response) => {
             data: orderWithFilteredQR,
         });
     } catch (error: any) {
-        console.error('Erro ao buscar pedido:', error);
+        captureControllerError(error, req, {
+            controller: 'ordersController',
+            action: 'getOrderById',
+            statusCode: 500,
+            extra: {
+                orderId: req.params?.id,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar pedido',
@@ -1702,9 +1484,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
                         } else if (mpOrder?.status) {
                             mpStatus = String(mpOrder.status).toLowerCase();
                         }
-                    } catch (orderError) {
-                        console.warn('[cancelOrder] Erro ao buscar order no MP:', orderError);
-                    }
+                    } catch (orderError) {}
                 }
 
                 // Fallback: tentar Payment API
@@ -1717,9 +1497,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
                                 mpExpiration = new Date(payment.date_of_expiration);
                             }
                         }
-                    } catch (paymentError) {
-                        console.warn('[cancelOrder] Erro ao buscar payment no MP:', paymentError);
-                    }
+                    } catch (paymentError) {}
                 }
 
                 if (mpStatus === 'approved') {
@@ -1745,21 +1523,11 @@ export const cancelOrder = async (req: Request, res: Response) => {
                     if (isPixOrder && (order as any).paymentOrderId) {
                         try {
                             await paymentService.cancelOrderById((order as any).paymentOrderId);
-                        } catch (cancelError) {
-                            console.warn(
-                                '[cancelOrder] Erro ao cancelar order no MP:',
-                                cancelError
-                            );
-                        }
+                        } catch (cancelError) {}
                     } else if (order.paymentId) {
                         try {
                             await (paymentService as any).cancelPaymentById(order.paymentId);
-                        } catch (cancelError) {
-                            console.warn(
-                                '[cancelOrder] Erro ao cancelar payment no MP:',
-                                cancelError
-                            );
-                        }
+                        } catch (cancelError) {}
                     }
                     order.paymentStatus = 'cancelled';
                     order.paymentStatusDetail = order.paymentStatusDetail || 'cancelled';
@@ -1767,7 +1535,6 @@ export const cancelOrder = async (req: Request, res: Response) => {
                 }
             } catch (e) {
                 // Se não conseguir cancelar no MP, prosseguir com cancel local
-                console.warn('Não foi possível cancelar no Mercado Pago:', e);
             }
         }
 
@@ -1799,9 +1566,6 @@ export const cancelOrder = async (req: Request, res: Response) => {
                 const oldSoldQuantity = ticketType.soldQuantity;
                 ticketType.soldQuantity = Math.max(0, ticketType.soldQuantity - quantity);
                 await ticketType.save();
-                console.log(
-                    `✅ [cancelOrder] Estoque devolvido: ${quantity} ingressos do tipo ${ticketTypeId} (${oldSoldQuantity} -> ${ticketType.soldQuantity})`
-                );
             }
         }
 
@@ -1842,7 +1606,7 @@ export const cancelOrder = async (req: Request, res: Response) => {
                 paymentMethod: order.paymentMethod,
             },
         }).catch((error) => {
-            console.error('Erro ao registrar auditoria (não crítico):', error);
+            // Erro ao registrar auditoria - não bloquear cancelamento
         });
 
         // CRÍTICO: Cancelar APENAS tickets pending (não cancelar tickets já confirmados/pagos)
@@ -1890,7 +1654,6 @@ export const cancelOrder = async (req: Request, res: Response) => {
                 });
             }
         } catch (emailError) {
-            console.error('Erro ao enviar email de cancelamento:', emailError);
             // Não falhar o cancelamento se o email falhar
         }
 
@@ -1913,7 +1676,15 @@ export const cancelOrder = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro ao cancelar pedido:', error);
+        captureControllerError(error, req, {
+            controller: 'ordersController',
+            action: 'cancelOrder',
+            statusCode: 500,
+            extra: {
+                orderId: req.params?.id,
+            },
+        });
+        
         return res.status(500).json({
             success: false,
             message: 'Erro ao cancelar pedido',
@@ -2011,7 +1782,15 @@ export const confirmPayment = async (req: Request, res: Response) => {
             data: populatedOrder,
         });
     } catch (error: any) {
-        console.error('Erro ao confirmar pagamento:', error);
+        captureControllerError(error, req, {
+            controller: 'ordersController',
+            action: 'confirmPayment',
+            statusCode: 500,
+            extra: {
+                orderId: req.params?.id,
+            },
+        });
+        
         res.status(500).json({
             success: false,
             message: 'Erro ao confirmar pagamento',
@@ -2056,7 +1835,12 @@ export const getFinancialStats = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro ao buscar estatísticas financeiras:', error);
+        captureControllerError(error, req, {
+            controller: 'ordersController',
+            action: 'getFinancialStats',
+            statusCode: 500,
+        });
+        
         return res.status(500).json({
             success: false,
             message: 'Erro ao buscar estatísticas financeiras',
@@ -2071,20 +1855,11 @@ export const getFinancialStats = async (req: Request, res: Response) => {
  */
 export const updateOrderPromoterCode = async (req: Request, res: Response) => {
     try {
-        console.log('[updateOrderPromoterCode] 🎯 Requisição recebida:', {
-            orderId: req.params.id,
-            promoterCode: req.body.promoterCode,
-            userId: (req as any).user?._id?.toString(),
-            method: req.method,
-            url: req.url,
-        });
-
         const userId = (req as any).user?._id?.toString();
         const { id: orderId } = req.params;
         const { promoterCode } = req.body;
 
         if (!orderId) {
-            console.log('[updateOrderPromoterCode] ❌ OrderId não fornecido');
             return res.status(400).json({
                 success: false,
                 message: 'ID do pedido é obrigatório',
@@ -2092,39 +1867,19 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
         }
 
         // Buscar pedido
-        console.log('[updateOrderPromoterCode] 🔍 Buscando pedido:', orderId);
         const order = await Order.findById(orderId).populate('event').populate('tickets').lean();
 
         if (!order) {
-            console.log('[updateOrderPromoterCode] ❌ Pedido não encontrado:', orderId);
             return res.status(404).json({
                 success: false,
                 message: 'Pedido não encontrado',
             });
         }
-
-        console.log('[updateOrderPromoterCode] ✅ Pedido encontrado:', {
-            orderId: order._id,
-            orderNumber: order.orderNumber,
-            status: order.status,
-            subtotal: order.subtotal,
-            currentDiscountAmount: order.discountAmount,
-            currentTotalAmount: order.totalAmount,
-            currentPromoterCode: order.promoterCode,
-        });
-
+        
         // Verificar se o pedido pertence ao usuário (se autenticado)
         if (userId) {
             const orderUserId = order.customer?.toString() || order.customer;
-            console.log('[updateOrderPromoterCode] 🔐 Verificando propriedade do pedido:', {
-                userId,
-                orderUserId,
-                match: orderUserId === userId,
-            });
             if (orderUserId !== userId) {
-                console.log(
-                    '[updateOrderPromoterCode] ❌ Acesso negado - pedido não pertence ao usuário'
-                );
                 return res.status(403).json({
                     success: false,
                     message: 'Acesso negado',
@@ -2134,9 +1889,6 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
 
         // Verificar se o pedido está pendente
         if (order.status !== 'pending') {
-            console.log('[updateOrderPromoterCode] ❌ Pedido não está pendente:', {
-                status: order.status,
-            });
             return res.status(400).json({
                 success: false,
                 message: 'Apenas pedidos pendentes podem ter código de promotor atualizado',
@@ -2145,115 +1897,59 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
 
         // Buscar evento e ticketType
         const eventId = typeof order.event === 'object' ? (order.event as any)._id : order.event;
-        console.log('[updateOrderPromoterCode] 🔍 Buscando evento:', eventId);
         const event = await Event.findById(eventId).lean();
         if (!event) {
-            console.log('[updateOrderPromoterCode] ❌ Evento não encontrado:', eventId);
             return res.status(404).json({
                 success: false,
                 message: 'Evento não encontrado',
             });
         }
-        console.log('[updateOrderPromoterCode] ✅ Evento encontrado:', {
-            eventId: event._id,
-            name: event.name,
-            platformFeePercentage: event.platformFeePercentage,
-        });
-
+        
         // Buscar tickets do pedido para obter ticketType
-        console.log('[updateOrderPromoterCode] 🔍 Buscando tickets do pedido');
         const tickets = await Ticket.find({ order: orderId, deletedAt: null })
             .populate('ticketType')
             .lean();
 
-        if (tickets.length === 0) {
-            console.log('[updateOrderPromoterCode] ❌ Pedido não possui tickets');
-            return res.status(400).json({
+        if (tickets.length === 0) {return res.status(400).json({
                 success: false,
                 message: 'Pedido não possui tickets',
             });
-        }
-        console.log('[updateOrderPromoterCode] ✅ Tickets encontrados:', tickets.length);
-
-        // Usar o primeiro ticket para obter ticketType (todos devem ser do mesmo tipo)
+        }// Usar o primeiro ticket para obter ticketType (todos devem ser do mesmo tipo)
         const ticketType = tickets[0].ticketType as any;
-        if (!ticketType) {
-            console.log('[updateOrderPromoterCode] ❌ Tipo de ingresso não encontrado no ticket');
-            return res.status(404).json({
+        if (!ticketType) {return res.status(404).json({
                 success: false,
                 message: 'Tipo de ingresso não encontrado',
             });
-        }
-        console.log('[updateOrderPromoterCode] ✅ Tipo de ingresso encontrado:', {
-            ticketTypeId: ticketType._id,
-            isVIP: ticketType.isVIP,
-        });
-
-        // Validar código de promotor se fornecido
+        }// Validar código de promotor se fornecido
         let usedPromoterCode: string | undefined = undefined;
         let discountAmount = 0;
 
         if (promoterCode) {
-            const codeToSearch = String(promoterCode).toUpperCase().trim();
-            console.log('[updateOrderPromoterCode] 🔍 Buscando código de promotor:', {
-                code: codeToSearch,
-                eventId,
-            });
-
-            const code = await PromoterCode.findOne({
+            const codeToSearch = String(promoterCode).toUpperCase().trim();const code = await PromoterCode.findOne({
                 code: codeToSearch,
                 isActive: true,
                 deletedAt: null,
                 events: eventId,
             }).lean();
 
-            if (!code) {
-                console.log(
-                    '[updateOrderPromoterCode] ❌ Código de promotor não encontrado ou inválido:',
-                    {
-                        code: codeToSearch,
-                        eventId,
-                    }
-                );
-                return res.status(400).json({
+            if (!code) {return res.status(400).json({
                     success: false,
                     message: 'Código de promotor inválido ou não válido para este evento',
                 });
             }
-
-            console.log('[updateOrderPromoterCode] ✅ Código de promotor encontrado:', {
-                code: code.code,
-                discountType: code.discountType,
-                discountValue: code.discountValue,
-            });
-
             usedPromoterCode = code.code;
 
             // Recalcular desconto baseado no subtotal atual do pedido
-            const isVIP = ticketType.isVIP;
-            if (!isVIP) {
+            const ticketIsVIP = ticketType.isVIP;
+            if (!ticketIsVIP) {
                 if (code.discountType === 'percentage') {
                     discountAmount = (order.subtotal || 0) * (code.discountValue / 100);
-                    console.log('[updateOrderPromoterCode] 💰 Desconto percentual calculado:', {
-                        subtotal: order.subtotal,
-                        percentage: code.discountValue,
-                        discountAmount,
-                    });
                 } else {
                     discountAmount = Math.min(code.discountValue, order.subtotal || 0);
-                    console.log('[updateOrderPromoterCode] 💰 Desconto fixo calculado:', {
-                        subtotal: order.subtotal,
-                        fixedValue: code.discountValue,
-                        discountAmount,
-                    });
                 }
-            } else {
-                console.log('[updateOrderPromoterCode] ℹ️ Ticket VIP - desconto não aplicado');
             }
         } else {
-            console.log(
-                '[updateOrderPromoterCode] ℹ️ Removendo código de promotor (promoterCode é null/undefined)'
-            );
+            // Sem código de promotor
         }
 
         // Recalcular valores do pedido
@@ -2263,26 +1959,8 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
         const subtotalAfterDiscount = subtotal - discountAmount;
         const platformFee = isVIP ? 0 : subtotalAfterDiscount * (platformFeePercentage / 100);
         const totalAmount = subtotalAfterDiscount + platformFee;
-
-        console.log('[updateOrderPromoterCode] 💰 Valores recalculados:', {
-            subtotal,
-            discountAmount,
-            subtotalAfterDiscount,
-            platformFeePercentage,
-            platformFee,
-            totalAmount,
-            isVIP,
-        });
-
+        
         // Atualizar pedido
-        console.log('[updateOrderPromoterCode] 💾 Atualizando pedido no banco:', {
-            orderId,
-            promoterCode: usedPromoterCode || null,
-            discountAmount,
-            platformFee,
-            totalAmount,
-        });
-
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
             {
@@ -2299,24 +1977,12 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
             .populate('tickets.ticketType', 'name')
             .lean();
 
-        if (!updatedOrder) {
-            console.log(
-                '[updateOrderPromoterCode] ❌ Erro ao atualizar pedido - pedido não encontrado após update'
-            );
-            return res.status(500).json({
+        if (!updatedOrder) {return res.status(500).json({
                 success: false,
                 message: 'Erro ao atualizar pedido',
             });
         }
-
-        console.log('[updateOrderPromoterCode] ✅ Pedido atualizado com sucesso:', {
-            orderId: updatedOrder._id,
-            orderNumber: updatedOrder.orderNumber,
-            promoterCode: updatedOrder.promoterCode,
-            discountAmount: updatedOrder.discountAmount,
-            totalAmount: updatedOrder.totalAmount,
-        });
-
+        
         return res.json({
             success: true,
             message: promoterCode
@@ -2327,7 +1993,16 @@ export const updateOrderPromoterCode = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        console.error('Erro ao atualizar código de promotor:', error);
+        captureControllerError(error, req, {
+            controller: 'ordersController',
+            action: 'updatePromoterCode',
+            statusCode: 500,
+            extra: {
+                orderId: req.params?.id,
+                promoterCode: req.body?.promoterCode,
+            },
+        });
+        
         return res.status(500).json({
             success: false,
             message: 'Erro ao atualizar código de promotor',

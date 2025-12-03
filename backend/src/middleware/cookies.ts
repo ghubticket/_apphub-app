@@ -31,7 +31,6 @@ export const authenticateWithCookies = async (req: Request, res: Response, next:
                 }
             } catch (error) {
                 // Access token invalid, try refresh token
-                console.log('Access token invalid, trying refresh token...');
             }
         }
 
@@ -83,9 +82,7 @@ export const authenticateWithCookies = async (req: Request, res: Response, next:
                         }
                     }
                 }
-            } catch (error) {
-                console.log('Refresh token invalid:', error);
-            }
+            } catch (error) {}
         }
 
         // Clear invalid cookies

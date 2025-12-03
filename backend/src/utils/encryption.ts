@@ -132,7 +132,6 @@ export function hashCPFForSearch(cpf: string): string {
     const normalized = cpf.replace(/\D/g, '');
 
     if (normalized.length !== 11) {
-        console.warn(`[hashCPFForSearch] CPF inválido: ${cpf} (${normalized.length} dígitos)`);
         return '';
     }
 

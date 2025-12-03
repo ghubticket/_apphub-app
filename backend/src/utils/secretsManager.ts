@@ -37,11 +37,7 @@ class AWSSecretsProvider implements SecretsProvider {
                 GetSecretValueCommand = awsSDK.GetSecretValueCommand;
             }
             this.client = new AWSSecretsManagerClient({ region: this.region });
-        } catch (error) {
-            console.warn(
-                '⚠️ @aws-sdk/client-secrets-manager não instalado. Instale com: npm install @aws-sdk/client-secrets-manager'
-            );
-            throw new Error(
+        } catch (error) {throw new Error(
                 'AWS SDK não disponível. Instale @aws-sdk/client-secrets-manager para usar AWS Secrets Manager.'
             );
         }
@@ -75,12 +71,8 @@ class AWSSecretsProvider implements SecretsProvider {
 
             return null;
         } catch (error: any) {
-            if (error.name === 'ResourceNotFoundException') {
-                console.warn(`⚠️ Secret ${name} não encontrado no AWS Secrets Manager`);
-                return null;
-            }
-            console.error(`Erro ao buscar secret ${name} do AWS Secrets Manager:`, error);
-            return null;
+            if (error.name === 'ResourceNotFoundException') {return null;
+            }return null;
         }
     }
 }
@@ -103,11 +95,7 @@ function createSecretsProvider(): SecretsProvider {
     switch (provider) {
         case 'aws':
         case 'aws-secrets-manager':
-            if (!process.env.AWS_REGION) {
-                console.warn(
-                    '⚠️ SECRETS_PROVIDER=aws mas AWS_REGION não configurado. Usando variáveis de ambiente.'
-                );
-                return new EnvSecretsProvider();
+            if (!process.env.AWS_REGION) {return new EnvSecretsProvider();
             }
             return new AWSSecretsProvider();
 
@@ -181,19 +169,11 @@ export async function hasSecret(name: string): Promise<boolean> {
 export async function initializeSecrets(requiredSecrets: string[] = []): Promise<void> {
     const isProd = (process.env.NODE_ENV || 'development') === 'production';
 
-    if (!isProd) {
-        console.log('🔍 Ambiente de desenvolvimento - usando variáveis de ambiente');
-        return;
-    }
-
-    console.log('🔐 Inicializando secrets do provedor:', process.env.SECRETS_PROVIDER || 'env');
-
-    for (const secretName of requiredSecrets) {
+    if (!isProd) {return;
+    }for (const secretName of requiredSecrets) {
         const value = await getSecret(secretName, true);
         if (value) {
             // Atualizar process.env para compatibilidade com código existente
-            process.env[secretName] = value;
-            console.log(`✅ Secret ${secretName} carregado`);
-        }
+            process.env[secretName] = value;}
     }
 }

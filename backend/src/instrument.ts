@@ -4,6 +4,9 @@
  * para garantir que o Sentry capture todos os erros desde o início
  */
 
+// Silenciar console em produção (Sentry faz o monitoramento)
+import './utils/silenceConsole';
+
 import * as Sentry from '@sentry/node';
 
 // Inicializar Sentry apenas se DSN estiver configurado

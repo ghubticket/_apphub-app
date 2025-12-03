@@ -6,9 +6,7 @@ const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'app-hub';
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL;
 
-if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-    console.warn('⚠️ R2 credentials não configuradas. Uploads continuarão usando sistema de arquivos local.');
-}
+if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {}
 
 // Criar cliente S3 compatível com R2 (apenas se credenciais estiverem configuradas)
 let s3Client: S3Client | null = null;
@@ -64,9 +62,7 @@ export async function uploadImageToR2(
         // NOTA: Isso só funciona se o bucket tiver public access habilitado
         // Para produção, configure R2_PUBLIC_URL ou domínio customizado
         return `https://pub-${R2_ACCOUNT_ID}.r2.dev/${key}`;
-    } catch (error: any) {
-        console.error('Erro ao fazer upload para R2:', error);
-        throw new Error(`Erro ao fazer upload para R2: ${error.message}`);
+    } catch (error: any) {throw new Error(`Erro ao fazer upload para R2: ${error.message}`);
     }
 }
 
@@ -86,9 +82,7 @@ export async function deleteImageFromR2(key: string): Promise<void> {
         });
 
         await s3Client.send(command);
-    } catch (error: any) {
-        console.error('Erro ao deletar imagem do R2:', error);
-        // Não lançar erro - apenas logar
+    } catch (error: any) {// Não lançar erro - apenas logar
     }
 }
 

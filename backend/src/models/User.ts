@@ -218,16 +218,12 @@ userSchema.post(['find', 'findOne', 'findOneAndUpdate'], function (docs: any) {
         if (doc && doc.cpf && isEncrypted(doc.cpf)) {
             try {
                 doc.cpf = decryptSensitiveData(doc.cpf);
-            } catch (error) {
-                console.error('Erro ao descriptografar CPF do usuário:', error);
-            }
+            } catch (error) {}
         }
         if (doc && doc.phone && isEncrypted(doc.phone)) {
             try {
                 doc.phone = decryptSensitiveData(doc.phone);
-            } catch (error) {
-                console.error('Erro ao descriptografar telefone do usuário:', error);
-            }
+            } catch (error) {}
         }
     });
 });
@@ -245,16 +241,12 @@ userSchema.methods.toJSON = function () {
     if (userObject.cpf && isEncrypted(userObject.cpf)) {
         try {
             userObject.cpf = decryptSensitiveData(userObject.cpf);
-        } catch (error) {
-            console.error('Erro ao descriptografar CPF no toJSON:', error);
-        }
+        } catch (error) {}
     }
     if (userObject.phone && isEncrypted(userObject.phone)) {
         try {
             userObject.phone = decryptSensitiveData(userObject.phone);
-        } catch (error) {
-            console.error('Erro ao descriptografar telefone no toJSON:', error);
-        }
+        } catch (error) {}
     }
 
     return userObject;

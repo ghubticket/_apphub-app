@@ -256,11 +256,7 @@ export async function expirePendingOrders(
                         try {
                             await paymentService.cancelPaymentById(order.paymentId);
                         } catch (cancelError) {
-                            console.warn(
-                                '[order-expiration] Falha ao cancelar pagamento no Mercado Pago',
-                                String(order._id),
-                                cancelError
-                            );
+                            // Erro ao cancelar pagamento no MP - continuar
                         }
                         await cancelOrderLocally(order, now);
                         return true; // Expirou
