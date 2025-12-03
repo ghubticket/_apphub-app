@@ -4,8 +4,7 @@
  */
 
 import axios from 'axios';
-import { Writable } from 'stream';
-import type { LogEntry } from 'winston';
+import Transport from 'winston-transport';
 
 const DD_API_KEY = process.env.DD_API_KEY;
 const DD_SITE = process.env.DD_SITE || 'us5.datadoghq.com';
@@ -77,56 +76,55 @@ function scheduleFlush() {
 }
 
 /**
- * Adiciona log ao buffer
- */
-function addLog(entry: any) {
-  if (!DD_API_KEY) {
-    return;
-  }
-
-  // Extrair metadata de forma segura
-  const metadata: any = {};
-  if (entry.metadata) {
-    Object.assign(metadata, entry.metadata);
-  }
-  // Tentar extrair do splat se existir
-  const splatKey = Symbol.for('splat');
-  if (entry[splatKey] && Array.isArray(entry[splatKey]) && entry[splatKey].length > 0) {
-    Object.assign(metadata, entry[splatKey][0] || {});
-  }
-
-  logBuffer.push({
-    level: entry.level,
-    message: entry.message,
-    metadata: metadata,
-    timestamp: entry.timestamp || Date.now(),
-  });
-
-  // Se o buffer estiver cheio, enviar imediatamente
-  if (logBuffer.length >= BATCH_SIZE) {
-    flushLogs();
-  } else {
-    scheduleFlush();
-  }
-}
-
-/**
  * Transport HTTP para Winston
+ * Implementa a interface correta do Winston Transport
  */
-export class DatadogHttpTransport extends Writable {
-  _write(chunk: any, encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
-    try {
-      const entry = JSON.parse(chunk.toString());
-      addLog(entry);
-    } catch (error) {
-      // Ignorar erros de parsing
-    }
-    callback();
+export class DatadogHttpTransport extends Transport {
+  constructor(opts?: any) {
+    super(opts);
   }
 
-  // Flush final ao encerrar
-  _final(callback: (error?: Error | null) => void): void {
-    flushLogs();
+  log(info: any, callback: () => void): void {
+    setImmediate(() => {
+      this.emit('logged', info);
+    });
+
+    if (!DD_API_KEY) {
+      callback();
+      return;
+    }
+
+    // Extrair metadata de forma segura
+    const metadata: any = {};
+    if (info.metadata) {
+      Object.assign(metadata, info.metadata);
+    }
+    // Tentar extrair do splat se existir
+    const splatKey = Symbol.for('splat');
+    if (info[splatKey] && Array.isArray(info[splatKey]) && info[splatKey].length > 0) {
+      Object.assign(metadata, info[splatKey][0] || {});
+    }
+    // Extrair outras propriedades do info
+    Object.keys(info).forEach((key) => {
+      if (!['level', 'message', 'timestamp', 'metadata', splatKey].includes(key)) {
+        metadata[key] = info[key];
+      }
+    });
+
+    logBuffer.push({
+      level: info.level,
+      message: info.message,
+      metadata: metadata,
+      timestamp: info.timestamp || Date.now(),
+    });
+
+    // Se o buffer estiver cheio, enviar imediatamente
+    if (logBuffer.length >= BATCH_SIZE) {
+      flushLogs();
+    } else {
+      scheduleFlush();
+    }
+
     callback();
   }
 }
