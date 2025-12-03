@@ -170,6 +170,44 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
         return prices.length > 0 ? Math.min(...prices) : 0;
     }, [tickets]);
 
+    // Preparar dados para SEO (ANTES de qualquer return)
+    const eventName = useMemo(() => primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento', [primaryTicket]);
+    const eventImage = useMemo(() => primaryTicket?.image ? getProxiedImageUrl(primaryTicket.image) : undefined, [primaryTicket]);
+    const eventUrl = useMemo(() => `/eventos/${eventId}`, [eventId]);
+    const eventDate = useMemo(() => primaryTicket?.eventDateIso || primaryTicket?.eventDate, [primaryTicket]);
+    
+    const eventDescription = useMemo(() => {
+        if (eventData?.description) {
+            return eventData.description.replace(/<[^>]*>/g, '').substring(0, 155) + '...';
+        }
+        return `Ingressos para ${eventName}. ${primaryTicket?.eventDate ? `Data: ${primaryTicket.eventDate}.` : ''} ${primaryTicket?.location ? `Local: ${primaryTicket.location}.` : ''} Compre agora com ${APP_NAME}!`;
+    }, [eventData, eventName, primaryTicket]);
+    
+    // Structured data para o evento
+    const eventStructuredData = useMemo(() => {
+        if (!primaryTicket) return null;
+        
+        return generateEventStructuredData({
+            name: eventName,
+            description: eventData?.description?.replace(/<[^>]*>/g, '') || undefined,
+            image: eventImage,
+            date: eventDate,
+            startDate: eventDate,
+            location: primaryTicket.location,
+            price: minPrice > 0 ? minPrice : undefined,
+            currency: 'BRL',
+            id: eventId,
+            url: eventUrl,
+        });
+    }, [primaryTicket, eventName, eventData, eventImage, eventDate, minPrice, eventId, eventUrl]);
+    
+    // Breadcrumb structured data
+    const breadcrumbData = useMemo(() => generateBreadcrumbStructuredData([
+        { name: 'Início', url: '/' },
+        { name: 'Ingressos', url: '/ingressos' },
+        { name: eventName, url: eventUrl },
+    ]), [eventName, eventUrl]);
+
     // Mostrar loading enquanto carrega
     if (loading) {
         return (
@@ -211,40 +249,6 @@ export default function EventTicketsPage({ params }: EventTicketsPageProps) {
             </PageContainer>
         );
     }
-
-    // Preparar dados para SEO
-    const eventName = primaryTicket?.eventName ?? primaryTicket?.name ?? 'Evento';
-    const eventDescription = eventData?.description 
-        ? eventData.description.replace(/<[^>]*>/g, '').substring(0, 155) + '...'
-        : `Ingressos para ${eventName}. ${primaryTicket?.eventDate ? `Data: ${primaryTicket.eventDate}.` : ''} ${primaryTicket?.location ? `Local: ${primaryTicket.location}.` : ''} Compre agora com ${APP_NAME}!`;
-    const eventImage = primaryTicket?.image ? getProxiedImageUrl(primaryTicket.image) : undefined;
-    const eventUrl = `/eventos/${eventId}`;
-    const eventDate = primaryTicket?.eventDateIso || primaryTicket?.eventDate;
-    
-    // Structured data para o evento
-    const eventStructuredData = useMemo(() => {
-        if (!primaryTicket) return null;
-        
-        return generateEventStructuredData({
-            name: eventName,
-            description: eventData?.description?.replace(/<[^>]*>/g, '') || undefined,
-            image: eventImage,
-            date: eventDate,
-            startDate: eventDate,
-            location: primaryTicket.location,
-            price: minPrice > 0 ? minPrice : undefined,
-            currency: 'BRL',
-            id: eventId,
-            url: eventUrl,
-        });
-    }, [primaryTicket, eventName, eventData, eventImage, eventDate, minPrice, eventId, eventUrl]);
-    
-    // Breadcrumb structured data
-    const breadcrumbData = generateBreadcrumbStructuredData([
-        { name: 'Início', url: '/' },
-        { name: 'Ingressos', url: '/ingressos' },
-        { name: eventName, url: eventUrl },
-    ]);
 
     return (
         <>
