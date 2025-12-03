@@ -2,6 +2,7 @@ import express from 'express';
 import { connectDatabase } from '../config/database';
 import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger';
+import * as Sentry from '@sentry/node';
 
 const router = express.Router();
 
@@ -111,5 +112,33 @@ async function checkDatabaseConnection(): Promise<boolean> {
     }
 }
 
+// Rota de teste do Sentry (APENAS PARA DESENVOLVIMENTO/TESTE)
+// ATENÇÃO: Remover ou proteger em produção!
+router.get('/test-sentry', (req, res) => {
+    try {
+        // Forçar um erro para testar o Sentry
+        throw new Error('Teste de erro do Sentry - Esta é uma rota de teste');
+    } catch (error: any) {
+        // Capturar erro no Sentry
+        if (process.env.SENTRY_DSN) {
+            Sentry.captureException(error, {
+                tags: {
+                    test: 'true',
+                    route: '/api/health/test-sentry',
+                },
+                extra: {
+                    message: 'Este é um teste intencional do Sentry',
+                    timestamp: new Date().toISOString(),
+                },
+            });
+        }
+        
+        res.status(500).json({
+            success: false,
+            message: 'Erro de teste do Sentry capturado',
+            error: 'Este erro foi enviado ao Sentry para teste',
+        });
+    }
+});
 
 export default router;

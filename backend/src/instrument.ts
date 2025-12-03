@@ -21,8 +21,10 @@ if (process.env.SENTRY_DSN) {
         
         // Integrações
         integrations: [
-            // Captura erros HTTP e tracing
-            Sentry.httpIntegration(),
+            // Captura erros HTTP e tracing (inclui Express automaticamente)
+            Sentry.httpIntegration({
+                tracing: true,
+            }),
             // Captura erros de promises rejeitadas
             Sentry.onUncaughtExceptionIntegration({
                 exitEvenIfOtherHandlersAreRegistered: false,

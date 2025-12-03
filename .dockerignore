@@ -1,0 +1,97 @@
+# ===========================================
+# DOCKERIGNORE - Excluir arquivos do build
+# ===========================================
+
+# Node modules (serão instalados no container)
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/out/
+
+# OneDrive
+**/.onedriveignore
+**/.onedrive/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env*.local
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Uploads locais (em produção usa R2)
+**/uploads/
+backend/uploads/
+
+# Certificados SSL (não devem ir para produção)
+certificates/
+*.pem
+*.key
+*.crt
+*.cert
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Build outputs
+**/tsconfig.tsbuildinfo
+**/*.tsbuildinfo
+**/.turbo/
+
+# Test files
+**/coverage/
+**/.nyc_output/
+**/test-results/
+**/playwright-report/
+
+# Documentation (opcional - remover se quiser incluir)
+**/*.md
+!README.md
+
+# Cache
+**/.cache/
+**/.parcel-cache/
+**/.tmp/
+**/tmp/
+**/temp/
+
+# Backups
+**/backups/
+
+# Scripts de desenvolvimento
+**/scripts/
+!**/scripts/*.sh
+
+# TypeScript build info
+**/*.d.ts.map
+**/*.js.map
+
