@@ -8,7 +8,7 @@ import { format } from 'winston';
 
 // Configurações do Datadog
 const DD_API_KEY = process.env.DD_API_KEY;
-const DD_SITE = process.env.DD_SITE || 'datadoghq.com';
+const DD_SITE = process.env.DD_SITE || 'us5.datadoghq.com';
 const DD_SERVICE = process.env.DD_SERVICE || 'eventhub-backend';
 const DD_ENV = process.env.NODE_ENV || 'development';
 const DD_VERSION = process.env.DD_VERSION || '1.0.0';
