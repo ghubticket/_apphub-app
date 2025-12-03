@@ -673,7 +673,8 @@ export const createOrder = async (req: Request, res: Response) => {
                     requiresPayment: !isReallyVIP,
                 },
             });
-        } catch (error: any) {captureControllerError(error, req, {
+        } catch (error: any) {
+            captureControllerError(error, req, {
                 controller: 'ordersController',
                 action: 'createOrder',
                 statusCode: 500,

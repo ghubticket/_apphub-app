@@ -72,7 +72,8 @@ export const register = async (req: Request, res: Response) => {
                 token,
             },
         });
-    } catch (error: any) {// Erro de validação do Mongoose - não enviar ao Sentry (erro esperado)
+    } catch (error: any) {
+        // Erro de validação do Mongoose - não enviar ao Sentry (erro esperado)
         if (error.name === 'ValidationError') {
             const errors = Object.values(error.errors).map((err: any) => ({
                 field: err.path,

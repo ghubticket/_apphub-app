@@ -484,7 +484,8 @@ export const createPixPayment = async (req: Request, res: Response) => {
                 // REFATORADO: Não retornar reserva - o pedido já contém todas as informações necessárias (expiresAt)
             },
         });
-    } catch (error: any) {// Capturar erro no Sentry
+    } catch (error: any) {
+        // Capturar erro no Sentry
         captureControllerError(error, req, {
             controller: 'paymentController',
             action: 'createPixPayment',
@@ -962,7 +963,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 createdOrderId: createdOrderId || undefined,
             },
         });
-    } catch (error: any) {// Capturar erro no Sentry
+    } catch (error: any) {
+        // Capturar erro no Sentry
         captureControllerError(error, req, {
             controller: 'paymentController',
             action: 'createCardPayment',

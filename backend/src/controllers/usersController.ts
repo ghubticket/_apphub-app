@@ -57,7 +57,8 @@ export const listSuspiciousUsers = async (req: Request, res: Response) => {
             success: true,
             data: enrichedUsers,
         });
-    } catch (error: any) {captureControllerError(error, req, {
+    } catch (error: any) {
+        captureControllerError(error, req, {
             controller: 'usersController',
             action: 'listSuspiciousUsers',
             statusCode: 500,
@@ -111,7 +112,8 @@ export const toggleSuspicious = async (req: Request, res: Response) => {
             message: `Usuário ${user.isSuspicious ? 'marcado como suspeito' : 'removido da lista de suspeitos'}`,
             data: user,
         });
-    } catch (error: any) {captureControllerError(error, req, {
+    } catch (error: any) {
+        captureControllerError(error, req, {
             controller: 'usersController',
             action: 'toggleSuspicious',
             statusCode: 500,
@@ -172,7 +174,8 @@ export const toggleBlacklist = async (req: Request, res: Response) => {
             message: `Usuário ${user.isBlacklisted ? 'adicionado à blacklist' : 'removido da blacklist'}`,
             data: user,
         });
-    } catch (error: any) {captureControllerError(error, req, {
+    } catch (error: any) {
+        captureControllerError(error, req, {
             controller: 'usersController',
             action: 'toggleBlacklist',
             statusCode: 500,
