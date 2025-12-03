@@ -1,21 +1,24 @@
-import type { Metadata } from 'next';
-import { APP_CONFIG, APP_NAME } from './config';
+import type { Metadata } from "next";
+import { APP_CONFIG, APP_NAME } from "./config";
 
 /**
  * URL base do site (deve ser configurado via variável de ambiente)
  */
 export const getBaseUrl = (): string => {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     return window.location.origin;
   }
-  
+
   // Em produção, usar variável de ambiente ou URL padrão
   if (process.env.NEXT_PUBLIC_SITE_URL) {
     return process.env.NEXT_PUBLIC_SITE_URL;
   }
-  
+
   // Fallback para desenvolvimento
-  return process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://toka.com.br';
+  return (
+    process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+    "https://toka.com.br"
+  );
 };
 
 /**
@@ -23,20 +26,20 @@ export const getBaseUrl = (): string => {
  */
 export const getOgImageUrl = (imagePath?: string): string => {
   const baseUrl = getBaseUrl();
-  
+
   if (imagePath) {
     // Se já for uma URL completa, retornar como está
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
       return imagePath;
     }
     // Se for uma URL relativa, adicionar baseUrl
-    if (imagePath.startsWith('/')) {
+    if (imagePath.startsWith("/")) {
       return `${baseUrl}${imagePath}`;
     }
     // Se não começar com /, adicionar
     return `${baseUrl}/${imagePath}`;
   }
-  
+
   // Imagem padrão de compartilhamento
   return `${baseUrl}/images/og-default.jpg`;
 };
@@ -49,7 +52,7 @@ export interface SEOOptions {
   description?: string;
   image?: string;
   url?: string;
-  type?: 'website' | 'article' | 'product' | 'event';
+  type?: "website" | "article" | "product" | "event";
   publishedTime?: string;
   modifiedTime?: string;
   author?: string;
@@ -69,7 +72,7 @@ export function generateMetadata(options: SEOOptions = {}): Metadata {
     description,
     image,
     url,
-    type = 'website',
+    type = "website",
     publishedTime,
     modifiedTime,
     author,
@@ -88,27 +91,36 @@ export function generateMetadata(options: SEOOptions = {}): Metadata {
   const finalTitle = title ? `${title} | ${APP_NAME}` : defaultTitle;
   const finalDescription = description || defaultDescription;
   const finalImage = getOgImageUrl(image);
-  const finalUrl = url ? (url.startsWith('http') ? url : `${baseUrl}${url}`) : baseUrl;
+  const finalUrl = url
+    ? url.startsWith("http")
+      ? url
+      : `${baseUrl}${url}`
+    : baseUrl;
 
   // Robots meta
   const robots = [];
-  if (noindex) robots.push('noindex');
-  if (nofollow) robots.push('nofollow');
+  if (noindex) robots.push("noindex");
+  if (nofollow) robots.push("nofollow");
   if (robots.length === 0) {
-    robots.push('index', 'follow');
+    robots.push("index", "follow");
   }
+
+  // Next.js OpenGraph só aceita 'article' ou 'website'
+  // Mapear 'event' e 'product' para 'website'
+  const openGraphType: "article" | "website" =
+    type === "article" ? "article" : "website";
 
   const metadata: Metadata = {
     title: finalTitle,
     description: finalDescription,
-    keywords: tags.length > 0 ? tags.join(', ') : undefined,
+    keywords: tags.length > 0 ? tags.join(", ") : undefined,
     authors: author ? [{ name: author }] : undefined,
     creator: author,
     publisher: siteName,
-    robots: robots.join(', '),
+    robots: robots.join(", "),
     openGraph: {
-      type: type,
-      locale: 'pt_BR',
+      type: openGraphType,
+      locale: "pt_BR",
       url: finalUrl,
       siteName: siteName,
       title: finalTitle,
@@ -127,20 +139,22 @@ export function generateMetadata(options: SEOOptions = {}): Metadata {
       ...(tags.length > 0 && { tags }),
     },
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       title: finalTitle,
       description: finalDescription,
       images: [finalImage],
-      creator: APP_CONFIG.links.instagram ? `@${APP_CONFIG.links.instagram.split('/').pop()}` : undefined,
+      creator: APP_CONFIG.links.instagram
+        ? `@${APP_CONFIG.links.instagram.split("/").pop()}`
+        : undefined,
       site: siteName,
     },
     alternates: {
       canonical: finalUrl,
     },
     other: {
-      'og:image:width': '1200',
-      'og:image:height': '630',
-      'og:image:type': 'image/jpeg',
+      "og:image:width": "1200",
+      "og:image:height": "630",
+      "og:image:type": "image/jpeg",
     },
   };
 
@@ -159,15 +173,17 @@ export function generateEventMetadata(event: {
   id: string;
 }): Metadata {
   const { name, description, image, date, location, id } = event;
-  
+
   const eventUrl = `/eventos/${id}`;
-  const eventDescription = description 
-    ? `${description.substring(0, 155)}...` 
-    : `Ingressos para ${name}. ${date ? `Data: ${date}.` : ''} ${location ? `Local: ${location}.` : ''} Compre agora com ${APP_NAME}!`;
-  
+  const eventDescription = description
+    ? `${description.substring(0, 155)}...`
+    : `Ingressos para ${name}. ${date ? `Data: ${date}.` : ""} ${
+        location ? `Local: ${location}.` : ""
+      } Compre agora com ${APP_NAME}!`;
+
   const tags = [
-    'ingressos',
-    'eventos',
+    "ingressos",
+    "eventos",
     name.toLowerCase(),
     ...(location ? [location.toLowerCase()] : []),
   ];
@@ -177,7 +193,7 @@ export function generateEventMetadata(event: {
     description: eventDescription,
     image: image,
     url: eventUrl,
-    type: 'event',
+    type: "event",
     tags,
   });
 }
@@ -196,7 +212,7 @@ export function generatePageMetadata(
     description: pageDescription,
     image: image,
     url: pagePath,
-    type: 'website',
+    type: "website",
   });
 }
 
@@ -218,35 +234,50 @@ export function generateEventStructuredData(event: {
   url: string;
 }): object {
   const baseUrl = getBaseUrl();
-  const { name, description, image, date, startDate, endDate, location, address, price, currency = 'BRL', id, url } = event;
+  const {
+    name,
+    description,
+    image,
+    date,
+    startDate,
+    endDate,
+    location,
+    address,
+    price,
+    currency = "BRL",
+    id,
+    url,
+  } = event;
 
   return {
-    '@context': 'https://schema.org',
-    '@type': 'Event',
+    "@context": "https://schema.org",
+    "@type": "Event",
     name: name,
     description: description || `Ingressos para ${name}`,
     image: image ? getOgImageUrl(image) : getOgImageUrl(),
     startDate: startDate || date,
     ...(endDate && { endDate }),
-    eventStatus: 'https://schema.org/EventScheduled',
-    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     location: {
-      '@type': 'Place',
-      name: location || 'Local a definir',
-      ...(address && { address: { '@type': 'PostalAddress', streetAddress: address } }),
+      "@type": "Place",
+      name: location || "Local a definir",
+      ...(address && {
+        address: { "@type": "PostalAddress", streetAddress: address },
+      }),
     },
     ...(price && {
       offers: {
-        '@type': 'Offer',
+        "@type": "Offer",
         url: `${baseUrl}${url}`,
         price: price,
         priceCurrency: currency,
-        availability: 'https://schema.org/InStock',
+        availability: "https://schema.org/InStock",
         validFrom: new Date().toISOString(),
       },
     }),
     organizer: {
-      '@type': 'Organization',
+      "@type": "Organization",
       name: APP_NAME,
       url: baseUrl,
     },
@@ -261,17 +292,17 @@ export function generateOrganizationStructuredData(): object {
   const baseUrl = getBaseUrl();
 
   return {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
+    "@context": "https://schema.org",
+    "@type": "Organization",
     name: APP_NAME,
     url: baseUrl,
     logo: `${baseUrl}${APP_CONFIG.logo.src}`,
     description: `Plataforma de venda de ingressos para eventos. ${APP_NAME} oferece a melhor experiência para compra de ingressos online.`,
     contactPoint: {
-      '@type': 'ContactPoint',
-      contactType: 'Customer Service',
+      "@type": "ContactPoint",
+      contactType: "Customer Service",
       email: APP_CONFIG.contact.email,
-      availableLanguage: 'Portuguese',
+      availableLanguage: "Portuguese",
     },
     sameAs: [
       ...(APP_CONFIG.links.instagram ? [APP_CONFIG.links.instagram] : []),
@@ -282,18 +313,19 @@ export function generateOrganizationStructuredData(): object {
 /**
  * Gera structured data (JSON-LD) para breadcrumbs
  */
-export function generateBreadcrumbStructuredData(items: Array<{ name: string; url: string }>): object {
+export function generateBreadcrumbStructuredData(
+  items: Array<{ name: string; url: string }>
+): object {
   const baseUrl = getBaseUrl();
 
   return {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
     itemListElement: items.map((item, index) => ({
-      '@type': 'ListItem',
+      "@type": "ListItem",
       position: index + 1,
       name: item.name,
-      item: item.url.startsWith('http') ? item.url : `${baseUrl}${item.url}`,
+      item: item.url.startsWith("http") ? item.url : `${baseUrl}${item.url}`,
     })),
   };
 }
-
