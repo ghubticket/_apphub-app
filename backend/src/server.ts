@@ -15,6 +15,8 @@ import { validateUserAgent } from './middleware/deviceValidation';
 import { sanitizeBody } from './middleware/sanitization';
 import { performanceLogger } from './middleware/performanceLogger';
 import crypto from 'crypto';
+// IMPORTANT: Importar instrument.ts ANTES de qualquer outro código
+import './instrument';
 import * as Sentry from '@sentry/node';
 import { getSSLOptions } from './config/ssl';
 import authRoutes from './routes/auth';
@@ -44,14 +46,17 @@ const PORT = Number(process.env.PORT) || 3001;
 // Middlewares de Segurança
 // ====================================
 
-// Sentry (opcional) - somente se houver DSN
+// Sentry request handler - captura contexto de requisições
+// Deve ser o PRIMEIRO middleware após a inicialização
 if (process.env.SENTRY_DSN) {
-    Sentry.init({
-        dsn: process.env.SENTRY_DSN,
-        environment: process.env.NODE_ENV || 'development',
-        tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0.1),
-    });
-    app.use(Sentry.Handlers.requestHandler());
+    app.use(Sentry.Handlers.requestHandler({
+        // Incluir dados da requisição no contexto
+        user: ['id', 'email'],
+        ip: true,
+        request: ['headers', 'method', 'query_string', 'url'],
+    }));
+    
+    // Tracing handler - monitora performance das rotas
     app.use(Sentry.Handlers.tracingHandler());
 }
 
@@ -359,9 +364,19 @@ app.use('/api/novidades', newsletterRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/delivery', deliveryRoutes);
 
-// Sentry error handler (antes de handlers customizados)
+// Sentry error handler - deve ser configurado DEPOIS de todas as rotas
+// e ANTES de qualquer outro error middleware
 if (process.env.SENTRY_DSN) {
-    app.use(Sentry.Handlers.errorHandler());
+    app.use(Sentry.Handlers.errorHandler({
+        // Não reportar erros 4xx como erros críticos
+        shouldHandleError(error) {
+            const status = typeof error.status === 'number' ? error.status : Number(error.status);
+            if (status && status < 500) {
+                return false;
+            }
+            return true;
+        },
+    }));
 }
 
 /**
