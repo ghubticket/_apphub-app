@@ -27,6 +27,8 @@ import { clearCartItems } from '@/lib/cart';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { storageHelpers } from '../utils/storageHelpers';
+import { calculateTotalWithDiscount } from '../utils/calculateTotalWithDiscount';
+import type { AppliedDiscountInfo } from '../hooks/usePromoterCodeState';
 
 /**
  * Componente principal do checkout
@@ -45,6 +47,9 @@ export function CheckoutLayout() {
 
     // Estado para código de promotor aplicado
     const [promoterCode, setPromoterCode] = useState<string | null>(null);
+    
+    // Estado para informações do desconto aplicado (para cálculo local antes do pedido ser criado)
+    const [appliedDiscountInfo, setAppliedDiscountInfo] = useState<AppliedDiscountInfo | null>(null);
 
     // Criar/gerenciar pedido
     const {
@@ -398,9 +403,23 @@ export function CheckoutLayout() {
     const timerExpiresAt = order?.expiresAt || null;
 
     // OTIMIZADO: Memoizar displayTotalAmount para evitar recálculos desnecessários
+    // Se há pedido real, usar totalAmount do pedido (já inclui desconto do backend)
+    // Se não há pedido ou é fake, calcular localmente com desconto aplicado
     const displayTotalAmount = useMemo(() => {
-        return order?.totalAmount ?? totalAmount;
-    }, [order?.totalAmount, totalAmount]);
+        // Se há pedido real, usar o totalAmount do pedido (backend já calculou com desconto)
+        if (order?._id && !order._id.startsWith('fake-')) {
+            return order.totalAmount ?? totalAmount;
+        }
+
+        // Se há desconto aplicado localmente (cupom aplicado mas pedido ainda não criado)
+        if (appliedDiscountInfo) {
+            const calculated = calculateTotalWithDiscount(summarizedCart, appliedDiscountInfo);
+            return calculated.totalAmount;
+        }
+
+        // Caso padrão: usar totalAmount do carrinho
+        return totalAmount;
+    }, [order?._id, order?.totalAmount, totalAmount, appliedDiscountInfo, summarizedCart]);
 
     // Memoizar se PIX está ativo (quando há QR code gerado)
     const isPixActive = useMemo(() => {
@@ -502,6 +521,7 @@ export function CheckoutLayout() {
                                     pixPaymentActive={isPixActive}
                                     onRemoveItem={handleRemoveItem}
                                     onPromoterCodeApplied={handlePromoterCodeChange}
+                                    onDiscountInfoChange={setAppliedDiscountInfo}
                                     orderPromoterCode={order?.promoterCode || null}
                                     orderDiscountAmount={order?.discountAmount || 0}
                                     pendingPromoterCode={order?._id?.startsWith('fake-') ? promoterCode : null}

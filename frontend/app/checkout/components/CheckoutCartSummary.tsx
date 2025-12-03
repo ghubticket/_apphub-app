@@ -7,6 +7,7 @@ import { usePromoterCode } from '../hooks/usePromoterCode';
 import { usePromoterCodeState } from '../hooks/usePromoterCodeState';
 import { usePromoterCodeSync } from '../hooks/usePromoterCodeSync';
 import { PromoterCodeInput } from './PromoterCodeInput';
+import type { AppliedDiscountInfo } from '../hooks/usePromoterCodeState';
 
 type CheckoutCartSummaryProps = {
     items: CheckoutCartItem[];
@@ -15,6 +16,7 @@ type CheckoutCartSummaryProps = {
     pixPaymentActive: boolean; // Quando há QR code PIX gerado
     onRemoveItem: (id: string) => void;
     onPromoterCodeApplied?: (code: string | null) => void;
+    onDiscountInfoChange?: (discountInfo: AppliedDiscountInfo | null) => void;
     orderPromoterCode?: string | null; // Código de promotor aplicado no pedido
     orderDiscountAmount?: number; // Valor do desconto aplicado no pedido
     pendingPromoterCode?: string | null; // Código pendente de validação (para pedidos fake)
@@ -27,6 +29,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
     pixPaymentActive,
     onRemoveItem,
     onPromoterCodeApplied,
+    onDiscountInfoChange,
     orderPromoterCode,
     orderDiscountAmount,
     pendingPromoterCode,
@@ -70,6 +73,23 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
         orderPromoterCode,
         orderDiscountAmount,
     });
+
+    // Notificar o CheckoutLayout sobre mudanças no desconto aplicado
+    // Para cálculo local do total antes do pedido ser criado
+    useEffect(() => {
+        // Se há um desconto aplicado no pedido, não usar o desconto local
+        if (orderDiscountAmount && orderDiscountAmount > 0 && orderPromoterCode) {
+            onDiscountInfoChange?.(null);
+            return;
+        }
+
+        // Se há um desconto aplicado localmente (cupom aplicado mas pedido ainda não criado)
+        if (promoterCodeState.state.appliedDiscountInfo) {
+            onDiscountInfoChange?.(promoterCodeState.state.appliedDiscountInfo);
+        } else {
+            onDiscountInfoChange?.(null);
+        }
+    }, [promoterCodeState.state.appliedDiscountInfo, orderDiscountAmount, orderPromoterCode, onDiscountInfoChange]);
 
     // Validar código automaticamente quando é aplicado via onPromoterCodeApplied mas o pedido ainda é fake
     // Isso garante feedback visual mesmo quando o pedido ainda não foi criado no backend
