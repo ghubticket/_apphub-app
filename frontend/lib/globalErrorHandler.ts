@@ -51,8 +51,17 @@ export function shouldTriggerGlobalError(error: any): boolean {
             error.code === 'ETIMEDOUT' ||
             error.code === 'ERR_NETWORK' ||
             error.code === 'ERR_INTERNET_DISCONNECTED' ||
+            error.code === 'ERR_CONNECTION_REFUSED' ||
+            error.code === 'ERR_CONNECTION_TIMED_OUT' ||
+            error.code === 'ERR_CONNECTION_RESET' ||
             error.message?.includes('Network Error') ||
-            error.message?.includes('timeout')
+            error.message?.includes('timeout') ||
+            error.message?.includes('timeout of') ||
+            error.message?.includes('Connection timed out') ||
+            error.message?.includes('ERR_CONNECTION_TIMED_OUT') ||
+            error.message?.includes('Failed to fetch') ||
+            error.message?.includes('net::ERR_CONNECTION_TIMED_OUT') ||
+            error.message?.includes('net::ERR_CONNECTION_REFUSED')
         ) {
             return true;
         }

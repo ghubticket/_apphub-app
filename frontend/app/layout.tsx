@@ -5,6 +5,7 @@ import { GlobalErrorProvider } from '@/context/GlobalErrorContext';
 import LayoutShell from '@/components/layout/LayoutShell';
 import SessionExpirationModal from '@/components/SessionExpirationModal';
 import GlobalErrorModal from '@/components/shared/GlobalErrorModal';
+import TestGlobalErrorLoader from '@/components/dev/TestGlobalErrorLoader';
 import StructuredData from '@/components/seo/StructuredData';
 import { generateMetadata as generateSEOMetadata, generateOrganizationStructuredData } from '@/lib/seo';
 import './globals.scss';
@@ -80,6 +81,7 @@ export default function RootLayout({
                         <LayoutShell>{children}</LayoutShell>
                         <SessionExpirationModal />
                         <GlobalErrorModal />
+                        <TestGlobalErrorLoader />
                     </GlobalErrorProvider>
                 </AuthProvider>
             </body>
