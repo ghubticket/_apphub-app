@@ -79,15 +79,26 @@ function scheduleFlush() {
 /**
  * Adiciona log ao buffer
  */
-function addLog(entry: LogEntry) {
+function addLog(entry: any) {
   if (!DD_API_KEY) {
     return;
+  }
+
+  // Extrair metadata de forma segura
+  const metadata: any = {};
+  if (entry.metadata) {
+    Object.assign(metadata, entry.metadata);
+  }
+  // Tentar extrair do splat se existir
+  const splatKey = Symbol.for('splat');
+  if (entry[splatKey] && Array.isArray(entry[splatKey]) && entry[splatKey].length > 0) {
+    Object.assign(metadata, entry[splatKey][0] || {});
   }
 
   logBuffer.push({
     level: entry.level,
     message: entry.message,
-    metadata: entry[Symbol.for('splat')] || {},
+    metadata: metadata,
     timestamp: entry.timestamp || Date.now(),
   });
 
@@ -103,26 +114,20 @@ function addLog(entry: LogEntry) {
  * Transport HTTP para Winston
  */
 export class DatadogHttpTransport extends Writable {
-  write(chunk: any, encoding?: string, callback?: (error?: Error | null) => void): boolean {
+  _write(chunk: any, encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     try {
       const entry = JSON.parse(chunk.toString());
       addLog(entry);
     } catch (error) {
       // Ignorar erros de parsing
     }
-    
-    if (callback) {
-      callback();
-    }
-    return true;
+    callback();
   }
 
   // Flush final ao encerrar
-  end(chunk?: any, encoding?: string, callback?: () => void): void {
+  _final(callback: (error?: Error | null) => void): void {
     flushLogs();
-    if (callback) {
-      callback();
-    }
+    callback();
   }
 }
 
