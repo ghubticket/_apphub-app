@@ -88,24 +88,34 @@ if (DD_ENV === 'production' && process.env.LOG_FILE_PATH) {
 }
 
 // Datadog transport (apenas se API key estiver configurada)
+// Para Vercel/serverless, usar HTTP API direta (mais confiável)
 if (DD_API_KEY && DD_ENV === 'production') {
+  // Sempre usar HTTP transport para garantir compatibilidade com Vercel
   try {
-    // Usar require dinâmico para evitar erro se o pacote não estiver instalado
-    const DatadogWinston = require('datadog-winston');
-    
+    const { DatadogHttpTransport } = require('./datadogHttpTransport');
     transports.push(
-      new DatadogWinston({
-        apiKey: DD_API_KEY,
-        hostname: process.env.DD_HOSTNAME || require('os').hostname(),
-        service: DD_SERVICE,
-        ddsource: DD_SOURCE,
-        ddtags: `env:${DD_ENV},version:${DD_VERSION}`,
+      new DatadogHttpTransport({
         level: 'info', // Enviar apenas info e acima para o Datadog
       })
     );
   } catch (error) {
-    // Se datadog-winston não estiver instalado, apenas logar aviso
-    console.warn('⚠️ Datadog Winston não instalado. Execute: npm install datadog-winston');
+    // Fallback: tentar datadog-winston se HTTP transport falhar
+    try {
+      const DatadogWinston = require('datadog-winston');
+      transports.push(
+        new DatadogWinston({
+          apiKey: DD_API_KEY,
+          hostname: process.env.DD_HOSTNAME || (process.env.VERCEL ? 'vercel' : require('os').hostname()),
+          service: DD_SERVICE,
+          ddsource: DD_SOURCE,
+          ddtags: `env:${DD_ENV},version:${DD_VERSION}`,
+          level: 'info',
+        })
+      );
+    } catch (winstonError) {
+      // Se ambos falharem, apenas logar aviso
+      console.warn('⚠️ Datadog transport não disponível. Logs não serão enviados ao Datadog.');
+    }
   }
 }
 
@@ -138,9 +148,38 @@ export default logger;
 
 // Exportar métodos específicos para facilitar migração
 export const log = {
-  error: (message: string, meta?: any) => logger.error(message, meta),
-  warn: (message: string, meta?: any) => logger.warn(message, meta),
-  info: (message: string, meta?: any) => logger.info(message, meta),
+  error: (message: string, meta?: any) => {
+    logger.error(message, meta);
+    // Enviar diretamente ao Datadog também (para garantir em Vercel)
+    if (DD_API_KEY && DD_ENV === 'production') {
+      try {
+        const { sendLogDirectly } = require('./datadogHttpTransport');
+        sendLogDirectly('error', message, meta).catch(() => {
+          // Ignorar erros silenciosamente
+        });
+      } catch {
+        // Ignorar se não conseguir importar
+      }
+    }
+  },
+  warn: (message: string, meta?: any) => {
+    logger.warn(message, meta);
+    if (DD_API_KEY && DD_ENV === 'production') {
+      try {
+        const { sendLogDirectly } = require('./datadogHttpTransport');
+        sendLogDirectly('warn', message, meta).catch(() => {});
+      } catch {}
+    }
+  },
+  info: (message: string, meta?: any) => {
+    logger.info(message, meta);
+    if (DD_API_KEY && DD_ENV === 'production') {
+      try {
+        const { sendLogDirectly } = require('./datadogHttpTransport');
+        sendLogDirectly('info', message, meta).catch(() => {});
+      } catch {}
+    }
+  },
   debug: (message: string, meta?: any) => logger.debug(message, meta),
   verbose: (message: string, meta?: any) => logger.verbose(message, meta),
 };

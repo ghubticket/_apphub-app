@@ -2,15 +2,31 @@
 
 ## 🚫 Problema: Clicar em "Logs" leva para o Onboarding
 
-Isso acontece porque o Datadog está tentando te guiar pelo onboarding. Vamos pular isso!
+Isso acontece porque o Datadog redireciona para onboarding quando não detecta logs ainda. Vamos resolver isso!
 
-## ✅ Solução: Acessar Logs Diretamente
+## ✅ Solução: Pular Onboarding e Ver Logs
 
-### Opção 1: URL Direta (Mais Rápido)
-Acesse diretamente:
+### Opção 1: URL Direta com Query (Funciona!)
+Acesse diretamente com query string:
 ```
-https://us5.datadoghq.com/logs
+https://us5.datadoghq.com/logs?query=service%3Aeventhub-backend
 ```
+
+Ou tente:
+```
+https://us5.datadoghq.com/logs/explorer
+```
+
+### Opção 2: Via Menu Lateral (Truque)
+1. No menu lateral, clique em **"Logs"**
+2. Quando aparecer o onboarding, procure por um link **"Skip"** ou **"Skip onboarding"** (geralmente no canto superior direito)
+3. Ou tente clicar em **"Explorer"** ou **"Live Tail"** no submenu de Logs
+
+### Opção 3: Forçar Acesso (URL Completa)
+Tente estas URLs na ordem:
+1. `https://us5.datadoghq.com/logs/explorer`
+2. `https://us5.datadoghq.com/logs/live-tail`
+3. `https://us5.datadoghq.com/logs?query=*`
 
 ### Opção 2: Via Menu Lateral
 1. No menu lateral esquerdo, procure por **"Logs"**
