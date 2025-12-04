@@ -146,8 +146,10 @@ export function CardPaymentFormBrick({
         );
     }
 
+    const isProcessingOverlay = isProcessing && !success && !error;
+
     return (
-        <div className="mt-6">
+        <div className="mt-6 relative">
             {/* Mostrar loading apenas se checkout não está pronto, mas SEMPRE renderizar o form para manter o wrapper */}
             {!isCheckoutReady ? (
                 <div className="flex h-[700px] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50">
@@ -158,7 +160,13 @@ export function CardPaymentFormBrick({
                 </div>
             ) : null}
             
-            <form id="checkout-card-form" className={`relative space-y-4 ${!isCheckoutReady ? 'hidden' : ''}`} onSubmit={onSubmit} aria-busy={isProcessing} autoComplete="off">
+            <form
+                id="checkout-card-form"
+                className={`relative space-y-4 ${!isCheckoutReady ? 'hidden' : ''}`}
+                onSubmit={onSubmit}
+                aria-busy={isProcessing}
+                autoComplete="off"
+            >
                 {/* Brick isolado - montado uma única vez, apenas ocultado/mostrado */}
                 {/* CRÍTICO: Sempre renderizar o Brick mesmo quando não está pronto para permitir montagem inicial */}
                 {/* O Brick gerencia sua própria visibilidade internamente */}
@@ -170,6 +178,19 @@ export function CardPaymentFormBrick({
                     onReady={handleReady}
                     onError={handleError}
                 />
+
+                {/* Overlay de processamento próprio da aplicação */}
+                {isProcessingOverlay && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-white/80 backdrop-blur-sm">
+                        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-[#635BF5]" />
+                        <p className="text-sm font-medium text-gray-800">
+                            {statusMessage || 'Estamos processando seu pagamento...'}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                            Isso pode levar alguns segundos. Não feche esta página.
+                        </p>
+                    </div>
+                )}
             </form>
 
             {/* Modais padronizadas de sucesso e erro */}
