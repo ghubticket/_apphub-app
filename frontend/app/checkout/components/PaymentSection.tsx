@@ -70,7 +70,7 @@ export function PaymentSection({
 
     return (
         <div className="rounded-2xl border border-[#ded7ca] bg-white p-6  relative">
-            <header className="flex items-center justify-between">
+            <header className="flex items-center justify-between pb-5">
                 <div className="space-y-1">
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">
                         Aceitamos Cartões, e o PIX!

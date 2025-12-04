@@ -167,12 +167,12 @@ export function CustomerDataForm({
 
             {/* Endereço de cobrança - abaixo dos dados pessoais */}
             <div className="mt-6 border-t border-dashed border-[#ede5d8] pt-4">
-                <div className="flex items-center justify-between gap-3 pb-3">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-5 md:pb-3">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                        <p className="text-xs pb-1 font-semibold uppercase tracking-normal text-[#1a1a1d]">
                             Endereço de cobrança
                         </p>
-                        <p className="text-[0.65rem] text-[#7d796c]">
+                        <p className="text-[0.65rem] leading-none text-[#7d796c]">
                             Opcional, mas ajuda o Mercado Pago a aprovar seu pagamento com mais segurança.
                         </p>
                     </div>

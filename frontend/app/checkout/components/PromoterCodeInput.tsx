@@ -108,7 +108,7 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
     };
 
     return (
-        <div className="mt-6 space-y-3">
+        <div className="mt-4 space-y-3 border-t border-dashed border-[#ede5d8] pt-4">
             <div className="flex gap-2">
                 <div className="flex-1 relative">
                     <input

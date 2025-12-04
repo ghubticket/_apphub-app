@@ -495,6 +495,7 @@ export function CheckoutLayout() {
         <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
             <Container className="py-7">
                 <div className={`grid gap-8 ${isPixActive ? 'lg:grid-cols-1 max-w-[40rem] mx-auto' : 'lg:grid-cols-[1.1fr_1fr]'}`}>
+                    {/* Coluna esquerda: Timer + Resumo do pedido + Dados do comprador */}
                     <section className="space-y-6">
                         {checkoutState.timerActive && (
                             <>
@@ -549,6 +550,7 @@ export function CheckoutLayout() {
                         )}
                     </section>
 
+                    {/* Coluna direita: Box de pagamento */}
                     {!isPixActive && (
                         <section className="space-y-6">
                             <PaymentSection

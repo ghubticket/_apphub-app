@@ -11,7 +11,7 @@ interface PaymentTabsProps {
 
 export function PaymentTabs({ selectedTab, onTabChange, pixPaymentActive = false }: PaymentTabsProps) {
     return (
-        <div className="mt-6 flex gap-3">
+        <div className="flex gap-3">
             <button
                 type="button"
                 onClick={() => {
