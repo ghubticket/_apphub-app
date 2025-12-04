@@ -320,7 +320,7 @@ function CadastroPageContent() {
         <>
             <DynamicMetadata
                 title="Cadastro"
-                description="Crie sua conta na Toka e comece a comprar ingressos para os melhores eventos. Cadastro rápido e seguro."
+                description="Crie sua conta na vicente e comece a comprar ingressos para os melhores eventos. Cadastro rápido e seguro."
                 url="/cadastro"
                 noindex={true}
             />

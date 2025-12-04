@@ -218,7 +218,7 @@ function LoginPageContent() {
         <>
             <DynamicMetadata
                 title="Login"
-                description="Faça login na sua conta Toka para acessar seus ingressos e acompanhar seus pedidos."
+                description="Faça login na sua conta vicente para acessar seus ingressos e acompanhar seus pedidos."
                 url="/login"
                 noindex={true}
             />

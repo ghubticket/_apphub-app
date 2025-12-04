@@ -31,6 +31,7 @@ const institutionalLinks = [
 ];
 
 const supportLinks = [
+    { label: 'Sobre', href: '/sobre' },
     { label: 'Política de Privacidade', href: '/privacidade' },
     { label: 'Termos de Uso', href: '/termos' },
 ];
@@ -176,14 +177,14 @@ export default function Footer() {
                     <div className="w-full space-y-6 lg:max-w-md">
                         <div className="space-y-4">
 
-                            <img className='w-40' src='/images/toka.branco.webp' alt='Festa do Branco' />
+                            <img className='w-20' src='/images/logo-rodape.svg' alt='Festa do Branco' />
                             
-                            <h2 className="text-2xl  font-bold uppercase leading-tight sm:text-3xl">
-                            Alô SJC! O Pagode do Chuvsico está DE VOLTA na TOKA!
+                            <h2 className="text-2xl  font-bold leading-tight sm:text-3xl">
+                            SEU APP, site, chame do que quiser, sem concorrência, sem filas, sem chamados.
                             </h2>
                             <div>
                                 <span className="text-xs font-semibold uppercase tracking-normal text-[#f97316]">
-                                    Vem com a gente no dia 04 de Dezembro
+                                   Quer deixar seu rolê maneiro com Vicente? Fale Comigo!
                                 </span>
                               
                             </div>
@@ -191,7 +192,7 @@ export default function Footer() {
                                 href="mailto:falecom@oprincipe.com.br"
                                 className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-xs font-semibold uppercase  text-black transition hover:bg-orange-100"
                             >
-                                falecom@toka.com.br
+                                falecom@vicente.com.br
                             </Link>
                         </div>
                     </div>

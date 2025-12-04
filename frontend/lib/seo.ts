@@ -17,7 +17,7 @@ export const getBaseUrl = (): string => {
   // Fallback para desenvolvimento
   return (
     process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
-    "https://toka.com.br"
+    "https://vicente.com.br"
   );
 };
 

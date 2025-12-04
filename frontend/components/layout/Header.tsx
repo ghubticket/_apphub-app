@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { HiOutlineTicket } from 'react-icons/hi';
-import { HiOutlineUserCircle, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineUserCircle, HiOutlineXMark, HiOutlineBars3 } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import styles from './Header.module.scss';
 import { useAuth } from '@/context/AuthContext';
@@ -45,6 +45,7 @@ export default function Header() {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [isCartDrawerVisible, setIsCartDrawerVisible] = useState(false);
     const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const cartCloseTimeoutRef = useRef<number | null>(null);
 
     const welcomeName = useMemo(() => {
@@ -215,37 +216,43 @@ export default function Header() {
                     <div className="relative">
                         {/* Backdrop blur com fundo semi-transparente apenas no container */}
                         <div className="absolute inset-0 bg-white/80 backdrop-blur-md border border-white/20 rounded-full shadow-sm"></div>
-                        
+
                         {/* Conteúdo do header */}
                         <div className="relative flex md:py-4 py-3 items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
-                            <Link href="/" className="flex items-center gap-3">
+                            <Link href="/" className="flex items-center gap-3 text-2xl font-bold text-gray-800">
                                 <Image
                                     src={APP_LOGO}
                                     alt={APP_LOGO_ALT}
-                                    width={120}
-                                    height={48}
-                                    className="h-auto w-14 md:w-28 lg:w-20"
+                                    width={40}
+                                    height={20}
+                                    className="h-auto w-10 md:w-20 lg:w-10"
                                     priority
                                 />
+
+                                <span className='text-base md:text-2xl font-bold text-gray-800'>Vicente</span>
                             </Link>
 
-                            <nav className="hidden items-center gap-3 text-[#1a1a1d] lg:flex">
-                                {navigationLinks.map((link) => (
-                                    <Link
-                                        key={link.label}
-                                        href={link.href}
-                                        className="text-[#1a1a1d] relative ttransition text-xl hover:text-[#f97316]"
-                                    >
-                                        {link.label}
-                                    </Link>
-                                ))}
-                            </nav>
+                            <p className='hidden md:block text-base text-gray-600'>
+                                <span className="inline-block animate-bounce mr-1">🎯</span>
+                                APP do seu Role. Você no Comando!
+                                <span className="inline-block animate-pulse ml-1">✨</span>
+                                Sem filas, sem concorrência, sem stress!
+                            </p>
 
                             <div className="flex gap-3 md:gap-4">
+                                {/* Menu Mobile - Sobre */}
+                                <Link
+                                    href="/sobre"
+                                    className="md:hidden flex items-center justify-center h-9 px-3 rounded-full border border-[#ded7ca] bg-white/60 backdrop-blur-sm text-[#1a1a1d] transition hover:border-[#f97316] hover:bg-[#f97316]/10 hover:text-[#f97316] text-xs font-semibold"
+                                    aria-label="Sobre"
+                                >
+                                    Sobre
+                                </Link>
+
                                 <button
                                     type="button"
                                     onClick={openCartDrawer}
-                                    className="hidden group relative flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border border-[#ded7ca] bg-white/60 backdrop-blur-sm text-[#1a1a1d] transition hover:border-[#f97316] hover:bg-[#f97316]/10 hover:text-[#f97316]"
+                                    className="hidden md:flex group relative h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border border-[#ded7ca] bg-white/60 backdrop-blur-sm text-[#1a1a1d] transition hover:border-[#f97316] hover:bg-[#f97316]/10 hover:text-[#f97316]"
                                     aria-label="Ingressos"
                                 >
                                     <HiOutlineTicket className="text-xl" />
@@ -287,7 +294,7 @@ export default function Header() {
                                         className="group inline-flex items-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] text-xs h-9 w-9 md:h-11 md:w-11 justify-center md:text-sm font-semibold uppercase text-white transition hover:bg-[#f97316] hover:border-[#f97316] hover:text-white lg:inline-flex"
                                     >
                                         <HiOutlineUserCircle className="text-xl group-hover:text-white" />
-                                        
+
                                     </Link>
                                 )}
                             </div>
@@ -395,11 +402,10 @@ export default function Header() {
                             <div className="mt-4">
                                 <Link
                                     href="/checkout"
-                                    className={`inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-medium transition ${
-                                        cartItems.length && isReady && isAuthenticated
+                                    className={`inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-medium transition ${cartItems.length && isReady && isAuthenticated
                                             ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-[#1a1a1d]'
                                             : 'cursor-not-allowed border border-[#c9c3b8] bg-[#c9c3b8] text-white/70'
-                                    }`}
+                                        }`}
                                     onClick={(event) => {
                                         if (!cartItems.length) {
                                             event.preventDefault();

@@ -71,7 +71,7 @@ export const sendEmail = async (
 
     // Email padrão (pode ser configurado via env)
     // Usa domínio de teste do Resend se não configurado
-    const appName = process.env.APP_NAME || 'Toka';
+    const appName = process.env.APP_NAME || 'vicente';
     const defaultFrom = process.env.RESEND_FROM_EMAIL || `${appName} <onboarding@resend.dev>`;
     const from = emailData.from || defaultFrom;
 

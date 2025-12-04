@@ -5,6 +5,7 @@ import { GlobalErrorProvider } from '@/context/GlobalErrorContext';
 import LayoutShell from '@/components/layout/LayoutShell';
 import SessionExpirationModal from '@/components/SessionExpirationModal';
 import GlobalErrorModal from '@/components/shared/GlobalErrorModal';
+import WelcomeModal from '@/components/shared/WelcomeModal';
 import TestGlobalErrorLoader from '@/components/dev/TestGlobalErrorLoader';
 import StructuredData from '@/components/seo/StructuredData';
 import { generateMetadata as generateSEOMetadata, generateOrganizationStructuredData } from '@/lib/seo';
@@ -24,8 +25,8 @@ const jost = Jost({
 
 const baseMetadata = generateSEOMetadata({
     title: 'Ingressos para Eventos',
-    description: 'Compre ingressos para os melhores eventos com Toka. Eventos exclusivos, pagamento seguro via PIX e cartão, entrega imediata do ingresso por email.',
-    tags: ['ingressos', 'eventos', 'toka', 'comprar ingressos', 'ingressos online', 'eventos rio de janeiro'],
+    description: 'Compre ingressos para os melhores eventos com vicente. Eventos exclusivos, pagamento seguro via PIX e cartão, entrega imediata do ingresso por email.',
+    tags: ['ingressos', 'eventos', 'vicente', 'comprar ingressos', 'ingressos online', 'eventos rio de janeiro'],
 });
 
 export const metadata: Metadata = {
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
     appleWebApp: {
         capable: true,
         statusBarStyle: 'default',
-        title: 'Toka',
+        title: 'vicente',
     },
 };
 
@@ -81,6 +82,7 @@ export default function RootLayout({
                         <LayoutShell>{children}</LayoutShell>
                         <SessionExpirationModal />
                         <GlobalErrorModal />
+                        <WelcomeModal />
                         <TestGlobalErrorLoader />
                     </GlobalErrorProvider>
                 </AuthProvider>

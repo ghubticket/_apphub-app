@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="PRINT_1" data-name="PRINT 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18.67 9.94">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #ce3662;
+      }
+
+      .cls-2 {
+        fill: #fff;
+      }
+    </style>
+  </defs>
+  <path class="cls-2" d="M18.67,4.97c-2.02,3-5.45,4.97-9.34,4.97S2.02,7.97,0,4.97C2.02,1.97,5.45,0,9.34,0s7.31,1.97,9.34,4.97Z"/>
+  <path class="cls-1" d="M12.47,4.97c0,1.73-1.41,3.14-3.14,3.14s-3.14-1.41-3.14-3.14,1.41-3.14,3.14-3.14,3.14,1.41,3.14,3.14Z"/>
+</svg>

@@ -1,7 +1,7 @@
 {
-  "name": "Toka - Ingressos para Eventos",
-  "short_name": "Toka",
-  "description": "Compre ingressos para os melhores eventos com Toka",
+  "name": "vicente - Ingressos para Eventos",
+  "short_name": "vicente",
+  "description": "Compre ingressos para os melhores eventos com vicente",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f1e8",

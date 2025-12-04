@@ -5,32 +5,32 @@
 
 export const APP_CONFIG = {
   // Nome da marca/projeto
-  name: 'Toka',
+  name: 'vicente',
   
   // Nome completo com prefixo (se necessário)
-  fullName: 'Toka',
+  fullName: 'vicente',
   
   // Nome curto/abreviação (se necessário)
-  shortName: 'Toka',
+  shortName: 'vicente',
   
   // Logo
   logo: {
-    src: '/images/toka.webp',
-    alt: 'Logotipo Toka',
+    src: '/images/logo-header.svg',
+    alt: 'Logotipo vicente',
   },
   
   // Informações de contato
   contact: {
-    email: 'contato@toka.com.br',
-    privacyEmail: 'privacidade@toka.com.br',
-    dpoEmail: 'dpo@toka.com.br',
-    supportEmail: 'suporte@toka.com.br',
+    email: 'contato@vicente.com.br',
+    privacyEmail: 'privacidade@vicente.com.br',
+    dpoEmail: 'dpo@vicente.com.br',
+    supportEmail: 'suporte@vicente.com.br',
   },
   
   // Informações legais
   legal: {
-    cnpj: '45.380.558/0001-88',
-    companyName: 'Toka',
+    cnpj: '00.380.558/0001-88',
+    companyName: 'vicente',
     lgpdLaw: 'Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)',
   },
   
@@ -42,7 +42,7 @@ export const APP_CONFIG = {
   
   // URLs e links
   links: {
-    instagram: 'https://www.instagram.com/toka/',
+    instagram: 'https://www.instagram.com/vicente/',
     website: '/',
     privacy: '/privacidade',
     terms: '/termos',
@@ -50,7 +50,7 @@ export const APP_CONFIG = {
   
   // Chaves de storage (mantendo compatibilidade com código existente)
   storage: {
-    cartKey: 'toka-cart-items',
+    cartKey: 'vicente-cart-items',
     activeOrderKey: '5521-active-order-id',
   },
 } as const;

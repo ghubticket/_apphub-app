@@ -18,7 +18,7 @@ export type CartItem = {
     metadata?: Record<string, string | number | boolean | null | undefined>;
 };
 
-export const CART_STORAGE_KEY = 'toka-cart-items';
+export const CART_STORAGE_KEY = 'vicente-cart-items';
 export const CART_UPDATED_EVENT = 'apphub:cart:update';
 export const CART_OPEN_EVENT = 'apphub:cart:open';
 

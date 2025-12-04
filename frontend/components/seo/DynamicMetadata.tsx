@@ -23,7 +23,7 @@ export default function DynamicMetadata({
 }: DynamicMetadataProps) {
   useEffect(() => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    const siteName = 'Toka';
+    const siteName = 'vicente';
     
     // Title
     if (title) {
