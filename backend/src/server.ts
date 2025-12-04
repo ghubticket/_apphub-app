@@ -136,6 +136,40 @@ app.use(performanceLogger);
 
 // CORS - Permitir requisições do frontend, dashboard e QR scanner app (restrito em produção)
 const normalizeOrigin = (origin: string) => origin.replace(/\/$/, '');
+
+// Gera variações com e sem "www." para o mesmo domínio em produção,
+// para evitar erros de CORS quando o usuário acessa com ou sem "www".
+const expandOriginVariants = (origin: string): string[] => {
+    try {
+        const url = new URL(origin);
+
+        // Não gerar variantes para localhost ou IPs
+        if (url.hostname === 'localhost' || /^[\d.]+$/.test(url.hostname)) {
+            return [normalizeOrigin(origin)];
+        }
+
+        const variants = new Set<string>();
+        variants.add(normalizeOrigin(origin));
+
+        if (url.hostname.startsWith('www.')) {
+            const noWwwHost = url.hostname.replace(/^www\./, '');
+            variants.add(
+                normalizeOrigin(`${url.protocol}//${noWwwHost}${url.port ? `:${url.port}` : ''}`)
+            );
+        } else {
+            const wwwHost = `www.${url.hostname}`;
+            variants.add(
+                normalizeOrigin(`${url.protocol}//${wwwHost}${url.port ? `:${url.port}` : ''}`)
+            );
+        }
+
+        return Array.from(variants);
+    } catch {
+        // Se der erro ao fazer parse da URL, retorna apenas o origin normalizado
+        return [normalizeOrigin(origin)];
+    }
+};
+
 const fallbackOrigins = [
     'http://localhost:3000',
     'https://localhost:3000',
@@ -144,16 +178,22 @@ const fallbackOrigins = [
     'http://localhost:3443',
     'https://localhost:3443',
 ];
+const rawOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.DASHBOARD_URL,
+    process.env.QR_SCANNER_URL,
+    ...fallbackOrigins,
+].filter((value): value is string => Boolean(value));
+
 const allowedOrigins = Array.from(
     new Set(
-        [
-            process.env.FRONTEND_URL,
-            process.env.DASHBOARD_URL,
-            process.env.QR_SCANNER_URL,
-            ...fallbackOrigins,
-        ]
-            .filter((value): value is string => Boolean(value))
-            .map(normalizeOrigin)
+        rawOrigins.flatMap((origin) => {
+            // Em produção, gerar variações com/sem www.; em dev manter simples
+            if ((process.env.NODE_ENV || 'development') === 'production') {
+                return expandOriginVariants(origin);
+            }
+            return [normalizeOrigin(origin)];
+        })
     )
 );
 const warnedCorsOrigins = new Set<string>();
