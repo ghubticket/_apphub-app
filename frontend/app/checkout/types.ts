@@ -5,6 +5,12 @@ export type CheckoutCustomerData = {
     email: string;
     cpf: string;
     phone: string;
+    billingStreet?: string;
+    billingNumber?: string;
+    billingNeighborhood?: string;
+    billingCity?: string;
+    billingState?: string;
+    billingZip?: string;
 };
 
 export type CheckoutCartItem = CartItem & {

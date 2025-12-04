@@ -316,14 +316,23 @@ export const createPixPayment = async (
                               phoneNumber.length >= 8 &&
                               phoneNumber.length <= 9
                           ) {
-                              return {
-                                  area_code: areaCode,
-                                  number: phoneNumber,
-                              };
+                            return {
+                                area_code: areaCode,
+                                number: phoneNumber,
+                            };
                           }
                           // Se telefone inválido, não incluir (opcional no MP)
                           return undefined;
                       })()
+                    : undefined,
+                address: customerData.address
+                    ? {
+                          street_name: customerData.address.street_name,
+                          street_number: customerData.address.street_number,
+                          zip_code: customerData.address.zip_code,
+                          city: customerData.address.city,
+                          state: customerData.address.state,
+                      }
                     : undefined,
             },
             transactions: {
@@ -662,6 +671,15 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                           // Se telefone inválido, não incluir (opcional no MP)
                           return undefined;
                       })()
+                    : undefined,
+                address: customerData.address
+                    ? {
+                          street_name: customerData.address.street_name,
+                          street_number: customerData.address.street_number,
+                          zip_code: customerData.address.zip_code,
+                          city: customerData.address.city,
+                          state: customerData.address.state,
+                      }
                     : undefined,
             },
             transactions: {

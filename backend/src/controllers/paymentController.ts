@@ -294,6 +294,17 @@ export const createPixPayment = async (req: Request, res: Response) => {
             customerEmail = `${emailName}@testuser.com`;
         }
 
+        // Montar endereço de cobrança opcional (não persistido em banco)
+        const billingAddressFromBody = (req.body && (req.body.billingAddress || req.body.billing_address)) || null;
+        const billingAddress =
+            billingAddressFromBody || {
+                street_name: req.body?.billingStreet,
+                street_number: req.body?.billingNumber,
+                zip_code: req.body?.billingZip,
+                city: req.body?.billingCity,
+                state: req.body?.billingState,
+            };
+
         // Criar pagamento PIX
         const pixPayment = await paymentService.createPixPayment(
             {
@@ -305,7 +316,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
                     email: customerEmail, // Email mockado para sandbox
                     cpf: order.customerData.cpf || '',
                     phone: order.customerData.phone,
-                    // Endereço pode ser adicionado se disponível no Order
+                    address: billingAddress,
                 },
                 description,
                 items,
@@ -567,6 +578,18 @@ export const createCardPayment = async (req: Request, res: Response) => {
             });
         }
 
+        // Capturar endereço de cobrança enviado pelo frontend (não persistido em banco)
+        const billingAddressFromBody =
+            (req.body && (req.body.billingAddress || req.body.billing_address)) || null;
+        const billingAddress =
+            billingAddressFromBody || {
+                street_name: req.body?.billingStreet,
+                street_number: req.body?.billingNumber,
+                zip_code: req.body?.billingZip,
+                city: req.body?.billingCity,
+                state: req.body?.billingState,
+            };
+
         // NOVO: Se orderId começa com "fake-", criar pedido real primeiro
         if (orderId.startsWith('fake-')) {
             // Pedido fake - criar pedido real no backend
@@ -611,6 +634,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
                             email: customerData.email,
                             cpf: customerData.cpf || undefined,
                             phone: customerData.phone || undefined,
+                            // endereço de cobrança não é persistido em Order por padrão
                         },
                         ...(promoterCode
                             ? { promoterCode: promoterCode.toUpperCase().trim() }
@@ -850,15 +874,15 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 installments: installments || 1,
                 paymentMethodId,
                 issuerId,
+                cardholder: normalizedCardholder,
+                items,
                 customerData: {
                     name: order.customerData.name,
                     email: customerEmail, // Email mockado para sandbox
                     cpf: order.customerData.cpf || '',
                     phone: order.customerData.phone,
-                    // Endereço pode ser adicionado se disponível no Order
+                    address: billingAddress,
                 },
-                cardholder: normalizedCardholder,
-                items,
             },
             deviceId
         );
