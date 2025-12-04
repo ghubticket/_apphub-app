@@ -270,6 +270,24 @@ export const createPixPayment = async (
         // e normalizar para DUAS casas decimais (ex.: 6.300000000000001 -> 6.30)
         const normalizedAmount = Number(numericTotalAmount.toFixed(2));
 
+        // Montar endereço de cobrança apenas se campos mínimos estiverem preenchidos
+        const addressInput = customerData.address || {};
+        const hasFullAddress =
+            !!addressInput.street_name &&
+            !!addressInput.zip_code &&
+            !!addressInput.city &&
+            !!addressInput.state;
+
+        const addressPayload = hasFullAddress
+            ? {
+                  street_name: addressInput.street_name,
+                  street_number: addressInput.street_number,
+                  zip_code: addressInput.zip_code,
+                  city: addressInput.city,
+                  state: addressInput.state,
+              }
+            : undefined;
+
         const orderData = {
             type: 'online',
             processing_mode: 'automatic',
@@ -325,15 +343,7 @@ export const createPixPayment = async (
                           return undefined;
                       })()
                     : undefined,
-                address: customerData.address
-                    ? {
-                          street_name: customerData.address.street_name,
-                          street_number: customerData.address.street_number,
-                          zip_code: customerData.address.zip_code,
-                          city: customerData.address.city,
-                          state: customerData.address.state,
-                      }
-                    : undefined,
+                address: addressPayload,
             },
             transactions: {
                 payments: [
@@ -639,6 +649,24 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
             payerEmail = `${emailName}@testuser.com`;
         }
 
+        // Montar endereço de cobrança apenas se campos mínimos estiverem preenchidos
+        const addressInput = customerData.address || {};
+        const hasFullAddress =
+            !!addressInput.street_name &&
+            !!addressInput.zip_code &&
+            !!addressInput.city &&
+            !!addressInput.state;
+
+        const addressPayload = hasFullAddress
+            ? {
+                  street_name: addressInput.street_name,
+                  street_number: addressInput.street_number,
+                  zip_code: addressInput.zip_code,
+                  city: addressInput.city,
+                  state: addressInput.state,
+              }
+            : undefined;
+
         // Criar Order usando Orders API (modo automático)
         // Conforme documentação: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-v2/payment-integration/cards
         const orderData = {
@@ -672,15 +700,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
                           return undefined;
                       })()
                     : undefined,
-                address: customerData.address
-                    ? {
-                          street_name: customerData.address.street_name,
-                          street_number: customerData.address.street_number,
-                          zip_code: customerData.address.zip_code,
-                          city: customerData.address.city,
-                          state: customerData.address.state,
-                      }
-                    : undefined,
+                address: addressPayload,
             },
             transactions: {
                 payments: [
