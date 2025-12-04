@@ -167,6 +167,36 @@ export const removeCartItem = (itemId: string) => {
     saveCartItems(next);
 };
 
+export const updateCartItemQuantity = (itemId: string, newQuantity: number) => {
+    if (!isBrowser()) return;
+    const current = loadCartItems();
+    const itemIndex = current.findIndex((item) => item.id === itemId);
+    
+    if (itemIndex < 0) return;
+    
+    const item = current[itemIndex];
+    const maxQuantity = item.maxQuantity;
+    
+    // Garantir que a quantidade está dentro dos limites
+    let clampedQuantity = Math.max(1, Math.floor(newQuantity));
+    if (typeof maxQuantity === 'number' && clampedQuantity > maxQuantity) {
+        clampedQuantity = maxQuantity;
+    }
+    
+    // Se quantidade for 0 ou menor, remover o item
+    if (clampedQuantity <= 0) {
+        removeCartItem(itemId);
+        return;
+    }
+    
+    current[itemIndex] = {
+        ...item,
+        quantity: clampedQuantity,
+    };
+    
+    saveCartItems(current);
+};
+
 export const useCartSubscription = (callback: () => void) => {
     useEffect(() => {
         if (!isBrowser()) return;

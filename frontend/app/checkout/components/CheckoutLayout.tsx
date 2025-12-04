@@ -23,7 +23,7 @@ import { useCheckoutNavigation } from '../hooks/useCheckoutNavigation';
 import { useCheckoutStorage } from '../hooks/useCheckoutStorage';
 import { useCardPayment } from '../hooks/useCardPayment';
 import { usePixPayment } from '../hooks/usePixPayment';
-import { clearCartItems } from '@/lib/cart';
+import { clearCartItems, updateCartItemQuantity } from '@/lib/cart';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { storageHelpers } from '../utils/storageHelpers';
@@ -426,6 +426,18 @@ export function CheckoutLayout() {
         return !!pixPayment.pixResult;
     }, [pixPayment.pixResult]);
 
+    const handleUpdateQuantity = useCallback((itemId: string, newQuantity: number) => {
+        // Não permitir atualizar quantidade se PIX está ativo
+        if (isPixActive) {
+            return;
+        }
+
+        // Apenas atualizar quantidade no carrinho e recarregar
+        // O pedido será recriado automaticamente quando necessário
+        updateCartItemQuantity(itemId, newQuantity);
+        refreshCart();
+    }, [isPixActive, refreshCart]);
+
     // CRÍTICO: Mostrar loading IMEDIATAMENTE se não há pedido mas há condições para criar um
     // Isso garante que o loading apareça antes de qualquer renderização
     // IMPORTANTE: Não mostrar loading de criação se já existe pedido no storage (será restaurado)
@@ -530,6 +542,7 @@ export function CheckoutLayout() {
                                     totalAmount={displayTotalAmount}
                                     pixPaymentActive={isPixActive}
                                     onRemoveItem={handleRemoveItem}
+                                    onUpdateQuantity={handleUpdateQuantity}
                                     onPromoterCodeApplied={handlePromoterCodeChange}
                                     onDiscountInfoChange={setAppliedDiscountInfo}
                                     orderPromoterCode={order?.promoterCode || null}

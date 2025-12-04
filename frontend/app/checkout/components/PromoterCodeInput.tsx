@@ -70,7 +70,7 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
     const placeholder = useMemo(() => {
         if (hasAppliedCode) return 'Cupom aplicado';
         if (hasInvalidCode) return 'Cupom inválido';
-        return 'Insira seu Codigo:';
+        return 'Tem Desonto?';
     }, [hasAppliedCode, hasInvalidCode]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,14 +152,7 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
                         disabled={pixPaymentActive || isValidating || !codeInput.trim()}
                         className={buttonClassName}
                     >
-                        {isValidating ? (
-                            <>
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#7d796c] border-t-transparent" />
-                                <span>Validando...</span>
-                            </>
-                        ) : (
-                            'OK'
-                        )}
+                        Aplicar
                     </button>
                 )}
             </div>

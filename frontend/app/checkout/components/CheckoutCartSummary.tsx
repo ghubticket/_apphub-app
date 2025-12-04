@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo, useEffect, useRef } from 'react';
-import { HiOutlineTicket, HiOutlineTrash, HiSparkles } from 'react-icons/hi2';
+import { HiOutlineTicket, HiOutlineTrash, HiSparkles, HiOutlineMinusSmall, HiOutlinePlusSmall } from 'react-icons/hi2';
 import type { CheckoutCartItem } from '../types';
 import { usePromoterCode } from '../hooks/usePromoterCode';
 import { usePromoterCodeState } from '../hooks/usePromoterCodeState';
@@ -15,6 +15,7 @@ type CheckoutCartSummaryProps = {
     totalAmount: number;
     pixPaymentActive: boolean; // Quando há QR code PIX gerado
     onRemoveItem: (id: string) => void;
+    onUpdateQuantity?: (itemId: string, newQuantity: number) => void;
     onPromoterCodeApplied?: (code: string | null) => void;
     onDiscountInfoChange?: (discountInfo: AppliedDiscountInfo | null) => void;
     orderPromoterCode?: string | null; // Código de promotor aplicado no pedido
@@ -28,6 +29,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
     totalAmount,
     pixPaymentActive,
     onRemoveItem,
+    onUpdateQuantity,
     onPromoterCodeApplied,
     onDiscountInfoChange,
     orderPromoterCode,
@@ -43,7 +45,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
     // Preencher campo de cupom com código do sessionStorage (vindo da URL dos eventos)
     // Usar ref para rastrear se o usuário já removeu o código manualmente
     const userRemovedCodeRef = useRef(false);
-    
+
     useEffect(() => {
         // Só preencher do sessionStorage se:
         // 1. Há eventId
@@ -51,9 +53,9 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
         // 3. Não há código aplicado no pedido
         // 4. Usuário NÃO removeu o código manualmente
         if (
-            eventId && 
-            typeof window !== 'undefined' && 
-            !promoterCodeState.state.codeInput && 
+            eventId &&
+            typeof window !== 'undefined' &&
+            !promoterCodeState.state.codeInput &&
             !orderPromoterCode &&
             !userRemovedCodeRef.current
         ) {
@@ -95,7 +97,7 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
     // Isso garante feedback visual mesmo quando o pedido ainda não foi criado no backend
     const lastValidatedCodeRef = useRef<string | null>(null);
     const isValidatingRef = useRef(false);
-    
+
     // Quando há um código pendente (vindo do handlePromoterCodeChange quando pedido é fake),
     // atualizar o input e validar
     useEffect(() => {
@@ -104,11 +106,11 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
             if (codeToValidate && codeToValidate !== lastValidatedCodeRef.current && !isValidatingRef.current) {
                 // Atualizar o input primeiro
                 promoterCodeState.updateInput(codeToValidate);
-                
+
                 // Validar o código
                 isValidatingRef.current = true;
                 lastValidatedCodeRef.current = codeToValidate;
-                
+
                 validateCode(codeToValidate, eventId)
                     .then((result) => {
                         if (result.valid && result.data) {
@@ -217,36 +219,64 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                 {items.map((item) => {
                     const formattedItemPrice = `R$ ${item.total.toFixed(2).replace('.', ',')}`;
                     const itemName = item.name || 'Ingresso';
-                    
+
                     // Construir detalhes do item (lote, se disponível)
-                    const lotInfo = item.metadata?.lotName 
-                        ? `Lote ${item.metadata.lotName}` 
-                        : item.metadata?.lotNumber 
-                        ? `Lote ${item.metadata.lotNumber}` 
-                        : null;
-                    
-                    const itemDisplayName = lotInfo 
+                    const lotInfo = item.metadata?.lotName
+                        ? `Lote ${item.metadata.lotName}`
+                        : item.metadata?.lotNumber
+                            ? `Lote ${item.metadata.lotNumber}`
+                            : null;
+
+                    const itemDisplayName = lotInfo
                         ? `${itemName} · ${lotInfo} x${item.quantity}`
                         : `${itemName} x${item.quantity}`;
 
+                    const maxQuantity = item.maxQuantity;
+                    const canIncrease = !maxQuantity || item.quantity < maxQuantity;
+                    const canDecrease = item.quantity > 1;
+
                     return (
                         <div key={item.id} className="flex items-center bg-slate-100 px-5 py-2 rounded-2xl justify-between gap-4">
-                            <div className="flex items-start gap-3 flex-1">
-                                <HiOutlineTicket className="text-[#7d796c] hidden md:block flex-shrink-0" size={20} />
+                            <div className="flex items-center gap-3 flex-1">
+                                <HiOutlineTicket className="text-[#7d796c] hidden md:block flex-shrink-0" size={25} />
                                 <div className="flex-1">
                                     <p className="text-sm font-medium text-[#1a1a1d]">
                                         {itemDisplayName}
                                     </p>
+                                    <p className="text-xs text-[#7d796c]">
+                                        {item.quantity} ingresso{item.quantity > 1 ? 's' : ''} -   {formattedItemPrice}
+                                    </p>
                                 </div>
                             </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <p className="text-xs text-[#7d796c]">
-                                    {item.quantity} ingresso{item.quantity > 1 ? 's' : ''}
-                                </p>
-                                <p className="text-sm font-semibold text-[#1a1a1d]">
-                                    {formattedItemPrice}
-                                </p>
-                            </div>
+                            
+                            {/* Controles de quantidade */}
+                            {onUpdateQuantity && !pixPaymentActive && (
+                                <div className="flex items-center rounded-[100rem] bg-white px-[0.8rem] py-[0.5rem]">
+                                    <button
+                                        type="button"
+                                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                                        disabled={!canDecrease}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                                        aria-label="Diminuir quantidade"
+                                    >
+                                        <HiOutlineMinusSmall className="text-sm" />
+                                    </button>
+                                    
+                                    <span className="min-w-[24px] text-center text-[0.75rem] font-semibold text-[#1a1a1d]">
+                                        {item.quantity}
+                                    </span>
+                                    
+                                    <button
+                                        type="button"
+                                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                                        disabled={!canIncrease}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                                        aria-label="Aumentar quantidade"
+                                    >
+                                        <HiOutlinePlusSmall className="text-sm" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     );
                 })}
@@ -265,13 +295,13 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
             )}
 
             {/* Mensagem de desconto aplicado */}
-            {(orderDiscountAmount && orderDiscountAmount > 0 && orderPromoterCode) || 
-             (promoterCodeState.state.appliedCode && !orderPromoterCode) ? (
-                <div className="mt-6 rounded-2xl border border-[#10b981] bg-[#f1fff6] p-3">
+            {(orderDiscountAmount && orderDiscountAmount > 0 && orderPromoterCode) ||
+                (promoterCodeState.state.appliedCode && !orderPromoterCode) ? (
+                <div className="mt-3 rounded-2xl border border-[#10b981] bg-[#f1fff6] p-3">
                     <div className="flex gap-2 items-center justify-center">
                         <HiSparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#10b981]" />
                         <div className="space-y-1">
-                            
+
                             <p className="text-sm mt-0 pt-0 leading-0 text-[#059669]">
                                 {orderDiscountAmount && orderDiscountAmount > 0 ? (
                                     <>

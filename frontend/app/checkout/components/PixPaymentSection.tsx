@@ -62,8 +62,8 @@ export function PixPaymentSection({
             <form className="mt-6 space-y-4" onSubmit={onSubmit}>
                 {!pixResult ? (
                     <>
-                        <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-sm text-[#4c4c55]">
-                            Gere um QR Code instantâneo via Mercado Pago. O pagamento deve ser efetuado em até{' '}
+                        <div className="text-center rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3 text-sm text-[#4c4c55]">
+                            Gere um QR Code instantâneo via Mercado Pago. <br />O pagamento deve ser efetuado em até{' '}
                             {pixGenerationDeadlineMinutes} minutos.
                         </div>
 

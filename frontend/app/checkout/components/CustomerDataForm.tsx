@@ -167,7 +167,7 @@ export function CustomerDataForm({
 
             {/* Endereço de cobrança - abaixo dos dados pessoais */}
             <div className="mt-6 border-t border-dashed border-[#ede5d8] pt-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-5 md:pb-3">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-5 md:pb-6">
                     <div>
                         <p className="text-xs pb-1 font-semibold uppercase tracking-normal text-[#1a1a1d]">
                             Endereço de cobrança
