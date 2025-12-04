@@ -175,7 +175,8 @@ export function IsolatedCardPaymentBrick({
                                 },
                                 email: {
                                     label: 'E-mail para recibo',
-                                    placeholder: 'email@testuser.com',
+                                    // Placeholder customizado para produção
+                                    placeholder: 'seuemail@dominio.com',
                                 },
                             },
                         },
@@ -234,7 +235,8 @@ export function IsolatedCardPaymentBrick({
                                     },
                                     email: {
                                         label: 'E-mail para recibo',
-                                        placeholder: 'email@testuser.com',
+                                        // Placeholder customizado para produção
+                                        placeholder: 'seuemail@dominio.com',
                                     },
                                 },
                             },

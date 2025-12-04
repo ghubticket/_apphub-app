@@ -553,7 +553,7 @@ const TRANSACTION_STATUS_MAP: Record<
         },
         rejected_by_issuer: {
             userMessage:
-                'Pagamento recusado pelo banco. Verifique com seu banco ou tente outro cartão.',
+                'Pagamento recusado pelo banco.  Verifique com seu banco ou tente outro cartão.',
             adminMessage: 'Transação falhou devido à rejeição pelo emissor do cartão.',
             color: 'error',
             requiresAction: true,
