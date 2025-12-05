@@ -18,6 +18,9 @@ import {
     HiOutlineChatBubbleLeftRight,
     HiOutlineSparkles,
     HiOutlineCreditCard,
+    HiOutlineUserGroup,
+    HiOutlineHeart,
+    HiOutlineStar,
 } from 'react-icons/hi2';
 
 export default function SobrePage() {
@@ -1029,18 +1032,91 @@ export default function SobrePage() {
                                     </li>
                                 </ul>
                             </div>
+
+                            {/* Clube de Benefícios e Rede de Vicenters */}
+                            <div className="md:col-span-2 bg-gradient-to-br from-[#f97316] via-[#ea6820] to-[#f97316] text-white p-8 md:p-10 rounded-3xl shadow-xl border-2 border-white/20 relative overflow-hidden">
+                                {/* Efeitos decorativos */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+                                <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+                                
+                                <div className="relative z-10">
+                                    <div className="flex items-start gap-4 mb-6">
+                                        <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm">
+                                            <HiOutlineUserGroup className="text-3xl text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-2xl font-bold mb-3">
+                                                Clube de Benefícios & Rede de Vicenters
+                                            </h3>
+                                            <p className="text-white/90 leading-relaxed mb-4">
+                                                Você vai ter um clube de benefícios para seus clientes, criar uma rede de vicenters e focar em fidelidade, comunidade e tudo único!
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <HiOutlineHeart className="text-2xl text-white" />
+                                                <h4 className="text-sm font-semibold text-white">
+                                                    Fidelidade
+                                                </h4>
+                                            </div>
+                                            <p className="text-xs text-white/80 leading-relaxed">
+                                                Programa de pontos e benefícios exclusivos para seus clientes mais fiéis.
+                                            </p>
+                                        </div>
+
+                                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <HiOutlineUserGroup className="text-2xl text-white" />
+                                                <h4 className="text-sm font-semibold text-white">
+                                                    Comunidade
+                                                </h4>
+                                            </div>
+                                            <p className="text-xs text-white/80 leading-relaxed">
+                                                Crie uma rede de vicenters conectados, compartilhando experiências e eventos.
+                                            </p>
+                                        </div>
+
+                                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <HiOutlineStar className="text-2xl text-white" />
+                                                <h4 className="text-sm font-semibold text-white">
+                                                    Tudo Único
+                                                </h4>
+                                            </div>
+                                            <p className="text-xs text-white/80 leading-relaxed">
+                                                Experiência exclusiva e personalizada para cada membro da sua rede.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 pt-6 border-t border-white/20">
+                                        <p className="text-sm text-white/90 text-center font-semibold">
+                                            <span className="inline-block animate-pulse mr-2">💎</span>
+                                            Construa uma comunidade única e fidelize seus clientes!
+                                            <span className="inline-block animate-pulse ml-2">🎯</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Box de destaque */}
-                        <div className="mt-12 bg-gradient-to-r from-[#f97316] to-[#ea6820] rounded-3xl p-8 md:p-12 text-white text-center relative overflow-hidden">
-                            <div className="absolute top-4 right-4 text-5xl md:text-6xl opacity-20 animate-pulse">🎉</div>
-                            <div className="absolute bottom-4 left-4 text-5xl md:text-6xl opacity-20 animate-pulse" style={{ animationDelay: '0.3s' }}>🚀</div>
+                        <div className="mt-12 bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] rounded-3xl p-8 md:p-12 text-white text-center relative overflow-hidden border-2 border-[#f97316]/20">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-[#f97316]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#f97316]/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
                             <div className="relative z-10">
+                                <div className="flex justify-center gap-3 mb-4">
+                                    <span className="text-4xl md:text-5xl animate-bounce">🎉</span>
+                                    <span className="text-4xl md:text-5xl animate-pulse" style={{ animationDelay: '0.2s' }}>✨</span>
+                                    <span className="text-4xl md:text-5xl animate-bounce" style={{ animationDelay: '0.4s' }}>🚀</span>
+                                </div>
                                 <h3 className="text-2xl md:text-3xl font-bold mb-4">
                                     E muito mais vindo por aí!
-                                    <span className="inline-block ml-2 animate-bounce">✨</span>
                                 </h3>
-                                <p className="text-lg md:text-xl opacity-90 mb-6">
+                                <p className="text-lg md:text-xl text-gray-300 mb-6">
                                     Estamos sempre trabalhando em novas funcionalidades para tornar sua experiência ainda melhor.
                                     <span className="inline-block ml-2 animate-pulse">💪</span>
                                 </p>
@@ -1048,7 +1124,7 @@ export default function SobrePage() {
                                     href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre as novidades! 🚀"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-[#f97316] font-semibold rounded-full hover:bg-gray-100 transition-all transform hover:scale-105"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg"
                                 >
                                     Quero Saber Mais
                                     <HiOutlineArrowRight className="text-xl" />
