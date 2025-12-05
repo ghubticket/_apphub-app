@@ -83,7 +83,7 @@ export default function WelcomeModal() {
                     {/* Close button */}
                     <button
                         onClick={handleClose}
-                        className="hidden md:inline-flex absolute top-3 right-3 md:top-4 md:right-4 z-10 items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all"
+                        className="inline-flex absolute top-4 right-3 md:top-4 md:right-4 z-10 items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all"
                         aria-label="Fechar"
                     >
                         <HiOutlineXMark className="w-4 h-4 md:w-5 md:h-5" />
@@ -93,7 +93,7 @@ export default function WelcomeModal() {
                     <div className="relative">
                         {/* Header com gradiente - faixa compacta */}
                         <div className="bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white px-4 py-2.5 md:px-6 md:py-3 lg:px-8 lg:py-4 flex-shrink-0">
-                            <div className="text-center">
+                            <div className="text-left md:text-center">
                                 <h2 className="text-xl md:text-2xl lg:text-3xl font-bold">
                                     Olá! Eu sou o <span className="text-[#f97316]">Vicente</span>
                                     <span className="ml-1 md:ml-2"></span>
@@ -167,7 +167,7 @@ export default function WelcomeModal() {
                             <a
                                 href="/sobre"
                                 onClick={handleClose}
-                                className="w-full inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 text-sm md:text-base text-gray-600 hover:text-[#1a1a1d] font-medium rounded-full transition-all hover:bg-gray-50"
+                                className="w-full inline-flex border border-gray-200 items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 text-sm md:text-base text-gray-600 hover:text-[#1a1a1d] font-medium rounded-full transition-all hover:bg-gray-50"
                             >
                                 Quero Saber Mais
                             </a>
