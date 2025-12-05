@@ -139,7 +139,7 @@ export default function PhotosCarousel({
         <section className={`bg-gradient-to-b from-[#1a1a1d] to-[#0a0a0d] py-16 ${className}`}>
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <h2 className="text-4xl font-bold uppercase tracking-wide text-white md:text-5xl">
                         {title}
                     </h2>

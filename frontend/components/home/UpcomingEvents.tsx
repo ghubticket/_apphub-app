@@ -3,18 +3,16 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { 
-    HiOutlineCalendar, 
-    HiOutlineMapPin, 
-    HiOutlineSparkles, 
-    HiOutlineCreditCard, 
+import {
+    HiOutlineCalendar,
+    HiOutlineMapPin,
+    HiOutlineSparkles,
+    HiOutlineCreditCard,
     HiOutlineArrowPath,
     HiOutlineShieldCheck,
-    HiOutlineBolt,
     HiOutlineChartBar,
     HiOutlineQrCode,
     HiOutlineEnvelope,
-    HiOutlineDocumentText
 } from 'react-icons/hi2';
 import type { EventSummary } from '@/lib/ticketsCatalog';
 import { getProxiedImageUrl } from '@/lib/imageProxy';
@@ -44,8 +42,8 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-0 md:pt-16">
                 {/* Header */}
                 <div className="mb-12 flex items-center justify-between">
-                    <h2 className="text-3xl tracking-normal text-[#1a1a1d] md:text-4xl">
-                      Disponibilizamos evento <strong>teste para você!</strong> 
+                    <h2 className="text-3xl text-light tracking-normal text-[#1a1a1d] md:text-4xl">
+                        Disponibilizamos evento <strong>teste para você!</strong>
                     </h2>
                     {events.length > 4 && (
                         <Link
@@ -76,88 +74,88 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                     <div className="md:col-span-1 order-1">
                         <div className="grid grid-cols-1 gap-6">
                             {displayEvents.slice(0, 1).map((event) => {
-                        // Priorizar coverImage, depois squareImage, depois fallback
-                        const image = event.coverImage || event.squareImage;
-                        const hasError = imageErrors.has(event.id);
-                        const imageSrc = getProxiedImageUrl(image);
+                                // Priorizar coverImage, depois squareImage, depois fallback
+                                const image = event.coverImage || event.squareImage;
+                                const hasError = imageErrors.has(event.id);
+                                const imageSrc = getProxiedImageUrl(image);
 
-                        return (
-                            <Link
-                                key={event.id}
-                                href={`/eventos/${event.id}`}
-                                className="block"
-                            >
-                                <article
-                                    className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-md transition-all hover:shadow-xl cursor-pointer"
-                                >
-                                    {/* Imagem do evento */}
-                                    <div className="relative aspect-[07/10] md:aspect-[09/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
-                                        {hasError || !image ? (
-                                            <p className="text-center text-sm text-[#a38f78] px-4">
-                                                Imagem em construção.
-                                            </p>
-                                        ) : (
-                                            <Image
-                                                src={imageSrc}
-                                                alt={event.name || 'Evento'}
-                                                fill
-                                                className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                                sizes="(max-width: 768px) 100vw, 50vw"
-                                                unoptimized={false}
-                                                onError={() => handleImageError(event.id)}
-                                            />
-                                        )}
-                                    </div>
-
-                                    {/* Conteúdo do card */}
-                                    <div className="flex flex-1 flex-col p-6">
-                                        {/* Nome do evento */}
-                                        <h3 className="mb-4 text-xl font-bold leading-tight text-[#1a1a1d]">
-                                            {event.name ?? 'Evento em destaque'}
-                                        </h3>
-
-                                        {/* Local e data - sempre exibir com ícones */}
-                                        <div className="mb-6 space-y-3 text-sm text-[#6f6b63]">
-                                            {/* Local com ícone */}
-                                            {event.location || (event.city && event.state) ? (
-                                                <div className="flex items-center gap-2 mt-0">
-                                                    <HiOutlineMapPin className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
-                                                    <p>
-                                                        {event.location || `${event.city}, ${event.state}`}
+                                return (
+                                    <Link
+                                        key={event.id}
+                                        href={`/eventos/${event.id}`}
+                                        className="block"
+                                    >
+                                        <article
+                                            className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-md transition-all hover:shadow-xl cursor-pointer"
+                                        >
+                                            {/* Imagem do evento */}
+                                            <div className="relative aspect-[07/10] md:aspect-[09/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                                                {hasError || !image ? (
+                                                    <p className="text-center text-sm text-[#a38f78] px-4">
+                                                        Imagem em construção.
                                                     </p>
-                                                </div>
-                                            ) : null}
-                                            {/* Data com ícone */}
-                                            {event.formattedDate || event.date ? (
-                                                <div className="flex items-center gap-2 mt-0">
-                                                    <HiOutlineCalendar className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
-                                                    <p>
-                                                        {event.formattedDate ||
-                                                            (event.date
-                                                                ? new Date(event.date).toLocaleDateString('pt-BR', {
-                                                                    day: 'numeric',
-                                                                    month: 'long',
-                                                                    year: 'numeric'
-                                                                })
-                                                                : '')}
-                                                    </p>
-                                                </div>
-                                            ) : null}
-                                        </div>
+                                                ) : (
+                                                    <Image
+                                                        src={imageSrc}
+                                                        alt={event.name || 'Evento'}
+                                                        fill
+                                                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                                        sizes="(max-width: 768px) 100vw, 50vw"
+                                                        unoptimized={false}
+                                                        onError={() => handleImageError(event.id)}
+                                                    />
+                                                )}
+                                            </div>
 
-                                        {/* Botão CTA - não precisa de href pois o card inteiro é clicável */}
-                                        <div className="mt-auto">
-                                            <BuyTicketButton
-                                                variant="primary"
-                                                size="sm"
-                                                className="w-full justify-center pointer-events-none"
-                                            />
-                                        </div>
-                                    </div>
-                                </article>
-                            </Link>
-                        );
-                    })}
+                                            {/* Conteúdo do card */}
+                                            <div className="flex flex-1 flex-col p-6">
+                                                {/* Nome do evento */}
+                                                <h3 className="mb-4 text-xl font-bold leading-tight text-[#1a1a1d]">
+                                                    {event.name ?? 'Evento em destaque'}
+                                                </h3>
+
+                                                {/* Local e data - sempre exibir com ícones */}
+                                                <div className="mb-6 space-y-3 text-sm text-[#6f6b63]">
+                                                    {/* Local com ícone */}
+                                                    {event.location || (event.city && event.state) ? (
+                                                        <div className="flex items-center gap-2 mt-0">
+                                                            <HiOutlineMapPin className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
+                                                            <p>
+                                                                {event.location || `${event.city}, ${event.state}`}
+                                                            </p>
+                                                        </div>
+                                                    ) : null}
+                                                    {/* Data com ícone */}
+                                                    {event.formattedDate || event.date ? (
+                                                        <div className="flex items-center gap-2 mt-0">
+                                                            <HiOutlineCalendar className="h-4 w-4 flex-shrink-0 text-[#a38f78]" />
+                                                            <p>
+                                                                {event.formattedDate ||
+                                                                    (event.date
+                                                                        ? new Date(event.date).toLocaleDateString('pt-BR', {
+                                                                            day: 'numeric',
+                                                                            month: 'long',
+                                                                            year: 'numeric'
+                                                                        })
+                                                                        : '')}
+                                                            </p>
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+
+                                                {/* Botão CTA - não precisa de href pois o card inteiro é clicável */}
+                                                <div className="mt-auto">
+                                                    <BuyTicketButton
+                                                        variant="primary"
+                                                        size="sm"
+                                                        className="w-full justify-center pointer-events-none"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </article>
+                                    </Link>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -167,7 +165,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                             {/* Gradiente de fundo decorativo */}
                             <div className="absolute top-0 right-0 w-64 h-64 bg-[#f97316]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                             <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#f97316]/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-                            
+
                             <div className="relative z-10">
                                 {/* Header */}
                                 <div className="flex items-start gap-4 mb-8">
@@ -179,7 +177,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                             Evento Teste
                                         </h3>
                                         <p className="text-sm md:text-base text-gray-300 leading-relaxed">
-                                            Este é um evento para testar a plataforma e suas funcionalidades! 
+                                            Este é um evento para testar a plataforma e suas funcionalidades!
                                             <span className="inline-block ml-2 animate-pulse">✨</span>
                                         </p>
                                     </div>
