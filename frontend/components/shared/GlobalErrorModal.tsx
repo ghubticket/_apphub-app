@@ -29,6 +29,31 @@ export default function GlobalErrorModal() {
         }
     }, [error.isOpen]);
 
+    // Fechar com ESC
+    useEffect(() => {
+        if (!error.isOpen) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                hideError();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [error.isOpen, hideError]);
+
+    // Bloquear scroll do body quando modal estiver aberta
+    useEffect(() => {
+        if (!error.isOpen) return;
+
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = original;
+        };
+    }, [error.isOpen]);
+
     if (!mounted || !error.isOpen) return null;
 
     const activeClass = entering
@@ -73,11 +98,11 @@ export default function GlobalErrorModal() {
 
     return (
         <div
-            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm transition-all duration-300 ${activeClass}`}
+            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 transition-all duration-300 ${entering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
             onClick={hideError}
         >
             <div
-                className="relative mx-4 w-full max-w-lg rounded-2xl bg-white shadow-2xl transition-all duration-300"
+                className={`relative w-full max-w-lg rounded-2xl bg-white shadow-2xl transition-all duration-300 ${activeClass}`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex flex-col items-center gap-6 p-8 text-center">

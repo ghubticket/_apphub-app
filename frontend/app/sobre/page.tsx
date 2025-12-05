@@ -15,6 +15,9 @@ import {
     HiOutlineCheckCircle,
     HiOutlineArrowRight,
     HiOutlineBolt,
+    HiOutlineChatBubbleLeftRight,
+    HiOutlineSparkles,
+    HiOutlineCreditCard,
 } from 'react-icons/hi2';
 
 export default function SobrePage() {
@@ -28,7 +31,7 @@ export default function SobrePage() {
             />
             <main className="min-h-screen bg-white">
             {/* Hero Section */}
-            <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white py-20 md:py-32">
+            <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white pt-40 pb-20 md:py-40">
                 <div className="absolute inset-0 bg-[url('/images/pattern.svg')] opacity-5"></div>
                 <Container>
                     <div className="relative z-10 max-w-4xl mx-auto text-center">
@@ -60,10 +63,9 @@ export default function SobrePage() {
                             <span className="text-3xl md:text-5xl">Você no Comando.</span>
                         </h1>
                         <p className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed">
-                            A <strong className="text-white">Vicente</strong> é muito mais do que uma plataforma de{' '}
+                            A <strong className="text-white">Vicente</strong> é muito mais do que uma plataforma de <br /> {' '}
                             <span className="line-through opacity-50">venda de ingressos</span> —{' '}
                             <span className="text-[#f97316] font-semibold">ingressos é só o tchan</span>! 
-                            <span className="inline-block ml-2 animate-bounce">🎯</span>
                             <br />
                             <span className="text-lg md:text-xl mt-2 block">
                                 Você pode ter <strong className="text-white">tudooooo isso</strong>: seu site exclusivo, 
@@ -196,8 +198,7 @@ export default function SobrePage() {
                             <div className="absolute bottom-4 left-4 text-5xl md:text-6xl opacity-20 animate-pulse" style={{ animationDelay: '0.3s' }}>🎉</div>
                             <div className="relative z-10">
                                 <h3 className="text-2xl md:text-3xl font-bold mb-4">
-                                    Sem Filas. Sem Eventos Concorrentes. Sem Chamados.
-                                    <span className="inline-block ml-2 animate-bounce">🚀</span>
+                                    Sem Filas. <br /> Sem Eventos Concorrentes. <br /> Sem Chamados.
                                 </h3>
                                 <p className="text-lg md:text-xl opacity-90 mb-6">
                                     A experiência que seus clientes merecem: rápida, focada e exclusiva.
@@ -207,10 +208,10 @@ export default function SobrePage() {
                                     href="https://wa.me/5511982631238?text=Olá! Quero experimentar a Vicente! 🚀"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#f97316] font-semibold rounded-full hover:bg-gray-100 transition-all transform hover:scale-105"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-[#f97316] font-semibold rounded-full hover:bg-gray-100 transition-all transform hover:scale-105"
                                 >
                                     Experimente Agora
-                                    <HiOutlineArrowRight />
+                                    <HiOutlineArrowRight className="text-xl" />
                                 </a>
                             </div>
                         </div>
@@ -547,6 +548,194 @@ export default function SobrePage() {
                 </Container>
             </section>
 
+            {/* CRM - Gestão de Relacionamento */}
+            <section className="py-20 md:py-28 bg-gradient-to-b from-white to-[#faf7f0]">
+                <Container>
+                    <div className="max-w-6xl mx-auto">
+                        <div className="text-center mb-16">
+                            <div className="flex justify-center gap-3 mb-4">
+                                <span className="text-5xl md:text-6xl animate-bounce">💬</span>
+                                <span className="text-5xl md:text-6xl animate-pulse" style={{ animationDelay: '0.2s' }}>📧</span>
+                                <span className="text-5xl md:text-6xl animate-bounce" style={{ animationDelay: '0.4s' }}>🎯</span>
+                            </div>
+                            <h2 className="text-3xl md:text-5xl font-bold text-[#1a1a1d] mb-6">
+                                CRM Completo para Seus Clientes
+                            </h2>
+                            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                                Automatize sua comunicação e mantenha seus clientes sempre próximos! 
+                                <span className="inline-block ml-2 animate-pulse">🚀</span>
+                            </p>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-8">
+                            {/* Disparo WhatsApp */}
+                            <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <HiOutlineChatBubbleLeftRight className="text-3xl text-[#f97316]" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold mb-3">Disparo de WhatsApp</h3>
+                                        <p className="text-gray-300 leading-relaxed mb-4">
+                                            Envie mensagens automáticas para seus clientes via WhatsApp.
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Mensagens Personalizadas</strong> com templates prontos
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Confirmação de Pedidos</strong> automática
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Lembretes de Eventos</strong> antes da data
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Campanhas Segmentadas</strong> por público
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* Régua de Email */}
+                            <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <HiOutlineEnvelope className="text-3xl text-[#f97316]" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-[#1a1a1d] mb-3">Régua de Email</h3>
+                                        <p className="text-gray-600 leading-relaxed mb-4">
+                                            Automatize sequências de emails para nutrir seus clientes.
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Sequências Automáticas</strong> de follow-up
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Emails de Boas-Vindas</strong> para novos clientes
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Lembretes Personalizados</strong> por evento
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Análise de Engajamento</strong> e aberturas
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* Aniversário Automático */}
+                            <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <HiOutlineSparkles className="text-3xl text-[#f97316]" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-[#1a1a1d] mb-3">Aniversário Automático</h3>
+                                        <p className="text-gray-600 leading-relaxed mb-4">
+                                            Surpreenda seus clientes com mensagens automáticas no aniversário!
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Disparo Automático</strong> no dia do aniversário
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Cupons Especiais</strong> de aniversariante
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Mensagens Personalizadas</strong> com nome do cliente
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Aumenta Fidelização</strong> e engajamento
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* Gestão de Clientes */}
+                            <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <HiOutlineChartBar className="text-3xl text-[#f97316]" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold mb-3">Gestão Completa de Clientes</h3>
+                                        <p className="text-gray-300 leading-relaxed mb-4">
+                                            Centralize todas as informações dos seus clientes em um só lugar.
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Histórico Completo</strong> de compras e interações
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Segmentação Avançada</strong> por comportamento
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Tags e Etiquetas</strong> para organização
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Relatórios Detalhados</strong> de relacionamento
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </Container>
+            </section>
+
             {/* Validação QR Code */}
             <section className="py-20 md:py-28 bg-gradient-to-b from-[#faf7f0] to-white">
                 <Container>
@@ -681,6 +870,195 @@ export default function SobrePage() {
                 </Container>
             </section>
 
+            {/* O que vem por aí? */}
+            <section className="py-20 md:py-28 bg-gradient-to-b from-white to-[#faf7f0]">
+                <Container>
+                    <div className="max-w-5xl mx-auto">
+                        <div className="text-center mb-16">
+                            <div className="flex justify-center gap-3 mb-4">
+                                <span className="text-5xl md:text-6xl animate-bounce">🔮</span>
+                                <span className="text-5xl md:text-6xl animate-pulse" style={{ animationDelay: '0.2s' }}>✨</span>
+                                <span className="text-5xl md:text-6xl animate-bounce" style={{ animationDelay: '0.4s' }}>🚀</span>
+                            </div>
+                            <h2 className="text-3xl md:text-5xl font-bold text-[#1a1a1d] mb-6">
+                                O que vem por aí?
+                            </h2>
+                            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                                Estamos sempre evoluindo! Confira o que está chegando em breve... 
+                                <span className="inline-block ml-2 animate-pulse">💫</span>
+                            </p>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-8">
+                            {/* Parcelamento Boleto */}
+                            <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl border-2 border-[#f97316]/20">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <HiOutlineDocumentText className="text-3xl text-[#f97316]" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold mb-3">Parcelamento via Boleto</h3>
+                                        <p className="text-gray-300 leading-relaxed mb-4">
+                                            Seus clientes poderão parcelar compras usando boleto bancário!
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Parcelamento Flexível</strong> em até 12x
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Boleto Parcelado</strong> com vencimentos automáticos
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Mais Opções</strong> para seus clientes
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* PIX Parcelado */}
+                            <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border-2 border-[#f97316]/20">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <HiOutlineCreditCard className="text-3xl text-[#f97316]" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-[#1a1a1d] mb-3">PIX Parcelado</h3>
+                                        <p className="text-gray-600 leading-relaxed mb-4">
+                                            A praticidade do PIX com a flexibilidade do parcelamento!
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">PIX em Parcelas</strong> com débito automático
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Aprovação Instantânea</strong> como PIX normal
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Mais Conversão</strong> nas suas vendas
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* App Mobile */}
+                            <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border-2 border-[#f97316]/20">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <span className="text-3xl">📱</span>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-[#1a1a1d] mb-3">App Mobile</h3>
+                                        <p className="text-gray-600 leading-relaxed mb-4">
+                                            Seus clientes terão um app exclusivo para seus eventos!
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">App Personalizado</strong> com sua marca
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Notificações Push</strong> em tempo real
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-700">
+                                            <strong className="text-[#1a1a1d]">Ingressos no Celular</strong> sempre à mão
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* Integrações */}
+                            <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl border-2 border-[#f97316]/20">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <HiOutlineBolt className="text-3xl text-[#f97316]" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold mb-3">Mais Integrações</h3>
+                                        <p className="text-gray-300 leading-relaxed mb-4">
+                                            Conecte a Vicente com suas ferramentas favoritas!
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">API Completa</strong> para integrações customizadas
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Webhooks</strong> para eventos em tempo real
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
+                                        <span className="text-gray-300">
+                                            <strong className="text-white">Zapier e Make</strong> para automações
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* Box de destaque */}
+                        <div className="mt-12 bg-gradient-to-r from-[#f97316] to-[#ea6820] rounded-3xl p-8 md:p-12 text-white text-center relative overflow-hidden">
+                            <div className="absolute top-4 right-4 text-5xl md:text-6xl opacity-20 animate-pulse">🎉</div>
+                            <div className="absolute bottom-4 left-4 text-5xl md:text-6xl opacity-20 animate-pulse" style={{ animationDelay: '0.3s' }}>🚀</div>
+                            <div className="relative z-10">
+                                <h3 className="text-2xl md:text-3xl font-bold mb-4">
+                                    E muito mais vindo por aí!
+                                    <span className="inline-block ml-2 animate-bounce">✨</span>
+                                </h3>
+                                <p className="text-lg md:text-xl opacity-90 mb-6">
+                                    Estamos sempre trabalhando em novas funcionalidades para tornar sua experiência ainda melhor.
+                                    <span className="inline-block ml-2 animate-pulse">💪</span>
+                                </p>
+                                <a
+                                    href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre as novidades! 🚀"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-[#f97316] font-semibold rounded-full hover:bg-gray-100 transition-all transform hover:scale-105"
+                                >
+                                    Quero Saber Mais
+                                    <HiOutlineArrowRight className="text-xl" />
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </Container>
+            </section>
+
             {/* CTA Final */}
             <section className="py-20 md:py-28 bg-gradient-to-r from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white">
                 <Container>
@@ -704,16 +1082,16 @@ export default function SobrePage() {
                                 href="https://wa.me/5511982631238?text=Olá! Quero criar minha conta na Vicente! 🚀"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center gap-2 px-10 py-5 bg-[#f97316] hover:bg-[#ea6820] text-white font-bold text-lg rounded-full transition-all transform hover:scale-105 shadow-xl hover:shadow-2xl"
+                                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
                             >
                                 Criar Minha Conta Agora
-                                <HiOutlineArrowRight className="text-2xl" />
+                                <HiOutlineArrowRight className="text-xl" />
                             </a>
                             <a
                                 href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre a plataforma! 💬"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center gap-2 px-10 py-5 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold text-lg rounded-full transition-all"
+                                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold rounded-full transition-all"
                             >
                                 Fale com o Vicente!
                             </a>

@@ -33,6 +33,31 @@ export default function WelcomeModal() {
         }, 250);
     };
 
+    // Fechar com ESC
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                handleClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen]);
+
+    // Bloquear scroll do body quando modal estiver aberta
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = original;
+        };
+    }, [isOpen]);
+
     if (!mounted || !isOpen) return null;
 
     const activeClass = entering
@@ -54,11 +79,11 @@ export default function WelcomeModal() {
                 className={`fixed inset-0 z-[61] flex items-center justify-center p-4 transition-all duration-300 ${activeClass}`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="relative w-full max-w-lg bg-white rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden border border-gray-100 max-h-[90vh] flex flex-col">
+                <div className="relative w-full max-w-lg bg-white rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden border max-h-[90vh] flex flex-col">
                     {/* Close button */}
                     <button
                         onClick={handleClose}
-                        className="absolute top-3 right-3 md:top-4 md:right-4 z-10 inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all"
+                        className="hidden md:inline-flex absolute top-3 right-3 md:top-4 md:right-4 z-10 items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all"
                         aria-label="Fechar"
                     >
                         <HiOutlineXMark className="w-4 h-4 md:w-5 md:h-5" />
@@ -71,7 +96,7 @@ export default function WelcomeModal() {
                             <div className="text-center">
                                 <h2 className="text-xl md:text-2xl lg:text-3xl font-bold">
                                     Olá! Eu sou o <span className="text-[#f97316]">Vicente</span>
-                                    <span className="ml-1 md:ml-2">🎉</span>
+                                    <span className="ml-1 md:ml-2"></span>
                                 </h2>
                                 <p className="text-xs md:text-sm text-gray-300 mt-0.5 md:mt-1">
                                     O app pro seu rolê!
@@ -83,24 +108,21 @@ export default function WelcomeModal() {
                         <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
                             {/* Mensagem principal */}
                             <div className="space-y-3 md:space-y-4">
-                                <p className="text-sm md:text-base lg:text-lg text-gray-700 leading-relaxed">
-                                    Aqui não tem distração de outros eventos, o app <strong className="text-[#1a1a1d]">É SEU</strong>,{' '}
+                                <p className="text-sm text-center md:text-base lg:text-lg text-gray-700 leading-relaxed">
+                                    Aqui não tem distração de outros eventos, o app <br /> <strong className="text-[#1a1a1d]">É SEU</strong>,{' '}
                                     <strong className="text-[#f97316]">ÚNICO</strong>, exclusivo!
-                                    <span className="inline-block ml-1 md:ml-2 animate-pulse">🔥</span>
                                 </p>
 
                                 <div className="bg-gradient-to-r from-[#f97316]/10 to-[#ea6820]/10 rounded-xl md:rounded-2xl p-4 md:p-5 border border-[#f97316]/20">
                                     <div className="flex items-start gap-2 md:gap-3">
-                                        <span className="text-xl md:text-2xl flex-shrink-0">🎭</span>
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="font-bold text-[#1a1a1d] mb-1 md:mb-2 text-sm md:text-base">
+                                            <h3 className="font-bold text-center text-[#1a1a1d] mb-1 md:mb-2 text-sm md:text-base">
                                                 Loja Demo
                                                 <span className="text-xs md:text-sm font-normal text-gray-500 block md:inline md:ml-2">(mas os pedidos são reais!)</span>
                                             </h3>
-                                            <p className="text-xs md:text-sm lg:text-base text-gray-600 leading-relaxed">
+                                            <p className="text-xs text-center md:text-sm lg:text-base text-gray-600 leading-relaxed">
                                                 Essa é uma <strong>loja demo</strong> para você conhecer a plataforma. 
                                                 Todos os pedidos são <strong>reais</strong>, então pode usar e abusar para testar os limites! 
-                                                <span className="inline-block ml-1 animate-bounce">💪</span>
                                             </p>
                                         </div>
                                     </div>

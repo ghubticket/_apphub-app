@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
 interface OrderExpiredModalProps {
     onCreateNew: () => void; // Criar novo pedido
@@ -12,13 +12,51 @@ interface OrderExpiredModalProps {
  * Usuário precisa confirmar para criar um novo pedido
  */
 export function OrderExpiredModal({ onCreateNew, onClose }: OrderExpiredModalProps) {
+    const [mounted, setMounted] = useState(false);
+    const [entering, setEntering] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        const frame = requestAnimationFrame(() => {
+            setEntering(true);
+        });
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
+    // Fechar com ESC
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
+    // Bloquear scroll do body quando modal estiver aberta
+    useEffect(() => {
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = original;
+        };
+    }, []);
+
+    const activeClass = entering
+        ? 'opacity-100 translate-y-0 pointer-events-auto scale-100'
+        : 'opacity-0 translate-y-3 pointer-events-none scale-95';
+
+    if (!mounted) return null;
+
     return (
         <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300 ${entering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
             onClick={onClose}
         >
             <div 
-                className="w-full max-w-md rounded-3xl border border-rose-200 bg-white p-8 shadow-xl"
+                className={`w-full max-w-md rounded-3xl border border-rose-200 bg-white p-8 shadow-xl transition-all duration-300 ${activeClass}`}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Ícone de aviso */}

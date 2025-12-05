@@ -12,6 +12,7 @@ import { APP_NAME } from '@/lib/config';
 import { getProxiedImageUrl } from '@/lib/imageProxy';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { generateBreadcrumbStructuredData } from '@/lib/seo';
+import WelcomeModal from '@/components/shared/WelcomeModal';
 
 export default function Home() {
     // Limpar qualquer estado de processamento de pagamento ao entrar na HOME
@@ -140,6 +141,7 @@ export default function Home() {
                     </>
                 )}
             </main>
+            <WelcomeModal />
         </>
     );
 }

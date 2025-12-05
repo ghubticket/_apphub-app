@@ -3,19 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { HiOutlineTicket } from 'react-icons/hi';
-import { HiOutlineUserCircle, HiOutlineXMark, HiOutlineBars3 } from 'react-icons/hi2';
+import { HiOutlineUserCircle, HiOutlineXMark, HiOutlineBars3, HiOutlineArrowRight } from 'react-icons/hi2';
 import Container from '@/components/shared/Container';
 import styles from './Header.module.scss';
 import { useAuth } from '@/context/AuthContext';
-import {
-    CART_OPEN_EVENT,
-    CART_STORAGE_KEY,
-    CART_UPDATED_EVENT,
-    CartItem,
-    loadCartItems,
-    removeCartItem,
-} from '@/lib/cart';
 import { APP_LOGO, APP_LOGO_ALT } from '@/lib/config';
 
 const upcomingEvents = [
@@ -26,11 +17,9 @@ const upcomingEvents = [
 ];
 
 const navigationLinks = [
-    { label: 'Agenda', href: '/agenda' },
-    { label: 'Experiências', href: '/experiencias' },
-    { label: 'Fotos', href: '/fotos' },
-    { label: 'Vídeos', href: '/videos' },
-    { label: 'Contato', href: '/contato' },
+    { label: 'Sobre', href: '/sobre' },
+    { label: 'Política de Privacidade', href: '/privacidade' },
+    { label: 'Termos de Uso', href: '/termos' },
 ];
 
 const formatDate = (isoDate: string) =>
@@ -41,12 +30,11 @@ const formatDate = (isoDate: string) =>
 
 export default function Header() {
     const headerRef = useRef<HTMLElement>(null);
-    const { user, isAuthenticated, isReady, logout } = useAuth();
-    const [cartItems, setCartItems] = useState<CartItem[]>([]);
-    const [isCartDrawerVisible, setIsCartDrawerVisible] = useState(false);
-    const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
+    const { user, isAuthenticated, logout } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const cartCloseTimeoutRef = useRef<number | null>(null);
+    const [isMobileMenuEntering, setIsMobileMenuEntering] = useState(false);
+    const [isFullMenuOpen, setIsFullMenuOpen] = useState(false);
+    const [isFullMenuEntering, setIsFullMenuEntering] = useState(false);
 
     const welcomeName = useMemo(() => {
         if (!user) return '';
@@ -72,107 +60,74 @@ export default function Header() {
         };
     }, []);
 
-    const readCartFromStorage = useCallback(() => {
-        setCartItems(loadCartItems());
+
+    const openFullMenu = useCallback(() => {
+        setIsFullMenuOpen(true);
+        requestAnimationFrame(() => {
+            setIsFullMenuEntering(true);
+        });
     }, []);
 
-    useEffect(() => {
-        readCartFromStorage();
-    }, [readCartFromStorage]);
-
-    const openCartDrawer = useCallback(() => {
-        if (cartCloseTimeoutRef.current) {
-            window.clearTimeout(cartCloseTimeoutRef.current);
-            cartCloseTimeoutRef.current = null;
-        }
-        setIsCartDrawerVisible(true);
-        requestAnimationFrame(() => setIsCartDrawerOpen(true));
+    const closeFullMenu = useCallback(() => {
+        setIsFullMenuEntering(false);
+        setTimeout(() => {
+            setIsFullMenuOpen(false);
+        }, 300);
     }, []);
 
-    const closeCartDrawer = useCallback(() => {
-        if (cartCloseTimeoutRef.current) {
-            window.clearTimeout(cartCloseTimeoutRef.current);
-            cartCloseTimeoutRef.current = null;
-        }
-        setIsCartDrawerOpen(false);
-        cartCloseTimeoutRef.current = window.setTimeout(() => {
-            setIsCartDrawerVisible(false);
-            cartCloseTimeoutRef.current = null;
-        }, 280);
+    const openMobileMenu = useCallback(() => {
+        setIsMobileMenuOpen(true);
+        requestAnimationFrame(() => {
+            setIsMobileMenuEntering(true);
+        });
     }, []);
 
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const handleStorage = (event: StorageEvent) => {
-            if (!event.key || event.key === CART_STORAGE_KEY) {
-                readCartFromStorage();
-            }
-        };
-        const handleCustomUpdate = () => readCartFromStorage();
-        const handleCartOpen = () => openCartDrawer();
-        window.addEventListener('storage', handleStorage);
-        window.addEventListener(CART_UPDATED_EVENT, handleCustomUpdate);
-        window.addEventListener(CART_OPEN_EVENT, handleCartOpen);
-        return () => {
-            window.removeEventListener('storage', handleStorage);
-            window.removeEventListener(CART_UPDATED_EVENT, handleCustomUpdate);
-            window.removeEventListener(CART_OPEN_EVENT, handleCartOpen);
-        };
-    }, [readCartFromStorage, openCartDrawer]);
+    const closeMobileMenu = useCallback(() => {
+        setIsMobileMenuEntering(false);
+        setTimeout(() => {
+            setIsMobileMenuOpen(false);
+        }, 300);
+    }, []);
 
-    useEffect(
-        () => () => {
-            if (cartCloseTimeoutRef.current) {
-                window.clearTimeout(cartCloseTimeoutRef.current);
-            }
-        },
-        [],
-    );
-
+    // Fechar menu com ESC
     useEffect(() => {
-        if (!isCartDrawerVisible) return;
+        if (!isFullMenuOpen) return;
 
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                closeCartDrawer();
+                closeFullMenu();
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isCartDrawerVisible, closeCartDrawer]);
+    }, [isFullMenuOpen, closeFullMenu]);
 
+    // Bloquear scroll quando menu estiver aberto
     useEffect(() => {
-        if (typeof document === 'undefined') return;
+        if (!isFullMenuOpen && !isMobileMenuOpen) return;
 
-        if (isCartDrawerVisible) {
-            const original = document.body.style.overflow;
-            document.body.style.overflow = 'hidden';
-            return () => {
-                document.body.style.overflow = original;
-            };
-        }
-        return undefined;
-    }, [isCartDrawerVisible]);
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = original;
+        };
+    }, [isFullMenuOpen, isMobileMenuOpen]);
 
-    const cartSubtotal = useMemo(
-        () =>
-            cartItems.reduce((total, item) => {
-                const quantity = Number.isFinite(item.quantity) ? item.quantity : 0;
-                const price = Number.isFinite(item.price) ? item.price : 0;
-                return total + quantity * price;
-            }, 0),
-        [cartItems],
-    );
+    // Fechar menu mobile com ESC
+    useEffect(() => {
+        if (!isMobileMenuOpen) return;
 
-    const formatCurrency = useMemo(
-        () =>
-            new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-            }),
-        [],
-    );
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                closeMobileMenu();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isMobileMenuOpen, closeMobileMenu]);
+
 
     return (
         <header ref={headerRef} className="relative z-20 w-full">
@@ -225,11 +180,11 @@ export default function Header() {
                                     alt={APP_LOGO_ALT}
                                     width={40}
                                     height={20}
-                                    className="h-auto w-10 md:w-20 lg:w-10"
+                                    className="h-auto w-9 md:w-20 lg:w-10"
                                     priority
                                 />
 
-                                <span className='text-base md:text-2xl font-bold text-gray-800'>Vicente</span>
+                                <span className='text-xs md:text-2xl font-bold text-gray-800'>Vicente</span>
                             </Link>
 
                             <p className='hidden md:block text-base text-gray-600'>
@@ -239,62 +194,73 @@ export default function Header() {
                                 Sem filas, sem concorrência, sem stress!
                             </p>
 
-                            <div className="flex gap-3 md:gap-4">
-                                {/* Menu Mobile - Sobre */}
-                                <Link
-                                    href="/sobre"
-                                    className="md:hidden flex items-center justify-center h-9 px-3 rounded-full border border-[#ded7ca] bg-white/60 backdrop-blur-sm text-[#1a1a1d] transition hover:border-[#f97316] hover:bg-[#f97316]/10 hover:text-[#f97316] text-xs font-semibold"
-                                    aria-label="Sobre"
-                                >
-                                    Sobre
-                                </Link>
-
+                            <div className="flex gap-2 items-center md:gap-4">
+                                {/* Hamburger Menu Mobile */}
                                 <button
                                     type="button"
-                                    onClick={openCartDrawer}
-                                    className="hidden md:flex group relative h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border border-[#ded7ca] bg-white/60 backdrop-blur-sm text-[#1a1a1d] transition hover:border-[#f97316] hover:bg-[#f97316]/10 hover:text-[#f97316]"
-                                    aria-label="Ingressos"
+                                    onClick={isMobileMenuOpen ? closeMobileMenu : openMobileMenu}
+                                    className="md:hidden flex flex-col items-center justify-center w-10 h-10 gap-1.5 group transition-all duration-300 border border-[#1a1a1d]/20 rounded-full hover:border-[#f97316]/50"
+                                    aria-label="Menu"
                                 >
-                                    <HiOutlineTicket className="text-xl" />
-                                    {cartItems.length ? (
-                                        <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#f97316] px-1 text-[0.6rem] font-semibold text-white">
-                                            {cartItems.length}
-                                        </span>
-                                    ) : null}
+                                    <span
+                                        className={`block h-px w-6 bg-[#1a1a1d] transition-all duration-300 ${isMobileMenuOpen
+                                                ? 'rotate-45 translate-y-2'
+                                                : 'group-hover:bg-[#f97316]'
+                                            }`}
+                                    />
+                                    <span
+                                        className={`block h-px w-6 bg-[#1a1a1d] transition-all duration-300 ${isMobileMenuOpen ? 'opacity-0' : 'group-hover:bg-[#f97316]'
+                                            }`}
+                                    />
+                                    <span
+                                        className={`block h-px w-6 bg-[#1a1a1d] transition-all duration-300 ${isMobileMenuOpen
+                                                ? '-rotate-45 -translate-y-2'
+                                                : 'group-hover:bg-[#f97316]'
+                                            }`}
+                                    />
+                                </button>
+
+                                {/* Hamburger Menu Desktop */}
+                                <button
+                                    type="button"
+                                    onClick={isFullMenuOpen ? closeFullMenu : openFullMenu}
+                                    className="hidden md:flex flex-col items-center justify-center w-10 h-10 gap-1.5 group transition-all duration-300 border border-[#1a1a1d]/20 rounded-full hover:border-[#f97316]/50"
+                                    aria-label="Menu"
+                                >
+                                    <span
+                                        className={`block h-px w-6 bg-[#1a1a1d] transition-all duration-300 ${isFullMenuEntering
+                                                ? 'rotate-45 translate-y-2 bg-white'
+                                                : 'group-hover:bg-[#f97316]'
+                                            }`}
+                                    />
+                                    <span
+                                        className={`block h-px w-6 bg-[#1a1a1d] transition-all duration-300 ${isFullMenuEntering ? 'opacity-0' : 'group-hover:bg-[#f97316]'
+                                            }`}
+                                    />
+                                    <span
+                                        className={`block h-px w-6 bg-[#1a1a1d] transition-all duration-300 ${isFullMenuEntering
+                                                ? '-rotate-45 -translate-y-2 bg-white'
+                                                : 'group-hover:bg-[#f97316]'
+                                            }`}
+                                    />
                                 </button>
 
                                 {isAuthenticated && welcomeName ? (
-                                    <div className="flex items-center gap-3 text-[#1a1a1d]">
-                                        <Link
-                                            href="/dashboard"
-                                            className="group inline-flex items-center h-full rounded-full gap-2 bg-[#1a1a1d] text-white px-4 py-1.5 text-xs md:px-6 md:py-2 md:text-sm font-semibold uppercase transition hover:bg-[#f97316] hover:text-white"
-                                        >
-                                            <HiOutlineUserCircle className="text-base md:text-lg group-hover:text-white" />
-                                            <span className="md:hidden">Meu perfil</span>
-                                            <span className="hidden md:inline">
-                                                Olá, <strong className="font-bold">{welcomeName}</strong>
-                                            </span>
-                                        </Link>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                logout();
-                                                if (typeof window !== 'undefined') {
-                                                    window.location.href = '/';
-                                                }
-                                            }}
-                                            className="hidden md:inline font-medium text-[#4c4c55] hover:text-[#1a1a1d] transition underline"
-                                        >
-                                            Sair
-                                        </button>
-                                    </div>
+                                    <Link
+                                        href="/dashboard"
+                                        className="group inline-flex items-center justify-center w-10 h-10 md:w-auto md:h-10 rounded-full gap-2 bg-[#1a1a1d] text-white px-4 md:px-6 text-xs md:text-sm font-semibold uppercase transition hover:bg-[#f97316] hover:text-white"
+                                    >
+                                        <HiOutlineUserCircle className="text-xl w-5 h-5 flex-shrink-0 group-hover:text-white" />
+                                        <span className="hidden md:inline">
+                                            Olá, <strong className="font-bold">{welcomeName}</strong>
+                                        </span>
+                                    </Link>
                                 ) : (
                                     <Link
                                         href="/login"
-                                        className="group inline-flex items-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] text-xs h-9 w-9 md:h-11 md:w-11 justify-center md:text-sm font-semibold uppercase text-white transition hover:bg-[#f97316] hover:border-[#f97316] hover:text-white lg:inline-flex"
+                                        className="group inline-flex items-center justify-center w-10 h-10 rounded-full border border-[#1a1a1d] bg-[#1a1a1d] text-xs font-semibold uppercase text-white transition hover:bg-[#f97316] hover:border-[#f97316] hover:text-white"
                                     >
-                                        <HiOutlineUserCircle className="text-xl group-hover:text-white" />
-
+                                        <HiOutlineUserCircle className="text-xl w-5 h-5 group-hover:text-white" />
                                     </Link>
                                 )}
                             </div>
@@ -303,144 +269,274 @@ export default function Header() {
                 </Container>
             </div>
 
-            {isCartDrawerVisible ? (
+            {/* Mobile Menu */}
+            {isMobileMenuOpen ? (
                 <div
-                    className={`fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isCartDrawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+                    className={`md:hidden fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isMobileMenuEntering ? 'opacity-100' : 'opacity-0'
                         }`}
-                    onMouseDown={(event) => {
-                        if (event.target === event.currentTarget) {
-                            closeCartDrawer();
-                        }
-                    }}
+                    onClick={closeMobileMenu}
                 >
-                    <aside
-                        className={`relative flex h-full w-full max-w-md flex-col bg-white text-[#1a1a1d] shadow-[0_30px_60px_-25px_rgba(20,20,32,0.45)] transition-transform duration-300 ${isCartDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+                    <div
+                        className={`absolute right-0 top-0 h-full w-[85%] max-w-sm bg-[#1a1a1d] shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${isMobileMenuEntering ? 'translate-x-0' : 'translate-x-full'
                             }`}
-                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
                     >
-                        <header className="flex items-start justify-between border-b border-[#e5dfd4] px-6 py-6">
-                            <div>
-                                <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
-                                    Meus ingressos
-                                </span>
-                                <h2 className="mt-2 text-xl font-semibold uppercase tracking-normal text-[#1a1a1d]">
-                                    Carrinho
-                                </h2>
-                            </div>
+                        {/* Header do Menu Mobile */}
+                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                            <Link
+                                href="/"
+                                onClick={closeMobileMenu}
+                                className="flex items-center gap-2"
+                            >
+                                <Image
+                                    src={APP_LOGO}
+                                    alt={APP_LOGO_ALT}
+                                    width={30}
+                                    height={15}
+                                    className="h-auto w-8"
+                                />
+                                <span className="text-xl font-bold text-white">Vicente</span>
+                            </Link>
                             <button
                                 type="button"
-                                onClick={closeCartDrawer}
-                                className="inline-flex h-9 md:w-9 w-10 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-[#1a1a1d]"
-                                aria-label="Fechar carrinho"
+                                onClick={closeMobileMenu}
+                                className="w-10 h-10 rounded-full border-2 border-white/20 flex items-center justify-center text-white hover:border-[#f97316] hover:text-[#f97316] transition-all"
+                                aria-label="Fechar menu"
                             >
-                                <HiOutlineXMark className="text-xl" />
+                                <HiOutlineXMark className="w-5 h-5" />
                             </button>
-                        </header>
-
-                        <div className="flex-1 overflow-y-auto px-6 py-6">
-                            {cartItems.length ? (
-                                <ul className="space-y-5">
-                                    {cartItems.map((item) => (
-                                        <li
-                                            key={item.id}
-                                            className="relative rounded-2xl border border-[#ded7ca] bg-[#faf7f0] p-5 shadow-[0_18px_38px_-28px_rgba(20,20,32,0.35)]"
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    removeCartItem(item.id);
-                                                    readCartFromStorage();
-                                                }}
-                                                className="absolute right-5 top-5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#ded7ca] text-[#6f6b63] transition hover:border-rose-300 hover:text-rose-500"
-                                                aria-label={`Remover ${item.name} do carrinho`}
-                                            >
-                                                <HiOutlineXMark className="text-lg" />
-                                            </button>
-                                            <div className="flex flex-col gap-3">
-                                                <div className="flex items-start justify-between gap-4 pr-10">
-                                                    <div className="space-y-1">
-                                                        <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[#a38f78]">
-                                                            Evento
-                                                        </span>
-                                                        <p className="text-base font-semibold uppercase tracking-[0.1em] text-[#1a1a1d]">
-                                                            {item.name}
-                                                        </p>
-                                                    </div>
-                                                    <span className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#6f6b63]">
-                                                        {item.quantity}x
-                                                    </span>
-                                                </div>
-                                                {item.date || item.location ? (
-                                                    <p className="text-xs font-medium text-[#6f6b63]">
-                                                        {item.date ? (
-                                                            <span>{item.date}</span>
-                                                        ) : null}
-                                                        {item.date && item.location ? ' • ' : ''}
-                                                        {item.location ? <span>{item.location}</span> : null}
-                                                    </p>
-                                                ) : null}
-                                                <div className="flex items-center justify-between text-sm font-semibold text-[#1a1a1d]">
-                                                    <span>Subtotal</span>
-                                                    <span>{formatCurrency.format(item.quantity * item.price)}</span>
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <div className="rounded-2xl border border-dashed border-[#ded7ca] bg-white/70 p-6 text-center text-sm text-[#7d796c]">
-                                    Seu carrinho está vazio.
-                                </div>
-                            )}
                         </div>
 
-                        <footer className="border-t border-[#e5dfd4] px-6 py-6">
-                            <div className="flex items-center justify-between text-sm font-semibold text-[#1a1a1d]">
-                                <span>Total</span>
-                                <span>{formatCurrency.format(cartSubtotal)}</span>
+                        {/* Navigation Links Mobile */}
+                        <nav className="flex-1 overflow-y-auto p-4">
+                            <div className="space-y-1">
+                                {navigationLinks.map((link) => (
+                                    <Link
+                                        key={link.href}
+                                        href={link.href}
+                                        onClick={closeMobileMenu}
+                                        className="block px-3 py-1 text-base font-semibold text-white hover:text-[#f97316] hover:bg-white/5 rounded-lg transition-all"
+                                    >
+                                        {link.label}
+                                    </Link>
+                                ))}
                             </div>
-                            <div className="mt-4">
-                                <Link
-                                    href="/checkout"
-                                    className={`inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-medium transition ${cartItems.length && isReady && isAuthenticated
-                                            ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-[#1a1a1d]'
-                                            : 'cursor-not-allowed border border-[#c9c3b8] bg-[#c9c3b8] text-white/70'
-                                        }`}
-                                    onClick={(event) => {
-                                        if (!cartItems.length) {
-                                            event.preventDefault();
-                                            return;
-                                        }
+                        </nav>
 
-                                        // Verificar se está logado antes de ir para checkout
-                                        if (isReady && !isAuthenticated) {
-                                            event.preventDefault();
-                                            // Redirecionar para login com returnUrl
-                                            const returnUrl = '/checkout';
-                                            window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
-                                            return;
-                                        }
-
-                                        // Início de um novo fluxo de checkout a partir do carrinho:
-                                        // limpar qualquer pedido/PIX pendente anterior para garantir novo pedido
-                                        if (typeof window !== 'undefined') {
-                                            try {
-                                                window.sessionStorage.removeItem('checkout:active-order-id');
-                                                window.sessionStorage.removeItem('__PIX_ORDER_ACTIVE__');
-                                                window.localStorage.removeItem('checkout:timer-start-time');
-                                            } catch {
-                                                // ignore storage errors
+                        {/* Footer do Menu Mobile */}
+                        <div className="p-4 border-t border-white/10 space-y-3">
+                            {isAuthenticated && welcomeName ? (
+                                <div className="space-y-2">
+                                    <Link
+                                        href="/dashboard"
+                                        onClick={closeMobileMenu}
+                                        className="block px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all text-center text-sm"
+                                    >
+                                        Olá, {welcomeName}
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            closeMobileMenu();
+                                            logout();
+                                            if (typeof window !== 'undefined') {
+                                                window.location.href = '/';
                                             }
-                                        }
-
-                                        closeCartDrawer();
-                                    }}
+                                        }}
+                                        className="w-full px-4 py-2.5 text-white/80 hover:text-white font-semibold rounded-xl transition-all text-center border border-white/20 hover:border-[#f97316] text-sm"
+                                    >
+                                        Sair
+                                    </button>
+                                </div>
+                            ) : (
+                                <Link
+                                    href="/login"
+                                    onClick={closeMobileMenu}
+                                    className="block px-4 py-2.5 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-xl transition-all text-center text-sm"
                                 >
-                                    Finalizar compra
+                                    Entrar
                                 </Link>
+                            )}
+
+                            <div className="pt-2 space-y-2">
+                                <a
+                                    href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais! 💬"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block px-4 py-2.5 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-xl transition-all text-center text-sm"
+                                >
+                                    Fale com o Vicente!
+                                </a>
+                                <a
+                                    href="https://wa.me/5511982631238?text=Olá! Quero começar a usar a Vicente! 🚀"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block px-4 py-2.5 bg-white text-[#1a1a1d] hover:bg-gray-100 font-semibold rounded-xl transition-all text-center text-sm"
+                                >
+                                    Começar Agora
+                                </a>
                             </div>
-                        </footer>
-                    </aside>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {/* Full Screen Menu Desktop */}
+            {isFullMenuOpen ? (
+                <div
+                    className={`fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm transition-all duration-300 ${isFullMenuEntering ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                        }`}
+                    onClick={closeFullMenu}
+                >
+                    <div
+                        className="fixed inset-[8px] z-[101] bg-[#1a1a1d] flex border border-white/20 rounded-2xl overflow-hidden shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Left Side - Navigation */}
+                        <div
+                            className={`flex-1 flex flex-col justify-between p-12 md:p-16 lg:p-20 border-r-2 border-white/10 transition-all duration-500 ${isFullMenuEntering
+                                    ? 'translate-x-0 opacity-100'
+                                    : '-translate-x-10 opacity-0'
+                                }`}
+                        >
+                            <div>
+                                {/* Logo */}
+                                <Link
+                                    href="/"
+                                    onClick={closeFullMenu}
+                                    className="inline-flex items-center gap-3 mb-16 group"
+                                >
+                                    <Image
+                                        src={APP_LOGO}
+                                        alt={APP_LOGO_ALT}
+                                        width={40}
+                                        height={20}
+                                        className="h-auto w-10  group-hover:opacity-80 transition-opacity"
+                                    />
+                                    <span className="text-3xl font-bold text-white group-hover:text-[#f97316] transition-colors">
+                                        Vicente
+                                    </span>
+                                </Link>
+
+                                {/* Navigation Links */}
+                                <nav className="space-y-2">
+                                    {navigationLinks.map((link, index) => (
+                                        <Link
+                                            key={link.href}
+                                            href={link.href}
+                                            onClick={closeFullMenu}
+                                            className={`block text-4xl md:text-5xl lg:text-6xl font-bold text-white hover:text-[#f97316] transition-all duration-300 hover:translate-x-2 ${isFullMenuEntering
+                                                    ? 'opacity-100 translate-x-0'
+                                                    : 'opacity-0 -translate-x-10'
+                                                }`}
+                                            style={{
+                                                transitionDelay: `${index * 50 + 100}ms`,
+                                            }}
+                                        >
+                                            {link.label}
+                                        </Link>
+                                    ))}
+                                </nav>
+                            </div>
+
+                            {/* Social Links */}
+                            <div
+                                className={`flex gap-4 transition-all duration-500 ${isFullMenuEntering
+                                        ? 'opacity-100 translate-y-0'
+                                        : 'opacity-0 translate-y-10'
+                                    }`}
+                                style={{ transitionDelay: '400ms' }}
+                            >
+                                <a
+                                    href="https://wa.me/5511982631238"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-12 h-12 rounded-full border-2 border-white/20 flex items-center justify-center text-white hover:border-[#f97316] hover:text-[#f97316] transition-all"
+                                    aria-label="WhatsApp"
+                                >
+                                    <span className="text-xl">💬</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        {/* Right Side - Info & CTA */}
+                        <div
+                            className={`w-full md:w-96 lg:w-[500px] bg-[#2a2a2d] p-12 md:p-16 lg:p-20 flex flex-col justify-between transition-all duration-500 ${isFullMenuEntering
+                                    ? 'translate-x-0 opacity-100'
+                                    : 'translate-x-10 opacity-0'
+                                }`}
+                        >
+                            {/* Close Button */}
+                            <button
+                                type="button"
+                                onClick={closeFullMenu}
+                                className="self-end w-12 h-12 rounded-full border-2 border-white/20 flex items-center justify-center text-white hover:border-[#f97316] hover:text-[#f97316] transition-all mb-8"
+                                aria-label="Fechar menu"
+                            >
+                                <HiOutlineXMark className="w-6 h-6" />
+                            </button>
+
+                            {/* Info Section */}
+                            <div className="space-y-8">
+                                <div>
+                                    <h3 className="text-sm font-semibold uppercase tracking-wider text-white/60 mb-3">
+                                        Quer saber mais?
+                                    </h3>
+                                    <a
+                                        href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre a plataforma! 💬"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-2xl font-bold text-white hover:text-[#f97316] transition-colors inline-flex items-center gap-2"
+                                    >
+                                        Fale com o Vicente!
+                                        <HiOutlineArrowRight className="w-6 h-6" />
+                                    </a>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-sm font-semibold uppercase tracking-wider text-white/60 mb-3">
+                                        Pronto para começar?
+                                    </h3>
+                                    <a
+                                        href="https://wa.me/5511982631238?text=Olá! Quero começar a usar a Vicente! 🚀"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-2xl font-bold text-white hover:text-[#f97316] transition-colors inline-flex items-center gap-2"
+                                    >
+                                        Começar Agora
+                                        <HiOutlineArrowRight className="w-6 h-6" />
+                                    </a>
+                                </div>
+
+                                {/* Botão Sair - apenas se autenticado */}
+                                {isAuthenticated && welcomeName ? (
+                                    <div className="pt-8 border-t border-white/10">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                closeFullMenu();
+                                                logout();
+                                                if (typeof window !== 'undefined') {
+                                                    window.location.href = '/';
+                                                }
+                                            }}
+                                            className="text-lg font-semibold text-white/80 hover:text-white transition-colors inline-flex items-center gap-2"
+                                        >
+                                            Sair
+                                            <HiOutlineArrowRight className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="mt-auto pt-8 border-t border-white/10">
+                                <p className="text-sm text-white/40">
+                                    © {new Date().getFullYear()} Vicente. Todos os direitos reservados.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             ) : null}
         </header>

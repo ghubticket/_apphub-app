@@ -70,7 +70,7 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
     const placeholder = useMemo(() => {
         if (hasAppliedCode) return 'Cupom aplicado';
         if (hasInvalidCode) return 'Cupom inválido';
-        return 'Tem Desonto?';
+        return 'Tem Desconto?';
     }, [hasAppliedCode, hasInvalidCode]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

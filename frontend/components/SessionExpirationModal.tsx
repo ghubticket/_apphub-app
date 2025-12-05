@@ -40,16 +40,65 @@ export default function SessionExpirationModal() {
         return () => clearInterval(interval);
     }, [showWarning, sessionInfo, logout, router]);
 
-    if (!showWarning || !sessionInfo) {
+    const [mounted, setMounted] = useState(false);
+    const [entering, setEntering] = useState(false);
+
+    useEffect(() => {
+        if (showWarning && sessionInfo) {
+            setMounted(true);
+            const frame = requestAnimationFrame(() => {
+                setEntering(true);
+            });
+            return () => cancelAnimationFrame(frame);
+        } else {
+            setEntering(false);
+            const timeout = setTimeout(() => {
+                setMounted(false);
+            }, 250);
+            return () => clearTimeout(timeout);
+        }
+    }, [showWarning, sessionInfo]);
+
+    // Fechar com ESC (não permite fechar, mas adiciona para consistência)
+    useEffect(() => {
+        if (!showWarning || !sessionInfo) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                // Não fecha com ESC, mas mantém consistência
+                // Usuário deve escolher uma ação
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [showWarning, sessionInfo]);
+
+    // Bloquear scroll do body quando modal estiver aberta
+    useEffect(() => {
+        if (!showWarning || !sessionInfo) return;
+
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = original;
+        };
+    }, [showWarning, sessionInfo]);
+
+    if (!mounted || !showWarning || !sessionInfo) {
         return null;
     }
 
     const minutes = Math.floor(timeRemaining / 60);
     const seconds = timeRemaining % 60;
 
+    const activeClass = entering
+        ? 'opacity-100 translate-y-0 pointer-events-auto scale-100'
+        : 'opacity-0 translate-y-3 pointer-events-none scale-95';
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300 ${entering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transition-all duration-300 ${activeClass}`}>
                 <div className="flex items-start mb-4">
                     <div className="flex-shrink-0">
                         <svg

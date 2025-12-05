@@ -15,6 +15,16 @@ interface OrderExitWarningModalProps {
  */
 export function OrderExitWarningModal({ order, onStay, onLeave }: OrderExitWarningModalProps) {
     const [timeRemaining, setTimeRemaining] = useState<number>(0);
+    const [mounted, setMounted] = useState(false);
+    const [entering, setEntering] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        const frame = requestAnimationFrame(() => {
+            setEntering(true);
+        });
+        return () => cancelAnimationFrame(frame);
+    }, []);
 
     // Calcular tempo restante do pedido
     const expiresAtDate = useMemo(() => {
@@ -43,12 +53,41 @@ export function OrderExitWarningModal({ order, onStay, onLeave }: OrderExitWarni
         return () => clearInterval(interval);
     }, [expiresAtDate]);
 
+    // Fechar com ESC (não permite fechar, mas adiciona para consistência)
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                // Não fecha com ESC, usuário deve escolher uma ação
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Bloquear scroll do body quando modal estiver aberta
+    useEffect(() => {
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = original;
+        };
+    }, []);
+
     const minutes = Math.floor(timeRemaining / 60);
     const seconds = timeRemaining % 60;
 
+    const activeClass = entering
+        ? 'opacity-100 translate-y-0 pointer-events-auto scale-100'
+        : 'opacity-0 translate-y-3 pointer-events-none scale-95';
+
+    if (!mounted) return null;
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="relative w-full max-w-md rounded-3xl border-2 border-rose-200 bg-rose-50/95 p-8 shadow-2xl backdrop-blur-sm animate-in fade-in zoom-in">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300 ${entering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`relative w-full max-w-md rounded-3xl border-2 border-rose-200 bg-rose-50/95 p-8 shadow-2xl backdrop-blur-sm transition-all duration-300 ${activeClass}`}
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="flex md:flex-row flex-col md:items-start md:justify-between gap-4 mb-6">
                     <div className="flex-shrink-0">
                         <svg
