@@ -89,7 +89,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                             className="group flex flex-col overflow-hidden rounded-lg bg-white shadow-md transition-all hover:shadow-xl cursor-pointer"
                                         >
                                             {/* Imagem do evento */}
-                                            <div className="relative aspect-[07/10] md:aspect-[09/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                                            <div className="relative aspect-[07/10] md:aspect-[07/10] w-full overflow-hidden bg-gray-100 flex items-center justify-center">
                                                 {hasError || !image ? (
                                                     <p className="text-center text-sm text-[#a38f78] px-4">
                                                         Imagem em construção.

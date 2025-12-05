@@ -30,7 +30,7 @@ export default function CheckoutHeader() {
                         alt={APP_LOGO_ALT}
                         width={120}
                         height={48}
-                        className="h-6 w-auto"
+                        className="h-6 md:h-10 w-auto md:w-16"
                         priority
                     />
                 </Link>

@@ -1,17 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { HiOutlineXMark, HiOutlineArrowRight, HiOutlineBolt } from 'react-icons/hi2';
 
 export default function WelcomeModal() {
+    const pathname = usePathname();
     const [mounted, setMounted] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [entering, setEntering] = useState(false);
 
+    // Só mostrar na home
+    const isHomePage = pathname === '/';
+
     useEffect(() => {
         // Só roda no cliente
         if (typeof window === 'undefined') return;
+        
+        // Só mostrar na home
+        if (!isHomePage) return;
 
         setMounted(true);
 
@@ -24,7 +32,7 @@ export default function WelcomeModal() {
         }, 500);
 
         return () => clearTimeout(timer);
-    }, []);
+    }, [isHomePage]);
 
     const handleClose = () => {
         setEntering(false);
@@ -58,7 +66,8 @@ export default function WelcomeModal() {
         };
     }, [isOpen]);
 
-    if (!mounted || !isOpen) return null;
+    // Não renderizar se não estiver na home
+    if (!isHomePage || !mounted || !isOpen) return null;
 
     const activeClass = entering
         ? 'opacity-100 translate-y-0 pointer-events-auto scale-100'
