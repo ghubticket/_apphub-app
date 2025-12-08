@@ -2,11 +2,8 @@ import axios from 'axios';
 import { logger } from '../utils/logger';
 import { validateToken, isTokenExpired } from '../utils/token';
 
-// Base URL da API
-// Para produção (api.ghubtech.com.br): não incluir /api (o proxy já trata)
-// Para desenvolvimento: incluir /api
-// Exemplo produção: https://api.ghubtech.com.br
-// Exemplo dev: https://localhost:3443/api
+// Base URL da API - deve terminar com /api
+// Exemplo: https://localhost:3443/api
 let API_URL = import.meta.env.VITE_API_URL || 'https://localhost:3443/api';
 
 // Se estiver acessando de um dispositivo móvel na rede local ou via ngrok, detectar automaticamente
@@ -50,22 +47,12 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Validar que a URL termina com /api (o backend sempre espera rotas com /api)
+// Validar que a URL termina com /api
 if (!API_URL.endsWith('/api')) {
-  logger.warn('⚠️ VITE_API_URL deve terminar com /api. Exemplo: https://api.ghubtech.com.br/api');
-  // Adicionar /api se não terminar com ele
-  if (!API_URL.endsWith('/')) {
-    API_URL = `${API_URL}/api`;
-  } else {
-    API_URL = `${API_URL}api`;
-  }
-  logger.log('🔧 Ajustando URL para incluir /api:', API_URL);
+  logger.warn('⚠️ VITE_API_URL deve terminar com /api. Exemplo: http://192.168.18.157:3001/api');
 }
 
 logger.log('🔗 API URL configurada:', API_URL);
-
-// Exportar a URL para uso em outros componentes
-export const API_BASE_URL = API_URL;
 
 export const api = axios.create({
   baseURL: API_URL,

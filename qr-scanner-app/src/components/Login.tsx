@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import api, { API_BASE_URL } from '../config/api';
+import api from '../config/api';
 import { logger } from '../utils/logger';
 
 interface LoginProps {
@@ -46,10 +46,7 @@ const Login = ({ onLogin }: LoginProps) => {
             // Tratamento específico para erro de conexão
             if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
                 setError(
-                    `Não foi possível conectar ao servidor.\n` +
-                    `URL configurada: ${API_BASE_URL}\n` +
-                    `Verifique se o backend está rodando e acessível.\n` +
-                    `Para desenvolvimento local, use: http://localhost:3001/api`
+                    'Não foi possível conectar ao servidor. Verifique se o backend está rodando na porta 3001.'
                 );
             } else {
                 setError(
@@ -101,7 +98,7 @@ const Login = ({ onLogin }: LoginProps) => {
                         </div>
 
                         {error && (
-                            <div className="alert alert-danger" role="alert" style={{ whiteSpace: 'pre-line' }}>
+                            <div className="alert alert-danger" role="alert">
                                 {error}
                             </div>
                         )}
