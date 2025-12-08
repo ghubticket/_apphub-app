@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
-import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineUser, HiOutlineHeart, HiOutlineArrowLeft, HiOutlineTicket } from 'react-icons/hi2';
+import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineUser, HiOutlineHeart, HiOutlineArrowLeft, HiOutlineTicket, HiOutlineArrowRight } from 'react-icons/hi2';
+import Link from 'next/link';
 import PageContainer from '@/components/shared/PageContainer';
 import EventSelectionSummary from '@/components/tickets/EventSelectionSummary';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -431,6 +432,34 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                             <EventSelectionSummary tickets={tickets} loading={loading} eventId={eventId} />
                         </div>
 
+                        {/* Chamada para Seção Sobre - DESKTOP */}
+                        <div className="hidden lg:block">
+                            <Link 
+                                href="/sobre"
+                                className="group block rounded-3xl border border-[#ded7ca] bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] transition-all hover:shadow-[0_30px_60px_-30px_rgba(20,20,32,0.5)] hover:border-[#f97316]/50"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-[#f97316] transition-colors">
+                                            Conheça o Vicente
+                                        </h3>
+                                        <p className="text-sm text-gray-300 leading-relaxed mb-4">
+                                            Descubra como nossa plataforma pode transformar a gestão dos seus eventos. Você no comando, sem restrições!
+                                        </p>
+                                        <div className="inline-flex items-center gap-2 text-sm font-semibold text-[#f97316] group-hover:text-[#ea6820] transition-colors">
+                                            Saiba mais
+                                            <HiOutlineArrowRight className="text-base group-hover:translate-x-1 transition-transform" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                        <div className="w-12 h-12 rounded-full bg-[#f97316]/20 flex items-center justify-center group-hover:bg-[#f97316]/30 transition-colors">
+                                            <span className="text-2xl">🚀</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Link>
+                        </div>
+
                         {/* Seção Sobre - MOBILE: aparece abaixo dos ingressos, DESKTOP: hidden (fica na coluna esquerda) */}
                         <div className="lg:hidden">
                             <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 ">
@@ -470,6 +499,34 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                                     </button>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Chamada para Seção Sobre - MOBILE */}
+                        <div className="lg:hidden">
+                            <Link 
+                                href="/sobre"
+                                className="group block rounded-3xl border border-[#ded7ca] bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] transition-all hover:shadow-[0_30px_60px_-30px_rgba(20,20,32,0.5)] hover:border-[#f97316]/50"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-[#f97316] transition-colors">
+                                            Conheça o Vicente
+                                        </h3>
+                                        <p className="text-sm text-gray-300 leading-relaxed mb-4">
+                                            Descubra como nossa plataforma pode transformar a gestão dos seus eventos. Você no comando, sem restrições!
+                                        </p>
+                                        <div className="inline-flex items-center gap-2 text-sm font-semibold text-[#f97316] group-hover:text-[#ea6820] transition-colors">
+                                            Saiba mais
+                                            <HiOutlineArrowRight className="text-base group-hover:translate-x-1 transition-transform" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                        <div className="w-12 h-12 rounded-full bg-[#f97316]/20 flex items-center justify-center group-hover:bg-[#f97316]/30 transition-colors">
+                                            <span className="text-2xl">🚀</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Link>
                         </div>
                     </section>
                 </div>

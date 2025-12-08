@@ -268,9 +268,13 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
                                             Teste todas as funcionalidades sem riscos!
                                             <span className="inline-block animate-pulse ml-2">🚀</span>
                                         </p>
-                                        <p className="text-xs text-gray-400 text-center">
+                                        <Link 
+                                            href="/sobre"
+                                            className="block text-xs text-gray-300 text-center hover:text-white transition-colors group"
+                                        >
                                             Explore a plataforma completa e veja como ela pode transformar seus eventos!
-                                        </p>
+                                            <span className="inline-block ml-1 group-hover:translate-x-1 transition-transform">→</span>
+                                        </Link>
                                     </div>
                                 </div>
                             </div>

@@ -15,7 +15,7 @@ export const CheckoutEmptyState = React.memo(function CheckoutEmptyState() {
             <Container className="py-12">
                
                 <div className="rounded-3xl border border-dashed border-[#ded7ca] bg-white/70 p-10 text-center text-sm text-[#7d796c]">
-                    <p>Seu carrinho está vazio. Explore nossos eventos e selecione os ingressos desejados.</p>
+                    <p>Seu carrinho está vazio. Selecione os ingressos desejados.</p>
                 </div>
             </Container>
         </main>
