@@ -40,31 +40,6 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
     return (
         <section className="py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-0 md:pt-16">
-                {/* Header */}
-                <div className="mb-12 flex items-center justify-between">
-                    {events.length > 4 && (
-                        <Link
-                            href="/ingressos"
-                            className="hidden items-center text-sm font-semibold uppercase tracking-wide text-[#1a1a1d] transition-colors hover:text-[#f97316] md:inline-flex"
-                        >
-                            Todos Eventos R2
-                            <svg
-                                className="ml-2 h-4 w-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M9 5l7 7-7 7"
-                                />
-                            </svg>
-                        </Link>
-                    )}
-                </div>
-
                 {/* Grid de eventos com box informativo */}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                     {/* Eventos - ocupam 25% (1 coluna) */}
