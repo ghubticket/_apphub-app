@@ -10,10 +10,10 @@ export default function PrivacidadePage() {
             containerClassName=""
         >
             <header className="mb-10 space-y-3">
-                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
+                <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
                     Documentos Legais
                 </span>
-                <h1 className="text-3xl font-bold uppercase tracking-[0.2em] text-[#1a1a1d]">
+                <h1 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d]">
                     Política de Privacidade
                 </h1>
                 <p className="text-sm text-[#6f6b63]">

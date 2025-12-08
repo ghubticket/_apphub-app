@@ -71,7 +71,7 @@ export default function TicketsPage() {
             containerClassName="py-12"
         >
                 <header className="mb-10 space-y-3">
-                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
+                    <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
                         Ingressos disponíveis
                     </span>
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

@@ -224,7 +224,7 @@ function LoginPageContent() {
             />
             <PageContainer bgColor="bg-[#faf7f0]">
                 <header className="mb-10 space-y-3 hidden md:block">
-                    <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">Área do Cliente</span>
+                    <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">Área do Cliente</span>
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <h1 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d]">Faça seu Login</h1>
                         <p className="text-sm text-[#4c4c55]">Ou crie sua conta para continuar.</p></div>

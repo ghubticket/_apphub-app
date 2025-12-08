@@ -1331,7 +1331,7 @@ export default function DashboardPage() {
         <>
             <PageContainer bgColor="bg-[#faf7f0]">
                     <header className="mb-10 space-y-3 hidden md:block">
-                        <span className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a38f78]">
+                        <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
                             Área do Cliente
                         </span>
                         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
