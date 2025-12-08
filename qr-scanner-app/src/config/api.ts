@@ -50,18 +50,16 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Detectar se é produção (api.ghubtech.com.br) - nesse caso, o proxy já trata o /api
-const isProductionAPI = API_URL.includes('api.ghubtech.com.br');
-const needsApiPrefix = !isProductionAPI && !API_URL.endsWith('/api');
-
-if (needsApiPrefix) {
-  logger.warn('⚠️ VITE_API_URL deve terminar com /api para desenvolvimento. Exemplo: http://192.168.18.157:3001/api');
-}
-
-// Para produção, garantir que não termina com /api (o proxy já adiciona)
-if (isProductionAPI && API_URL.endsWith('/api')) {
-  API_URL = API_URL.replace(/\/api$/, '');
-  logger.log('🔧 Removendo /api da URL de produção (proxy já trata)');
+// Validar que a URL termina com /api (o backend sempre espera rotas com /api)
+if (!API_URL.endsWith('/api')) {
+  logger.warn('⚠️ VITE_API_URL deve terminar com /api. Exemplo: https://api.ghubtech.com.br/api');
+  // Adicionar /api se não terminar com ele
+  if (!API_URL.endsWith('/')) {
+    API_URL = `${API_URL}/api`;
+  } else {
+    API_URL = `${API_URL}api`;
+  }
+  logger.log('🔧 Ajustando URL para incluir /api:', API_URL);
 }
 
 logger.log('🔗 API URL configurada:', API_URL);
@@ -76,22 +74,6 @@ export const api = axios.create({
   },
 });
 
-// Interceptor para ajustar paths em produção (api.ghubtech.com.br)
-// Se a baseURL não termina com /api, significa que o proxy já trata o /api
-// Então precisamos remover /api do path das requisições (o proxy adiciona automaticamente)
-api.interceptors.request.use(
-  (config) => {
-    // Se a baseURL não termina com /api (produção) e o path começa com /api, remover
-    if (!API_URL.endsWith('/api') && config.url && config.url.startsWith('/api')) {
-      config.url = config.url.replace(/^\/api/, '');
-      logger.log('🔧 Ajustando path para produção (removendo /api):', config.url);
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // Interceptor para adicionar token de autenticação
 api.interceptors.request.use(
