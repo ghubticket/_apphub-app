@@ -277,7 +277,7 @@ export default function Footer() {
                             </span>
                         </div>
                         <div className="flex flex-wrap gap-4">
-                            <p>Feito com <span className="text-orange-400">❤️</span> por <Link href={DEVELOPER_INSTAGRAM} target="_blank" className="text-orange-400 hover:text-orange-300 transition-colors">{DEVELOPER_NAME}</Link></p>
+                            <p>Feito com <span className="text-orange-400">❤️</span> por <Link href="https://www.instagram.com/guilhermehr_/" target="_blank" className="text-orange-400 hover:text-orange-300 transition-colors">{DEVELOPER_NAME}</Link></p>
                         </div>
                     </div>
                     <div className="pt-2 border-t border-white/5 flex flex-wrap gap-x-4 gap-y-2 text-white/50">
