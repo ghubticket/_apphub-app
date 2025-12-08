@@ -739,7 +739,7 @@ export const distributeVip = async (req: Request, res: Response) => {
                     }));
 
                     // Enviar email de cortesia
-                    const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+                    const frontendUrl = process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
                     const emailResult = await sendCourtesyTicketEmail(
                         customerEmail,
                         {
@@ -751,7 +751,7 @@ export const distributeVip = async (req: Request, res: Response) => {
                             eventAddress: eventData.address,
                             totalTickets: ticketsWithQR.length,
                             ticketType: ticketsWithQR[0]?.ticketType?.name || 'VIP',
-                            downloadLink: `${dashboardUrl}/orders/${populatedOrder._id}`,
+                            downloadLink: `${frontendUrl}/dashboard`,
                             qrCodes: qrCodesForEmail,
                         },
                         [

@@ -104,12 +104,12 @@ export const register = async (req: Request, res: Response) => {
 
         // Enviar email de boas-vindas (não bloquear resposta se falhar)
         try {
-            const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+            const frontendUrl = process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
             await sendWelcomeEmail(user.email, {
                 customerName: user.name,
                 customerEmail: user.email,
                 customerRole: user.role,
-                loginLink: `${dashboardUrl}/login`,
+                loginLink: `${frontendUrl}/login`,
             });
         } catch (emailError) {// Não falhar o registro se o email falhar
         }
@@ -794,8 +794,8 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
         // Construir link de reset apontando para o frontend
         const frontendUrl =
-            process.env.DASHBOARD_URL ||
             process.env.FRONTEND_URL ||
+            process.env.DASHBOARD_URL ||
             'http://localhost:3000';
         const resetLink = `${frontendUrl.replace(/\/+$/, '')}/reset-password?token=${rawToken}`;
 

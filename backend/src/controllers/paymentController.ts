@@ -423,7 +423,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
                         minute: '2-digit',
                     });
 
-                    const dashboardUrl =
+                    const frontendUrl =
                         process.env.FRONTEND_URL ||
                         process.env.DASHBOARD_URL ||
                         'http://localhost:3000';
@@ -442,7 +442,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
                             : pixPayment.qrCode,
                         // Código PIX para copiar/colar deve ser o qrCode "bruto", não o ticket_url
                         pixCode: pixPayment.qrCode || pixPayment.ticketUrl || null,
-                        paymentLink: `${dashboardUrl}/dashboard/`,
+                        paymentLink: `${frontendUrl}/dashboard`,
                     });
                 }
             }
@@ -1336,7 +1336,7 @@ async function sendPaymentApprovedEmail(order: any) {
         }));
 
         // Enviar email com PDF anexo
-        const dashboardUrl =
+        const frontendUrl =
             process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
         await sendTicketConfirmationEmail(
             customer.email,
@@ -1349,7 +1349,7 @@ async function sendPaymentApprovedEmail(order: any) {
                 eventAddress: event.address,
                 totalTickets: ticketsWithQR.length,
                 ticketType: ticketsWithQR[0]?.ticketType?.name || 'Ingresso',
-                downloadLink: `${dashboardUrl}/orders/${populatedOrder._id}`,
+                downloadLink: `${frontendUrl}/dashboard`,
                 qrCodes: qrCodesForEmail,
             },
             [
@@ -1390,7 +1390,7 @@ async function sendPaymentRejectedEmailHelper(order: any, rejectionReason?: stri
             minute: '2-digit',
         });
 
-        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+        const frontendUrl = process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
         await sendPaymentRejectedEmail(customer.email, {
             customerName: customer.name,
             orderNumber: populatedOrder.orderNumber,
@@ -1401,7 +1401,7 @@ async function sendPaymentRejectedEmailHelper(order: any, rejectionReason?: stri
             paymentMethod: populatedOrder.paymentMethod || 'Não informado',
             rejectionReason:
                 rejectionReason || populatedOrder.paymentMessage || 'Pagamento recusado',
-            retryLink: `${dashboardUrl}/orders/${populatedOrder._id}`,
+            retryLink: `${frontendUrl}/dashboard`,
         });
     } catch (error) {
         // Erro ao enviar email - não bloquear

@@ -1378,7 +1378,7 @@ export const getOrderById = async (req: Request, res: Response) => {
                                             }
                                         );
 
-                                        const dashboardUrl =
+                                        const frontendUrl =
                                             process.env.FRONTEND_URL ||
                                             process.env.DASHBOARD_URL ||
                                             'http://localhost:3000';
@@ -1395,7 +1395,7 @@ export const getOrderById = async (req: Request, res: Response) => {
                                                 totalTickets: ticketsWithQR.length,
                                                 ticketType:
                                                     ticketsWithQR[0]?.ticketType?.name || 'Ingresso',
-                                                downloadLink: `${dashboardUrl}/orders/${populatedOrder._id}`,
+                                                downloadLink: `${frontendUrl}/dashboard`,
                                                 qrCodes: ticketsWithQR.map((t) => ({
                                                     code: t.code,
                                                     qrCode: t.qrCode,

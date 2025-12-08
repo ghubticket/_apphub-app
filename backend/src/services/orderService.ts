@@ -551,7 +551,7 @@ export async function sendVIPOrderEmail(populatedOrder: any) {
             holderName: (t.holder as any)?.name || customerName || 'Cliente',
         }));
 
-        const dashboardUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
+        const frontendUrl = process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
         const emailResult = await sendCourtesyTicketEmail(
             customerEmail,
             {
@@ -563,7 +563,7 @@ export async function sendVIPOrderEmail(populatedOrder: any) {
                 eventAddress: event.address,
                 totalTickets: ticketsWithQR.length,
                 ticketType: ticketsWithQR[0]?.ticketType?.name || 'VIP',
-                downloadLink: `${dashboardUrl}/orders/${orderId}`,
+                downloadLink: `${frontendUrl}/dashboard`,
                 qrCodes: qrCodesForEmail,
             },
             [
