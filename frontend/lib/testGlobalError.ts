@@ -41,7 +41,6 @@ export function testGlobalError(type: 'network' | 'server' | 'maintenance' | 'un
     const errorConfig = messages[type];
     triggerGlobalError(errorConfig);
     
-    console.log(`✅ Modal de erro testada: ${type}`);
     return errorConfig;
 }
 
@@ -54,7 +53,6 @@ export function testConnectionTimeout() {
         title: 'Problema de Conexão',
         message: 'O servidor demorou muito para responder. Verifique sua conexão com a internet e tente novamente.',
     });
-    console.log('✅ Modal de timeout testada');
 }
 
 /**
@@ -66,7 +64,6 @@ export function testServerError() {
         title: 'Serviço Indisponível',
         message: 'Ocorreu um erro interno no servidor. Nossa equipe já foi notificada e está trabalhando para resolver. Por favor, tente novamente em alguns minutos.',
     });
-    console.log('✅ Modal de erro do servidor testada');
 }
 
 // Expor funções no window apenas em desenvolvimento
@@ -74,15 +71,5 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
     (window as any).testGlobalError = testGlobalError;
     (window as any).testConnectionTimeout = testConnectionTimeout;
     (window as any).testServerError = testServerError;
-    
-    console.log(`
-🔧 FUNÇÕES DE TESTE DISPONÍVEIS (apenas em desenvolvimento):
-  - window.testGlobalError('network')
-  - window.testGlobalError('server')
-  - window.testGlobalError('maintenance')
-  - window.testGlobalError('unknown')
-  - window.testConnectionTimeout()
-  - window.testServerError()
-    `);
 }
 

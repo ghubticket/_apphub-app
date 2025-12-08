@@ -6,6 +6,8 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailTemplates';
 import { captureControllerError } from '../utils/sentryErrorHandler';
+import { hashCPFForSearch, hashPhoneForSearch } from '../utils/encryption';
+import { isValidCpf as isValidCpfBackend, normalizeCpf as normalizeCpfBackend } from '../utils/cpf';
 
 /**
  * Controller para registro de usuário
@@ -15,16 +17,65 @@ export const register = async (req: Request, res: Response) => {
         const { name, email, password, phone, cpf } = req.body;
 
         // Verificar se o email já existe (apenas usuários não deletados)
-        const existingUser = await User.findOne({
+        const existingUserByEmail = await User.findOne({
             email: email.toLowerCase(),
             deletedAt: null,
-        });
-        if (existingUser) {
+        }).select('+cpfHash +phoneHash');
+        if (existingUserByEmail) {
             return res.status(409).json({
                 success: false,
                 message: 'Email já cadastrado',
-                errors: ['Este email já está sendo usado por outro usuário'],
+                errors: [{ field: 'email', message: 'Este email já está cadastrado!' }],
             });
+        }
+
+        // Validar e verificar CPF único (se fornecido)
+        if (cpf) {
+            // Normalizar CPF para validação
+            const normalizedCpf = normalizeCpfBackend(cpf);
+            
+            // Validar formato e dígitos verificadores
+            if (!isValidCpfBackend(normalizedCpf)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'CPF inválido',
+                    errors: [{ field: 'cpf', message: 'CPF inválido. Verifique os dígitos e tente novamente.' }],
+                });
+            }
+            
+            // Verificar se CPF já está cadastrado
+            const cpfHash = hashCPFForSearch(cpf);
+            if (cpfHash) {
+                const existingUserByCPF = await User.findOne({
+                    cpfHash,
+                    deletedAt: null,
+                }).select('+cpfHash');
+                if (existingUserByCPF) {
+                    return res.status(409).json({
+                        success: false,
+                        message: 'CPF já cadastrado',
+                        errors: [{ field: 'cpf', message: 'Este CPF já está cadastrado para outro usuário. Não é permitido ter o mesmo CPF para diferentes usuários.' }],
+                    });
+                }
+            }
+        }
+
+        // Validar e verificar WhatsApp/Telefone único (se fornecido)
+        if (phone) {
+            const phoneHash = hashPhoneForSearch(phone);
+            if (phoneHash) {
+                const existingUserByPhone = await User.findOne({
+                    phoneHash,
+                    deletedAt: null,
+                }).select('+phoneHash');
+                if (existingUserByPhone) {
+                    return res.status(409).json({
+                        success: false,
+                        message: 'WhatsApp/Telefone já cadastrado',
+                        errors: [{ field: 'phone', message: 'Este WhatsApp/Telefone já está cadastrado para outro usuário. Não é permitido ter o mesmo número para diferentes usuários.' }],
+                    });
+                }
+            }
         }
 
         // Criar novo usuário
@@ -89,10 +140,23 @@ export const register = async (req: Request, res: Response) => {
 
         // Erro de duplicação - não enviar ao Sentry (erro esperado)
         if (error.code === 11000) {
+            // Verificar qual campo causou a duplicação
+            const duplicateField = error.keyPattern ? Object.keys(error.keyPattern)[0] : 'email';
+            let message = 'Este email já está sendo usado';
+            let field = 'email';
+
+            if (duplicateField === 'cpfHash' || duplicateField === 'cpf') {
+                message = 'Este CPF já está cadastrado para outro usuário. Não é permitido ter o mesmo CPF para diferentes usuários.';
+                field = 'cpf';
+            } else if (duplicateField === 'phoneHash' || duplicateField === 'phone') {
+                message = 'Este WhatsApp/Telefone já está cadastrado para outro usuário. Não é permitido ter o mesmo número para diferentes usuários.';
+                field = 'phone';
+            }
+
             return res.status(409).json({
                 success: false,
-                message: 'Email já cadastrado',
-                errors: ['Este email já está sendo usado'],
+                message: `${field === 'cpf' ? 'CPF' : field === 'phone' ? 'WhatsApp/Telefone' : 'Email'} já cadastrado`,
+                errors: [{ field, message }],
             });
         }
 

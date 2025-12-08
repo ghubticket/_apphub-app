@@ -27,6 +27,7 @@ import {
     normalizeCpf,
     formatPhoneDisplay,
     formatCpfDisplay,
+    isValidCpf,
 } from '@/utils/sanitize';
 
 type SignupField = 'name' | 'email' | 'password' | 'confirmPassword' | 'phone' | 'cpf';
@@ -64,6 +65,8 @@ const validators: Record<SignupField, (value: string, data?: Record<SignupField,
         if (!value || !value.trim()) return 'Informe seu CPF.';
         const digits = value.replace(/\D/g, '');
         if (digits.length !== 11) return 'CPF deve ter 11 dígitos.';
+        // Validar dígitos verificadores
+        if (!isValidCpf(value)) return 'CPF inválido. Verifique os dígitos e tente novamente.';
         return '';
     },
 };
@@ -233,13 +236,30 @@ function CadastroPageContent() {
             const apiErrors = error?.response?.data?.errors;
 
             if (status === 409) {
-                setErrors((prev) => ({
-                    ...prev,
-                    email: 'Este e-mail já está cadastrado.',
-                }));
+                // Tratar erros de duplicação (email, CPF, telefone)
+                const updatedErrors: Partial<Record<SignupField, string>> = {};
+                const friendlyErrors: string[] = [];
+                
+                if (Array.isArray(apiErrors) && apiErrors.length > 0) {
+                    apiErrors.forEach((err: any) => {
+                        if (!err || typeof err !== 'object') return;
+                        const field = err.field as SignupField | undefined;
+                        const message = err.message as string | undefined;
+                        if (field && field in formData && message) {
+                            updatedErrors[field] = message;
+                            friendlyErrors.push(message);
+                        }
+                    });
+                } else {
+                    // Fallback para compatibilidade com erros antigos
+                    updatedErrors.email = 'Este e-mail já está cadastrado.';
+                    friendlyErrors.push('Este e-mail já está cadastrado.');
+                }
+                
+                setErrors((prev) => ({ ...prev, ...updatedErrors }));
                 setFormMessage({
                     type: 'error',
-                    text: messageResponse || 'E-mail já cadastrado. Faça login ou use outro e-mail.',
+                    text: messageResponse || friendlyErrors.join(' • ') || 'Dados já cadastrados. Verifique e tente novamente.',
                 });
             } else if (status === 400 && Array.isArray(apiErrors) && apiErrors.length > 0) {
                 const updatedErrors: Partial<Record<SignupField, string>> = {};

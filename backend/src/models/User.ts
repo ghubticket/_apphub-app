@@ -151,6 +151,25 @@ userSchema.index({ isActive: 1 });
 userSchema.index({ cpfHash: 1 }); // Índice para busca por CPF via hash
 userSchema.index({ phoneHash: 1 }); // Índice para busca por telefone via hash
 
+// Índices únicos parciais para garantir CPF e telefone únicos (apenas quando não são vazios)
+// Isso garante que não pode haver mesmo CPF ou telefone para diferentes usuários
+userSchema.index(
+    { cpfHash: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { cpfHash: { $exists: true, $ne: '' }, deletedAt: null },
+        name: 'unique_cpf_hash',
+    }
+);
+userSchema.index(
+    { phoneHash: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { phoneHash: { $exists: true, $ne: '' }, deletedAt: null },
+        name: 'unique_phone_hash',
+    }
+);
+
 // Middleware para hash da senha e criptografia de dados sensíveis antes de salvar
 userSchema.pre('save', async function (next) {
     try {
