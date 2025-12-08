@@ -160,3 +160,24 @@ export const newsletterSubscriptionSchema = Joi.object({
         'string.max': 'Fonte não pode ultrapassar 60 caracteres',
     }),
 });
+
+// Schema para solicitação de suporte
+export const supportRequestSchema = Joi.object({
+    category: Joi.string()
+        .valid('general', 'payment', 'tickets', 'account', 'technical', 'refund')
+        .required()
+        .messages({
+            'any.only': 'Categoria deve ser: general, payment, tickets, account, technical ou refund',
+            'any.required': 'Categoria é obrigatória',
+        }),
+    subject: Joi.string().min(3).max(200).trim().required().messages({
+        'string.min': 'Assunto deve ter pelo menos 3 caracteres',
+        'string.max': 'Assunto deve ter no máximo 200 caracteres',
+        'any.required': 'Assunto é obrigatório',
+    }),
+    message: Joi.string().min(10).max(5000).trim().required().messages({
+        'string.min': 'Mensagem deve ter pelo menos 10 caracteres',
+        'string.max': 'Mensagem deve ter no máximo 5000 caracteres',
+        'any.required': 'Mensagem é obrigatória',
+    }),
+});

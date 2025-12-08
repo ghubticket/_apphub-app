@@ -31,6 +31,7 @@ import deliveryRoutes from './routes/delivery';
 import promoterCodesRoutes from './routes/promoterCodes';
 import paymentRoutes from './routes/payment';
 import newsletterRoutes from './routes/newsletter';
+import supportRoutes from './routes/support';
 import { startWebhookWorker } from './services/webhookProcessorService';
 import { startOrderExpirationScheduler } from './services/orderExpirationService';
 import { checkMercadoPagoConfig, checkEmailConfig } from './utils/checkEnv';
@@ -399,6 +400,8 @@ app.use('/api/promoters', promoterCodesRoutes);
 app.use('/api/payments', paymentRoutes);
 // Rotas de novidades/newsletter
 app.use('/api/novidades', newsletterRoutes);
+// Rotas de suporte
+app.use('/api/support', supportRoutes);
 
 // Rotas de health check
 app.use('/api/health', healthRoutes);

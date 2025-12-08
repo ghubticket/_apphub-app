@@ -25,6 +25,18 @@ export const APP_CONFIG = {
     privacyEmail: 'privacidade@vicente.com.br',
     dpoEmail: 'dpo@vicente.com.br',
     supportEmail: 'suporte@vicente.com.br',
+    whatsapp: [
+      {
+        name: 'Suporte',
+        phone: '5511982631238', // Formato: código do país + DDD + número (sem espaços ou caracteres especiais)
+        role: 'Suporte',
+      },
+    ],
+    supportHours: {
+      weekdays: 'Segunda a Sexta: 09h às 18h',
+      weekends: 'Sábado: 09h às 13h',
+      closed: 'Domingo',
+    },
   },
   
   // Informações legais
