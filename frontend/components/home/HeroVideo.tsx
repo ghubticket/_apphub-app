@@ -199,7 +199,7 @@ export default function HeroCarousel({
 
     return (
         <section
-            className="relative md:hidden h-screen w-full overflow-hidden"
+            className="relative hidden h-screen w-full overflow-hidden"
             onMouseEnter={pauseAutoplay}
             onMouseLeave={resumeAutoplay}
             onTouchStart={onTouchStart}

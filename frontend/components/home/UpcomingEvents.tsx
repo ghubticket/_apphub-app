@@ -42,9 +42,6 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-0 md:pt-16">
                 {/* Header */}
                 <div className="mb-12 flex items-center justify-between">
-                    <h2 className="text-3xl text-light tracking-normal text-[#1a1a1d] md:text-4xl">
-                        Disponibilizamos evento <strong>teste para você!</strong>
-                    </h2>
                     {events.length > 4 && (
                         <Link
                             href="/ingressos"

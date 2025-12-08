@@ -184,7 +184,7 @@ export default function Header() {
                                     priority
                                 />
 
-                                <span className='text-xs md:text-2xl font-bold text-gray-800'>Vicente</span>
+                                <span className='text-base md:text-2xl font-bold text-gray-800'>Vicente</span>
                             </Link>
 
                             <p className='hidden md:block text-base text-gray-600'>
