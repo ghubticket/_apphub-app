@@ -209,6 +209,16 @@ app.use(
                 return callback(null, true);
             }
 
+            // Permitir domínio principal vicente.app (com e sem www)
+            const vicenteAppRegex = /^https:\/\/(www\.)?vicente\.app$/;
+            if (vicenteAppRegex.test(normalizedOrigin)) {
+                if (!warnedCorsOrigins.has(normalizedOrigin)) {
+                    warnedCorsOrigins.add(normalizedOrigin);
+                    logger.info(`[CORS] Permitindo origin vicente.app: ${normalizedOrigin}`);
+                }
+                return callback(null, true);
+            }
+
             // Permitir prévias do Vercel do frontend oficial em produção
             // Ex.: https://apphub-app-front-xxxx-ghrenriques-projects.vercel.app
             const vercelPreviewRegex =

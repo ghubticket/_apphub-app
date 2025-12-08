@@ -192,7 +192,7 @@ export default function Footer() {
                                 href="mailto:falecom@oprincipe.com.br"
                                 className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-xs font-semibold uppercase  text-black transition hover:bg-orange-100"
                             >
-                                falecom@vicente.com.br
+                                falecom@vicente.app
                             </Link>
                         </div>
                     </div>
