@@ -61,6 +61,13 @@ export const authOptions: any = {
                          * user data below. Below return statement will set the user object in the token and the same is set in
                          * the session which will be accessible all over the app.
                          */
+                        
+                        // ** CRITICAL SECURITY: Apenas usuários ADMIN podem fazer login no dashboard
+                        const userRole = data.data.user?.role
+                        if (userRole !== 'ADMIN') {
+                            throw new Error('Acesso negado. Apenas administradores podem acessar o dashboard.')
+                        }
+                        
                         return {
                             ...data.data.user,
                             accessToken: data.data.accessToken // Incluir o accessToken JWT do backend
