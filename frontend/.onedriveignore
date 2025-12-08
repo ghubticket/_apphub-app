@@ -1,5 +1,47 @@
-﻿.next
-node_modules
-out
+﻿# Next.js build outputs
+.next/
+.next/**
+out/
+out/**
+
+# Dependencies
+node_modules/
+node_modules/**
+
+# Environment files
 .env
 .env.local
+.env.development
+.env.production
+.env.test
+.env*.local
+
+# Cache and temporary files
+.cache/
+.parcel-cache/
+.turbo/
+.tmp/
+tmp/
+temp/
+*.tmp
+*.temp
+*.log
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Trace files (causam conflito de permissão)
+trace
+*.trace

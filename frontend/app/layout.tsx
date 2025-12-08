@@ -24,8 +24,32 @@ const jost = Jost({
 
 const baseMetadata = generateSEOMetadata({
     title: 'Ingressos para Eventos',
-    description: 'Compre ingressos para os melhores eventos com vicente. Eventos exclusivos, pagamento seguro via PIX e cartão, entrega imediata do ingresso por email.',
-    tags: ['ingressos', 'eventos', 'vicente', 'comprar ingressos', 'ingressos online', 'eventos rio de janeiro'],
+    description: 'Vicente: app exclusivo de eventos. Sem concorrência, QR seguro, emails/PDF automáticos, split Mercado Pago, SEO, cupons e dashboard completo',
+    tags: [
+        'vicente',
+        'plataforma de eventos',
+        'sistema de ingressos',
+        'venda de ingressos online',
+        'gestão de eventos',
+        'dashboard de eventos',
+        'leitor QR code',
+        'cupons promocionais',
+        'split pagamento Mercado Pago',
+        'emails automáticos',
+        'PDF de ingressos',
+        'SEO para eventos',
+        'eventos exclusivos',
+        'sem concorrência',
+        'site exclusivo de eventos',
+        'PIX para eventos',
+        'cartão de crédito eventos',
+        'segurança de dados',
+        'automação de eventos',
+        'CRM de eventos',
+        'relatórios de eventos',
+        'validação de ingressos',
+        'distribuição VIPs',
+    ],
 });
 
 export const metadata: Metadata = {

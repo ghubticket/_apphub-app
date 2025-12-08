@@ -28,7 +28,7 @@ export default function SobrePage() {
         <>
             <DynamicMetadata
                 title="Sobre a Vicente - Seu Sistema Exclusivo de Gestão de Eventos"
-                description="Conheça a Vicente: muito mais do que venda de ingressos! Plataforma completa de gestão de eventos exclusiva onde você está no comando. Sem concorrência, sem filas, sem eventos concorrentes. Dashboard completo, leitor QR code, segurança de ponta, cupons personalizados, SEO otimizado e muito mais."
+                description="Vicente: app exclusivo de eventos. Sem concorrência, QR seguro, emails/PDF automáticos, split Mercado Pago, SEO, cupons e dashboard completo"
                 url="/sobre"
                 type="website"
             />
