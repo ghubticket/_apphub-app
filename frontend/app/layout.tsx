@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Quicksand, Jost } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '@/context/AuthContext';
 import { GlobalErrorProvider } from '@/context/GlobalErrorContext';
 import LayoutShell from '@/components/layout/LayoutShell';
@@ -108,6 +109,7 @@ export default function RootLayout({
                         <TestGlobalErrorLoader />
                     </GlobalErrorProvider>
                 </AuthProvider>
+                <Analytics />
             </body>
         </html>
     );
