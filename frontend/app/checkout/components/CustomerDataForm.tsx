@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
     HiOutlineEnvelope,
     HiOutlineIdentification,
@@ -49,7 +49,34 @@ export function CustomerDataForm({
         };
 
     const [showBillingInfoModal, setShowBillingInfoModal] = useState(false);
+    const [billingModalEntering, setBillingModalEntering] = useState(false);
     const [isFetchingCep, setIsFetchingCep] = useState(false);
+
+    // Fechar BillingInfoModal com ESC
+    useEffect(() => {
+        if (!showBillingInfoModal) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setBillingModalEntering(false);
+                setTimeout(() => setShowBillingInfoModal(false), 250);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [showBillingInfoModal]);
+
+    // Bloquear scroll quando BillingInfoModal estiver aberta
+    useEffect(() => {
+        if (!showBillingInfoModal) return;
+
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = original;
+        };
+    }, [showBillingInfoModal]);
 
     const handleCepBlur = useCallback(() => {
         if (isDisabled || pixPaymentActive) return;
@@ -179,7 +206,12 @@ export function CustomerDataForm({
                     <button
                         type="button"
                         className="inline-flex items-center gap-1 text-[0.65rem] font-semibold uppercase tracking-normal text-[#7d796c] hover:text-[#1a1a1d]"
-                        onClick={() => setShowBillingInfoModal(true)}
+                        onClick={() => {
+                            setShowBillingInfoModal(true);
+                            requestAnimationFrame(() => {
+                                setBillingModalEntering(true);
+                            });
+                        }}
                     >
                         <HiOutlineQuestionMarkCircle className="text-base" />
                         <span>Por que pedimos?</span>
@@ -279,11 +311,14 @@ export function CustomerDataForm({
             {/* Modal de explicação de LGPD / endereço de cobrança */}
             {showBillingInfoModal && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-                    onClick={() => setShowBillingInfoModal(false)}
+                    className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300 ${billingModalEntering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                    onClick={() => {
+                        setBillingModalEntering(false);
+                        setTimeout(() => setShowBillingInfoModal(false), 250);
+                    }}
                 >
                     <div
-                        className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 text-sm text-[#1a1a1d] shadow-2xl"
+                        className={`mx-4 w-full max-w-md rounded-2xl bg-white p-6 text-sm text-[#1a1a1d] shadow-2xl transition-all duration-300 ${billingModalEntering ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-95'}`}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 className="mb-3 text-base font-semibold uppercase tracking-normal text-[#1a1a1d]">
@@ -306,7 +341,10 @@ export function CustomerDataForm({
                         </div>
                         <button
                             type="button"
-                            onClick={() => setShowBillingInfoModal(false)}
+                            onClick={() => {
+                                setBillingModalEntering(false);
+                                setTimeout(() => setShowBillingInfoModal(false), 250);
+                            }}
                             className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
                         >
                             Entendi

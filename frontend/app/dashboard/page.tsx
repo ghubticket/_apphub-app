@@ -253,6 +253,7 @@ export default function DashboardPage() {
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
     const [showSecurityModal, setShowSecurityModal] = useState(false);
+    const [securityModalEntering, setSecurityModalEntering] = useState(false);
     const modalScrollRef = useRef<HTMLDivElement | null>(null);
     
     // Estado para modal de pagamento aprovado
@@ -273,6 +274,9 @@ export default function DashboardPage() {
         } else {
             // Desktop: mostrar modal de segurança
             setShowSecurityModal(true);
+            requestAnimationFrame(() => {
+                setSecurityModalEntering(true);
+            });
         }
     }, [isMobileDevice, isMobileViewport]);
 
@@ -391,6 +395,32 @@ export default function DashboardPage() {
             router.replace('/login');
         }
     }, [isReady, isAuthenticated, router]);
+
+    // Fechar SecurityModal com ESC
+    useEffect(() => {
+        if (!showSecurityModal) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setSecurityModalEntering(false);
+                setTimeout(() => setShowSecurityModal(false), 250);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [showSecurityModal]);
+
+    // Bloquear scroll quando SecurityModal estiver aberta
+    useEffect(() => {
+        if (!showSecurityModal) return;
+
+        const original = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = original;
+        };
+    }, [showSecurityModal]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -745,6 +775,9 @@ export default function DashboardPage() {
                                                 } else {
                                                     // Desktop: mostrar modal de segurança
                                                     setShowSecurityModal(true);
+                                                    requestAnimationFrame(() => {
+                                                        setSecurityModalEntering(true);
+                                                    });
                                                 }
                                             }}
                                             className="flex items-center gap-2 w-full md:w-auto justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
@@ -1080,11 +1113,23 @@ export default function DashboardPage() {
 
             {/* Modal de Segurança para Desktop */}
             {showSecurityModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="relative w-full max-w-md rounded-2xl border border-[#ded7ca] bg-white/95 p-6 shadow-2xl">
+                <div 
+                    className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300 ${securityModalEntering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                    onClick={() => {
+                        setSecurityModalEntering(false);
+                        setTimeout(() => setShowSecurityModal(false), 250);
+                    }}
+                >
+                    <div 
+                        className={`relative w-full max-w-md rounded-2xl border border-[#ded7ca] bg-white/95 p-6 shadow-2xl transition-all duration-300 ${securityModalEntering ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-95'}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <button
                             type="button"
-                            onClick={() => setShowSecurityModal(false)}
+                            onClick={() => {
+                                setSecurityModalEntering(false);
+                                setTimeout(() => setShowSecurityModal(false), 250);
+                            }}
                             className="absolute right-4 top-4 text-[#7d796c] hover:text-[#1a1a1d] transition"
                         >
                             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1137,7 +1182,10 @@ export default function DashboardPage() {
 
                         <button
                             type="button"
-                            onClick={() => setShowSecurityModal(false)}
+                            onClick={() => {
+                                setSecurityModalEntering(false);
+                                setTimeout(() => setShowSecurityModal(false), 250);
+                            }}
                             className="mt-6 w-full rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-lg transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
                         >
                             Entendi

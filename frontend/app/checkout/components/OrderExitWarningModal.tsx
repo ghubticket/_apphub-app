@@ -53,17 +53,17 @@ export function OrderExitWarningModal({ order, onStay, onLeave }: OrderExitWarni
         return () => clearInterval(interval);
     }, [expiresAtDate]);
 
-    // Fechar com ESC (não permite fechar, mas adiciona para consistência)
+    // Fechar com ESC - permite fechar escolhendo "Sair mesmo assim"
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                // Não fecha com ESC, usuário deve escolher uma ação
+                onLeave(); // Fechar escolhendo sair
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [onLeave]);
 
     // Bloquear scroll do body quando modal estiver aberta
     useEffect(() => {
