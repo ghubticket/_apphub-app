@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import UpcomingEvents from '@/components/home/UpcomingEvents';
 import PhotosCarousel from '@/components/home/PhotosCarousel';
@@ -132,6 +133,44 @@ export default function Home() {
 
                         {/* Seção Próximos Eventos */}
                         <UpcomingEvents events={events} />
+
+                        {/* CTA Venda a Longo Prazo */}
+                        <section className="px-4 py-12 bg-white">
+                            <div className="max-w-6xl mx-auto">
+                                <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white shadow-xl">
+                                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_left,_#f97316_0,_transparent_50%)]"></div>
+                                    <div className="relative z-10 flex flex-col gap-6 p-8 md:p-12">
+                                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 w-fit text-sm font-semibold uppercase tracking-wide">
+                                            <span className="text-lg">💳</span>
+                                            Venda a Longo Prazo
+                                        </div>
+                                        <div className="space-y-3">
+                                            <h2 className="text-3xl md:text-4xl font-bold leading-tight">
+                                                Precisa vender a longo prazo, disponibilizar PIX ou boleto parcelado?
+                                            </h2>
+                                            <p className="text-lg text-gray-200 max-w-3xl">
+                                                Essa sessão é pra você. Seus eventos podem ser o que você quiser: na Vicente você configura
+                                                pacotes, define parcelamento no PIX e no boleto e acompanha tudo no dashboard.
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-3">
+                                            <Link
+                                                href="/venda-parcelada-no-boleto-e-no-pix"
+                                                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold shadow-lg transition-all"
+                                            >
+                                                Conhecer venda parcelada
+                                            </Link>
+                                            <Link
+                                                href="/venda-parcelada-no-boleto-e-no-pix#como-funciona"
+                                                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold transition-all"
+                                            >
+                                                Ver como funciona
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
 
                         {/* Seção Fotos */}
                         <PhotosCarousel />

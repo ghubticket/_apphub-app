@@ -18,6 +18,7 @@ const upcomingEvents = [
 
 const navigationLinks = [
     { label: 'Sobre', href: '/sobre' },
+    { label: 'Venda Parcelada', href: '/venda-parcelada-no-boleto-e-no-pix' },
     { label: 'Política de Privacidade', href: '/privacidade' },
     { label: 'Termos de Uso', href: '/termos' },
 ];
@@ -425,7 +426,7 @@ export default function Header() {
                                             key={link.href}
                                             href={link.href}
                                             onClick={closeFullMenu}
-                                            className={`block text-4xl md:text-5xl lg:text-6xl font-bold text-white hover:text-[#f97316] transition-all duration-300 hover:translate-x-2 ${isFullMenuEntering
+                                            className={`block text-3xl md:text-5xl lg:text-5xl font-bold text-white hover:text-[#f97316] transition-all duration-300 hover:translate-x-2 ${isFullMenuEntering
                                                     ? 'opacity-100 translate-x-0'
                                                     : 'opacity-0 -translate-x-10'
                                                 }`}

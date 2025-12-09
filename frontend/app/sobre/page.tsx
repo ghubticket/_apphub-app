@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Container from '@/components/shared/Container';
 import DynamicMetadata from '@/components/seo/DynamicMetadata';
@@ -24,6 +25,79 @@ import {
 } from 'react-icons/hi2';
 
 export default function SobrePage() {
+    const [activeSection, setActiveSection] = useState<string>('');
+
+    useEffect(() => {
+        const sections = [
+            'exclusividade',
+            'recursos',
+            'split-pagamento',
+            'seguranca',
+            'dashboard',
+            'cupons',
+            'seo',
+            'emails',
+            'pdfs',
+            'crm',
+            'qr-code',
+            'clube-beneficios',
+        ];
+
+        const observerOptions = {
+            root: null,
+            rootMargin: '-20% 0px -70% 0px',
+            threshold: 0,
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    setActiveSection(entry.target.id);
+                }
+            });
+        }, observerOptions);
+
+        sections.forEach((id) => {
+            const element = document.getElementById(id);
+            if (element) observer.observe(element);
+        });
+
+        return () => {
+            sections.forEach((id) => {
+                const element = document.getElementById(id);
+                if (element) observer.unobserve(element);
+            });
+        };
+    }, []);
+
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            const offset = 100;
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth',
+            });
+        }
+    };
+
+    const menuItems = [
+        { id: 'exclusividade', label: 'Exclusividade', icon: '🔥' },
+        { id: 'split-pagamento', label: 'Split Pagamento', icon: '💰' },
+        { id: 'recursos', label: 'Recursos', icon: '💎' },
+        { id: 'seguranca', label: 'Segurança', icon: '🔒' },
+        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'cupons', label: 'Cupons', icon: '🎫' },
+        { id: 'seo', label: 'SEO', icon: '🔍' },
+        { id: 'emails', label: 'Emails', icon: '✉️' },
+        { id: 'pdfs', label: 'PDFs', icon: '📄' },
+        { id: 'crm', label: 'CRM', icon: '💬' },
+        { id: 'qr-code', label: 'QR Code', icon: '📱' },
+        { id: 'clube-beneficios', label: 'Clube', icon: '💎' },
+    ];
     return (
         <>
             <DynamicMetadata
@@ -32,7 +106,30 @@ export default function SobrePage() {
                 url="/sobre"
                 type="website"
             />
-            <main className="min-h-screen bg-white">
+            <main className="min-h-screen bg-white relative">
+            {/* Menu Fixo de Navegação */}
+            <div className="fixed right-4 top-1/2 -translate-y-1/2 z-30 hidden lg:block">
+                <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 p-2">
+                    <div className="flex flex-col gap-1 max-h-[80vh] overflow-y-auto">
+                        {menuItems.map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => scrollToSection(item.id)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                                    activeSection === item.id
+                                        ? 'bg-[#f97316] text-white shadow-md'
+                                        : 'text-gray-600 hover:bg-gray-100 hover:text-[#f97316]'
+                                }`}
+                                title={item.label}
+                            >
+                                <span className="text-sm">{item.icon}</span>
+                                <span className="hidden xl:inline">{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* Hero Section */}
             <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white pt-40 pb-20 md:py-40">
                 <div className="absolute inset-0 bg-[url('/images/pattern.svg')] opacity-5"></div>
@@ -101,7 +198,7 @@ export default function SobrePage() {
             </section>
 
             {/* Exclusividade - Pilar Principal */}
-            <section className="py-20 md:py-28 bg-gradient-to-b from-white to-[#faf7f0]">
+            <section id="exclusividade" className="py-20 md:py-28 bg-gradient-to-b from-white to-[#faf7f0]">
                 <Container>
                     <div className="max-w-5xl mx-auto">
                         <div className="text-center mb-16">
@@ -166,7 +263,7 @@ export default function SobrePage() {
                         </div>
 
                         {/* Box Split de Pagamento */}
-                        <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] rounded-3xl p-8 md:p-10 text-white mb-8 border-2 border-[#f97316]/30 relative overflow-hidden">
+                        <div id="split-pagamento" className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] rounded-3xl p-8 md:p-10 text-white mb-8 border-2 border-[#f97316]/30 relative overflow-hidden">
                             <div className="absolute top-2 right-2 text-4xl md:text-5xl opacity-20 animate-pulse">💸</div>
                             <div className="absolute bottom-2 left-2 text-4xl md:text-5xl opacity-20 animate-pulse" style={{ animationDelay: '0.3s' }}>⚡</div>
                             <div className="relative z-10">
@@ -176,12 +273,13 @@ export default function SobrePage() {
                                         Split de Pagamento Mercado Pago
                                     </h3>
                                 </div>
-                                <p className="text-lg md:text-xl text-gray-200 leading-relaxed mb-4">
+                                <p className="text-lg md:text-xl text-gray-200 leading-relaxed mb-6">
                                     Receba direto na sua conta! Com split de pagamento do Mercado Pago, você{' '}
                                     <strong className="text-white">não precisa esperar muito tempo</strong> para receber. 
                                     O dinheiro cai direto na sua conta, sem complicação, sem espera!
                                     <span className="inline-block ml-2 animate-bounce">🎯</span>
                                 </p>
+                               
                                 <div className="flex flex-wrap gap-2 mt-4">
                                     <span className="inline-flex items-center gap-2 px-4 py-2 bg-[#f97316]/20 rounded-full text-sm font-semibold">
                                         <span>⚡</span> Recebimento Rápido
@@ -223,7 +321,7 @@ export default function SobrePage() {
             </section>
 
             {/* Recursos Principais */}
-            <section className="py-20 md:py-28 bg-white">
+            <section id="recursos" className="py-20 md:py-28 bg-white">
                 <Container>
                     <div className="text-center mb-16">
                         <div className="flex justify-center gap-3 mb-4">
@@ -242,7 +340,7 @@ export default function SobrePage() {
 
                     <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
                         {/* Segurança */}
-                        <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
+                        <div id="seguranca" className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
                             <div className="flex items-start gap-4 mb-6">
                                 <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                     <HiOutlineShieldCheck className="text-3xl text-[#f97316]" />
@@ -254,6 +352,80 @@ export default function SobrePage() {
                                     </p>
                                 </div>
                             </div>
+                            
+                            {/* Ilustração Visual - Segurança */}
+                            <div className="mb-6 p-5 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+                                <h4 className="text-sm font-bold text-white mb-4 text-center">Camadas de Segurança</h4>
+                                
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center border-2 border-green-400">
+                                            <span className="text-green-300 text-xs">🔒</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-xs font-semibold text-gray-200">Criptografia AES-256</span>
+                                                <span className="text-xs font-bold text-green-300">100%</span>
+                                            </div>
+                                            <div className="w-full bg-gray-700 rounded-full h-2">
+                                                <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center border-2 border-blue-400">
+                                            <span className="text-blue-300 text-xs">🛡️</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-xs font-semibold text-gray-200">Rate Limiting</span>
+                                                <span className="text-xs font-bold text-blue-300">Ativo</span>
+                                            </div>
+                                            <div className="w-full bg-gray-700 rounded-full h-2">
+                                                <div className="bg-blue-500 h-2 rounded-full" style={{ width: '95%' }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center border-2 border-purple-400">
+                                            <span className="text-purple-300 text-xs">🔐</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-xs font-semibold text-gray-200">HTTPS Obrigatório</span>
+                                                <span className="text-xs font-bold text-purple-300">100%</span>
+                                            </div>
+                                            <div className="w-full bg-gray-700 rounded-full h-2">
+                                                <div className="bg-purple-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center border-2 border-orange-400">
+                                            <span className="text-orange-300 text-xs">👁️</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-xs font-semibold text-gray-200">Monitoramento Sentry</span>
+                                                <span className="text-xs font-bold text-orange-300">24/7</span>
+                                            </div>
+                                            <div className="w-full bg-gray-700 rounded-full h-2">
+                                                <div className="bg-orange-500 h-2 rounded-full" style={{ width: '98%' }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-4 pt-4 border-t border-white/20 text-center">
+                                    <div className="text-xs text-gray-300">
+                                        <span className="font-semibold">0</span> incidentes | <span className="font-semibold">100%</span> protegido
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <ul className="space-y-3">
                                 <li className="flex items-start gap-3">
                                     <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
@@ -294,7 +466,7 @@ export default function SobrePage() {
                         </div>
 
                         {/* Dashboard */}
-                        <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
+                        <div id="dashboard" className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
                             <div className="flex items-start gap-4 mb-6">
                                 <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                     <HiOutlineChartBar className="text-3xl text-[#f97316]" />
@@ -306,6 +478,47 @@ export default function SobrePage() {
                                     </p>
                                 </div>
                             </div>
+                            
+                            {/* Ilustração Visual - Dashboard */}
+                            <div className="mb-6 p-4 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200">
+                                <h4 className="text-xs font-bold text-gray-700 mb-3 text-center">Visão Geral do Dashboard</h4>
+                                
+                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                    <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                        <div className="text-xs text-gray-500 mb-1">Eventos</div>
+                                        <div className="text-lg font-bold text-[#1a1a1d]">12</div>
+                                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                                            <div className="bg-[#f97316] h-1.5 rounded-full" style={{ width: '80%' }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                        <div className="text-xs text-gray-500 mb-1">Vendas</div>
+                                        <div className="text-lg font-bold text-[#1a1a1d]">R$ 45K</div>
+                                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                                            <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '75%' }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                        <div className="text-xs text-gray-500 mb-1">Validações</div>
+                                        <div className="text-lg font-bold text-[#1a1a1d]">1.234</div>
+                                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                                            <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: '90%' }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                        <div className="text-xs text-gray-500 mb-1">Clientes</div>
+                                        <div className="text-lg font-bold text-[#1a1a1d]">856</div>
+                                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                                            <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: '65%' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="text-center text-xs text-gray-500">
+                                    Controle total em tempo real
+                                </div>
+                            </div>
+                            
                             <ul className="space-y-3">
                                 <li className="flex items-start gap-3">
                                     <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
@@ -346,7 +559,7 @@ export default function SobrePage() {
                         </div>
 
                         {/* Cupons e Códigos */}
-                        <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
+                        <div id="cupons" className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
                             <div className="flex items-start gap-4 mb-6">
                                 <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                     <HiOutlineTicket className="text-3xl text-[#f97316]" />
@@ -360,6 +573,44 @@ export default function SobrePage() {
                                     </p>
                                 </div>
                             </div>
+                            
+                            {/* Ilustração Visual - Cupons */}
+                            <div className="mb-6 p-4 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200">
+                                <h4 className="text-xs font-bold text-gray-700 mb-3 text-center">Exemplos de Cupons</h4>
+                                
+                                <div className="space-y-2">
+                                    <div className="bg-gradient-to-r from-[#f97316] to-[#ea6820] text-white p-3 rounded-lg flex items-center justify-between">
+                                        <div>
+                                            <div className="text-xs font-semibold opacity-90">BLACKFRIDAY</div>
+                                            <div className="text-xs opacity-75">20% OFF</div>
+                                        </div>
+                                        <div className="text-sm font-bold">✓ Ativo</div>
+                                    </div>
+                                    
+                                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3 rounded-lg flex items-center justify-between">
+                                        <div>
+                                            <div className="text-xs font-semibold opacity-90">VIP2024</div>
+                                            <div className="text-xs opacity-75">R$ 50 OFF</div>
+                                        </div>
+                                        <div className="text-sm font-bold">✓ Ativo</div>
+                                    </div>
+                                    
+                                    <div className="bg-gray-200 text-gray-600 p-3 rounded-lg flex items-center justify-between opacity-60">
+                                        <div>
+                                            <div className="text-xs font-semibold">SUMMER50</div>
+                                            <div className="text-xs">50% OFF</div>
+                                        </div>
+                                        <div className="text-xs">Inativo</div>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-3 pt-3 border-t border-gray-200 text-center">
+                                    <div className="text-xs text-gray-600">
+                                        <span className="font-semibold">156</span> usos | <span className="font-semibold">R$ 3.240</span> em descontos
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <ul className="space-y-3">
                                 <li className="flex items-start gap-3">
                                     <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
@@ -399,7 +650,7 @@ export default function SobrePage() {
                         </div>
 
                         {/* SEO */}
-                        <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
+                        <div id="seo" className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
                             <div className="flex items-start gap-4 mb-6">
                                 <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                     <HiOutlineMagnifyingGlass className="text-3xl text-[#f97316]" />
@@ -411,6 +662,60 @@ export default function SobrePage() {
                                     </p>
                                 </div>
                             </div>
+                            
+                            {/* Ilustração Visual - SEO */}
+                            <div className="mb-6 p-5 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+                                <h4 className="text-sm font-bold text-white mb-4 text-center">Otimização SEO</h4>
+                                
+                                <div className="space-y-3">
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-semibold text-gray-200">Google Indexação</span>
+                                            <span className="text-xs font-bold text-green-300">✓ Indexado</span>
+                                        </div>
+                                        <div className="w-full bg-gray-700 rounded-full h-2">
+                                            <div className="bg-green-500 h-2 rounded-full" style={{ width: '95%' }}></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-semibold text-gray-200">Open Graph</span>
+                                            <span className="text-xs font-bold text-blue-300">✓ Configurado</span>
+                                        </div>
+                                        <div className="w-full bg-gray-700 rounded-full h-2">
+                                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-semibold text-gray-200">Structured Data</span>
+                                            <span className="text-xs font-bold text-purple-300">✓ Schema.org</span>
+                                        </div>
+                                        <div className="w-full bg-gray-700 rounded-full h-2">
+                                            <div className="bg-purple-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-semibold text-gray-200">URLs Amigáveis</span>
+                                            <span className="text-xs font-bold text-orange-300">✓ SEO Friendly</span>
+                                        </div>
+                                        <div className="w-full bg-gray-700 rounded-full h-2">
+                                            <div className="bg-orange-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-4 pt-4 border-t border-white/20 text-center">
+                                    <div className="text-xs text-gray-300">
+                                        <span className="font-semibold">98%</span> de visibilidade | <span className="font-semibold">Google</span> otimizado
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <ul className="space-y-3">
                                 <li className="flex items-start gap-3">
                                     <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
@@ -449,7 +754,7 @@ export default function SobrePage() {
                         </div>
 
                         {/* Emails Automáticos */}
-                        <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
+                        <div id="emails" className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
                             <div className="flex items-start gap-4 mb-6">
                                 <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                     <HiOutlineEnvelope className="text-3xl text-[#f97316]" />
@@ -461,6 +766,56 @@ export default function SobrePage() {
                                     </p>
                                 </div>
                             </div>
+                            
+                            {/* Ilustração Visual - Emails Automáticos */}
+                            <div className="mb-6 p-4 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200">
+                                <h4 className="text-xs font-bold text-gray-700 mb-3 text-center">Fluxo de Emails Automáticos</h4>
+                                
+                                <div className="space-y-3">
+                                    {/* Email 1 - Confirmação */}
+                                    <div className="bg-white border-l-4 border-green-500 p-3 rounded-lg shadow-sm">
+                                        <div className="flex items-start justify-between mb-1">
+                                            <div className="flex-1">
+                                                <div className="text-xs font-bold text-gray-700">Confirmação de Compra</div>
+                                                <div className="text-xs text-gray-500">Enviado automaticamente</div>
+                                            </div>
+                                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                        </div>
+                                        <div className="text-xs text-gray-600 mt-2">✓ Ingresso anexo | PDF gerado</div>
+                                    </div>
+                                    
+                                    {/* Email 2 - Pagamento */}
+                                    <div className="bg-white border-l-4 border-blue-500 p-3 rounded-lg shadow-sm">
+                                        <div className="flex items-start justify-between mb-1">
+                                            <div className="flex-1">
+                                                <div className="text-xs font-bold text-gray-700">Notificação de Pagamento</div>
+                                                <div className="text-xs text-gray-500">Status: Aprovado</div>
+                                            </div>
+                                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                        </div>
+                                        <div className="text-xs text-gray-600 mt-2">✓ Pagamento confirmado</div>
+                                    </div>
+                                    
+                                    {/* Email 3 - Lembrete */}
+                                    <div className="bg-white border-l-4 border-orange-500 p-3 rounded-lg shadow-sm">
+                                        <div className="flex items-start justify-between mb-1">
+                                            <div className="flex-1">
+                                                <div className="text-xs font-bold text-gray-700">Lembrete de Evento</div>
+                                                <div className="text-xs text-gray-500">24h antes do evento</div>
+                                            </div>
+                                            <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                                        </div>
+                                        <div className="text-xs text-gray-600 mt-2">✓ Enviado automaticamente</div>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-3 pt-3 border-t border-gray-200 text-center">
+                                    <div className="text-xs text-gray-600">
+                                        <span className="font-semibold">98%</span> de entregabilidade | <span className="font-semibold">Resend</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <ul className="space-y-3">
                                 <li className="flex items-start gap-3">
                                     <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
@@ -500,7 +855,7 @@ export default function SobrePage() {
                         </div>
 
                         {/* PDFs Automáticos */}
-                        <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
+                        <div id="pdfs" className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
                             <div className="flex items-start gap-4 mb-6">
                                 <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                     <HiOutlineDocumentText className="text-3xl text-[#f97316]" />
@@ -512,6 +867,72 @@ export default function SobrePage() {
                                     </p>
                                 </div>
                             </div>
+                            
+                            {/* Ilustração Visual - PDFs */}
+                            <div className="mb-6 p-5 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+                                <h4 className="text-sm font-bold text-white mb-4 text-center">Geração de PDFs</h4>
+                                
+                                <div className="space-y-3">
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg">📄</span>
+                                                <span className="text-xs font-semibold text-gray-200">PDF Gerado</span>
+                                            </div>
+                                            <span className="text-xs font-bold text-green-300">✓ Pronto</span>
+                                        </div>
+                                        <div className="w-full bg-gray-700 rounded-full h-2">
+                                            <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg">🔲</span>
+                                                <span className="text-xs font-semibold text-gray-200">QR Code Único</span>
+                                            </div>
+                                            <span className="text-xs font-bold text-blue-300">✓ Incluído</span>
+                                        </div>
+                                        <div className="w-full bg-gray-700 rounded-full h-2">
+                                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg">✉️</span>
+                                                <span className="text-xs font-semibold text-gray-200">Envio Automático</span>
+                                            </div>
+                                            <span className="text-xs font-bold text-purple-300">✓ Enviado</span>
+                                        </div>
+                                        <div className="w-full bg-gray-700 rounded-full h-2">
+                                            <div className="bg-purple-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg">📐</span>
+                                                <span className="text-xs font-semibold text-gray-200">Formato A4</span>
+                                            </div>
+                                            <span className="text-xs font-bold text-orange-300">✓ Pronto</span>
+                                        </div>
+                                        <div className="w-full bg-gray-700 rounded-full h-2">
+                                            <div className="bg-orange-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-4 pt-4 border-t border-white/20 text-center">
+                                    <div className="text-xs text-gray-300">
+                                        <span className="font-semibold">1.234</span> PDFs gerados | <span className="font-semibold">100%</span> automático
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <ul className="space-y-3">
                                 <li className="flex items-start gap-3">
                                     <HiOutlineCheckCircle className="text-[#f97316] text-xl flex-shrink-0 mt-0.5" />
@@ -552,7 +973,7 @@ export default function SobrePage() {
             </section>
 
             {/* CRM - Gestão de Relacionamento */}
-            <section className="py-20 md:py-28 bg-gradient-to-b from-white to-[#faf7f0]">
+            <section id="crm" className="py-20 md:py-28 bg-gradient-to-b from-white to-[#faf7f0]">
                 <Container>
                     <div className="max-w-6xl mx-auto">
                         <div className="text-center mb-16">
@@ -740,16 +1161,14 @@ export default function SobrePage() {
             </section>
 
             {/* Validação QR Code */}
-            <section className="py-20 md:py-28 bg-gradient-to-b from-[#faf7f0] to-white">
+            <section id="qr-code" className=" bg-gradient-to-b from-[#faf7f0] to-white">
                 <Container>
                     <div className="max-w-5xl mx-auto">
                         <div className="text-center mb-16">
                             <div className="inline-flex items-center justify-center w-20 h-20 bg-[#f97316]/10 rounded-full mb-6">
                                 <HiOutlineQrCode className="text-4xl text-[#f97316]" />
                             </div>
-                            <div className="flex justify-center mb-4">
-                                <span className="text-6xl md:text-7xl animate-bounce">📱</span>
-                            </div>
+                          
                             <h2 className="text-3xl md:text-5xl font-bold text-[#1a1a1d] mb-6">
                                 Leitor QR Code Completo
                             </h2>
@@ -757,6 +1176,60 @@ export default function SobrePage() {
                                 Validação rápida, segura e offline na entrada do seu evento. 
                                 <span className="inline-block ml-2 animate-pulse">⚡</span>
                             </p>
+                        </div>
+
+                        {/* Ilustração Visual - QR Code */}
+                        <div className="max-w-2xl mx-auto mb-12 p-6 bg-white rounded-2xl shadow-lg border border-gray-200">
+                            <h4 className="text-sm font-bold text-gray-700 mb-4 text-center">Validação QR Code em Ação</h4>
+                            
+                            <div className="grid grid-cols-3 gap-4 mb-4">
+                                {/* QR Code 1 - Válido */}
+                                <div className="text-center">
+                                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border-2 border-green-300 mb-2">
+                                        <div className="w-16 h-16 mx-auto bg-white rounded flex items-center justify-center text-2xl">
+                                            ▢
+                                        </div>
+                                    </div>
+                                    <div className="text-xs font-semibold text-green-600">✓ Válido</div>
+                                    <div className="text-xs text-gray-500">Entrada OK</div>
+                                </div>
+                                
+                                {/* QR Code 2 - Já usado */}
+                                <div className="text-center">
+                                    <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg border-2 border-red-300 mb-2">
+                                        <div className="w-16 h-16 mx-auto bg-white rounded flex items-center justify-center text-2xl">
+                                            ▢
+                                        </div>
+                                    </div>
+                                    <div className="text-xs font-semibold text-red-600">✗ Já usado</div>
+                                    <div className="text-xs text-gray-500">Bloqueado</div>
+                                </div>
+                                
+                                {/* QR Code 3 - Offline */}
+                                <div className="text-center">
+                                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border-2 border-blue-300 mb-2">
+                                        <div className="w-16 h-16 mx-auto bg-white rounded flex items-center justify-center text-2xl">
+                                            ▢
+                                        </div>
+                                    </div>
+                                    <div className="text-xs font-semibold text-blue-600">⚡ Offline</div>
+                                    <div className="text-xs text-gray-500">Sinc. depois</div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <div className="flex items-center justify-between text-xs mb-2">
+                                    <span className="text-gray-600">Validações Hoje</span>
+                                    <span className="font-bold text-[#1a1a1d]">1.234</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div className="bg-[#f97316] h-2 rounded-full" style={{ width: '85%' }}></div>
+                                </div>
+                                <div className="flex items-center justify-between text-xs mt-2">
+                                    <span className="text-gray-600">Taxa de Sucesso</span>
+                                    <span className="font-bold text-green-600">98.5%</span>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="grid md:grid-cols-2 gap-8 mb-12">
@@ -1034,7 +1507,7 @@ export default function SobrePage() {
                             </div>
 
                             {/* Clube de Benefícios e Rede de Vicenters */}
-                            <div className="md:col-span-2 bg-gradient-to-br from-[#f97316] via-[#ea6820] to-[#f97316] text-white p-8 md:p-10 rounded-3xl shadow-xl border-2 border-white/20 relative overflow-hidden">
+                            <div id="clube-beneficios" className="md:col-span-2 bg-gradient-to-br from-[#f97316] via-[#ea6820] to-[#f97316] text-white p-8 md:p-10 rounded-3xl shadow-xl border-2 border-white/20 relative overflow-hidden">
                                 {/* Efeitos decorativos */}
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
                                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
@@ -1051,6 +1524,52 @@ export default function SobrePage() {
                                             <p className="text-white/90 leading-relaxed mb-4">
                                                 Você vai ter um clube de benefícios para seus clientes, criar uma rede de vicenters e focar em fidelidade, comunidade e tudo único!
                                             </p>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Ilustração Visual - Clube de Benefícios */}
+                                    <div className="mb-6 p-5 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+                                        <h4 className="text-sm font-bold text-white mb-4 text-center">Rede de Vicenters em Crescimento</h4>
+                                        
+                                        <div className="grid grid-cols-3 gap-3 mb-4">
+                                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 text-center border border-white/30">
+                                                <div className="text-2xl font-bold text-white mb-1">1.2K</div>
+                                                <div className="text-xs text-white/80">Membros</div>
+                                            </div>
+                                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 text-center border border-white/30">
+                                                <div className="text-2xl font-bold text-white mb-1">856</div>
+                                                <div className="text-xs text-white/80">Ativos</div>
+                                            </div>
+                                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 text-center border border-white/30">
+                                                <div className="text-2xl font-bold text-white mb-1">4.5K</div>
+                                                <div className="text-xs text-white/80">Pontos</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-xs">
+                                                <span className="text-white/90">Nível Bronze</span>
+                                                <span className="text-white font-bold">450 membros</span>
+                                            </div>
+                                            <div className="w-full bg-white/20 rounded-full h-2">
+                                                <div className="bg-yellow-400 h-2 rounded-full" style={{ width: '45%' }}></div>
+                                            </div>
+                                            
+                                            <div className="flex items-center justify-between text-xs">
+                                                <span className="text-white/90">Nível Prata</span>
+                                                <span className="text-white font-bold">280 membros</span>
+                                            </div>
+                                            <div className="w-full bg-white/20 rounded-full h-2">
+                                                <div className="bg-gray-300 h-2 rounded-full" style={{ width: '28%' }}></div>
+                                            </div>
+                                            
+                                            <div className="flex items-center justify-between text-xs">
+                                                <span className="text-white/90">Nível Ouro</span>
+                                                <span className="text-white font-bold">126 membros</span>
+                                            </div>
+                                            <div className="w-full bg-white/20 rounded-full h-2">
+                                                <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '12%' }}></div>
+                                            </div>
                                         </div>
                                     </div>
                                     
