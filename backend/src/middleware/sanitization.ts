@@ -1,17 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
 
-// Sanitização simples: remove tags <script> e atributos perigosos
+// Sanitização robusta: remove tags perigosas e previne XSS
 function sanitizeString(input: string): string {
-    if (!input) return input;
+    if (!input || typeof input !== 'string') return input;
+    
+    let out = input;
+    
     // Remove tags script/style e eventos on*
-    let out = input
-        .replace(/<\/(?:script|style)>/gi, '')
-        .replace(/<(?:script|style)[^>]*>/gi, '')
+    out = out
+        .replace(/<\/(?:script|style|iframe|object|embed|form|input|button)>/gi, '')
+        .replace(/<(?:script|style|iframe|object|embed|form|input|button)[^>]*>/gi, '')
         .replace(/on[a-z]+\s*=\s*"[^"]*"/gi, '')
         .replace(/on[a-z]+\s*=\s*'[^']*'/gi, '')
         .replace(/on[a-z]+\s*=\s*[^\s>]+/gi, '');
-    // Remove javascript: URLs
-    out = out.replace(/javascript:\s*/gi, '');
+    
+    // Remove javascript: e data: URLs perigosos
+    out = out
+        .replace(/javascript:\s*/gi, '')
+        .replace(/data:(?!image\/)[^"'\s]*/gi, '');
+    
+    // Remove caracteres de controle (exceto quebras de linha e tabs)
+    out = out.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+    
     return out;
 }
 

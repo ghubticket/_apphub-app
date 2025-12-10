@@ -77,6 +77,43 @@ export const authenticateWithCookies = async (req: Request, res: Response, next:
                                 path: '/',
                             });
 
+                            // Optional: refresh token rotation via cookies flow (mirror controller)
+                            // This path trusts refreshToken passed in cookie; for security, rotate it here too
+                            const newRefreshToken = jwt.sign(
+                                {
+                                    userId: String(user._id),
+                                    email: user.email,
+                                    role: user.role,
+                                    type: 'refresh',
+                                },
+                                process.env.JWT_REFRESH_SECRET!,
+                                { expiresIn: `${Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS || 1)}d` }
+                            );
+
+                            session.refreshToken = newRefreshToken;
+                            session.expiresAt = new Date(
+                                Date.now() +
+                                    Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS || 1) *
+                                        24 *
+                                        60 *
+                                        60 *
+                                        1000
+                            );
+                            await session.save();
+
+                            res.cookie('apphub_refresh_token', newRefreshToken, {
+                                httpOnly: true,
+                                secure: process.env.NODE_ENV === 'production',
+                                sameSite: 'strict',
+                                maxAge:
+                                    Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS || 1) *
+                                    24 *
+                                    60 *
+                                    60 *
+                                    1000,
+                                path: '/',
+                            });
+
                             req.user = user;
                             return next();
                         }

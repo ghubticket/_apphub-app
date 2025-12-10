@@ -33,24 +33,10 @@ export default function VendaParceladaPage() {
             />
             <main className="min-h-screen bg-white">
                 {/* Hero Section */}
-                <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white pt-40 pb-20 md:py-40">
+                <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white min-h-screen flex items-center">
                     <div className="absolute inset-0 bg-[url('/images/pattern.svg')] opacity-5"></div>
                     <Container>
-                        <div className="relative z-10 max-w-4xl mx-auto text-center">
-                            {/* Emoji animado no topo */}
-                            <div className="flex justify-center mb-6">
-                                <div className="relative">
-                                    <div className="text-8xl md:text-9xl animate-bounce">
-                                        💰
-                                    </div>
-                                    <div className="absolute -top-2 -right-2 text-4xl md:text-5xl animate-pulse" style={{ animationDelay: '0.2s' }}>
-                                        📅
-                                    </div>
-                                    <div className="absolute -bottom-2 -left-2 text-4xl md:text-5xl animate-pulse" style={{ animationDelay: '0.4s' }}>
-                                        🚀
-                                    </div>
-                                </div>
-                            </div>
+                        <div className="relative z-10 max-w-4xl mx-auto text-center py-20">
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-6">
                                 <HiOutlineCalendar className="text-[#f97316] text-xl" />
                                 <span className="text-sm font-semibold uppercase tracking-wider">
@@ -76,16 +62,16 @@ export default function VendaParceladaPage() {
                                     href="https://wa.me/5511982631238?text=Olá! Quero vender pacotes parcelados no PIX/Boleto! 🚀"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white hover:text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >
                                     Começar Agora
-                                    <HiOutlineArrowRight className="text-xl" />
+                                    <HiOutlineArrowRight className="text-xl text-white" />
                                 </a>
                                 <a
                                     href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre venda parcelada! 💬"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold rounded-full transition-all"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white hover:text-white font-semibold rounded-full transition-all"
                                 >
                                     Fale com o Vicente!
                                 </a>
@@ -302,7 +288,7 @@ export default function VendaParceladaPage() {
                         <div className="max-w-5xl mx-auto">
                             <div className="text-center mb-16">
                                 <div className="flex justify-center gap-3 mb-4">
-                                    <span className="text-5xl md:text-6xl animate-bounce">⚙️</span>
+                                    <span className="text-5xl md:text-6xl">⚙️</span>
                                  
                                 </div>
                                 <h2 className="text-3xl md:text-5xl font-bold text-[#1a1a1d] mb-6">
@@ -1027,9 +1013,7 @@ export default function VendaParceladaPage() {
                     <Container>
                         <div className="max-w-4xl mx-auto text-center">
                             <div className="flex justify-center gap-3 mb-6">
-                                <span className="text-6xl md:text-7xl animate-bounce">✈️</span>
-                                <span className="text-6xl md:text-7xl animate-pulse" style={{ animationDelay: '0.2s' }}>💰</span>
-                                <span className="text-6xl md:text-7xl animate-bounce" style={{ animationDelay: '0.4s' }}>🚀</span>
+                                <span className="text-6xl md:text-7xl">✈️</span>
                             </div>
                             <h2 className="text-3xl md:text-5xl font-bold mb-6">
                                 Pronto para Vender Pacotes Parcelados?
@@ -1046,16 +1030,16 @@ export default function VendaParceladaPage() {
                                     href="https://wa.me/5511982631238?text=Olá! Quero vender pacotes parcelados no PIX/Boleto! 🚀"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white hover:text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >
                                     Começar Agora
-                                    <HiOutlineArrowRight className="text-xl" />
+                                    <HiOutlineArrowRight className="text-xl text-white" />
                                 </a>
                                 <a
                                     href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre venda parcelada! 💬"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold rounded-full transition-all"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white hover:text-white font-semibold rounded-full transition-all"
                                 >
                                     Fale com o Vicente!
                                 </a>

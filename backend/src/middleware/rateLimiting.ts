@@ -102,12 +102,53 @@ export const userRateLimit = (windowMs: number, max: number, message?: string) =
 /**
  * Rate limiting para criação de pedidos por usuário autenticado
  * Limita a 10 pedidos por hora por usuário
+ * EXCEÇÃO: Pedidos VIP não contam no rate limit (são gratuitos e limitados por CPF)
  */
-export const orderCreationUserRateLimit = userRateLimit(
-    60 * 60 * 1000, // 1 hora
-    isDevelopment ? 1000 : 10, // 10 pedidos por hora em produção
-    'Limite de pedidos excedido. Máximo de 10 pedidos por hora.'
-);
+const orderCreationRateLimitInstance = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 10, // Fixar 10 pedidos por hora (inclusive em produção)
+    keyGenerator: (req: Request) => {
+        // Usar userId se autenticado, senão usar IP como fallback
+        const user = (req as any).user;
+        return user ? `user:${user._id || user.id}` : `ip:${req.ip}`;
+    },
+    message: {
+        success: false,
+        message: 'Limite de pedidos excedido. Máximo de 10 pedidos por hora.',
+        errors: ['Rate limit excedido por usuário'],
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+/**
+ * Middleware customizado que verifica se é VIP antes de aplicar rate limit
+ */
+export const orderCreationUserRateLimit = async (req: Request, res: Response, next: NextFunction) => {
+    // Pular rate limit para usuários não autenticados (já tem rate limit por IP)
+    if (!(req as any).user) {
+        return next();
+    }
+
+    // Verificar se é pedido VIP - se for, pular rate limit
+    const { ticketTypeId } = req.body;
+    if (ticketTypeId) {
+        try {
+            const { TicketType } = require('../models');
+            const ticketType = await TicketType.findById(ticketTypeId).select('isVIP').lean();
+            // Se for VIP, pular rate limit
+            if (ticketType?.isVIP === true) {
+                return next();
+            }
+        } catch (error) {
+            // Se erro ao buscar, aplicar rate limit por segurança
+            return orderCreationRateLimitInstance(req, res, next);
+        }
+    }
+
+    // Aplicar rate limit para pedidos não-VIP
+    return orderCreationRateLimitInstance(req, res, next);
+};
 
 /**
  * Rate limiting para operações críticas por usuário autenticado

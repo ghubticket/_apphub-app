@@ -208,11 +208,32 @@ export const createOrder = async (req: Request, res: Response) => {
         }
         const { event, ticketType, user } = relatedDataResult.data!;
 
+        // Validação e sanitização de customerData (se fornecido)
+        let validatedCustomerData: any = null;
+        if (customerData) {
+            try {
+                const { validateString, validateEmail, validateCPF, validatePhone, validateText } = await import('../utils/typeValidation');
+                
+                validatedCustomerData = {
+                    name: customerData.name ? validateText(customerData.name, 'Nome', { maxLength: 100, minLength: 2 }) : undefined,
+                    email: customerData.email ? validateEmail(customerData.email, 'Email', false) : undefined,
+                    phone: customerData.phone ? validatePhone(customerData.phone, 'Telefone', false) : undefined,
+                    cpf: customerData.cpf ? validateCPF(customerData.cpf, 'CPF', false) : undefined,
+                };
+            } catch (validationError: any) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Dados do cliente inválidos',
+                    errors: [validationError.message || 'Erro na validação dos dados do cliente'],
+                });
+            }
+        }
+
         // Preparar CPF e Email para validação
         // CRÍTICO: Para ingressos VIP com maxPerCPF, CPF é OBRIGATÓRIO
-        const cpfToValidate = customerData?.cpf || user?.cpf;
-        const emailToValidate = customerData?.email || user?.email;
-        const normalizedCustomerEmail = normalizeEmail(customerData?.email);
+        const cpfToValidate = validatedCustomerData?.cpf || user?.cpf;
+        const emailToValidate = validatedCustomerData?.email || user?.email;
+        const normalizedCustomerEmail = normalizeEmail(validatedCustomerData?.email || customerData?.email);
         const normalizedUserEmail = normalizeEmail(user?.email);
 
         // CRÍTICO: Validação especial para VIPs - verificar se já tem pedido VIP pago ANTES de validar limites
@@ -327,6 +348,20 @@ export const createOrder = async (req: Request, res: Response) => {
         // Garantir que isVIP seja boolean true E que ticketType.isVIP seja explicitamente true
         const isReallyVIP = Boolean(isVIP) && Boolean(ticketType?.isVIP === true);
 
+        // Reserva atômica de estoque para evitar oversell em pico
+        const reserveStockIfAvailable = async (qty: number) => {
+            return TicketType.findOneAndUpdate(
+                {
+                    _id: ticketTypeId,
+                    isActive: true,
+                    deletedAt: null,
+                    $expr: { $lte: [{ $add: ['$soldQuantity', qty] }, '$maxQuantity'] },
+                },
+                { $inc: { soldQuantity: qty } },
+                { new: true }
+            );
+        };
+
         // REFATORADO: Buscar pedido existente usando serviço
         const existingOrder = await orderService.findExistingOrder(
             eventId!,
@@ -421,76 +456,89 @@ export const createOrder = async (req: Request, res: Response) => {
                         });
                     }
 
-                    // Criar novos tickets para o pedido existente
-                    // CRÍTICO: Novos tickets SEMPRE são 'pending' (precisam pagar)
-                    // Tickets antigos continuam com seu status original (confirmed se já pagos)
-                    const newTickets: any[] = [];
-                    for (let i = 0; i < quantity; i++) {
-                        const ticket = new Ticket({
-                            event: eventId,
-                            ticketType: ticketTypeId,
-                            order: orderToUpdate._id,
-                            holder: userId || null,
-                            price: ticketPrice,
-                            status: 'pending', // SEMPRE pending - novos ingressos precisam pagar
-                            qrCode: '', // QR code só será gerado quando pagar
-                        });
-                        await ticket.save();
-                        newTickets.push(ticket._id);
-                    }
+                    // Reserva atômica de estoque para adicionar ingressos ao pedido existente
+                    let reuseStockReserved = false;
+                    try {
+                        const reservedTicketType = await reserveStockIfAvailable(quantity);
+                        if (!reservedTicketType) {
+                            return res.status(400).json({
+                                success: false,
+                                message: 'Estoque insuficiente',
+                                errors: [
+                                    `Ingressos indisponíveis para este lote. Quantidade solicitada: ${quantity}`,
+                                ],
+                            });
+                        }
+                        reuseStockReserved = true;
 
-                    // Atualizar pedido com novos tickets
-                    orderToUpdate.tickets = [...(orderToUpdate.tickets || []), ...newTickets];
-                    orderToUpdate.totalTickets = (orderToUpdate.totalTickets || 0) + quantity;
+                        // Criar novos tickets para o pedido existente
+                        // CRÍTICO: Novos tickets SEMPRE são 'pending' (precisam pagar)
+                        // Tickets antigos continuam com seu status original (confirmed se já pagos)
+                        const newTickets: any[] = [];
+                        for (let i = 0; i < quantity; i++) {
+                            const ticket = new Ticket({
+                                event: eventId,
+                                ticketType: ticketTypeId,
+                                order: orderToUpdate._id,
+                                holder: userId || null,
+                                price: ticketPrice,
+                                status: 'pending', // SEMPRE pending - novos ingressos precisam pagar
+                                qrCode: '', // QR code só será gerado quando pagar
+                            });
+                            await ticket.save();
+                            newTickets.push(ticket._id);
+                        }
 
-                    // Atualizar expiresAt se pedido está PENDING (renovar reserva)
-                    if (orderToUpdate.status === 'pending') {
-                        orderToUpdate.expiresAt = new Date(Date.now() + CHECKOUT_TIMEOUT_MS);
-                    }
+                        // Atualizar pedido com novos tickets
+                        orderToUpdate.tickets = [...(orderToUpdate.tickets || []), ...newTickets];
+                        orderToUpdate.totalTickets = (orderToUpdate.totalTickets || 0) + quantity;
 
-                    // Recalcular valores (considerando desconto e taxa)
-                    const newSubtotal = ticketPrice * quantity;
-                    let newDiscountAmount = 0;
+                        // Atualizar expiresAt se pedido está PENDING (renovar reserva)
+                        if (orderToUpdate.status === 'pending') {
+                            orderToUpdate.expiresAt = new Date(Date.now() + CHECKOUT_TIMEOUT_MS);
+                        }
 
-                    // Aplicar desconto de código de promotor se fornecido
-                    if (promoterCode && !isVIP && usedPromoterCode) {
-                        const code = await PromoterCode.findOne({
-                            code: promoterCode.toUpperCase().trim(),
-                            isActive: true,
-                            deletedAt: null,
-                            events: eventId,
-                        });
+                        // Recalcular valores (considerando desconto e taxa)
+                        const newSubtotal = ticketPrice * quantity;
+                        let newDiscountAmount = 0;
 
-                        if (code) {
-                            if (code.discountType === 'percentage') {
-                                newDiscountAmount = newSubtotal * (code.discountValue / 100);
-                            } else {
-                                newDiscountAmount = Math.min(code.discountValue, newSubtotal);
+                        // Aplicar desconto de código de promotor se fornecido
+                        if (promoterCode && !isVIP && usedPromoterCode) {
+                            const code = await PromoterCode.findOne({
+                                code: promoterCode.toUpperCase().trim(),
+                                isActive: true,
+                                deletedAt: null,
+                                events: eventId,
+                            });
+
+                            if (code) {
+                                if (code.discountType === 'percentage') {
+                                    newDiscountAmount = newSubtotal * (code.discountValue / 100);
+                                } else {
+                                    newDiscountAmount = Math.min(code.discountValue, newSubtotal);
+                                }
                             }
                         }
-                    }
 
-                    const platformFeePercentage = event.platformFeePercentage || 0;
-                    const newPlatformFee = isVIP
-                        ? 0
-                        : (newSubtotal - newDiscountAmount) * (platformFeePercentage / 100);
-                    const newTotalAmount = newSubtotal - newDiscountAmount + newPlatformFee;
+                        const platformFeePercentage = event.platformFeePercentage || 0;
+                        const newPlatformFee = isVIP
+                            ? 0
+                            : (newSubtotal - newDiscountAmount) * (platformFeePercentage / 100);
+                        const newTotalAmount = newSubtotal - newDiscountAmount + newPlatformFee;
 
-                    orderToUpdate.subtotal = (orderToUpdate.subtotal || 0) + newSubtotal;
-                    orderToUpdate.discountAmount =
-                        (orderToUpdate.discountAmount || 0) + newDiscountAmount;
-                    orderToUpdate.platformFee = (orderToUpdate.platformFee || 0) + newPlatformFee;
-                    orderToUpdate.totalAmount = (orderToUpdate.totalAmount || 0) + newTotalAmount;
+                        orderToUpdate.subtotal = (orderToUpdate.subtotal || 0) + newSubtotal;
+                        orderToUpdate.discountAmount =
+                            (orderToUpdate.discountAmount || 0) + newDiscountAmount;
+                        orderToUpdate.platformFee =
+                            (orderToUpdate.platformFee || 0) + newPlatformFee;
+                        orderToUpdate.totalAmount =
+                            (orderToUpdate.totalAmount || 0) + newTotalAmount;
 
-                    if (usedPromoterCode && !orderToUpdate.promoterCode) {
-                        orderToUpdate.promoterCode = usedPromoterCode;
-                    }
+                        if (usedPromoterCode && !orderToUpdate.promoterCode) {
+                            orderToUpdate.promoterCode = usedPromoterCode;
+                        }
 
-                    await orderToUpdate.save();
-
-                    // Atualizar quantidade vendida
-                    ticketType.soldQuantity += quantity;
-                    await ticketType.save();
+                        await orderToUpdate.save();
 
                     // Incrementar contador de uso do código de promotor (se usado)
                     if (usedPromoterCode) {
@@ -522,6 +570,16 @@ export const createOrder = async (req: Request, res: Response) => {
                             addedTickets: true,
                         },
                     });
+                    } catch (reuseError) {
+                        // rollback da reserva de estoque em caso de falha
+                        if (reuseStockReserved) {
+                            await TicketType.updateOne(
+                                { _id: ticketTypeId },
+                                { $inc: { soldQuantity: -quantity } }
+                            );
+                        }
+                        throw reuseError;
+                    }
                 }
             } // Fechar else do if (orderStatus === 'failed')
         } // Fechar if (existingOrder)
@@ -602,6 +660,8 @@ export const createOrder = async (req: Request, res: Response) => {
             user?.email ||
             'Não informado';
 
+        let creationStockReserved = false;
+
         try {
             // REFATORADO: Cancelar pedidos pendentes anteriores usando serviço
             if (!allowReuse || !reusableOrder) {
@@ -613,6 +673,19 @@ export const createOrder = async (req: Request, res: Response) => {
                     existingOrder?._id?.toString()
                 );
             }
+
+            // Reserva atômica de estoque antes de criar pedido
+            const reservedTicketType = await reserveStockIfAvailable(quantity!);
+            if (!reservedTicketType) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Estoque insuficiente',
+                    errors: [
+                        `Ingressos indisponíveis para este lote. Quantidade solicitada: ${quantity}`,
+                    ],
+                });
+            }
+            creationStockReserved = true;
 
             // Criar pedido
             const orderNumber = await generateOrderNumber();
@@ -649,9 +722,9 @@ export const createOrder = async (req: Request, res: Response) => {
                 expiresAt, // Data de expiração para pedidos PENDING (reserva de ingressos)
                 orderNumber,
                 customerData: {
-                    name: customerData?.name || user?.name || 'Não informado',
+                    name: validatedCustomerData?.name || user?.name || 'Não informado',
                     email: finalCustomerEmail,
-                    phone: customerData?.phone || user?.phone,
+                    phone: validatedCustomerData?.phone || user?.phone,
                     // CRÍTICO: Normalizar CPF antes de salvar para garantir consistência
                     // Salvar no formato 000.000.000-00 para facilitar busca
                     cpf: cpfToValidate
@@ -748,10 +821,6 @@ export const createOrder = async (req: Request, res: Response) => {
             order.tickets = createdTickets.map((t) => t._id as mongoose.Types.ObjectId);
             await order.save();
 
-            // Atualizar quantidade vendida do tipo de ingresso
-            ticketType.soldQuantity += quantity;
-            await ticketType.save();
-
             // CRÍTICO: Invalidar cache de contagem de tickets quando VIP é criado
             // Isso garante que a próxima validação de maxPerCPF use dados atualizados
             if (isReallyVIP && cpfToValidate) {
@@ -791,6 +860,13 @@ export const createOrder = async (req: Request, res: Response) => {
                 },
             });
         } catch (error: any) {
+            // rollback da reserva de estoque se falhar após reservar
+            if (creationStockReserved) {
+                await TicketType.updateOne(
+                    { _id: ticketTypeId },
+                    { $inc: { soldQuantity: -quantity! } }
+                );
+            }
             captureControllerError(error, req, {
                 controller: 'ordersController',
                 action: 'createOrder',

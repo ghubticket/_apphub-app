@@ -166,7 +166,7 @@ export default function Header() {
             </div>
 
             {/* Novo header com efeito blur/glassmorphism */}
-            <div ref={headerRef as any} className="fixed top-0 left-0 right-0 z-20 pt-4">
+            <div ref={headerRef as any} className="fixed top-0 left-0 right-0 z-20 pt-2 sm:pt-2.5 md:pt-3 lg:pt-4">
                 {/* Conteúdo do header com blur apenas no container */}
                 <Container>
                     <div className="relative">
@@ -174,48 +174,49 @@ export default function Header() {
                         <div className="absolute inset-0 bg-white/80 backdrop-blur-md border border-white/20 rounded-full shadow-sm"></div>
 
                         {/* Conteúdo do header */}
-                        <div className="relative flex md:py-4 py-3 items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
-                            <Link href="/" className="flex items-center gap-3 text-2xl font-bold text-gray-800">
+                        <div className="relative flex items-center justify-between gap-2 sm:gap-3 md:gap-4 lg:gap-6 py-2 sm:py-2.5 md:py-3 lg:py-4 px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8">
+                            <Link href="/" className="flex items-center gap-1.5 sm:gap-2 md:gap-2.5 lg:gap-3 flex-shrink-0">
                                 <Image
                                     src={APP_LOGO}
                                     alt={APP_LOGO_ALT}
                                     width={40}
                                     height={20}
-                                    className="h-auto w-9 md:w-20 lg:w-10"
+                                    className="h-auto w-6 sm:w-7 md:w-8 lg:w-9 xl:w-10"
                                     priority
                                 />
 
-                                <span className='text-base md:text-2xl font-bold text-gray-800'>Vicente</span>
+                                <span className='text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-800 whitespace-nowrap'>Vicente</span>
                             </Link>
 
-                            <p className='hidden md:block text-base text-gray-600'>
+                            <p className='hidden lg:block text-xs xl:text-sm 2xl:text-base text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-2'>
                                 <span className="inline-block animate-bounce mr-1">🎯</span>
-                                APP do seu Role. Você no Comando!
+                                <span className="hidden xl:inline">APP do seu Role. Você no Comando!</span>
+                                <span className="xl:hidden">Você no Comando!</span>
                                 <span className="inline-block animate-pulse ml-1">✨</span>
-                                Sem filas, sem concorrência, sem stress!
+                                <span className="hidden 2xl:inline"> Sem filas, sem concorrência, sem stress!</span>
                             </p>
 
-                            <div className="flex gap-2 items-center md:gap-4">
+                            <div className="flex gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 items-center flex-shrink-0">
                                 {/* Hamburger Menu Mobile */}
                                 <button
                                     type="button"
                                     onClick={isMobileMenuOpen ? closeMobileMenu : openMobileMenu}
-                                    className="md:hidden flex flex-col items-center justify-center w-10 h-10 gap-1.5 group transition-all duration-300 border border-[#1a1a1d]/20 rounded-full hover:border-[#f97316]/50"
+                                    className="lg:hidden flex flex-col items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 gap-1 sm:gap-1.5 group transition-all duration-300 border border-[#1a1a1d]/20 rounded-full hover:border-[#f97316]/50"
                                     aria-label="Menu"
                                 >
                                     <span
-                                        className={`block h-px w-6 bg-[#1a1a1d] transition-all duration-300 ${isMobileMenuOpen
-                                                ? 'rotate-45 translate-y-2'
+                                        className={`block h-px w-4 sm:w-5 md:w-6 bg-[#1a1a1d] transition-all duration-300 ${isMobileMenuOpen
+                                                ? 'rotate-45 translate-y-1.5 sm:translate-y-2'
                                                 : 'group-hover:bg-[#f97316]'
                                             }`}
                                     />
                                     <span
-                                        className={`block h-px w-6 bg-[#1a1a1d] transition-all duration-300 ${isMobileMenuOpen ? 'opacity-0' : 'group-hover:bg-[#f97316]'
+                                        className={`block h-px w-4 sm:w-5 md:w-6 bg-[#1a1a1d] transition-all duration-300 ${isMobileMenuOpen ? 'opacity-0' : 'group-hover:bg-[#f97316]'
                                             }`}
                                     />
                                     <span
-                                        className={`block h-px w-6 bg-[#1a1a1d] transition-all duration-300 ${isMobileMenuOpen
-                                                ? '-rotate-45 -translate-y-2'
+                                        className={`block h-px w-4 sm:w-5 md:w-6 bg-[#1a1a1d] transition-all duration-300 ${isMobileMenuOpen
+                                                ? '-rotate-45 -translate-y-1.5 sm:-translate-y-2'
                                                 : 'group-hover:bg-[#f97316]'
                                             }`}
                                     />
@@ -225,7 +226,7 @@ export default function Header() {
                                 <button
                                     type="button"
                                     onClick={isFullMenuOpen ? closeFullMenu : openFullMenu}
-                                    className="hidden md:flex flex-col items-center justify-center w-10 h-10 gap-1.5 group transition-all duration-300 border border-[#1a1a1d]/20 rounded-full hover:border-[#f97316]/50"
+                                    className="hidden lg:flex flex-col items-center justify-center w-9 h-9 xl:w-10 xl:h-10 gap-1.5 group transition-all duration-300 border border-[#1a1a1d]/20 rounded-full hover:border-[#f97316]/50"
                                     aria-label="Menu"
                                 >
                                     <span
@@ -249,19 +250,19 @@ export default function Header() {
                                 {isAuthenticated && welcomeName ? (
                                     <Link
                                         href="/dashboard"
-                                        className="group inline-flex items-center justify-center w-10 h-10 md:w-auto md:h-10 rounded-full gap-2 bg-[#1a1a1d] text-white px-4 md:px-6 text-xs md:text-sm font-semibold uppercase transition hover:bg-[#f97316] hover:text-white"
+                                        className="group inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-auto lg:h-10 rounded-full gap-1.5 sm:gap-2 bg-[#1a1a1d] text-white px-2 sm:px-3 md:px-4 lg:px-5 xl:px-6 text-[10px] sm:text-xs md:text-xs lg:text-sm font-semibold uppercase transition hover:bg-[#f97316] hover:text-white"
                                     >
-                                        <HiOutlineUserCircle className="text-xl w-5 h-5 flex-shrink-0 group-hover:text-white" />
-                                        <span className="hidden md:inline">
+                                        <HiOutlineUserCircle className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 flex-shrink-0 group-hover:text-white" />
+                                        <span className="hidden lg:inline whitespace-nowrap">
                                             Olá, <strong className="font-bold">{welcomeName}</strong>
                                         </span>
                                     </Link>
                                 ) : (
                                     <Link
                                         href="/login"
-                                        className="group inline-flex items-center justify-center w-10 h-10 rounded-full border border-[#1a1a1d] bg-[#1a1a1d] text-xs font-semibold uppercase text-white transition hover:bg-[#f97316] hover:border-[#f97316] hover:text-white"
+                                        className="group inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full border border-[#1a1a1d] bg-[#1a1a1d] text-[10px] sm:text-xs font-semibold uppercase text-white transition hover:bg-[#f97316] hover:border-[#f97316] hover:text-white"
                                     >
-                                        <HiOutlineUserCircle className="text-xl w-5 h-5 group-hover:text-white" />
+                                        <HiOutlineUserCircle className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 group-hover:text-white" />
                                     </Link>
                                 )}
                             </div>
@@ -273,50 +274,50 @@ export default function Header() {
             {/* Mobile Menu */}
             {isMobileMenuOpen ? (
                 <div
-                    className={`md:hidden fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isMobileMenuEntering ? 'opacity-100' : 'opacity-0'
+                    className={`lg:hidden fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isMobileMenuEntering ? 'opacity-100' : 'opacity-0'
                         }`}
                     onClick={closeMobileMenu}
                 >
                     <div
-                        className={`absolute right-0 top-0 h-full w-[85%] max-w-sm bg-[#1a1a1d] shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${isMobileMenuEntering ? 'translate-x-0' : 'translate-x-full'
+                        className={`absolute right-0 top-0 h-full w-[85%] sm:w-[80%] md:w-[75%] max-w-sm bg-[#1a1a1d] shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${isMobileMenuEntering ? 'translate-x-0' : 'translate-x-full'
                             }`}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header do Menu Mobile */}
-                        <div className="flex items-center justify-between p-4 border-b border-white/10">
+                        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-white/10">
                             <Link
                                 href="/"
                                 onClick={closeMobileMenu}
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-1.5 sm:gap-2"
                             >
                                 <Image
                                     src={APP_LOGO}
                                     alt={APP_LOGO_ALT}
                                     width={30}
                                     height={15}
-                                    className="h-auto w-8"
+                                    className="h-auto w-7 sm:w-8"
                                 />
-                                <span className="text-xl font-bold text-white">Vicente</span>
+                                <span className="text-lg sm:text-xl font-bold text-white">Vicente</span>
                             </Link>
                             <button
                                 type="button"
                                 onClick={closeMobileMenu}
-                                className="w-10 h-10 rounded-full border-2 border-white/20 flex items-center justify-center text-white hover:border-[#f97316] hover:text-[#f97316] transition-all"
+                                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-white/20 flex items-center justify-center text-white hover:border-[#f97316] hover:text-[#f97316] transition-all"
                                 aria-label="Fechar menu"
                             >
-                                <HiOutlineXMark className="w-5 h-5" />
+                                <HiOutlineXMark className="w-4 h-4 sm:w-5 sm:h-5" />
                             </button>
                         </div>
 
                         {/* Navigation Links Mobile */}
-                        <nav className="flex-1 overflow-y-auto p-4">
+                        <nav className="flex-1 overflow-y-auto p-3 sm:p-4">
                             <div className="space-y-1">
                                 {navigationLinks.map((link) => (
                                     <Link
                                         key={link.href}
                                         href={link.href}
                                         onClick={closeMobileMenu}
-                                        className="block px-3 py-1 text-base font-semibold text-white hover:text-[#f97316] hover:bg-white/5 rounded-lg transition-all"
+                                        className="block px-3 py-2 sm:py-2.5 text-sm sm:text-base font-semibold text-white hover:text-[#f97316] hover:bg-white/5 rounded-lg transition-all"
                                     >
                                         {link.label}
                                     </Link>
@@ -325,13 +326,13 @@ export default function Header() {
                         </nav>
 
                         {/* Footer do Menu Mobile */}
-                        <div className="p-4 border-t border-white/10 space-y-3">
+                        <div className="p-3 sm:p-4 border-t border-white/10 space-y-2 sm:space-y-3">
                             {isAuthenticated && welcomeName ? (
                                 <div className="space-y-2">
                                     <Link
                                         href="/dashboard"
                                         onClick={closeMobileMenu}
-                                        className="block px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all text-center text-sm"
+                                        className="block px-3 py-2 sm:px-4 sm:py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all text-center text-xs sm:text-sm"
                                     >
                                         Olá, {welcomeName}
                                     </Link>
@@ -344,7 +345,7 @@ export default function Header() {
                                                 window.location.href = '/';
                                             }
                                         }}
-                                        className="w-full px-4 py-2.5 text-white/80 hover:text-white font-semibold rounded-xl transition-all text-center border border-white/20 hover:border-[#f97316] text-sm"
+                                        className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-white/80 hover:text-white font-semibold rounded-xl transition-all text-center border border-white/20 hover:border-[#f97316] text-xs sm:text-sm"
                                     >
                                         Sair
                                     </button>
@@ -353,7 +354,7 @@ export default function Header() {
                                 <Link
                                     href="/login"
                                     onClick={closeMobileMenu}
-                                    className="block px-4 py-2.5 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-xl transition-all text-center text-sm"
+                                    className="block px-3 py-2 sm:px-4 sm:py-2.5 bg-[#f97316] hover:bg-[#ea6820] text-white hover:text-white font-semibold rounded-xl transition-all text-center text-xs sm:text-sm"
                                 >
                                     Entrar
                                 </Link>
@@ -364,7 +365,7 @@ export default function Header() {
                                     href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais! 💬"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="block px-4 py-2.5 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-xl transition-all text-center text-sm"
+                                    className="block px-3 py-2 sm:px-4 sm:py-2.5 bg-[#f97316] hover:bg-[#ea6820] text-white hover:text-white font-semibold rounded-xl transition-all text-center text-xs sm:text-sm"
                                 >
                                     Fale com o Vicente!
                                 </a>
@@ -372,7 +373,7 @@ export default function Header() {
                                     href="https://wa.me/5511982631238?text=Olá! Quero começar a usar a Vicente! 🚀"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="block px-4 py-2.5 bg-white text-[#1a1a1d] hover:bg-gray-100 font-semibold rounded-xl transition-all text-center text-sm"
+                                    className="block px-3 py-2 sm:px-4 sm:py-2.5 bg-white text-[#1a1a1d] hover:bg-gray-100 font-semibold rounded-xl transition-all text-center text-xs sm:text-sm"
                                 >
                                     Começar Agora
                                 </a>
@@ -426,7 +427,7 @@ export default function Header() {
                                             key={link.href}
                                             href={link.href}
                                             onClick={closeFullMenu}
-                                            className={`block text-3xl md:text-5xl lg:text-5xl font-bold text-white hover:text-[#f97316] transition-all duration-300 hover:translate-x-2 ${isFullMenuEntering
+                                            className={`block text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white hover:text-[#f97316] transition-all duration-300 hover:translate-x-2 ${isFullMenuEntering
                                                     ? 'opacity-100 translate-x-0'
                                                     : 'opacity-0 -translate-x-10'
                                                 }`}

@@ -179,6 +179,10 @@ export const register = async (req: Request, res: Response) => {
     }
 };
 
+// Configuração de expiração do refresh token (default: 1 dia)
+const REFRESH_TOKEN_EXPIRES_DAYS = Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS || 1);
+const REFRESH_TOKEN_EXPIRES_MS = REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
+
 /**
  * Controller para login
  */
@@ -267,7 +271,7 @@ export const login = async (req: Request, res: Response) => {
         user.lastLogin = new Date();
         await user.save();
 
-        // Gerar access token (4 horas para desenvolvimento)
+        // Gerar access token (15 minutos padrão)
         const accessToken = jwt.sign(
             {
                 userId: String(user._id),
@@ -276,10 +280,10 @@ export const login = async (req: Request, res: Response) => {
                 type: 'access',
             },
             process.env.JWT_SECRET!,
-            { expiresIn: '4h' }
+            { expiresIn: '15m' }
         );
 
-        // Gerar refresh token (7 dias)
+        // Gerar refresh token (curto) com rotação
         const refreshToken = jwt.sign(
             {
                 userId: String(user._id),
@@ -288,7 +292,7 @@ export const login = async (req: Request, res: Response) => {
                 type: 'refresh',
             },
             process.env.JWT_REFRESH_SECRET!,
-            { expiresIn: '7d' }
+            { expiresIn: `${REFRESH_TOKEN_EXPIRES_DAYS}d` }
         );
 
         // Criar sessão no banco de dados
@@ -302,7 +306,7 @@ export const login = async (req: Request, res: Response) => {
                 browser: req.get('User-Agent')?.includes('Chrome') ? 'Chrome' : 'Other',
                 os: req.get('User-Agent')?.includes('Windows') ? 'Windows' : 'Other',
             },
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dias
+            expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRES_MS), // expiração curta configurável
         });
 
         await session.save();
@@ -335,7 +339,7 @@ export const login = async (req: Request, res: Response) => {
 };
 
 /**
- * Controller para refresh token
+ * Controller para refresh token (com rotação)
  */
 export const refreshToken = async (req: Request, res: Response) => {
     try {
@@ -386,8 +390,21 @@ export const refreshToken = async (req: Request, res: Response) => {
             });
         }
 
-        // Atualizar última atividade da sessão
+        // Gerar novo refresh token (rotação) e atualizar sessão
+        const newRefreshToken = jwt.sign(
+            {
+                userId: String(user._id),
+                email: user.email,
+                role: user.role,
+                type: 'refresh',
+            },
+            process.env.JWT_REFRESH_SECRET!,
+            { expiresIn: `${REFRESH_TOKEN_EXPIRES_DAYS}d` }
+        );
+
         session.lastActivity = new Date();
+        session.refreshToken = newRefreshToken;
+        session.expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES_MS);
         await session.save();
 
         // Gerar novo access token
@@ -407,6 +424,7 @@ export const refreshToken = async (req: Request, res: Response) => {
             message: 'Token renovado com sucesso',
             data: {
                 accessToken: newAccessToken,
+                refreshToken: newRefreshToken,
                 expiresIn: 900, // 15 minutos em segundos
             },
         });

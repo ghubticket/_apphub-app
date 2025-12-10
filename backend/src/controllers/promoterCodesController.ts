@@ -2,32 +2,49 @@ import { Request, Response } from 'express';
 import { PromoterCode, Order, Event } from '../models';
 import mongoose from 'mongoose';
 import { captureControllerError } from '../utils/sentryErrorHandler';
+import {
+    validateString,
+    validateEmail,
+    validateCPF,
+    validatePhone,
+    validateNumber,
+    validateBoolean,
+    validateText,
+} from '../utils/typeValidation';
 
 /**
  * Criar novo código de promotor
  */
 export const createPromoterCode = async (req: Request, res: Response) => {
     try {
-        const { code, name, cpf, email, whatsapp, discountType, discountValue, events, isActive } =
-            req.body;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
 
-        // Validações básicas
-        if (
-            !code ||
-            !name ||
-            !cpf ||
-            !email ||
-            !whatsapp ||
-            !discountType ||
-            discountValue === undefined
-        ) {
+        // Validação de tipos e sanitização
+        let code: string;
+        let name: string;
+        let cpf: string;
+        let email: string;
+        let whatsapp: string;
+        let discountType: string;
+        let discountValue: number;
+        let isActive: boolean;
+        let events: any[];
+
+        try {
+            code = validateString(req.body.code, 'Código', { required: true, maxLength: 50, minLength: 3 })!;
+            name = validateText(req.body.name, 'Nome', { required: true, maxLength: 200, minLength: 3 })!;
+            cpf = validateCPF(req.body.cpf, 'CPF', true)!;
+            email = validateEmail(req.body.email, 'Email', true)!;
+            whatsapp = validatePhone(req.body.whatsapp, 'WhatsApp', true)!;
+            discountType = validateString(req.body.discountType, 'Tipo de desconto', { required: true })!;
+            discountValue = validateNumber(req.body.discountValue, 'Valor de desconto', { required: true })!;
+            isActive = validateBoolean(req.body.isActive, 'Status ativo', false) ?? true;
+            events = Array.isArray(req.body.events) ? req.body.events : [];
+        } catch (validationError: any) {
             return res.status(400).json({
                 success: false,
-                message: 'Dados incompletos',
-                errors: [
-                    'Código, nome, CPF, email, WhatsApp, tipo e valor de desconto são obrigatórios',
-                ],
+                message: 'Dados inválidos',
+                errors: [validationError.message || 'Erro na validação dos dados'],
             });
         }
 
@@ -71,20 +88,32 @@ export const createPromoterCode = async (req: Request, res: Response) => {
             });
         }
 
+        // Formatar CPF e WhatsApp para o formato esperado pelo modelo
+        // CPF: 000.000.000-00
+        const formattedCPF = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        // WhatsApp: (00) 00000-0000
+        const formattedWhatsApp = whatsapp.length === 11
+            ? whatsapp.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+            : whatsapp.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+
         // Criar código
         const promoterCode = new PromoterCode({
             code: code.toUpperCase().trim(),
-            name: name.trim(),
-            cpf: cpf.trim(),
-            email: email.toLowerCase().trim(),
-            whatsapp: whatsapp.trim(),
+            name,
+            cpf: formattedCPF,
+            email,
+            whatsapp: formattedWhatsApp,
             discountType,
-            discountValue: Number(discountValue),
+            discountValue,
             currentUses: 0,
-            isActive: isActive !== undefined ? Boolean(isActive) : true,
-            events: Array.isArray(events)
-                ? events.map((id: string) => new mongoose.Types.ObjectId(id))
-                : [],
+            isActive,
+            events: events.map((id: any) => {
+                const idStr = String(id);
+                if (!mongoose.Types.ObjectId.isValid(idStr)) {
+                    throw new Error(`ID de evento inválido: ${idStr}`);
+                }
+                return new mongoose.Types.ObjectId(idStr);
+            }),
             createdBy: userId,
         });
 

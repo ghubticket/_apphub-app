@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Container from '@/components/shared/Container';
 import DynamicMetadata from '@/components/seo/DynamicMetadata';
@@ -25,79 +24,6 @@ import {
 } from 'react-icons/hi2';
 
 export default function SobrePage() {
-    const [activeSection, setActiveSection] = useState<string>('');
-
-    useEffect(() => {
-        const sections = [
-            'exclusividade',
-            'recursos',
-            'split-pagamento',
-            'seguranca',
-            'dashboard',
-            'cupons',
-            'seo',
-            'emails',
-            'pdfs',
-            'crm',
-            'qr-code',
-            'clube-beneficios',
-        ];
-
-        const observerOptions = {
-            root: null,
-            rootMargin: '-20% 0px -70% 0px',
-            threshold: 0,
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    setActiveSection(entry.target.id);
-                }
-            });
-        }, observerOptions);
-
-        sections.forEach((id) => {
-            const element = document.getElementById(id);
-            if (element) observer.observe(element);
-        });
-
-        return () => {
-            sections.forEach((id) => {
-                const element = document.getElementById(id);
-                if (element) observer.unobserve(element);
-            });
-        };
-    }, []);
-
-    const scrollToSection = (id: string) => {
-        const element = document.getElementById(id);
-        if (element) {
-            const offset = 100;
-            const elementPosition = element.getBoundingClientRect().top;
-            const offsetPosition = elementPosition + window.pageYOffset - offset;
-
-            window.scrollTo({
-                top: offsetPosition,
-                behavior: 'smooth',
-            });
-        }
-    };
-
-    const menuItems = [
-        { id: 'exclusividade', label: 'Exclusividade', icon: '🔥' },
-        { id: 'split-pagamento', label: 'Split Pagamento', icon: '💰' },
-        { id: 'recursos', label: 'Recursos', icon: '💎' },
-        { id: 'seguranca', label: 'Segurança', icon: '🔒' },
-        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-        { id: 'cupons', label: 'Cupons', icon: '🎫' },
-        { id: 'seo', label: 'SEO', icon: '🔍' },
-        { id: 'emails', label: 'Emails', icon: '✉️' },
-        { id: 'pdfs', label: 'PDFs', icon: '📄' },
-        { id: 'crm', label: 'CRM', icon: '💬' },
-        { id: 'qr-code', label: 'QR Code', icon: '📱' },
-        { id: 'clube-beneficios', label: 'Clube', icon: '💎' },
-    ];
     return (
         <>
             <DynamicMetadata
@@ -107,29 +33,6 @@ export default function SobrePage() {
                 type="website"
             />
             <main className="min-h-screen bg-white relative">
-            {/* Menu Fixo de Navegação */}
-            <div className="fixed right-4 top-1/2 -translate-y-1/2 z-30 hidden lg:block">
-                <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 p-2">
-                    <div className="flex flex-col gap-1 max-h-[80vh] overflow-y-auto">
-                        {menuItems.map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => scrollToSection(item.id)}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                                    activeSection === item.id
-                                        ? 'bg-[#f97316] text-white shadow-md'
-                                        : 'text-gray-600 hover:bg-gray-100 hover:text-[#f97316]'
-                                }`}
-                                title={item.label}
-                            >
-                                <span className="text-sm">{item.icon}</span>
-                                <span className="hidden xl:inline">{item.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
             {/* Hero Section */}
             <section className="relative overflow-hidden bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white pt-40 pb-20 md:py-40">
                 <div className="absolute inset-0 bg-[url('/images/pattern.svg')] opacity-5"></div>
@@ -325,9 +228,7 @@ export default function SobrePage() {
                 <Container>
                     <div className="text-center mb-16">
                         <div className="flex justify-center gap-3 mb-4">
-                            <span className="text-5xl md:text-6xl animate-bounce">💎</span>
                             <span className="text-5xl md:text-6xl animate-pulse" style={{ animationDelay: '0.2s' }}>⚡</span>
-                            <span className="text-5xl md:text-6xl animate-bounce" style={{ animationDelay: '0.4s' }}>🎯</span>
                         </div>
                         <h2 className="text-3xl md:text-5xl font-bold text-[#1a1a1d] mb-6">
                             Tudo que Você Precisa em Uma Plataforma
