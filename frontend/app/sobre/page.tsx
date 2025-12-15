@@ -28,7 +28,7 @@ export default function SobrePage() {
         <>
             <DynamicMetadata
                 title="Sobre a Vicente - Seu Sistema Exclusivo de Gestão de Eventos"
-                description="Vicente: app exclusivo de eventos. Sem concorrência, QR seguro, emails/PDF automáticos, split Mercado Pago, SEO, cupons e dashboard completo"
+                description="Vicente é mais que venda de ingressos: site exclusivo, dashboard completo, QR Code seguro e gestão total do seu evento."
                 url="/sobre"
                 type="website"
             />
@@ -68,7 +68,7 @@ export default function SobrePage() {
                                     href="https://wa.me/5511982631238?text=Olá! Quero começar a usar a Vicente! 🚀"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white visited:text-white hover:text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >
                                     Começar Agora
                                     <HiOutlineArrowRight className="text-xl" />
@@ -77,7 +77,7 @@ export default function SobrePage() {
                                     href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre a plataforma! 💬"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold rounded-full transition-all"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white visited:text-white hover:text-white font-semibold rounded-full transition-all"
                                 >
                                     Fale com o Vicente!
                                 </a>
@@ -1524,15 +1524,15 @@ export default function SobrePage() {
                                 <span className="inline-block ml-2 animate-bounce">😎</span>
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                <a
-                                    href="https://wa.me/5511982631238?text=Olá! Quero criar minha conta na Vicente! 🚀"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
-                                >
-                                    Criar Minha Conta Agora
-                                    <HiOutlineArrowRight className="text-xl" />
-                                </a>
+                            <a
+                                href="https://wa.me/5511982631238?text=Olá! Quero criar minha conta na Vicente! 🚀"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white visited:text-white hover:text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+                            >
+                                Criar Minha Conta Agora
+                                <HiOutlineArrowRight className="text-xl" />
+                            </a>
                                 <a
                                     href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre a plataforma! 💬"
                                     target="_blank"

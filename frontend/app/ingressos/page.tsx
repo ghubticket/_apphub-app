@@ -61,7 +61,7 @@ export default function TicketsPage() {
         <>
             <DynamicMetadata
                 title="Ingressos Disponíveis"
-                description="Escolha entre os melhores eventos disponíveis. Compre ingressos online com segurança e receba por email."
+                description="Vicente é mais que venda de ingressos: site exclusivo, dashboard completo, QR Code seguro e gestão total do seu evento."
                 url="/ingressos"
             />
             <StructuredData data={breadcrumbData} />

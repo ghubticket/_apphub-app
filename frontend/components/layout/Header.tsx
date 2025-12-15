@@ -365,7 +365,7 @@ export default function Header() {
                                     href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais! 💬"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="block px-3 py-2 sm:px-4 sm:py-2.5 bg-[#f97316] hover:bg-[#ea6820] text-white hover:text-white font-semibold rounded-xl transition-all text-center text-xs sm:text-sm"
+                                    className="block px-3 py-2 sm:px-4 sm:py-2.5 bg-[#f97316] hover:bg-[#ea6820] text-white visited:text-white hover:text-white font-semibold rounded-xl transition-all text-center text-xs sm:text-sm"
                                 >
                                     Fale com o Vicente!
                                 </a>

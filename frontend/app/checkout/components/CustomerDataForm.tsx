@@ -345,7 +345,7 @@ export function CustomerDataForm({
                                 setBillingModalEntering(false);
                                 setTimeout(() => setShowBillingInfoModal(false), 250);
                             }}
-                            className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                            className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-white"
                         >
                             Entendi
                         </button>

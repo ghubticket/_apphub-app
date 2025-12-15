@@ -152,7 +152,7 @@ export default function PaymentErrorModal({
                                     <button
                                         type="button"
                                         onClick={onCancel}
-                                        className="rounded-full border border-[#1a1a1d] bg-[#1a1a1d] px-6 py-3 text-sm font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                        className="rounded-full border border-[#1a1a1d] bg-[#1a1a1d] px-6 py-3 text-sm font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-white"
                                     >
                                         Cancelar pedido
                                     </button>

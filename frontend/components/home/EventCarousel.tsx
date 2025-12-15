@@ -83,7 +83,7 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
                                     </div>
 
                                     <div className="mt-5 flex items-center justify-between gap-3">
-                                        <span className="inline-flex flex-1 items-center justify-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] px-5 py-2.5 text-[0.7rem] font-semibold uppercase tracking-normal text-white transition group-hover:bg-[#f97316] group-hover:border-[#f97316] group-hover:text-[#1a1a1d] pointer-events-none">
+                                        <span className="inline-flex flex-1 items-center justify-center rounded-full border border-[#1a1a1d] bg-[#1a1a1d] px-5 py-2.5 text-[0.7rem] font-semibold uppercase tracking-normal text-white transition group-hover:bg-[#f97316] group-hover:border-[#f97316] group-hover:text-white pointer-events-none">
                                             Ver ingressos
                                         </span>
                                     </div>
@@ -96,5 +96,3 @@ export default function EventCarousel({ events, className }: EventCarouselProps)
         </div>
     );
 }
-
-

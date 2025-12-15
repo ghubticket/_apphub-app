@@ -729,7 +729,7 @@ export default function DashboardPage() {
                                                 current === groupId ? null : groupId,
                                             )
                                         }
-                                        className="inline-flex items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/10"
+                                        className="inline-flex items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/20 hover:text-white"
                                     >
                                         {isExpanded ? 'Recolher pedido' : 'Expandir pedido'}
                                     </button>
@@ -797,7 +797,7 @@ export default function DashboardPage() {
                                                     });
                                                 }
                                             }}
-                                            className="flex items-center gap-2 w-full md:w-auto justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                            className="flex items-center gap-2 w-full md:w-auto justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-white"
                                         >
                                             <HiOutlineTicket className="text-base" />
                                             Visualizar Ingressos ({allTickets.length})
@@ -888,7 +888,7 @@ export default function DashboardPage() {
                                                 current === order._id ? null : order._id,
                                             )
                                         }
-                                        className="inline-flex  items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/10"
+                                        className="inline-flex  items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/20 hover:text-white"
                                     >
                                         {isExpanded ? 'Recolher pedido' : 'Expandir pedido'}
                                     </button>
@@ -1014,7 +1014,7 @@ export default function DashboardPage() {
                                                 setModalSlideIndex(0);
                                                 handleViewDetails(order._id);
                                             }}
-                                            className="mt-4 flex gap-3 w-full md:w-fit text-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                                            className="mt-4 flex gap-3 w-full md:w-fit text-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-white"
                                         >
                                             <HiOutlineTicket className="text-base" />
                                             Abrir ingressos
@@ -1480,7 +1480,7 @@ export default function DashboardPage() {
                                 setSecurityModalEntering(false);
                                 setTimeout(() => setShowSecurityModal(false), 250);
                             }}
-                            className="mt-6 w-full rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-lg transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                            className="mt-6 w-full rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-lg transition hover:bg-[#f97316] hover:text-white"
                         >
                             Entendi
                         </button>

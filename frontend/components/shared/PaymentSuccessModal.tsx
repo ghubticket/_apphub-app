@@ -120,7 +120,7 @@ export default function PaymentSuccessModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-full bg-[#1a1a1d] px-8 py-3 text-sm font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d]"
+                        className="rounded-full bg-[#1a1a1d] px-8 py-3 text-sm font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-white"
                     >
                         Ver meus pedidos
                     </button>

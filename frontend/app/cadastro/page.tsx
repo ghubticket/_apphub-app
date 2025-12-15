@@ -486,7 +486,7 @@ function CadastroPageContent() {
                         <Button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full bg-[#1a1a1d] text-white transition hover:bg-[#f97316] hover:text-[#1a1a1d] disabled:cursor-not-allowed disabled:bg-[#1a1a1d]/60"
+                            className="w-full bg-[#1a1a1d] text-white transition hover:bg-[#f97316] hover:text-white disabled:cursor-not-allowed disabled:bg-[#1a1a1d]/60"
                         >
                             {isSubmitting ? 'Criando conta...' : 'Criar conta'}
                         </Button>

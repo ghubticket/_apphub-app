@@ -64,7 +64,7 @@ export const PromoterCodeInput = React.memo(function PromoterCodeInput({
             return `${base} border-[#ded7ca] bg-[#f5f1e8] text-[#7d796c] cursor-not-allowed`;
         }
 
-        return `${base} border-[#1a1a1d] bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:border-[#f97316] hover:text-[#1a1a1d]`;
+        return `${base} border-[#1a1a1d] bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:border-[#f97316] hover:text-white`;
     }, [pixPaymentActive, isValidating, codeInput]);
 
     const placeholder = useMemo(() => {

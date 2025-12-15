@@ -156,13 +156,13 @@ export default function Home() {
                                         <div className="flex flex-wrap gap-3">
                                             <Link
                                                 href="/venda-parcelada-no-boleto-e-no-pix"
-                                                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#f97316] hover:bg-[#ea6820] text-white font-semibold shadow-lg transition-all"
+                                                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#f97316] hover:bg-[#ea6820] text-white hover:text-white font-semibold shadow-lg transition-all"
                                             >
                                                 Conhecer venda parcelada
                                             </Link>
                                             <Link
                                                 href="/venda-parcelada-no-boleto-e-no-pix#como-funciona"
-                                                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold transition-all"
+                                                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white   hover:text-white  font-semibold transition-all"
                                             >
                                                 Ver como funciona
                                             </Link>

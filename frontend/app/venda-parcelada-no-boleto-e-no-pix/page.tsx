@@ -27,7 +27,7 @@ export default function VendaParceladaPage() {
         <>
             <DynamicMetadata
                 title="Venda a Longo Prazo - Boleto/PIX Parcelado | Vicente"
-                description="Precisa vender a longo prazo? Conte com a Vicente. Venda via BOLETO/PIX parcelado para portaria, eventos e qualquer negócio que precisa de vendas parceladas."
+                description="Vicente é mais que venda de ingressos: site exclusivo, dashboard completo, QR Code seguro e gestão total do seu evento."
                 url="/venda-parcelada-no-boleto-e-no-pix"
                 type="website"
             />
@@ -49,11 +49,11 @@ export default function VendaParceladaPage() {
                                 <span className="text-[#f97316]">Conte com a Vicente</span>
                             </h1>
                             <p className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed">
-                                Se você vende para <strong className="text-white">portaria</strong>, ou eventos que precisam de{' '}
-                                <strong className="text-white">vendas parceladas</strong>, a Vicente é pra você.
-                                <br />
+                                Se você vende para <strong className="text-white">portaria</strong>, ou eventos que precisam <br className="hidden md:block" /> de{' '}
+                                <strong className="text-white">vendas parceladas</strong>, a Vicente é pra você. <br /> <br />
+                                
                                 <span className="text-lg md:text-xl mt-2 block">
-                                    Venda via <strong className="text-white">BOLETO/PIX parcelado</strong>, controle você mesmo suas vendas e acompanhe os pagamentos mensais dos seus clientes!
+                                    Venda via <strong className="text-white">BOLETO/PIX parcelado</strong>, controle você mesmo  <br className="hidden md:block"  />  suas vendas e acompanhe os pagamentos mensais dos seus clientes!
                                     <span className="inline-block ml-2 animate-pulse">🚀</span>
                                 </span>
                             </p>
@@ -62,7 +62,7 @@ export default function VendaParceladaPage() {
                                     href="https://wa.me/5511982631238?text=Olá! Quero vender pacotes parcelados no PIX/Boleto! 🚀"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white hover:text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#f97316] hover:bg-[#ea6820] text-white visited:text-white hover:text-white font-semibold rounded-full transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
                                 >
                                     Começar Agora
                                     <HiOutlineArrowRight className="text-xl text-white" />
@@ -71,7 +71,7 @@ export default function VendaParceladaPage() {
                                     href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre venda parcelada! 💬"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white hover:text-white font-semibold rounded-full transition-all"
+                                    className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white visited:text-white hover:text-white font-semibold rounded-full transition-all"
                                 >
                                     Fale com o Vicente!
                                 </a>
