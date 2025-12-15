@@ -231,7 +231,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
         return (
             <PageContainer 
                 bgColor="bg-[#f5f1e8]" 
-                paddingTop={6}
+                paddingTop={5}
                 paddingBottom="pb-8"
                 fullHeight
                 containerClassName="pb-8"
@@ -274,6 +274,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
             <StructuredData data={breadcrumbData} />
             <PageContainer 
                 bgColor="bg-[#f5f1e8]" 
+                paddingTop={{ mobile: 5, desktop: 8 }}
                 paddingBottom="pb-8"
                 containerClassName="pb-8"
             >

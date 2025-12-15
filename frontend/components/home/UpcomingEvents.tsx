@@ -38,7 +38,7 @@ export default function UpcomingEvents({ events, className }: UpcomingEventsProp
     };
 
     return (
-        <section className="pt-28 pb-5 md:py-16">
+        <section className="pt-20 pb-5 md:py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-0 md:pt-16">
                 {/* Grid de eventos com box informativo */}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
