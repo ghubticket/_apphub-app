@@ -1609,20 +1609,10 @@ export default function DashboardPage() {
                                                             );
                                                             const pix = resp.data?.data?.pixPayment;
 
-                                                            // Buscar informações de expiração
-                                                            let expiresAt = null;
-                                                            if (pix?.paymentId) {
-                                                                try {
-                                                                    const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
-                                                                    expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
-                                                                } catch (error: any) {
-                                                                    // Ignorar erro ao buscar expiração (erro 500, 404, etc)
-                                                                    if (process.env.NODE_ENV === 'development') {
-                                                                        console.warn(`Não foi possível buscar expiração do PIX para paymentId ${pix.paymentId}:`, error?.response?.status || error?.message);
-                                                                    }
-                                                                }
-                                                            }
-
+                                                            // Atualizar apenas o estado local - NÃO recarregar toda a lista
+                                                            // Isso mantém o conteúdo na tela e evita loading duplo
+                                                            
+                                                            // Atualizar estado imediatamente com os dados do PIX
                                                             setEntryParcelPixInfo((prev) => ({
                                                                 ...prev,
                                                                 [orderId]: {
@@ -1630,11 +1620,28 @@ export default function DashboardPage() {
                                                                     parcelId: entryParcel._id,
                                                                     qrCode: pix?.qrCode || pix?.ticketUrl || null,
                                                                     qrCodeBase64: pix?.qrCodeBase64 || null,
-                                                                    expiresAt: expiresAt,
+                                                                    expiresAt: null, // Será atualizado em background se disponível
                                                                 },
                                                             }));
-                                                            fetchParcelledOrders();
-                                                        } catch (error: any) {
+                                                            
+                                                            // Buscar informações de expiração em background (não bloqueia)
+                                                            if (pix?.paymentId) {
+                                                                api.get(`/payments/${pix.paymentId}/status`)
+                                                                    .then((paymentStatusResp) => {
+                                                                        const expiresAtValue = paymentStatusResp.data?.data?.expiresAt || null;
+                                                                        setEntryParcelPixInfo((prev) => ({
+                                                                            ...prev,
+                                                                            [orderId]: {
+                                                                                ...prev[orderId],
+                                                                                expiresAt: expiresAtValue,
+                                                                            },
+                                                                        }));
+                                                                    })
+                                                                    .catch(() => {
+                                                                        // Ignorar erro ao buscar expiração
+                                                                    });
+                                                            }
+                                                    } catch (error: any) {
                                                             // Extrair mensagem de erro mais específica
                                                             let errorMessage = 'Erro ao gerar pagamento PIX da entrada.';
                                                             
@@ -1814,19 +1821,12 @@ export default function DashboardPage() {
                                                                                     const pix =
                                                                                         resp.data?.data
                                                                                             ?.pixPayment;
-                                                                                    // Se for a entrada (sequence 0), atualizar entryParcelPixInfo
+                                                                                    
+                                                                                    // Atualizar apenas o estado local - NÃO recarregar toda a lista
+                                                                                    // Isso mantém o conteúdo na tela e evita loading duplo
                                                                                     if (parcel.sequence === 0) {
-                                                                                        // Buscar informações de expiração
-                                                                                        let expiresAt = null;
-                                                                                        if (pix?.paymentId) {
-                                                                                            try {
-                                                                                                const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
-                                                                                                expiresAt = paymentStatusResp.data?.data?.expiresAt;
-                                                                                            } catch (error) {
-                                                                                                // Ignorar erro ao buscar expiração
-                                                                                            }
-                                                                                        }
-
+                                                                                        // Se for a entrada (sequence 0), atualizar entryParcelPixInfo
+                                                                                        // Atualizar estado imediatamente com os dados do PIX
                                                                                         setEntryParcelPixInfo((prev) => ({
                                                                                             ...prev,
                                                                                             [orderId]: {
@@ -1834,24 +1834,33 @@ export default function DashboardPage() {
                                                                                                 parcelId: parcel._id,
                                                                                                 qrCode: pix?.qrCode || pix?.ticketUrl || null,
                                                                                                 qrCodeBase64: pix?.qrCodeBase64 || null,
-                                                                                                expiresAt: expiresAt,
+                                                                                                expiresAt: null, // Será atualizado em background se disponível
                                                                                             },
                                                                                         }));
+                                                                                        
+                                                                                        // Buscar informações de expiração em background (não bloqueia)
+                                                                                        if (pix?.paymentId) {
+                                                                                            api.get(`/payments/${pix.paymentId}/status`)
+                                                                                                .then((paymentStatusResp) => {
+                                                                                                    const expiresAtValue = paymentStatusResp.data?.data?.expiresAt || null;
+                                                                                                    setEntryParcelPixInfo((prev) => ({
+                                                                                                        ...prev,
+                                                                                                        [orderId]: {
+                                                                                                            ...prev[orderId],
+                                                                                                            expiresAt: expiresAtValue,
+                                                                                                        },
+                                                                                                    }));
+                                                                                                })
+                                                                                                .catch(() => {
+                                                                                                    // Ignorar erro ao buscar expiração
+                                                                                                });
+                                                                                        }
                                                                                     } else {
                                                                                         // Para outras parcelas, usar pixParcelPayment
                                                                                         // O expiresAt já vem na resposta do pixPayment
-                                                                                        // Se não veio, tentar buscar via API como fallback
-                                                                                        let expiresAt = pix?.expiresAt || null;
+                                                                                        let expiresAt: string | null = pix?.expiresAt || null;
                                                                                         
-                                                                                        if (!expiresAt && pix?.paymentId) {
-                                                                                            try {
-                                                                                                const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
-                                                                                                expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
-                                                                                            } catch (error) {
-                                                                                                // Ignorar erro ao buscar expiração (pode não estar disponível ainda)
-                                                                                            }
-                                                                                        }
-                                                                                        
+                                                                                        // Atualizar estado imediatamente com os dados do PIX
                                                                                         setPixParcelPayment({
                                                                                             parcelId: parcel._id,
                                                                                             orderId,
@@ -1859,9 +1868,25 @@ export default function DashboardPage() {
                                                                                             qrCodeBase64: pix?.qrCodeBase64 || null,
                                                                                             expiresAt: expiresAt,
                                                                                         });
+                                                                                        
+                                                                                        // Se não veio expiresAt, tentar buscar via API como fallback (em background)
+                                                                                        if (!expiresAt && pix?.paymentId) {
+                                                                                            api.get(`/payments/${pix.paymentId}/status`)
+                                                                                                .then((paymentStatusResp) => {
+                                                                                                    const expiresAtValue = paymentStatusResp.data?.data?.expiresAt || null;
+                                                                                                    setPixParcelPayment((prev) => {
+                                                                                                        if (!prev || prev.parcelId !== parcel._id) return prev;
+                                                                                                        return {
+                                                                                                            ...prev,
+                                                                                                            expiresAt: expiresAtValue,
+                                                                                                        };
+                                                                                                    });
+                                                                                                })
+                                                                                                .catch(() => {
+                                                                                                    // Ignorar erro ao buscar expiração
+                                                                                                });
+                                                                                        }
                                                                                     }
-                                                                                    // Atualizar lista
-                                                                                    fetchParcelledOrders();
                                                                                 } catch (error: any) {
                                                                                     // Extrair mensagem de erro mais específica
                                                                                     let errorMessage = 'Erro ao gerar pagamento PIX desta parcela.';
