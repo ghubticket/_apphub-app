@@ -452,13 +452,68 @@ export async function generateUpcomingParcelPayments(daysBeforeDue: number = 30)
 
 /**
  * Job: aplicar regras de atraso/cancelamento em vendas parceladas.
+ * - Cancela pedidos com entrada não paga quando o PIX expira (30 minutos).
  * - Marca parcelas como overdue quando dueDate < hoje e ainda pendentes.
  * - Cancela venda se quantidade de parcelas overdue >= overdueToleranceCount.
  */
 export async function applyOverdueAndCancellationRules() {
     const now = new Date();
 
-    // Marcar parcelas vencidas
+    // 1. Verificar e cancelar pedidos com entrada não paga (PIX expirado)
+    const pendingEntryOrders = await ParcelledOrder.find({
+        status: 'pending_entry',
+        autoCancelEnabled: true,
+    });
+
+    let cancelledByEntry = 0;
+
+    for (const order of pendingEntryOrders as Array<IParcelledOrder & { _id: mongoose.Types.ObjectId }>) {
+        // Buscar parcela de entrada (sequence 0)
+        const entryParcel = await Parcel.findOne({
+            parcelledOrder: order._id,
+            sequence: 0,
+        });
+
+        if (!entryParcel) {
+            continue;
+        }
+
+        // Se a entrada está com status 'payment_generated', verificar se o PIX expirou
+        if (entryParcel.status === 'payment_generated' && entryParcel.paymentOrderId) {
+            try {
+                // Buscar informações do pagamento no Mercado Pago para verificar expiração
+                const paymentService = await import('./paymentService');
+                const mpOrder = await paymentService.getOrderById(entryParcel.paymentOrderId);
+                const mpPayment = mpOrder?.transactions?.payments?.[0];
+
+                if (mpPayment?.date_of_expiration) {
+                    const expirationDate = new Date(mpPayment.date_of_expiration);
+                    
+                    // Se expirou e ainda não foi pago, cancelar pedido
+                    if (now >= expirationDate && mpPayment.status !== 'approved') {
+                        await cancelParcelledOrder(order._id.toString(), 'entry_not_paid');
+                        cancelledByEntry++;
+                    }
+                } else if (entryParcel.generatedAt) {
+                    // Fallback: se não temos date_of_expiration do MP, usar 30 minutos a partir de generatedAt
+                    const expirationDate = new Date(entryParcel.generatedAt.getTime() + 30 * 60 * 1000);
+                    if (now >= expirationDate) {
+                        // Verificar status no MP antes de cancelar
+                        const status = String(mpPayment?.status || '').toLowerCase();
+                        if (status !== 'approved' && status !== 'paid') {
+                            await cancelParcelledOrder(order._id.toString(), 'entry_not_paid');
+                            cancelledByEntry++;
+                        }
+                    }
+                }
+            } catch (error) {
+                // Erro ao consultar MP - ignorar e continuar
+                // Em caso de erro, não cancelar (segurança)
+            }
+        }
+    }
+
+    // 2. Marcar parcelas vencidas (baseado em dueDate)
     await Parcel.updateMany(
         {
             status: 'pending',
@@ -471,13 +526,26 @@ export async function applyOverdueAndCancellationRules() {
         }
     );
 
-    // Buscar vendas ativas para avaliar cancelamento
+    // Também marcar parcelas com payment_generated que já passaram do vencimento
+    await Parcel.updateMany(
+        {
+            status: 'payment_generated',
+            dueDate: { $lt: now },
+        },
+        {
+            $set: {
+                status: 'overdue',
+            },
+        }
+    );
+
+    // 3. Buscar vendas ativas para avaliar cancelamento por múltiplas parcelas atrasadas
     const activeOrders = await ParcelledOrder.find({
         status: 'active',
         autoCancelEnabled: true,
     });
 
-    let cancelled = 0;
+    let cancelledByOverdue = 0;
 
     for (const o of activeOrders as Array<IParcelledOrder & { _id: mongoose.Types.ObjectId }>) {
         const overdueCount = await Parcel.countDocuments({
@@ -487,11 +555,16 @@ export async function applyOverdueAndCancellationRules() {
 
         if (overdueCount >= o.overdueToleranceCount) {
             await cancelParcelledOrder(o._id.toString(), 'overdue_installments');
-            cancelled++;
+            cancelledByOverdue++;
         }
     }
 
-    return { evaluated: activeOrders.length, cancelled };
+    return { 
+        evaluated: activeOrders.length, 
+        cancelledByEntry,
+        cancelledByOverdue,
+        totalCancelled: cancelledByEntry + cancelledByOverdue
+    };
 }
 
 export function startParcelledOrderSchedulers() {

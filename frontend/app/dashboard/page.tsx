@@ -1753,11 +1753,25 @@ export default function DashboardPage() {
                                                                                     }));
                                                                                 } else {
                                                                                     // Para outras parcelas, usar pixParcelPayment
+                                                                                    // O expiresAt já vem na resposta do pixPayment
+                                                                                    // Se não veio, tentar buscar via API como fallback
+                                                                                    let expiresAt = pix?.expiresAt || null;
+                                                                                    
+                                                                                    if (!expiresAt && pix?.paymentId) {
+                                                                                        try {
+                                                                                            const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
+                                                                                            expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
+                                                                                        } catch (error) {
+                                                                                            // Ignorar erro ao buscar expiração (pode não estar disponível ainda)
+                                                                                        }
+                                                                                    }
+                                                                                    
                                                                                     setPixParcelPayment({
                                                                                         parcelId: parcel._id,
                                                                                         orderId,
                                                                                         qrCode: pix?.qrCode || pix?.ticketUrl || null,
                                                                                         qrCodeBase64: pix?.qrCodeBase64 || null,
+                                                                                        expiresAt: expiresAt,
                                                                                     });
                                                                                 }
                                                                                 // Atualizar lista
@@ -1786,6 +1800,12 @@ export default function DashboardPage() {
                                                                 <p className="mb-3 text-xs font-semibold uppercase tracking-normal text-emerald-800">
                                                                     PIX desta parcela
                                                                 </p>
+                                                                {/* Timer de expiração do PIX */}
+                                                                {pixParcelPayment.expiresAt && (
+                                                                    <div className="mb-3">
+                                                                        <PixExpirationTimer expiresAt={pixParcelPayment.expiresAt} />
+                                                                    </div>
+                                                                )}
                                                                 {pixParcelPayment.qrCodeBase64 && (
                                                                     <div className="mb-3 flex justify-center">
                                                                         <img
