@@ -43,8 +43,24 @@ function sanitizeObject(obj: any): any {
 
 // Middleware genérico de sanitização do corpo da requisição
 export function sanitizeBody(req: Request, _res: Response, next: NextFunction) {
-    if (req.body && typeof req.body === 'object') {
-        req.body = sanitizeObject(req.body);
+    // Verificar se há body válido para sanitizar
+    // Ignorar body vazio ou undefined para evitar erros
+    try {
+        // Só sanitizar se body existe, é objeto e tem propriedades
+        if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+            const keys = Object.keys(req.body);
+            if (keys.length > 0) {
+                req.body = sanitizeObject(req.body);
+            }
+        } else if (req.body && Array.isArray(req.body) && req.body.length > 0) {
+            // Também sanitizar arrays
+            req.body = req.body.map(item => 
+                typeof item === 'object' ? sanitizeObject(item) : item
+            );
+        }
+    } catch (error) {
+        // Se houver erro ao acessar body (já foi lido ou outro problema), apenas continuar
+        // Isso evita o erro "Body has already been read" e outros erros relacionados
     }
     next();
 }

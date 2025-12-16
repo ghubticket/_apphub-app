@@ -278,12 +278,19 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
         // Log do erro para debug (apenas em desenvolvimento)
         if (process.env.NODE_ENV === 'development') {
             console.error('Erro ao gerar pagamento da parcela:', error);
+            console.error('Stack:', error.stack);
         }
         
-        // Tratar erros específicos
-        if (error?.message?.includes('Body has already been read') || error?.message?.includes('Body is unusable')) {
+        // Tratar erros específicos relacionados a body
+        const errorMessage = error?.message || '';
+        const errorString = String(errorMessage).toLowerCase();
+        
+        if (errorString.includes('body has already been read') || 
+            errorString.includes('body is unusable') ||
+            errorString.includes('cannot read') && errorString.includes('body')) {
             // Este erro geralmente indica que algum middleware tentou ler o body múltiplas vezes
-            // Retornar erro mais específico
+            // Retornar erro mais específico e logar para investigação
+            console.error('Erro de body já lido detectado. Endpoint não usa body, pode ser problema de middleware.');
             return res.status(500).json({
                 success: false,
                 message: 'Erro interno ao processar requisição. Tente novamente.',

@@ -745,7 +745,8 @@ export default function DashboardPage() {
         if (activeTab === 'orders' && !hasFetchedOrders) {
             fetchOrders();
         }
-        if (activeTab === 'installments' && !hasFetchedInstallments) {
+        // Atualizar parcelamentos sempre que voltar para a aba (para detectar pagamentos via webhook)
+        if (activeTab === 'installments') {
             fetchParcelledOrders();
         }
     }, [
@@ -753,31 +754,15 @@ export default function DashboardPage() {
         fetchOrders,
         hasFetchedOrders,
         fetchParcelledOrders,
-        hasFetchedInstallments,
         isAuthenticated,
         isReady,
     ]);
 
-    // Polling automático para vendas parceladas (similar ao polling de pedidos)
-    // Atualiza a cada 5 segundos quando estiver na aba de parcelamentos
-    useEffect(() => {
-        if (!isReady || !isAuthenticated) return;
-        if (activeTab !== 'installments') return;
-
-        // Inicializar fetch
-        if (!hasFetchedInstallments) {
-            fetchParcelledOrders();
-        }
-
-        // Configurar polling a cada 5 segundos (mesmo intervalo do polling de pedidos)
-        const pollingInterval = setInterval(() => {
-            fetchParcelledOrders();
-        }, 5000);
-
-        return () => {
-            clearInterval(pollingInterval);
-        };
-    }, [activeTab, isReady, isAuthenticated, hasFetchedInstallments, fetchParcelledOrders]);
+    // NÃO fazer polling automático para parcelamentos
+    // A atualização acontece apenas:
+    // 1. Quando o usuário muda para a aba de parcelamentos (useEffect abaixo)
+    // 2. Quando um pagamento é detectado via webhook (a lista será atualizada quando o usuário voltar à aba)
+    // 3. Quando o usuário faz refresh manual
 
     // Helper para verificar se é um grupo (definido antes de ser usado)
     const isOrderGroup = (item: OrderSummary | OrderGroup): item is OrderGroup => {
