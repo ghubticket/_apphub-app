@@ -343,99 +343,87 @@ app.use(
 // Middlewares de Parsing
 // ====================================
 
-// Capturar rawBody para verificação de assinatura de webhooks
-// CRÍTICO: Configurar express.json() para não processar requisições sem body
-// Isso evita o erro "Body has already been read" em requisições POST sem body
-const jsonParser = express.json({
-    verify: (req: any, _res, buf) => {
-        // Apenas capturar rawBody se houver conteúdo
-        if (buf && buf.length > 0) {
-            req.rawBody = buf;
-        }
-    },
-});
-
+// Middleware condicional para body parsing
+// Evita "Body has already been read" para rotas que não usam body
 app.use((req: Request, res: Response, next: NextFunction) => {
     const requestId = (req as any).requestId || 'unknown';
     const contentLength = req.get('content-length');
     const contentType = req.get('content-type') || '';
-    const isGeneratePayment = req.path.includes('/generate-payment');
+    const path = req.path;
+    const method = req.method;
     
-    // Log para endpoints problemáticos
-    if (isGeneratePayment || req.method === 'POST') {
-        console.log(`[bodyParser] ${requestId} - Verificando`, {
-            method: req.method,
-            path: req.path,
+    // CRÍTICO: Rota generate-payment NUNCA usa body - pular parsing completamente
+    const isGeneratePayment = path.includes('/generate-payment');
+    
+    if (isGeneratePayment) {
+        console.log(`[bodyParser] ${requestId} - Pulando parsing (generate-payment não usa body)`, {
+            method,
+            path,
             contentLength,
             contentType,
-            hasBody: (req as any).body !== undefined,
-            bodyType: typeof (req as any).body,
         });
+        (req as any).body = undefined;
+        return next(); // Pular TODOS os parsers
     }
     
-    // CRÍTICO: Em produção, proxies podem modificar ou remover headers
-    // Estratégia: Verificar múltiplas condições antes de aplicar express.json()
-    
-    // 1. Se content-length é explicitamente '0', não há body
+    // Se content-length é '0', não há body - pular parsing
     if (contentLength === '0') {
-        if (isGeneratePayment) {
-            console.log(`[bodyParser] ${requestId} - Pulando parsing (content-length: 0)`);
-        }
         (req as any).body = undefined;
         return next();
     }
     
-    // 2. Se não há content-length E não há content-type JSON, provavelmente não tem body
-    // (proxies podem remover content-length: 0, mas mantêm se houver body)
-    if (!contentLength && !contentType.includes('application/json')) {
-        // Para métodos POST/PUT/PATCH sem content-type JSON, assumir que pode não ter body
-        // (especialmente para endpoints que não usam body como generate-payment)
-        if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-            // Verificar se já tem body definido (processado por outro middleware/proxy)
-            if ((req as any).body === undefined) {
-                // Não tem body - pular parsing
-                if (isGeneratePayment) {
-                    console.log(`[bodyParser] ${requestId} - Pulando parsing (sem content-length e sem content-type JSON)`);
-                }
-                (req as any).body = undefined;
-                return next();
-            }
-        } else {
-            // Para outros métodos, não aplicar JSON parser
-            return next();
-        }
-    }
-    
-    // 3. Se tem content-type mas não é JSON, pular JSON parser
-    if (contentType && !contentType.includes('application/json')) {
-        if (isGeneratePayment) {
-            console.log(`[bodyParser] ${requestId} - Pulando parsing (content-type não é JSON: ${contentType})`);
-        }
+    // Se não há content-length E não há content-type, provavelmente não tem body
+    if (!contentLength && !contentType && ['POST', 'PUT', 'PATCH'].includes(method)) {
+        (req as any).body = undefined;
         return next();
     }
     
-    // 4. Aplicar express.json() apenas se realmente parece ter body JSON
-    if (isGeneratePayment) {
-        console.log(`[bodyParser] ${requestId} - Aplicando express.json()`);
+    // Aplicar express.json() apenas se realmente tem body JSON
+    if (contentType.includes('application/json')) {
+        // Só aplicar se tem content-length não-zero
+        if (!contentLength || contentLength === '0') {
+            return next();
+        }
+        
+        const jsonParser = express.json({
+            verify: (req: any, _res, buf) => {
+                // Apenas capturar rawBody se houver conteúdo
+                if (buf && buf.length > 0) {
+                    req.rawBody = buf;
+                }
+            },
+        });
+        jsonParser(req, res, next);
+        return;
     }
     
-    // Capturar erros do jsonParser
-    const originalNext = next;
-    const wrappedNext = (err?: any) => {
-        if (err) {
-            console.error(`[bodyParser] ${requestId} - Erro ao processar JSON`, {
-                error: err.message,
-                stack: err.stack,
-                method: req.method,
-                path: req.path,
-            });
-        }
-        originalNext(err);
-    };
-    
-    jsonParser(req, res, wrappedNext);
+    // Para outros casos, deixar passar (pode ser urlencoded ou nenhum parser)
+    next();
 });
-app.use(express.urlencoded({ extended: true }));
+
+// Aplicar urlencoded APENAS para requisições que realmente precisam
+app.use((req: Request, res: Response, next: NextFunction) => {
+    const contentType = req.get('content-type') || '';
+    const contentLength = req.get('content-length');
+    const path = req.path;
+    
+    // CRÍTICO: Nunca aplicar urlencoded em generate-payment
+    if (path.includes('/generate-payment')) {
+        return next();
+    }
+    
+    // Se content-length é '0', não aplicar
+    if (contentLength === '0') {
+        return next();
+    }
+    
+    // Só aplicar urlencoded se realmente tem content-type urlencoded E content-length não-zero
+    if (contentType.includes('application/x-www-form-urlencoded') && contentLength && contentLength !== '0') {
+        express.urlencoded({ extended: true })(req, res, next);
+    } else {
+        next();
+    }
+});
 
 // Sanitização Global - Proteção XSS
 // Aplicar em todas as rotas exceto webhooks (que precisam do body raw para assinatura)
