@@ -203,21 +203,69 @@ interface SyncParcelPaymentInput {
 export async function syncParcelFromMercadoPago(input: SyncParcelPaymentInput) {
     const { paymentId, status, externalReference, transactionAmount } = input;
 
-    // Tentar localizar a parcela pelo paymentId diretamente
+    // Tentar localizar a parcela pelo paymentId diretamente (ID do Payment dentro da Order)
     let parcel = await Parcel.findOne({ paymentId });
+    let foundByPaymentOrderId = false;
 
-    // Fallback: procurar por external_reference (id da ParcelledOrder) + valor
-    if (!parcel && externalReference && mongoose.Types.ObjectId.isValid(externalReference)) {
-        const filters: any = {
-            parcelledOrder: externalReference,
-        };
-        if (typeof transactionAmount === 'number' && !Number.isNaN(transactionAmount)) {
-            filters.amount = transactionAmount;
+    // Fallback 1: tentar buscar pelo paymentOrderId (caso o webhook envie o orderId no lugar do paymentId)
+    if (!parcel && paymentId) {
+        const foundByOrderId = await Parcel.findOne({ paymentOrderId: paymentId });
+        if (foundByOrderId) {
+            parcel = foundByOrderId;
+            foundByPaymentOrderId = true;
         }
-        parcel = await Parcel.findOne(filters);
+    }
+
+    // Fallback 2: procurar por external_reference (id da ParcelledOrder)
+    // Se temos externalReference válido, tentar várias estratégias
+    if (!parcel && externalReference && mongoose.Types.ObjectId.isValid(externalReference)) {
+        // Estratégia 2a: Buscar entrada (sequence 0) pelo ParcelledOrder + amount (com tolerância decimal)
+        if (typeof transactionAmount === 'number' && !Number.isNaN(transactionAmount)) {
+            // Buscar todas as parcelas do ParcelledOrder e comparar valores com tolerância
+            const allParcels = await Parcel.find({
+                parcelledOrder: externalReference,
+            });
+
+            // Comparar valores com tolerância de 0.01 (diferenças de arredondamento)
+            for (const p of allParcels) {
+                const diff = Math.abs(p.amount - transactionAmount);
+                if (diff < 0.01) {
+                    parcel = p;
+                    break;
+                }
+            }
+
+            // Se ainda não encontrou, tentar buscar especificamente a entrada (sequence 0)
+            if (!parcel) {
+                const entryParcel = await Parcel.findOne({
+                    parcelledOrder: externalReference,
+                    sequence: 0,
+                });
+                if (entryParcel) {
+                    const diff = Math.abs(entryParcel.amount - transactionAmount);
+                    if (diff < 0.01) {
+                        parcel = entryParcel;
+                    }
+                }
+            }
+        } else {
+            // Sem transactionAmount, buscar a entrada (sequence 0) por padrão
+            parcel = await Parcel.findOne({
+                parcelledOrder: externalReference,
+                sequence: 0,
+            });
+        }
     }
 
     if (!parcel) {
+        // Log para debug em desenvolvimento
+        if (process.env.NODE_ENV !== 'production') {
+            console.warn('[syncParcelFromMercadoPago] Parcela não encontrada:', {
+                paymentId,
+                externalReference,
+                transactionAmount,
+            });
+        }
         return;
     }
 
@@ -230,9 +278,26 @@ export async function syncParcelFromMercadoPago(input: SyncParcelPaymentInput) {
 
     // Aprovação do pagamento
     if (normalizedStatus === 'approved' || normalizedStatus === 'processed' || normalizedStatus === 'paid') {
+        // Atualizar paymentId apenas se não encontramos pelo paymentOrderId
+        // (se encontramos pelo paymentOrderId, o paymentId recebido é na verdade o orderId)
+        if (paymentId && !parcel.paymentId && !foundByPaymentOrderId) {
+            parcel.paymentId = paymentId;
+        }
+        
         parcel.status = 'paid';
         parcel.paidAt = new Date();
         await parcel.save();
+        
+        // Log em desenvolvimento
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[syncParcelFromMercadoPago] Parcela marcada como paga:', {
+                parcelId: parcel._id,
+                sequence: parcel.sequence,
+                parcelledOrderId: parcelledOrder._id,
+                statusAnterior: parcelledOrder.status,
+                encontradoPor: foundByPaymentOrderId ? 'paymentOrderId' : parcel.paymentId ? 'paymentId' : 'externalReference',
+            });
+        }
 
         // Atualizar status da venda parcelada
         if (parcel.sequence === 0 && parcelledOrder.status === 'pending_entry') {

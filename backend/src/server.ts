@@ -344,13 +344,56 @@ app.use(
 // ====================================
 
 // Capturar rawBody para verificação de assinatura de webhooks
-app.use(
-    express.json({
-        verify: (req: any, _res, buf) => {
+// CRÍTICO: Configurar express.json() para não processar requisições sem body
+// Isso evita o erro "Body has already been read" em requisições POST sem body
+const jsonParser = express.json({
+    verify: (req: any, _res, buf) => {
+        // Apenas capturar rawBody se houver conteúdo
+        if (buf && buf.length > 0) {
             req.rawBody = buf;
-        },
-    })
-);
+        }
+    },
+});
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+    const contentLength = req.get('content-length');
+    const contentType = req.get('content-type') || '';
+    
+    // CRÍTICO: Em produção, proxies podem modificar ou remover headers
+    // Estratégia: Verificar múltiplas condições antes de aplicar express.json()
+    
+    // 1. Se content-length é explicitamente '0', não há body
+    if (contentLength === '0') {
+        (req as any).body = undefined;
+        return next();
+    }
+    
+    // 2. Se não há content-length E não há content-type JSON, provavelmente não tem body
+    // (proxies podem remover content-length: 0, mas mantêm se houver body)
+    if (!contentLength && !contentType.includes('application/json')) {
+        // Para métodos POST/PUT/PATCH sem content-type JSON, assumir que pode não ter body
+        // (especialmente para endpoints que não usam body como generate-payment)
+        if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+            // Verificar se já tem body definido (processado por outro middleware/proxy)
+            if ((req as any).body === undefined) {
+                // Não tem body - pular parsing
+                (req as any).body = undefined;
+                return next();
+            }
+        } else {
+            // Para outros métodos, não aplicar JSON parser
+            return next();
+        }
+    }
+    
+    // 3. Se tem content-type mas não é JSON, pular JSON parser
+    if (contentType && !contentType.includes('application/json')) {
+        return next();
+    }
+    
+    // 4. Aplicar express.json() apenas se realmente parece ter body JSON
+    jsonParser(req, res, next);
+});
 app.use(express.urlencoded({ extended: true }));
 
 // Sanitização Global - Proteção XSS
