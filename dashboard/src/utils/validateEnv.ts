@@ -1,6 +1,6 @@
 /**
  * Validação de Variáveis de Ambiente
- * 
+ *
  * Valida se todas as variáveis obrigatórias estão definidas no startup
  * Impede que a aplicação inicie com configuração inválida
  */
@@ -22,37 +22,37 @@ const ENV_VARS: EnvVar[] = [
     name: 'NEXTAUTH_SECRET',
     required: true,
     description: 'Secret para criptografia de sessões NextAuth',
-    validate: (value) => value.length >= 32
+    validate: value => value.length >= 32
   },
   {
     name: 'NEXTAUTH_URL',
     required: false,
     description: 'URL base do NextAuth',
-    defaultValue: 'https://localhost:3443//api/auth'
+    defaultValue: 'https://localhost:3001/api/auth'
   },
-  
+
   // API
   {
     name: 'API_URL',
     required: true,
     description: 'URL do backend API',
-    validate: (value) => value.endsWith('/api') && (value.startsWith('http://') || value.startsWith('https://'))
+    validate: value => value.endsWith('/api') && (value.startsWith('http://') || value.startsWith('https://'))
   },
   {
     name: 'NEXT_PUBLIC_API_URL',
     required: true,
     description: 'URL pública do backend API (client-side)',
-    validate: (value) => value.endsWith('/api')
+    validate: value => value.endsWith('/api')
   },
-  
+
   // App
   {
     name: 'NEXT_PUBLIC_APP_URL',
     required: false,
     description: 'URL pública do dashboard',
-    defaultValue: 'https://localhost:3443/'
+    defaultValue: 'https://localhost:3001/'
   },
-  
+
   // Google OAuth (opcional)
   {
     name: 'GOOGLE_CLIENT_ID',
@@ -64,7 +64,7 @@ const ENV_VARS: EnvVar[] = [
     required: false,
     description: 'Google OAuth Client Secret'
   },
-  
+
   // Mapbox (opcional)
   {
     name: 'MAPBOX_ACCESS_TOKEN',
@@ -87,7 +87,7 @@ interface ValidationResult {
 
 /**
  * Valida todas as variáveis de ambiente
- * 
+ *
  * @returns Resultado da validação
  */
 export function validateEnvironmentVariables(): ValidationResult {
@@ -139,8 +139,6 @@ export function validateEnvironmentVariables(): ValidationResult {
  * Termina o processo com erro se houver variáveis inválidas
  */
 export function validateAndExit(): void {
-  console.log('🔍 Validando variáveis de ambiente...\n')
-
   const result = validateEnvironmentVariables()
 
   // Exibir warnings
@@ -159,22 +157,17 @@ export function validateAndExit(): void {
       console.error(`   - ${error.variable}: ${error.message}`)
     })
     console.error('\n💡 Configure as variáveis em .env.local e reinicie o servidor.\n')
-    
+
     if (process.env.NODE_ENV === 'production') {
       // Em produção, terminar processo
       process.exit(1)
-    } else {
-      // Em desenvolvimento, apenas avisar
-      console.error('⚠️  Continuando em modo desenvolvimento, mas a aplicação pode não funcionar corretamente.\n')
     }
-  } else {
-    console.log('✅ Todas as variáveis de ambiente estão configuradas corretamente!\n')
   }
 }
 
 /**
  * Retorna valor de variável de ambiente com validação
- * 
+ *
  * @param name - Nome da variável
  * @param defaultValue - Valor padrão se não definida
  * @returns Valor da variável
@@ -182,11 +175,11 @@ export function validateAndExit(): void {
  */
 export function getEnvVar(name: string, defaultValue?: string): string {
   const value = process.env[name]
-  
+
   if (!value && !defaultValue) {
     throw new Error(`Variável de ambiente ${name} não está definida`)
   }
-  
+
   return value || defaultValue || ''
 }
 
@@ -203,4 +196,3 @@ export function isDevelopment(): boolean {
 export function isProduction(): boolean {
   return process.env.NODE_ENV === 'production'
 }
-

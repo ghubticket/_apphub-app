@@ -469,12 +469,6 @@ export const checkSession = async (req: Request, res: Response) => {
                     expiresAt = new Date(decoded.exp * 1000);
                     timeRemaining = Math.max(0, expiresAt.getTime() - Date.now());
 
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.log('Access token válido:', {
-                            timeRemainingMs: timeRemaining,
-                            timeRemainingMinutes: Math.floor(timeRemaining / 60000),
-                        });
-                    }
                 }
             } catch (error: any) {
                 // Token expirado ou inválido, tentar refresh token
@@ -506,24 +500,12 @@ export const checkSession = async (req: Request, res: Response) => {
                             // Retornar tempo restante do refresh token (sessão)
                             expiresAt = session.expiresAt;
                             timeRemaining = Math.max(0, expiresAt.getTime() - Date.now());
-
-                            if (process.env.NODE_ENV !== 'production') {
-                                console.log('Refresh token válido:', {
-                                    timeRemainingMs: timeRemaining,
-                                    timeRemainingMinutes: Math.floor(timeRemaining / 60000),
-                                });
-                            }
-                        } else {
-                            if (process.env.NODE_ENV !== 'production') {}
-                        }
+                        } 
                     }
                 } catch (error: any) {
-                    // Refresh token inválido
-                    if (process.env.NODE_ENV !== 'production') {}
+                    
                 }
-            } else {
-                if (process.env.NODE_ENV !== 'production') {}
-            }
+            } 
         }
 
         // Sempre retornar resposta, mesmo se não houver sessão válida

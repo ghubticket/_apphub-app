@@ -30,6 +30,6 @@ export const removeLangaugeDropdown = async () => {
 
     // Write the modified content back to the file
     await fs.writeFile(file, content, 'utf8')
-    console.log(`Updated file: ${file}`)
+   
   })
 }

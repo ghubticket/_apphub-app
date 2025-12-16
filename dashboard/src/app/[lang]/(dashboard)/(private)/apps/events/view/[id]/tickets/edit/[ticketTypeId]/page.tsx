@@ -87,6 +87,9 @@ const EditTicketTypePage = () => {
     const [salesStart, setSalesStart] = useState<Date | null>(null)
     const [salesEnd, setSalesEnd] = useState<Date | null>(null)
     const [priceDisplay, setPriceDisplay] = useState('')
+    const [allowInstallments, setAllowInstallments] = useState(false)
+    const [minInstallments, setMinInstallments] = useState<number | ''>('')
+    const [maxInstallments, setMaxInstallments] = useState<number | ''>('')
 
     const {
         control,
@@ -115,6 +118,13 @@ const EditTicketTypePage = () => {
 
                 setTicketType(data)
                 setIsVIP(data.isVIP)
+                setAllowInstallments(!!data.allowInstallments)
+                setMinInstallments(
+                    typeof data.minInstallments === 'number' ? data.minInstallments : ''
+                )
+                setMaxInstallments(
+                    typeof data.maxInstallments === 'number' ? data.maxInstallments : ''
+                )
 
                 // Preencher formulário
                 reset({
@@ -171,6 +181,17 @@ const EditTicketTypePage = () => {
         setServerError(null)
         
         try {
+            if (allowInstallments) {
+                if (!maxInstallments || Number(maxInstallments) < 2) {
+                    setServerError('Defina pelo menos 2 parcelas máximas para habilitar o parcelamento.')
+                    return
+                }
+                if (minInstallments && maxInstallments && Number(minInstallments) > Number(maxInstallments)) {
+                    setServerError('Parcelas mínimas não podem ser maiores que parcelas máximas.')
+                    return
+                }
+            }
+
             const ticketTypeData: UpdateTicketTypeData = {
                 name: data.name,
                 description: data.description || undefined,
@@ -181,6 +202,9 @@ const EditTicketTypePage = () => {
                 maxPerPurchase: data.maxPerPurchase,
                 salesStart: salesStart ? salesStart.toISOString() : undefined,
                 salesEnd: salesEnd ? salesEnd.toISOString() : undefined,
+                allowInstallments,
+                minInstallments: allowInstallments && minInstallments !== '' ? Number(minInstallments) : null,
+                maxInstallments: allowInstallments && maxInstallments !== '' ? Number(maxInstallments) : null,
             }
 
             await updateTicketType(ticketTypeId as string, ticketTypeData)

@@ -111,7 +111,7 @@ export function CustomerDataForm({
     }, [data.billingZip, isDisabled, pixPaymentActive, onChange]);
 
     return (
-        <div className="relative rounded-3xl border border-[#ded7ca] bg-white p-6">
+        <div id="customer-data-form" className="relative rounded-3xl border border-[#ded7ca] bg-white p-6">
             <div className="pb-5 flex md:flex-row flex-col md:items-center md:justify-between gap-4 border-b border-dashed border-[#ede5d8]">
                 <div>
                     <h2 className="text-lg font-semibold uppercase tracking-normal text-[#1a1a1d]">

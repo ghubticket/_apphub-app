@@ -20,6 +20,11 @@ export interface ITicketType extends Document {
     createdAt: Date;
     updatedAt: Date;
 
+    // Parcelamento
+    allowInstallments?: boolean;
+    minInstallments?: number | null;
+    maxInstallments?: number | null;
+
     // Virtuals
     availableQuantity: number; // Quantidade disponível
     isSoldOut: boolean; // Se está esgotado
@@ -119,6 +124,22 @@ const ticketTypeSchema = new Schema<ITicketType>(
         isActive: {
             type: Boolean,
             default: true,
+        },
+        allowInstallments: {
+            type: Boolean,
+            default: false,
+        },
+        minInstallments: {
+            type: Number,
+            default: null,
+            min: [1, 'minInstallments deve ser pelo menos 1'],
+            max: [36, 'minInstallments não pode ser maior que 36'],
+        },
+        maxInstallments: {
+            type: Number,
+            default: null,
+            min: [1, 'maxInstallments deve ser pelo menos 1'],
+            max: [60, 'maxInstallments não pode ser maior que 60'],
         },
         deletedAt: {
             type: Date,

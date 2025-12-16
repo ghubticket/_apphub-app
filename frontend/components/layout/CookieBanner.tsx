@@ -89,14 +89,14 @@ export default function CookieBanner() {
                                 <button
                                     type="button"
                                     onClick={handleReject}
-                                    className="px-6 py-2.5 text-sm font-semibold uppercase tracking-[0.1em] text-white/70 border border-white/20 rounded-full hover:border-white/40 hover:text-white transition-colors whitespace-nowrap"
+                                    className="px-6 py-2.5 text-sm font-semibold uppercase tracking-normal text-white/70 border border-white/20 rounded-full hover:border-white/40 hover:text-white transition-colors whitespace-nowrap"
                                 >
                                     Recusar
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleAccept}
-                                    className="px-6 py-2.5 text-sm font-semibold uppercase tracking-[0.1em] bg-[#f97316] text-white rounded-full hover:bg-[#ff8c42] transition-colors whitespace-nowrap"
+                                    className="px-6 py-2.5 text-sm font-semibold uppercase tracking-normal bg-[#f97316] text-white rounded-full hover:bg-[#ff8c42] transition-colors whitespace-nowrap"
                                 >
                                     Aceitar todos
                                 </button>

@@ -40,10 +40,6 @@ async function recordValidationAttempt(
                 .lean();
 
             if (recentReplayAttempt) {
-                // Já existe tentativa recente - não criar novo registro, apenas logar e marcar como suspeito
-                if (process.env.NODE_ENV !== 'production') {
-                    console.log(`QR ${ticketCode} já teve replay registrado há menos de ${REPLAY_COOLDOWN_MINUTES} minutos`);
-                }
 
                 // Ainda assim, verificar padrões suspeitos para marcar usuário
                 if (ticket?.holder) {
@@ -80,10 +76,7 @@ async function recordValidationAttempt(
 
         return attempt;
     } catch (error: any) {
-        // Não falhar a validação se o registro der erro
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('Erro ao registrar tentativa de validação:', error);
-        }
+       
         return null;
     }
 }
@@ -351,10 +344,7 @@ export const validateTicket = async (req: Request, res: Response) => {
             if (isValidHolder) {
                 presentHolderId = holderId;
             } else {
-                // Se holder informado não está no pedido, usar o holder do ticket
-                if (process.env.NODE_ENV !== 'production') {
-                    console.log('Holder informado não está no pedido. Usando holder do ticket.');
-                }
+                
             }
         }
 
@@ -443,30 +433,9 @@ export const validateTicket = async (req: Request, res: Response) => {
                     if (holderUser && holderUser.role === 'CLIENTE') {
                         if (isHolderTryingToReuse) {
                             // Holder original tentando reutilizar
-                            if (process.env.NODE_ENV !== 'production') {
-                                console.log('Holder tentando reutilizar QR:', {
-                                    holder: (currentTicket.holder as any)?.name || currentTicket.holder,
-                                    firstPassedHolder: firstPassedHolderName,
-                                    firstUsedAt: currentTicket.usedAt,
-                                    firstUsedBy:
-                                        (currentTicket.usedBy as any)?.name || currentTicket.usedBy,
-                                    attemptedBy: validatorId,
-                                    isDifferentPerson,
-                                });
-                            }
-
                             holderUser.isSuspicious = true;
                             holderUser.suspiciousReason = `Tentativa de reutilizar QR code já validado. QR foi usado por ${firstPassedHolderName} em ${currentTicket.usedAt?.toLocaleString('pt-BR')}`;
                         } else {
-                            // Outra pessoa tentando usar QR do holder (possível fraude)
-                            if (process.env.NODE_ENV !== 'production') {
-                                console.log('Outra pessoa tentando usar QR do holder:', {
-                                    holder: (currentTicket.holder as any)?.name || currentTicket.holder,
-                                    firstPassedHolder: firstPassedHolderName,
-                                    attemptedBy: validatorId,
-                                });
-                            }
-
                             holderUser.isSuspicious = true;
                             holderUser.suspiciousReason = `Tentativa de usar QR code já validado. QR foi usado por ${firstPassedHolderName} em ${currentTicket.usedAt?.toLocaleString('pt-BR')}`;
                         }

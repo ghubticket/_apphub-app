@@ -42,20 +42,6 @@ export async function GET(
         const cleanImagePath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
         const imageUrl = `${cleanBaseUrl}${cleanImagePath}`;
         
-        // Log para debug (apenas em desenvolvimento)
-        if (process.env.NODE_ENV === 'development') {
-            console.log('[Dashboard Image Proxy] Fetching image:', {
-                imagePath,
-                cleanedApiBaseUrl: cleanBaseUrl,
-                imageUrl,
-                env: {
-                    NODE_ENV: process.env.NODE_ENV,
-                    API_URL: process.env.API_URL ? `set (${process.env.API_URL})` : 'not set',
-                    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ? `set (${process.env.NEXT_PUBLIC_API_URL})` : 'not set',
-                }
-            });
-        }
-
         // Configurar para ignorar verificação SSL em desenvolvimento (apenas para localhost HTTPS)
         const isDevelopment = process.env.NODE_ENV === 'development';
         const isLocalhost = imageUrl.includes('localhost') || imageUrl.includes('127.0.0.1');
@@ -110,7 +96,6 @@ export async function GET(
                     });
 
                     req.on('error', (error) => {
-                        console.error('[Dashboard Image Proxy] HTTPS request stream error:', error);
                         reject(error);
                     });
 
@@ -131,12 +116,10 @@ export async function GET(
                         },
                     });
                 } else {
-                    console.error(`[Dashboard Image Proxy] Failed to fetch image (HTTPS custom): ${imageUrl}`, response.status);
                     return new NextResponse('Image not found', { status: response.status });
                 }
             } catch (httpsError: any) {
-                console.error('[Dashboard Image Proxy] HTTPS custom fetch error:', httpsError);
-                // Fallback para fetch normal
+              
             }
         }
 
@@ -158,16 +141,6 @@ export async function GET(
             // Obter o tipo de conteúdo da imagem
             const contentType = response.headers.get('content-type') || 'image/jpeg';
             const imageBuffer = await response.arrayBuffer();
-
-            // Log de sucesso (apenas em desenvolvimento)
-            if (process.env.NODE_ENV === 'development') {
-                console.log('[Dashboard Image Proxy] Image fetched successfully:', {
-                    imageUrl,
-                    contentType,
-                    size: imageBuffer.byteLength,
-                    imagePath
-                });
-            }
 
             // Retornar a imagem com headers de cache e segurança
             return new NextResponse(imageBuffer, {

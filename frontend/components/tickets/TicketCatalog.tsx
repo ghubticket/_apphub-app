@@ -36,7 +36,7 @@ export default function TicketCatalog({ tickets, className, variant = 'default' 
     const [quantities, setQuantities] = useState<Record<string, number>>({});
     const [actionStates, setActionStates] = useState<Record<string, ActionState | undefined>>({});
     const [isCreatingVipOrder, setIsCreatingVipOrder] = useState<Record<string, boolean>>({});
-
+    
     const currencyFormatter = useMemo(
         () =>
             new Intl.NumberFormat('pt-BR', {
@@ -253,7 +253,7 @@ export default function TicketCatalog({ tickets, className, variant = 'default' 
                 return;
             }
 
-            addCartItem({
+            const cartItemPayload = {
                 id: itemId,
                 ticketTypeId: itemId,
                 eventId: ticket.eventId,
@@ -266,11 +266,19 @@ export default function TicketCatalog({ tickets, className, variant = 'default' 
                 maxQuantity: maxAllowed,
                 ticketFee: ticket.ticketFee,
                 platformFeePercentage: ticket.platformFeePercentage,
+                allowInstallments: ticket.allowInstallments ?? false,
+                minInstallments: ticket.minInstallments ?? null,
+                maxInstallments: ticket.maxInstallments ?? null,
                 metadata: {
                     eventName: ticket.eventName,
                     category: ticket.category,
+                    allowInstallments: ticket.allowInstallments ?? false,
+                    minInstallments: ticket.minInstallments ?? null,
+                    maxInstallments: ticket.maxInstallments ?? null,
                 },
-            });
+            };
+
+            addCartItem(cartItemPayload);
 
             const cartAfter = loadCartItems();
             const updatedQuantity = cartAfter.find((item) => item.id === itemId)?.quantity ?? previousQuantity + quantity;

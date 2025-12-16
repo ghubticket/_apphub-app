@@ -30,10 +30,12 @@ import healthRoutes from './routes/health';
 import deliveryRoutes from './routes/delivery';
 import promoterCodesRoutes from './routes/promoterCodes';
 import paymentRoutes from './routes/payment';
+import parcelledOrdersRoutes from './routes/parcelledOrders';
 import newsletterRoutes from './routes/newsletter';
 import supportRoutes from './routes/support';
 import { startWebhookWorker } from './services/webhookProcessorService';
 import { startOrderExpirationScheduler } from './services/orderExpirationService';
+import { startParcelledOrderSchedulers } from './services/parcelledOrderService';
 import { checkMercadoPagoConfig, checkEmailConfig } from './utils/checkEnv';
 
 // Carregar variáveis de ambiente
@@ -177,7 +179,7 @@ const fallbackOrigins = [
     'http://localhost:3001',
     'https://localhost:3001',
     'http://localhost:3443',
-    'https://localhost:3443',
+    'https://localhost:3001',
 ];
 const rawOrigins = [
     process.env.FRONTEND_URL,
@@ -398,6 +400,8 @@ app.use('/api/tickets', ticketsRoutes);
 app.use('/api/promoters', promoterCodesRoutes);
 // Rotas de pagamento
 app.use('/api/payments', paymentRoutes);
+// Rotas de vendas parceladas
+app.use('/api/parcelled-orders', parcelledOrdersRoutes);
 // Rotas de novidades/newsletter
 app.use('/api/novidades', newsletterRoutes);
 // Rotas de suporte
@@ -555,16 +559,25 @@ const startServer = async () => {
         // Iniciar servidor
         if (useHttps) {
             // Servidor HTTPS
-            const httpsServer = https.createServer(sslOptions, app);
-            httpsServer.listen(httpsPort, '0.0.0.0');
+            const httpsServer = https.createServer(sslOptions!, app);
+            httpsServer.listen(httpsPort, '0.0.0.0', () => {
+              
+            });
         } else {
             // Servidor HTTP (fallback)
-            app.listen(PORT, '0.0.0.0');
+            app.listen(PORT, '0.0.0.0', () => {
+               
+            });
         }
 
         // Iniciar job de expiração de pedidos pendentes
         if (process.env.ORDER_EXPIRATION_ENABLED !== 'false') {
             startOrderExpirationScheduler();
+        }
+
+        // Iniciar schedulers de vendas parceladas (gerar PIX futuros + regras de atraso/cancelamento)
+        if (process.env.PARCELLED_SCHEDULERS_ENABLED !== 'false') {
+            startParcelledOrderSchedulers();
         }
 
         // Worker: reprocessamento de webhooks pendentes/fracassados
@@ -585,7 +598,6 @@ const startServer = async () => {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
-        logger.error('❌ Erro ao iniciar servidor:', { error: errorMessage, stack: errorStack });
 
         // Capturar erro fatal de inicialização no Sentry
         if (process.env.SENTRY_DSN) {

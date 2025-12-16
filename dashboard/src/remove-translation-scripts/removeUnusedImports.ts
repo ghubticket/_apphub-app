@@ -27,11 +27,9 @@ export const updateEslintConfig = async () => {
 
   // Update the file
   fs.writeFileSync('.eslintrc.js', `module.exports = ${JSON.stringify(eslintConfig, null, 2)}`)
-  console.log('Updated .eslintrc.js successfully.')
 }
 
 export const reverseEslintConfig = async () => {
-  consola.log('Reverse the eslint-plugin-unused-imports...')
 
   // Detect package manager
   const packageManager = fs.existsSync('yarn.lock')
@@ -68,5 +66,4 @@ export const reverseEslintConfig = async () => {
 
   // Update the file
   fs.writeFileSync('.eslintrc.js', `module.exports = ${JSON.stringify(eslintConfig, null, 2)}`)
-  console.log('Updated .eslintrc.js successfully.')
 }

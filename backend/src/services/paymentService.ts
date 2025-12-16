@@ -246,14 +246,6 @@ export const createPixPayment = async (
             currentToken.startsWith('TEST-') ||
             process.env.NODE_ENV !== 'production';
 
-        // Log para debug
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('PIX Payment - Sandbox check:', {
-                nodeEnv: process.env.NODE_ENV,
-                currentTokenPrefix: currentToken.substring(0, 10),
-            });
-        }
-
         if (isSandbox && !payerEmail.endsWith('@testuser.com')) {
             // Extrair o nome do email original (antes do @) e adicionar @testuser.com
             const emailName = payerEmail.split('@')[0] || 'test';
@@ -383,11 +375,7 @@ export const createPixPayment = async (
 
         // Log para debug - payload completo antes de enviar
         if (process.env.NODE_ENV !== 'production') {
-            console.log('PIX Payment - Request headers:', {
-                'X-Idempotency-Key': idempotencyKey.substring(0, 20) + '...',
-                Authorization: 'Bearer ' + currentToken.substring(0, 20) + '...',
-                'X-meli-session-id': deviceId || 'não fornecido',
-            });
+            
         }
 
         // Criar Order (modo automático processa imediatamente)
@@ -423,22 +411,7 @@ export const createPixPayment = async (
     } catch (error: any) {
         // Log detalhado do erro para debug
         if (process.env.NODE_ENV !== 'production') {
-            console.log('PIX Payment Error:', {
-                message: error?.message,
-                code: error?.code,
-                status: error?.response?.status,
-                statusText: error?.response?.statusText,
-                responseData: error?.response?.data,
-                errors: error?.errors,
-                requestInfo: {
-                    orderId: params.orderId,
-                    totalAmount: params.totalAmount,
-                    customerEmail: params.customerData.email,
-                    customerName: params.customerData.name,
-                    hasPhone: !!params.customerData.phone,
-                    hasCpf: !!params.customerData.cpf,
-                },
-            });
+            
         }
 
         // Tratamento específico para erro de autenticação
@@ -539,8 +512,6 @@ export const createPixPayment = async (
                         return e.message;
                     })
                     .join(', ');
-                console.log('Mercado Pago Error Details:', JSON.stringify(errorDetails, null, 2));
-                throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
                 throw new Error(`Erro do Mercado Pago: ${errorMessages}`);
             }
             throw new Error(`Erro do Mercado Pago: ${mpError.message || JSON.stringify(mpError)}`);
@@ -812,9 +783,7 @@ export const createCardPayment = async (params: CreateCardPaymentParams, deviceI
         if (error?.orderResponse) {
             debugPayload.orderResponse = error.orderResponse;
         }
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('Card Payment Error:', JSON.stringify(debugPayload, null, 2));
-        }
+       
 
         if (!error?.response?.data && error?.orderResponse?.transactions?.payments?.[0]) {
             const rejectedPayment = error.orderResponse.transactions.payments[0];
@@ -1004,10 +973,7 @@ export const getOrderById = async (orderId: string) => {
 
         // Buscar do Mercado Pago
         if (process.env.NODE_ENV !== 'production') {
-            console.log('Fetching order from MP:', {
-                orderId,
-                isSandbox: getAccessToken().startsWith('TEST-'),
-            });
+          
         }
         const client = createMercadoPagoClient();
         const orderApi = new Order(client);
@@ -1015,16 +981,6 @@ export const getOrderById = async (orderId: string) => {
 
         // Log da estrutura da resposta para debug
         if (process.env.NODE_ENV !== 'production') {
-            console.log('MP Order Response Structure:', {
-                orderId: (response as any)?.id,
-                status: (response as any)?.status,
-                hasTransactions: !!(response as any)?.transactions,
-                hasPayments: !!(response as any)?.transactions?.payments,
-                paymentsCount: (response as any)?.transactions?.payments?.length || 0,
-                firstPaymentKeys: (response as any)?.transactions?.payments?.[0]
-                    ? Object.keys((response as any).transactions.payments[0])
-                    : [],
-            });
         }
 
         // Armazenar no cache
@@ -1046,11 +1002,7 @@ export const getOrderById = async (orderId: string) => {
         return response as any;
     } catch (error: any) {
         if (process.env.NODE_ENV !== 'production') {
-            console.log('Error fetching order:', {
-                orderId,
-                error: error.message,
-                isSandbox: getAccessToken().startsWith('TEST-'),
-            });
+           
         }
         throw new Error(`Erro ao buscar order: ${error.message || 'Erro desconhecido'}`);
     }

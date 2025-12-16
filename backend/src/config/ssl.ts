@@ -16,15 +16,11 @@ export function getSSLOptions(): SSLOptions | null {
     // Procurar automaticamente pelo certificado mais recente (localhost+X.pem)
     function findLatestCert(): string | null {
         if (!fs.existsSync(certsDir)) {
-            if (process.env.NODE_ENV !== 'production') {
-                console.log('Certificates directory not found:', certsDir);
-            }
+           
             return null;
         }
         const allFiles = fs.readdirSync(certsDir);
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('Files in certificates directory:', allFiles);
-        }
+       
         const certs = allFiles
             .filter((f) => f.startsWith('localhost+') && f.endsWith('.pem') && !f.includes('-key'))
             .map((f) => {
@@ -37,11 +33,7 @@ export function getSSLOptions(): SSLOptions | null {
             })
             .sort((a, b) => b.mtime - a.mtime);
 
-        if (process.env.NODE_ENV !== 'production') {
-            if (certs.length > 0) {
-                console.log('Latest certificate found:', certs[0].name);
-            }
-        }
+       
 
         return certs.length > 0 ? certs[0].path : null;
     }
@@ -50,26 +42,20 @@ export function getSSLOptions(): SSLOptions | null {
     let certPath: string;
     let keyPath: string;
 
-    // Debug: verificar qual branch será executado
-    if (process.env.NODE_ENV !== 'production') {
-        console.log('SSL Config - Checking certificate paths...');
-    }
+   
 
     if (process.env.SSL_CERT_PATH) {
         if (process.env.NODE_ENV !== 'production') {
-            console.log('Using SSL_CERT_PATH from environment:', process.env.SSL_CERT_PATH);
         }
         certPath = process.env.SSL_CERT_PATH;
         keyPath = process.env.SSL_KEY_PATH || certPath.replace('.pem', '-key.pem');
     } else if (latestCert) {
         if (process.env.NODE_ENV !== 'production') {
-            console.log('Using latest certificate found:', latestCert);
         }
         certPath = latestCert;
         keyPath = certPath.replace('.pem', '-key.pem');
     } else {
         if (process.env.NODE_ENV !== 'production') {
-            console.log('No latest certificate found, using fallback');
         }
         // Fallback: procurar qualquer certificado localhost+
         const allCerts = fs.existsSync(certsDir)
@@ -97,17 +83,14 @@ export function getSSLOptions(): SSLOptions | null {
 
     // Debug: mostrar caminhos
     if (process.env.NODE_ENV !== 'production') {
-        console.log('SSL Config - Certificate paths:', { certPath, keyPath });
         if (fs.existsSync(certsDir)) {
             const files = fs.readdirSync(certsDir);
-            console.log('Files in certificates directory:', files);
         }
     }
 
     // Verificar se os arquivos existem
     if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
         if (process.env.NODE_ENV !== 'production') {
-            console.log('SSL certificates not found:', { certPath, keyPath });
         }
         return null;
     }
@@ -119,7 +102,6 @@ export function getSSLOptions(): SSLOptions | null {
         };
     } catch (error) {
         if (process.env.NODE_ENV !== 'production') {
-            console.log('Error reading SSL certificates:', error);
         }
         return null;
     }

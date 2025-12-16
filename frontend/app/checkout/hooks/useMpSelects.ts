@@ -14,7 +14,7 @@ type MpSelectReady = {
 
 type UseMpSelectsOptions = {
     cardBrand: string;
-    selectedTab: 'card' | 'pix';
+    selectedTab: 'card' | 'pix' | 'parcel';
     onSelectsReady?: (ready: MpSelectReady) => void;
 };
 

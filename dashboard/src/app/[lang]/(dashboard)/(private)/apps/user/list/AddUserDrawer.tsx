@@ -57,7 +57,6 @@ const AddUserDrawer = (props: Props) => {
 
   const onSubmit = (data: FormValidateType) => {
     // Aqui você pode implementar a lógica para adicionar usuário via API
-    console.log('Adicionar usuário:', data)
     handleClose()
     resetForm()
   }

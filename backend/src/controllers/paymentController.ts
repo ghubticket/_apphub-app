@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
-import { WebhookEvent, Order, Ticket, Event, User } from '../models';
+import { WebhookEvent, Order, Ticket, Event, User, Parcel } from '../models';
 import { enqueueOrGet } from '../services/webhookProcessorService';
 import crypto from 'crypto';
 import * as paymentService from '../services/paymentService';
+import { syncParcelFromMercadoPago } from '../services/parcelledOrderService';
 // REFATORADO: Removido import de reservationService - pedidos não usam mais reservas separadas
 import { mapPaymentMethod } from '../services/paymentService';
 import { getPaymentStatusInfo, mapPaymentStatus } from '../utils/paymentStatusMapper';
@@ -1530,7 +1531,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     };
                 }
 
-                // Buscar pedido pelo external_reference
+                // Buscar pedido pelo external_reference (para fluxo normal de pedidos)
                 const orderId =
                     data.external_reference ||
                     orderInfo.external_reference ||
@@ -1541,37 +1542,38 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                 const order = await Order.findOne({ _id: orderId, deletedAt: null });
 
-                if (!order) {return;
-                }
-
                 if (!paymentInfo) {return;
                 }
 
-                // Guardar status anterior para evitar disparar e-mail/aprovação duplicados
-                const wasPaidBefore = order.status === 'paid';
-
-                // CRÍTICO: Se o pedido já está pago e o webhook está sendo reprocessado, verificar se precisa atualizar
-                // Se o pedido já está pago e o status do MP também é pago, não precisa fazer nada
-                if (wasPaidBefore && action === 'order.processed') {
-                    const paymentStatusRaw = paymentInfo.status || data.status;
-                    const paymentStatusDetailRaw =
-                        paymentInfo.status_detail || data.status_detail || '';
-                    const statusInfo = getPaymentStatusInfo(
-                        paymentStatusRaw,
-                        paymentStatusDetailRaw
-                    );
-
-                    if (statusInfo.internalStatus === 'paid') {return;
-                    }
-                }
-
-                // Obter informações completas do status
+                // Obter informações completas do status (uma vez só) – antes de sincronizar/parar
                 // CRÍTICO: Garantir que status_detail seja extraído corretamente
                 const paymentStatusRaw = paymentInfo.status || data.status;
                 const paymentStatusDetailRaw =
                     paymentInfo.status_detail || data.status_detail || '';
                 const statusInfo = getPaymentStatusInfo(paymentStatusRaw, paymentStatusDetailRaw);
                 const paymentStatus = statusInfo.internalStatus;
+
+                // Sempre sincronizar com engine de parcelas (se aplicável)
+                await syncParcelFromMercadoPago({
+                    paymentId: paymentInfo.id,
+                    status: paymentStatusRaw,
+                    statusDetail: paymentStatusDetailRaw,
+                    externalReference: orderId,
+                    transactionAmount: paymentInfo.transaction_amount,
+                });
+
+                if (!order) {return;
+                }
+
+                // Guardar status anterior para evitar disparar e-mail/aprovação duplicados
+                const wasPaidBefore = order.status === 'paid';
+
+                // CRÍTICO: Se o pedido já está pago e o webhook está sendo reprocessado,
+                // e o status do MP também é pago, não precisa fazer nada
+                if (wasPaidBefore && action === 'order.processed') {
+                    if (statusInfo.internalStatus === 'paid') {return;
+                    }
+                }
 
                 // Orders API usa payment_method.{type,id} em vez de payment_type_id/payment_method_id
                 const paymentTypeId =
@@ -1717,7 +1719,16 @@ export const handleWebhook = async (req: Request, res: Response) => {
             if (!paymentInfo) {return;
             }
 
-            // Buscar pedido pelo external_reference
+            // Sempre sincronizar com engine de parcelas (se aplicável)
+            await syncParcelFromMercadoPago({
+                paymentId: paymentInfo.id,
+                status: paymentInfo.status,
+                statusDetail: paymentInfo.status_detail,
+                externalReference: paymentInfo.external_reference,
+                transactionAmount: paymentInfo.transaction_amount,
+            });
+
+            // Buscar pedido pelo external_reference (fluxo normal)
             const orderId = paymentInfo.external_reference || paymentInfo.metadata?.order_id;
 
             if (!orderId) {return;
@@ -1864,7 +1875,63 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
     try {
         const { paymentId } = req.params;
 
-        const paymentInfo = (await paymentService.getPaymentById(paymentId)) as any;
+        let paymentInfo: any = null;
+        let isOrdersApi = false;
+
+        // Primeiro, tentar buscar via Payment API
+        try {
+            paymentInfo = (await paymentService.getPaymentById(paymentId)) as any;
+        } catch (paymentApiError: any) {
+            // Se falhar, pode ser um pagamento criado via Orders API
+            // Verificar se existe um Parcel com esse paymentId
+            const parcel = await Parcel.findOne({ paymentId }).lean();
+            
+            if (parcel && parcel.paymentOrderId) {
+                // É um pagamento de Orders API (parcelamento)
+                isOrdersApi = true;
+                
+                // Buscar a order via Orders API usando o paymentOrderId salvo
+                try {
+                    const mpOrder = await paymentService.getOrderById(parcel.paymentOrderId);
+                    
+                    // Encontrar o payment dentro da order que corresponde ao paymentId
+                    const payments = mpOrder?.transactions?.payments || [];
+                    const matchingPayment = payments.find((p: any) => p.id === paymentId);
+                    
+                    if (matchingPayment) {
+                        // Construir objeto similar ao Payment API para manter compatibilidade
+                        paymentInfo = {
+                            id: matchingPayment.id,
+                            status: matchingPayment.status,
+                            status_detail: matchingPayment.status_detail,
+                            payment_type_id: 'bank_transfer',
+                            payment_method_id: 'pix',
+                            transaction_amount: matchingPayment.transaction_amount,
+                            date_approved: matchingPayment.date_approved,
+                            date_of_expiration: matchingPayment.date_of_expiration,
+                        };
+                    } else {
+                        return res.status(404).json({
+                            success: false,
+                            message: 'Pagamento não encontrado na order',
+                        });
+                    }
+                } catch (orderApiError: any) {
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Erro ao buscar status do pagamento',
+                        errors: [orderApiError.message || 'Erro ao buscar order no Mercado Pago'],
+                    });
+                }
+            } else {
+                // Não é um parcelamento ou não tem paymentOrderId, retornar erro original
+                return res.status(500).json({
+                    success: false,
+                    message: 'Erro ao buscar status do pagamento',
+                    errors: [paymentApiError.message || 'Erro desconhecido'],
+                });
+            }
+        }
 
         if (!paymentInfo) {
             return res.status(404).json({

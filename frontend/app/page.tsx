@@ -135,8 +135,8 @@ export default function Home() {
                         <UpcomingEvents events={events} />
 
                         {/* CTA Venda a Longo Prazo */}
-                        <section className="px-4 py-12 bg-white">
-                            <div className="max-w-6xl mx-auto">
+                        <section className=" py-12 bg-white">
+                            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-0 ">
                                 <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-gradient-to-br from-[#1a1a1d] via-[#2a2a2d] to-[#1a1a1d] text-white shadow-xl">
                                     <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_left,_#f97316_0,_transparent_50%)]"></div>
                                     <div className="relative z-10 flex flex-col gap-6 p-8 md:p-12">

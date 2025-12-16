@@ -240,11 +240,7 @@ export async function expirePendingOrders(
                 // Se o MP já cancelou, seguir o MP imediatamente
                 if (['cancelled', 'rejected', 'expired'].includes(effectiveStatus)) {
                     await cancelOrderLocally(order, now, effectiveStatus);
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.log(
-                            `[order-expiration] Cartão pedido ${String(order._id)}: MP cancelou (status: ${effectiveStatus}). Seguindo MP e cancelando.`
-                        );
-                    }
+                   
                     return true; // Expirou
                 }
 

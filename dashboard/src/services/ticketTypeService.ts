@@ -21,6 +21,9 @@ export interface TicketTypeItem {
     availableQuantity?: number;
     isSoldOut?: boolean;
     isOnSale?: boolean;
+    allowInstallments?: boolean;
+    minInstallments?: number | null;
+    maxInstallments?: number | null;
 }
 
 export interface CreateTicketTypeData {
@@ -33,6 +36,9 @@ export interface CreateTicketTypeData {
     maxPerPurchase: number;
     salesStart?: string;
     salesEnd?: string;
+    allowInstallments?: boolean;
+    minInstallments?: number | null;
+    maxInstallments?: number | null;
 }
 
 export interface UpdateTicketTypeData extends Partial<CreateTicketTypeData> {

@@ -3,7 +3,7 @@ import { getInputElement } from '../utils/cardFormHelpers';
 
 type UseCardBrandDetectionOptions = {
     mercadoPago: any;
-    selectedTab: 'card' | 'pix';
+    selectedTab: 'card' | 'pix' | 'parcel';
     onBrandDetected: (brand: string, paymentMethodId: string) => void;
     onBrandCleared?: () => void;
 };

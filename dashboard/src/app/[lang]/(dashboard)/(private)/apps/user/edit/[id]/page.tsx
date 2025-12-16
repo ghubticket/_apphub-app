@@ -100,7 +100,6 @@ const UserEditPage = () => {
 
     const handleSave = async () => {
         // TODO: Implementar atualização do usuário
-        console.log('Salvar dados:', formData)
         setIsEditing(false)
     }
 

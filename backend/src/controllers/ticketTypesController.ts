@@ -19,6 +19,9 @@ export const createTicketType = async (req: Request, res: Response) => {
             maxPerEmail,
             salesStart,
             salesEnd,
+            allowInstallments,
+            minInstallments,
+            maxInstallments,
         } = req.body;
 
         // Verificar se o evento existe
@@ -68,6 +71,9 @@ export const createTicketType = async (req: Request, res: Response) => {
             soldQuantity: 0,
             salesStart: salesStart ? new Date(salesStart) : undefined,
             salesEnd: salesEnd ? new Date(salesEnd) : undefined,
+            allowInstallments: !!allowInstallments,
+            minInstallments: minInstallments ?? null,
+            maxInstallments: maxInstallments ?? null,
         });
 
         await ticketType.save();
@@ -159,7 +165,9 @@ export const listTicketTypes = async (req: Request, res: Response) => {
         }
 
         const ticketTypes = await TicketType.find(filter)
-            .select('name description price isVIP lotNumber maxQuantity soldQuantity maxPerPurchase maxPerCPF maxPerEmail salesStart salesEnd isActive createdAt')
+            .select(
+                'name description price isVIP lotNumber maxQuantity soldQuantity maxPerPurchase maxPerCPF maxPerEmail salesStart salesEnd isActive createdAt allowInstallments minInstallments maxInstallments'
+            )
             .sort({ lotNumber: 1 })
             .populate('event', 'name date')
             .lean();
@@ -241,6 +249,9 @@ export const updateTicketType = async (req: Request, res: Response) => {
             maxPerEmail,
             salesStart,
             salesEnd,
+            allowInstallments,
+            minInstallments,
+            maxInstallments,
         } = req.body;
 
         const ticketType = await TicketType.findOne({
@@ -299,6 +310,12 @@ export const updateTicketType = async (req: Request, res: Response) => {
         if (salesStart !== undefined)
             ticketType.salesStart = salesStart ? new Date(salesStart) : undefined;
         if (salesEnd !== undefined) ticketType.salesEnd = salesEnd ? new Date(salesEnd) : undefined;
+        if (allowInstallments !== undefined)
+            ticketType.allowInstallments = !!allowInstallments;
+        if (minInstallments !== undefined)
+            ticketType.minInstallments = minInstallments ?? null;
+        if (maxInstallments !== undefined)
+            ticketType.maxInstallments = maxInstallments ?? null;
 
         await ticketType.save();
 

@@ -23,6 +23,9 @@ export type TicketProduct = {
     sortTimestamp?: number;
     ticketFee?: number;
     platformFeePercentage?: number;
+    allowInstallments?: boolean;
+    minInstallments?: number | null;
+    maxInstallments?: number | null;
 };
 
 

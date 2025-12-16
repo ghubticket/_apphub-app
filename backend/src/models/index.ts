@@ -14,6 +14,8 @@ export { default as SupportRequest } from './SupportRequest';
 export { default as SuspiciousOrderAlert } from './SuspiciousOrderAlert';
 export { default as AuditLog } from './AuditLog';
 export { default as PasswordResetToken } from './PasswordResetToken';
+export { default as ParcelledOrder } from './ParcelledOrder';
+export { default as Parcel } from './Parcel';
 
 // Re-exportar tipos para facilitar importação
 export type { IUser } from './User';
@@ -31,3 +33,5 @@ export type { ISupportRequest } from './SupportRequest';
 export type { ISuspiciousOrderAlert } from './SuspiciousOrderAlert';
 export type { IAuditLog } from './AuditLog';
 export type { IPasswordResetToken } from './PasswordResetToken';
+export type { IParcelledOrder } from './ParcelledOrder';
+export type { IParcel } from './Parcel';

@@ -244,8 +244,10 @@ export function CheckoutLayout() {
     useNavigationGuard({
         enabled:
             !checkoutState.isPaymentApproved &&
+            // Se já existe QR gerado (PIX normal ou entrada do parcelamento),
+            // não mostrar mais o modal de saída - o backend controla o cancelamento.
             !checkoutState.hasGeneratedPix &&
-            !hasPixActiveFlag && // CRÍTICO: Se há flag PIX ativa, não bloquear navegação
+            !hasPixActiveFlag &&
             (!!(order && order.status === 'pending') || checkoutState.hasPendingOrderInStorage),
         onNavigationAttempt: () => {
             checkoutState.setShowExitWarning(true);
@@ -421,10 +423,83 @@ export function CheckoutLayout() {
         return totalAmount;
     }, [order?._id, order?.totalAmount, totalAmount, appliedDiscountInfo, summarizedCart]);
 
+    // Estado para QR Code da entrada do parcelamento (PIX da entrada)
+    const [entryParcelQrCode, setEntryParcelQrCode] = useState<{
+        qrCode: string;
+        qrCodeBase64?: string;
+        ticketUrl?: string;
+        parcelledOrderId: string;
+        amount: number;
+        expiresAt?: string | null;
+    } | null>(null);
+
+    // Quando houver PIX ativo de parcelamento (entrada gerada),
+    // marcar flag PIX no storage e liberar navegação como no fluxo PIX normal.
+    useEffect(() => {
+        if (entryParcelQrCode && order?._id) {
+            storage.setPixOrderActive(order._id);
+            storage.setAllowNavigation(true);
+        }
+    }, [entryParcelQrCode, order?._id, storage]);
+
     // Memoizar se PIX está ativo (quando há QR code gerado)
     const isPixActive = useMemo(() => {
-        return !!pixPayment.pixResult;
-    }, [pixPayment.pixResult]);
+        // Ativo quando há QR de PIX tradicional OU QR da entrada de parcelamento
+        return !!pixPayment.pixResult || !!entryParcelQrCode;
+    }, [pixPayment.pixResult, entryParcelQrCode]);
+
+    // Detectar se o tipo de ingresso atual permite venda parcelada
+    const [installmentsConfig, setInstallmentsConfig] = useState<{
+        allowInstallments: boolean;
+        minInstallments: number | null;
+        maxInstallments: number | null;
+    }>({
+        allowInstallments: false,
+        minInstallments: null,
+        maxInstallments: null,
+    });
+
+    // Derivar config a partir do carrinho (dados locais)
+    useEffect(() => {
+        const firstItem = summarizedCart[0];
+        const metadata = firstItem?.metadata as any | undefined;
+        
+        const resolveNumber = (value: any): number | null => {
+            if (typeof value === 'number' && !Number.isNaN(value)) return value;
+            if (value === null || value === undefined || value === '') return null;
+            const n = Number(value);
+            return Number.isFinite(n) ? n : null;
+        };
+
+        if (!firstItem) {
+            setInstallmentsConfig({
+                allowInstallments: false,
+                minInstallments: null,
+                maxInstallments: null,
+            });
+            return;
+        }
+
+        const allowInstallmentsDirect = firstItem.allowInstallments === true;
+        const allowInstallmentsMeta =
+            metadata?.allowInstallments === true || metadata?.allowInstallments === 'true';
+
+        const minInstallments = resolveNumber(
+            firstItem.minInstallments ?? metadata?.minInstallments ?? null,
+        );
+        const maxInstallments = resolveNumber(
+            firstItem.maxInstallments ?? metadata?.maxInstallments ?? null,
+        );
+
+        const allowInstallments =
+            allowInstallmentsDirect || allowInstallmentsMeta || minInstallments !== null || maxInstallments !== null;
+
+        setInstallmentsConfig({
+            allowInstallments,
+            minInstallments,
+            maxInstallments,
+        });
+    }, [summarizedCart]);
 
     const handleUpdateQuantity = useCallback((itemId: string, newQuantity: number) => {
         // Não permitir atualizar quantidade se PIX está ativo
@@ -533,6 +608,17 @@ export function CheckoutLayout() {
                                 onCancelOrder={handleCancelOrderAndGoHome}
                                 orderNumber={order?.orderNumber}
                                 pixPayment={pixPayment}
+                                entryParcelQrCode={entryParcelQrCode}
+                                onEntryParcelQrCodeChange={setEntryParcelQrCode}
+                                installmentsAvailable={installmentsConfig.allowInstallments}
+                                minInstallments={installmentsConfig.minInstallments}
+                                maxInstallments={installmentsConfig.maxInstallments}
+                                primaryEventId={summarizedCart[0]?.eventId ?? null}
+                                primaryTicketTypeId={summarizedCart[0]?.ticketTypeId ?? summarizedCart[0]?.id ?? null}
+                                primaryQuantity={summarizedCart[0]?.quantity ?? null}
+                                customerName={customerData.name}
+                                customerCpf={customerData.cpf}
+                                customerPhone={customerData.phone}
                             />
                         ) : (
                             <>
@@ -577,6 +663,17 @@ export function CheckoutLayout() {
                                 onCancelOrder={handleCancelOrderAndGoHome}
                                 orderNumber={order?.orderNumber}
                                 pixPayment={pixPayment}
+                                entryParcelQrCode={entryParcelQrCode}
+                                onEntryParcelQrCodeChange={setEntryParcelQrCode}
+                                installmentsAvailable={installmentsConfig.allowInstallments}
+                                minInstallments={installmentsConfig.minInstallments}
+                                maxInstallments={installmentsConfig.maxInstallments}
+                                primaryEventId={summarizedCart[0]?.eventId ?? null}
+                                primaryTicketTypeId={summarizedCart[0]?.ticketTypeId ?? summarizedCart[0]?.id ?? null}
+                                primaryQuantity={summarizedCart[0]?.quantity ?? null}
+                                customerName={customerData.name}
+                                customerCpf={customerData.cpf}
+                                customerPhone={customerData.phone}
                             />
                         </section>
                     )}

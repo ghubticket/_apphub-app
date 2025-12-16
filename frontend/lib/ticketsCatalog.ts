@@ -11,6 +11,8 @@ import { cacheEvents, cacheTicketTypes, cacheCatalog, generateCacheKey } from '.
  * 
  * NOTA: URLs do R2 são retornadas diretamente. URLs antigas da API são mantidas para compatibilidade.
  */
+const IS_DEV = process.env.NODE_ENV !== 'production';
+
 const normalizeImageUrl = (imageUrl?: string | null): string | undefined => {
     if (!imageUrl || typeof imageUrl !== 'string') return undefined;
     
@@ -89,6 +91,9 @@ type RawTicketType = {
     availableQuantity?: number;
     salesStart?: string;
     salesEnd?: string;
+    allowInstallments?: boolean;
+    minInstallments?: number | null;
+    maxInstallments?: number | null;
 };
 
 const formatEventDate = (date?: string) => {
@@ -149,7 +154,7 @@ const normalizeTicketType = (
     const eventDateIso = event.date ?? undefined;
     const sortTimestamp = event.date ? new Date(event.date).getTime() : undefined;
 
-    return {
+    const normalized: TicketProduct = {
         id: ticket._id ?? ticket.id ?? `${event._id}-${ticket.name ?? 'ticket'}`,
         ticketTypeId: ticket._id ?? ticket.id,
         eventId: event._id ?? event.id,
@@ -176,7 +181,14 @@ const normalizeTicketType = (
             event.platformFeePercentage !== undefined && event.platformFeePercentage !== null
                 ? Number(event.platformFeePercentage)
                 : undefined,
+        allowInstallments: ticket.allowInstallments ?? false,
+        minInstallments:
+            typeof ticket.minInstallments === 'number' ? ticket.minInstallments : ticket.minInstallments ?? null,
+        maxInstallments:
+            typeof ticket.maxInstallments === 'number' ? ticket.maxInstallments : ticket.maxInstallments ?? null,
     };
+
+    return normalized;
 };
 
 // Cache de promises em andamento para evitar chamadas duplicadas simultâneas
@@ -221,7 +233,7 @@ export const fetchEventsList = async (
         }
     }
 
-    const filteredEvents = eventsRaw.filter(
+        const filteredEvents = eventsRaw.filter(
         (event) => event && event.isActive !== false && (event.status ?? 'published') !== 'cancelled',
     );
 
@@ -243,6 +255,11 @@ export const fetchEventsList = async (
 
 export const fetchTicketCatalog = async (options: FetchTicketCatalogOptions = {}): Promise<TicketProduct[]> => {
     const { limitEvents = 12, limitTicketsPerEvent, search, onlyWithAvailability = false } = options;
+
+    // Em desenvolvimento, ignorar o cache de catálogo para sempre buscar dados frescos
+    if (IS_DEV) {
+        return fetchTicketCatalogFresh(options);
+    }
 
     // Gerar chave de cache
     const cacheKey = generateCacheKey(options);
@@ -430,14 +447,10 @@ async function fetchTicketCatalogFresh(options: FetchTicketCatalogOptions = {}):
         filteredEvents.map(async (event) => {
             try {
                 const eventId = event._id ?? event.id;
-                
-                // Buscar tickets (pode usar cache, mas força refresh se necessário)
-                const cachedTicketTypes = cacheTicketTypes.get(eventId);
+
                 let ticketTypes: RawTicketType[];
-                
-                if (cachedTicketTypes && Array.isArray(cachedTicketTypes)) {
-                    ticketTypes = cachedTicketTypes;
-                } else {
+
+                if (IS_DEV) {
                     const ticketTypesResponse = await api.get(`/events/${eventId}/ticket-types`, {
                         params: {
                             includeInactive: false,
@@ -446,11 +459,28 @@ async function fetchTicketCatalogFresh(options: FetchTicketCatalogOptions = {}):
                     ticketTypes = Array.isArray(ticketTypesResponse.data?.data)
                         ? ticketTypesResponse.data.data
                         : Array.isArray(ticketTypesResponse.data)
-                          ? ticketTypesResponse.data
-                          : [];
-                    
-                    if (ticketTypes.length > 0) {
-                        cacheTicketTypes.set(eventId, ticketTypes, 30 * 1000);
+                            ? ticketTypesResponse.data
+                            : [];
+                } else {
+                    // Em produção, usar cache para reduzir chamadas
+                    const cachedTicketTypes = cacheTicketTypes.get(eventId);
+                    if (cachedTicketTypes && Array.isArray(cachedTicketTypes)) {
+                        ticketTypes = cachedTicketTypes;
+                    } else {
+                        const ticketTypesResponse = await api.get(`/events/${eventId}/ticket-types`, {
+                            params: {
+                                includeInactive: false,
+                            },
+                        });
+                        ticketTypes = Array.isArray(ticketTypesResponse.data?.data)
+                            ? ticketTypesResponse.data.data
+                            : Array.isArray(ticketTypesResponse.data)
+                                ? ticketTypesResponse.data
+                                : [];
+
+                        if (ticketTypes.length > 0) {
+                            cacheTicketTypes.set(eventId, ticketTypes, 30 * 1000);
+                        }
                     }
                 }
 

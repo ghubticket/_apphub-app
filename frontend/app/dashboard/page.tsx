@@ -24,7 +24,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useOrdersPolling } from './hooks/useOrdersPolling';
 import PaymentSuccessModal from '@/components/shared/PaymentSuccessModal';
 
-type TabKey = 'profile' | 'orders' | 'requests';
+type TabKey = 'orders' | 'requests' | 'installments';
 type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'refunded';
 
 type OrderTicketSummary = {
@@ -74,6 +74,38 @@ type OrderSummary = {
     pixInfo?: PixInfo; // Informações do PIX para pedidos pendentes
 };
 
+type ParcelStatus = 'pending' | 'payment_generated' | 'paid' | 'overdue' | 'cancelled';
+
+type ParcelSummary = {
+    _id: string;
+    sequence: number;
+    amount: number;
+    dueDate: string;
+    status: ParcelStatus;
+    paymentId?: string;
+    qrCode?: string | null;
+    qrCodeBase64?: string | null;
+    ticketUrl?: string | null;
+};
+
+type ParcelledOrderStatus = 'pending_entry' | 'active' | 'completed' | 'cancelled';
+
+type ParcelledOrderSummary = {
+    _id: string;
+    event?: OrderEventSummary | null;
+    ticketType?: { name?: string } | null;
+    totalAmount: number;
+    entryAmount: number;
+    installmentsCount: number;
+    status: ParcelledOrderStatus;
+    paymentType: 'pix' | 'boleto';
+    createdAt?: string;
+    metadata?: {
+        eventName?: string;
+        ticketTypeName?: string;
+    };
+};
+
 // Tipo para agrupar pedidos pagos do mesmo evento
 type OrderGroup = {
     eventId: string;
@@ -108,12 +140,11 @@ const tabs: Array<{
             icon: HiOutlineTicket,
         },
         {
-            key: 'profile',
-            label: 'Meu Perfil',
-            description: 'Dados pessoais, informações de contato e preferências.',
-            icon: HiOutlineUserCircle,
+            key: 'installments',
+            label: 'Parcelamentos',
+            description: 'Acompanhe suas compras parceladas e próximas parcelas.',
+            icon: HiOutlineClipboardDocumentList,
         },
-
         {
             key: 'requests',
             label: 'Minhas Solicitações',
@@ -153,6 +184,31 @@ const paymentLabels: Record<string, string> = {
     pix: 'PIX',
     bank_slip: 'Boleto',
     vip_free: 'Cortesia',
+};
+
+const parcelledStatusConfig: Record<
+    ParcelledOrderStatus,
+    {
+        label: string;
+        badgeClass: string;
+    }
+> = {
+    pending_entry: {
+        label: 'Aguardando Entrada',
+        badgeClass: 'border border-amber-500/30 bg-amber-500/10 text-amber-600',
+    },
+    active: {
+        label: 'Ativo',
+        badgeClass: 'border border-sky-500/30 bg-sky-500/10 text-sky-600',
+    },
+    completed: {
+        label: 'Concluído',
+        badgeClass: 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-600',
+    },
+    cancelled: {
+        label: 'Cancelado',
+        badgeClass: 'border border-rose-500/30 bg-rose-500/10 text-rose-600',
+    },
 };
 
 // Função para agrupar pedidos pagos do mesmo evento
@@ -261,11 +317,11 @@ export default function DashboardPage() {
     const [showSecurityModal, setShowSecurityModal] = useState(false);
     const [securityModalEntering, setSecurityModalEntering] = useState(false);
     const modalScrollRef = useRef<HTMLDivElement | null>(null);
-    
+
     // Estado para modal de pagamento aprovado
     const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
     const [paidOrderInfo, setPaidOrderInfo] = useState<{ orderNumber?: string; message?: string } | null>(null);
-    
+
     // Estados para formulário de solicitação
     const [formData, setFormData] = useState({
         subject: '',
@@ -276,6 +332,33 @@ export default function DashboardPage() {
     const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
+    // Parcelamentos
+    const [parcelledOrders, setParcelledOrders] = useState<ParcelledOrderSummary[]>([]);
+    const [parcelsByOrder, setParcelsByOrder] = useState<Record<string, ParcelSummary[]>>({});
+    const [installmentsLoading, setInstallmentsLoading] = useState(false);
+    const [installmentsError, setInstallmentsError] = useState<string>('');
+    const [hasFetchedInstallments, setHasFetchedInstallments] = useState(false);
+    const [expandedParcelledId, setExpandedParcelledId] = useState<string | null>(null);
+    const [pixParcelPayment, setPixParcelPayment] = useState<{
+        parcelId: string;
+        orderId: string;
+        qrCode?: string | null;
+        qrCodeBase64?: string | null;
+        expiresAt?: string | null;
+    } | null>(null);
+
+    // Estado para armazenar informações de expiração do PIX da entrada (por orderId)
+    const [entryParcelPixInfo, setEntryParcelPixInfo] = useState<Record<string, {
+        orderId: string;
+        parcelId: string;
+        qrCode?: string | null;
+        qrCodeBase64?: string | null;
+        expiresAt?: string | null;
+    }>>({});
+
+    // Estado para controlar quando o código PIX foi copiado (por chave única)
+    const [pixCodeCopied, setPixCodeCopied] = useState<Record<string, boolean>>({});
 
     // Função para verificar se é mobile
     const isMobileDevice = useCallback(() => {
@@ -406,6 +489,138 @@ export default function DashboardPage() {
         }
     }, []);
 
+    const fetchParcelledOrders = useCallback(async () => {
+        try {
+            setInstallmentsLoading(true);
+            setInstallmentsError('');
+
+            const response = await api.get('/parcelled-orders');
+            const data = response.data?.data;
+
+            const ordersRaw = Array.isArray(data?.orders) ? data.orders : [];
+            const parcelsRaw = data?.parcelsByOrder || {};
+
+            const normalizedOrders: ParcelledOrderSummary[] = ordersRaw.map((o: any) => ({
+                _id: o._id || o.id,
+                event: o.event || null,
+                ticketType: o.ticketType || null,
+                totalAmount: Number(o.totalAmount ?? 0),
+                entryAmount: Number(o.entryAmount ?? 0),
+                installmentsCount: Number(o.installmentsCount ?? 1),
+                status: (o.status || 'pending_entry') as ParcelledOrderStatus,
+                paymentType: o.paymentType || 'pix',
+                createdAt: o.createdAt,
+                metadata: o.metadata || undefined,
+            }));
+
+            const normalizedParcels: Record<string, ParcelSummary[]> = {};
+            Object.keys(parcelsRaw).forEach((orderId) => {
+                const list = parcelsRaw[orderId] || [];
+                normalizedParcels[orderId] = list.map((p: any) => ({
+                    _id: p._id || p.id,
+                    sequence: Number(p.sequence ?? 0),
+                    amount: Number(p.amount ?? 0),
+                    dueDate: p.dueDate,
+                    status: (p.status || 'pending') as ParcelStatus,
+                    paymentId: p.paymentId,
+                    qrCode: p.qrCode,
+                    qrCodeBase64: p.qrCodeBase64,
+                    ticketUrl: p.ticketUrl,
+                }));
+            });
+
+            setParcelledOrders(normalizedOrders);
+            setParcelsByOrder(normalizedParcels);
+
+            // Buscar automaticamente o PIX da entrada para cada pedido parcelado
+            // Usar Promise.all para buscar informações de expiração em paralelo
+            const entryPixPromises = normalizedOrders.map(async (order) => {
+                const parcels = normalizedParcels[order._id] || [];
+                const entryParcel = parcels.find((p) => p.sequence === 0);
+
+                // Se a entrada tem PIX gerado e ainda não foi paga, buscar informações de expiração
+                if (
+                    entryParcel &&
+                    entryParcel.status === 'payment_generated' &&
+                    entryParcel.paymentId &&
+                    (entryParcel.qrCode || entryParcel.qrCodeBase64)
+                ) {
+                    // Buscar informações de expiração do Mercado Pago
+                    // Usar .catch() para tratar erros silenciosamente (erro 500, 404, etc)
+                    let expiresAt: string | null = null;
+                    try {
+                        const paymentStatusResp = await api.get(`/payments/${entryParcel.paymentId}/status`);
+                        expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
+
+                        // Validar se expiresAt é uma string válida
+                        if (expiresAt && typeof expiresAt === 'string' && expiresAt.length > 0) {
+                            const expirationDate = new Date(expiresAt);
+                            // Verificar se a data é válida
+                            if (isNaN(expirationDate.getTime())) {
+                                expiresAt = null;
+                            }
+                        } else {
+                            expiresAt = null;
+                        }
+                    } catch (error: any) {
+                        // Se falhar ao buscar expiração (erro 500, 404, etc), continuar sem timer
+                        // Log apenas em desenvolvimento e apenas para erros não-404 (404 é esperado se o pagamento não existe mais)
+                        if (process.env.NODE_ENV === 'development' && error?.response?.status !== 404) {
+                            // Log apenas para erros inesperados (500, 503, etc), não para 404
+                            console.debug(`Não foi possível buscar expiração do PIX para paymentId ${entryParcel.paymentId}:`, error?.response?.status || error?.message);
+                        }
+                        expiresAt = null;
+                    }
+
+                    // Retornar sempre o PIX, mesmo sem expiresAt
+                    return {
+                        orderId: order._id,
+                        parcelId: entryParcel._id,
+                        qrCode: entryParcel.qrCode,
+                        qrCodeBase64: entryParcel.qrCodeBase64,
+                        expiresAt: expiresAt,
+                    };
+                }
+                return null;
+            });
+
+            // Aguardar todas as buscas e atualizar estado
+            const entryPixResults = await Promise.all(entryPixPromises);
+            const entryPixMap: Record<string, {
+                orderId: string;
+                parcelId: string;
+                qrCode?: string | null;
+                qrCodeBase64?: string | null;
+                expiresAt?: string | null;
+            }> = {};
+
+            entryPixResults.forEach((result) => {
+                if (result) {
+                    entryPixMap[result.orderId] = result;
+                }
+            });
+
+            setEntryParcelPixInfo(entryPixMap);
+        } catch (error: any) {
+            let message: string;
+
+            if (!error?.response) {
+                message =
+                    'Não foi possível conectar com o servidor. Verifique sua conexão ou se a API está em execução e tente novamente.';
+            } else {
+                message =
+                    error.response?.data?.message ||
+                    error?.message ||
+                    'Não foi possível carregar seus parcelamentos. Tente novamente.';
+            }
+
+            setInstallmentsError(message);
+        } finally {
+            setInstallmentsLoading(false);
+            setHasFetchedInstallments(true);
+        }
+    }, []);
+
     useEffect(() => {
         if (!isReady) return;
         if (!isAuthenticated) {
@@ -453,7 +668,18 @@ export default function DashboardPage() {
         if (activeTab === 'orders' && !hasFetchedOrders) {
             fetchOrders();
         }
-    }, [activeTab, fetchOrders, hasFetchedOrders, isAuthenticated, isReady]);
+        if (activeTab === 'installments' && !hasFetchedInstallments) {
+            fetchParcelledOrders();
+        }
+    }, [
+        activeTab,
+        fetchOrders,
+        hasFetchedOrders,
+        fetchParcelledOrders,
+        hasFetchedInstallments,
+        isAuthenticated,
+        isReady,
+    ]);
 
     // Helper para verificar se é um grupo (definido antes de ser usado)
     const isOrderGroup = (item: OrderSummary | OrderGroup): item is OrderGroup => {
@@ -464,7 +690,7 @@ export default function DashboardPage() {
     const handleOrderPaid = useCallback((orderId: string, order: any) => {
         // Extrair orderNumber do pedido (pode estar em diferentes formatos)
         const orderNumber = order?.orderNumber || order?.order_number || orderId;
-        
+
         // Mostrar modal de sucesso ANTES de atualizar a lista
         // Isso garante que a modal apareça imediatamente
         // A vibração será acionada automaticamente pela modal quando ela abrir
@@ -473,7 +699,7 @@ export default function DashboardPage() {
             message: 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.',
         });
         setShowPaymentSuccessModal(true);
-        
+
         // Atualizar lista de pedidos após mostrar a modal
         // Pequeno delay para garantir que a modal seja exibida primeiro
         setTimeout(() => {
@@ -495,9 +721,9 @@ export default function DashboardPage() {
     // Isso garante que o polling não pare antes da modal ser exibida
     // IMPORTANTE: Manter polling ativo sempre que estiver na aba de pedidos e autenticado
     // para detectar pagamentos mesmo quando não há pedidos pendentes visíveis na lista
-    const shouldPoll = activeTab === 'orders' && 
-                      isAuthenticated && 
-                      isReady;
+    const shouldPoll = activeTab === 'orders' &&
+        isAuthenticated &&
+        isReady;
 
     const { isPolling } = useOrdersPolling({
         enabled: shouldPoll,
@@ -608,20 +834,11 @@ export default function DashboardPage() {
         });
     }, [activeOrder]);
 
-    const renderProfileContent = () => (
-        <div className="space-y-6">
-            <div className="rounded-2xl border border-dashed border-[#ded7ca] bg-white/50 p-6 text-center text-sm text-[#7d796c]">
-                Em breve adicionaremos o formulário completo de edição de perfil. Por enquanto,
-                revise seus dados e mantenha-os atualizados junto ao suporte.
-            </div>
-        </div>
-    );
-
     const renderOrdersContent = () => {
         if (ordersLoading) {
             return (
-                <LoadingSpinner 
-                    message="Carregando seus pedidos..." 
+                <LoadingSpinner
+                    message="Carregando seus pedidos..."
                     submessage="Aguarde enquanto buscamos suas informações"
                 />
             );
@@ -736,7 +953,7 @@ export default function DashboardPage() {
                                 </div>
 
                                 <div
-                                    className={`overflow-hidden transition-all duration-500 ${isExpanded ? 'max-h-[2000px] pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}
+                                    className={`transition-all duration-500 ${isExpanded ? 'pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0 overflow-hidden'}`}
                                 >
                                     {/* Lista de pedidos do grupo */}
                                     <div className="mb-4 space-y-4">
@@ -748,7 +965,7 @@ export default function DashboardPage() {
                                             const orderPaymentLabel = order.paymentMethod && paymentLabels[order.paymentMethod]
                                                 ? paymentLabels[order.paymentMethod]
                                                 : 'Pagamento confirmado';
-                                            
+
                                             // Verificar se é pedido VIP
                                             const isOrderVip = order.paymentMethod === 'vip_free' || order.totalAmount === 0;
 
@@ -820,7 +1037,7 @@ export default function DashboardPage() {
                         (order.status === 'paid' ? 'Pagamento confirmado' : 'Pagamento pendente');
 
                     const ticketsConfirmed = order.tickets.filter((ticket) => ticket?.status === 'confirmed').length;
-                    
+
                     // Verificar se é pedido VIP (cortesia)
                     const isVipOrder = order.paymentMethod === 'vip_free' || order.totalAmount === 0;
 
@@ -896,7 +1113,7 @@ export default function DashboardPage() {
                             </header>
 
                             <div
-                                className={`overflow-hidden gap-20 transition-all flex duration-500 ${isExpanded ? 'max-h-[1200px] pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0'}`}
+                                className={`gap-20 transition-all flex duration-500 ${isExpanded ? 'pt-6 opacity-100' : 'pointer-events-none max-h-0 opacity-0 overflow-hidden'}`}
                             >
                                 {/* Seção de PIX pendente */}
                                 {order.status === 'pending' && order.paymentMethod === 'pix' && (
@@ -958,14 +1175,27 @@ export default function DashboardPage() {
                                                                 try {
                                                                     const codeToCopy = order.pixInfo!.qrCode || order.pixInfo!.ticketUrl || '';
                                                                     await navigator.clipboard.writeText(codeToCopy);
-                                                                    alert('Código PIX copiado!');
+                                                                    setPixCodeCopied((prev) => ({ ...prev, [`order-${order._id}`]: true }));
+                                                                    setTimeout(() => {
+                                                                        setPixCodeCopied((prev) => ({ ...prev, [`order-${order._id}`]: false }));
+                                                                    }, 2000);
                                                                 } catch (error) {
-                                                                    alert('Erro ao copiar código PIX');
+                                                                    // Fallback para navegadores antigos
+                                                                    const textArea = document.createElement('textarea');
+                                                                    textArea.value = order.pixInfo!.qrCode || order.pixInfo!.ticketUrl || '';
+                                                                    document.body.appendChild(textArea);
+                                                                    textArea.select();
+                                                                    document.execCommand('copy');
+                                                                    document.body.removeChild(textArea);
+                                                                    setPixCodeCopied((prev) => ({ ...prev, [`order-${order._id}`]: true }));
+                                                                    setTimeout(() => {
+                                                                        setPixCodeCopied((prev) => ({ ...prev, [`order-${order._id}`]: false }));
+                                                                    }, 2000);
                                                                 }
                                                             }}
                                                             className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
                                                         >
-                                                            Copiar
+                                                            {pixCodeCopied[`order-${order._id}`] ? '✓ Código copiado!' : 'Copiar'}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1029,6 +1259,521 @@ export default function DashboardPage() {
         );
     };
 
+    const renderInstallmentsContent = () => {
+        if (installmentsLoading) {
+            return (
+                <LoadingSpinner
+                    message="Carregando seus parcelamentos..."
+                    submessage="Aguarde enquanto buscamos suas informações"
+                />
+            );
+        }
+
+        if (installmentsError) {
+            return (
+                <div className="rounded-2xl border border-[#f2c4c4] bg-[#fbecec] p-6 text-sm text-[#a22d2d]">
+                    {installmentsError}
+                </div>
+            );
+        }
+
+        if (!parcelledOrders.length) {
+            return (
+                <div className="rounded-2xl border border-dashed border-[#ded7ca] bg-white/50 p-6 text-center text-sm text-[#7d796c]">
+                    Você ainda não possui compras parceladas. Quando fizer uma compra com parcelamento no PIX,
+                    o acompanhamento das parcelas aparecerá aqui.
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-6">
+                {parcelledOrders.map((order) => {
+                    const statusInfo = parcelledStatusConfig[order.status];
+                    const orderId = order._id;
+                    const parcels = parcelsByOrder[orderId] || [];
+
+                    const nextParcel = parcels.find(
+                        (p) => p.status === 'pending' || p.status === 'payment_generated'
+                    );
+                    const overdueCount = parcels.filter((p) => p.status === 'overdue').length;
+                    const paidCount = parcels.filter((p) => p.status === 'paid').length;
+                    const totalParcels = parcels.length || order.installmentsCount;
+                    const remainingParcels = totalParcels - paidCount;
+
+                    // Verificar se entrada (sequence 0) está paga
+                    const entryParcel = parcels.find((p) => p.sequence === 0);
+                    const isEntryPaid = entryParcel?.status === 'paid';
+
+                    const eventName =
+                        order.event?.name || order.metadata?.eventName || 'Evento não informado';
+                    const ticketName =
+                        (order.ticketType as any)?.name || order.metadata?.ticketTypeName || '';
+
+                    const createdAt = formatDate(order.createdAt);
+
+                    const isExpanded = expandedParcelledId === orderId;
+
+                    // Calcular porcentagem de progresso
+                    const progressPercentage = totalParcels > 0 ? (paidCount / totalParcels) * 100 : 0;
+
+                    return (
+                        <article
+                            key={orderId}
+                            className="rounded-2xl border border-[#ded7ca] bg-white/80 p-6 transition"
+                        >
+                            <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div className="space-y-1">
+                                    <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
+                                        Compra Parcelada
+                                    </span>
+                                    <h3 className="text-lg leading-none font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                                        {eventName}
+                                    </h3>
+
+                                    <p className="text-xs pb-3 text-[#a38f78]">
+                                        Criado em {createdAt}
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setExpandedParcelledId((current) =>
+                                                current === orderId ? null : orderId
+                                            )
+                                        }
+                                        className="flex items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/20 hover:text-white"
+                                    >
+                                        {isExpanded ? 'Recolher detalhes' : 'Ver detalhes'}
+                                    </button>
+                                </div>
+                                <hr className="md:hidden border-t border-[#ded7ca] my-3" />
+                                <div className="flex flex-col items-end gap-3">
+                                    {/* Indicador de progresso: X pagas / Y a pagar */}
+                                    <div className="flex w-full flex-col md:items-end gap-2 md:w-auto">
+                                        <div className="flex items-center gap-2 text-xs font-semibold text-[#1a1a1d]">
+                                            <span className="text-emerald-600">{paidCount}</span>
+                                            <span className="text-[#6a6760]">/</span>
+                                            <span className="text-[#6a6760]">{totalParcels}</span>
+                                            <span className="text-[#6a6760]">
+                                                {paidCount === 1 ? ' parcela paga' : ' parcelas pagas'}
+                                            </span>
+                                        </div>
+                                        {/* Barra de progresso */}
+                                        <div className="h-2 w-full max-w-[200px] overflow-hidden rounded-full bg-[#faf7f0] border border-[#ded7ca]">
+                                            <div
+                                                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                                                style={{ width: `${progressPercentage}%` }}
+                                            />
+                                        </div>
+                                        {overdueCount > 0 && (
+                                            <p className="text-xs text-rose-600">
+                                                {overdueCount} {overdueCount === 1 ? 'parcela em atraso' : 'parcelas em atraso'}
+                                            </p>
+                                        )}
+
+                                        <p className="text-xs text-[#7d796c]">
+                                            {ticketName && `${ticketName} • `}
+                                            {order.installmentsCount}x de{' '}
+                                            {currencyFormatter.format(order.entryAmount)} • Total{' '}
+                                            {currencyFormatter.format(order.totalAmount)}
+                                        </p>
+                                    </div>
+
+                                </div>
+                            </header>
+
+                            <div
+                                className={`mt-4 transition-all duration-500 ${isExpanded
+                                    ? 'pt-4 opacity-100'
+                                    : 'pointer-events-none max-h-0 opacity-0 overflow-hidden'
+                                    }`}
+                                style={isExpanded ? {} : { maxHeight: 0 }}
+                            >
+                                {/* Seção de PIX da entrada (se disponível e não paga) */}
+                                {!isEntryPaid && entryParcel && entryParcelPixInfo[orderId] && (
+                                    <div className="mb-6 flex-1 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                                        <div className="mb-3 flex justify-center items-center gap-2">
+                                            <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span className="text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                Pagamento PIX da Entrada Pendente
+                                            </span>
+                                        </div>
+
+                                        <p className="mb-2 text-center text-sm text-emerald-700">
+                                            Pague a entrada para confirmar seu pedido parcelado. As demais parcelas estarão disponíveis após a efetivação do pagamento.
+                                        </p>
+                                        <p className="mb-4 text-center text-xs text-emerald-600">
+                                            Atualizado em tempo real...
+                                        </p>
+
+                                        {/* Timer de expiração dinâmico - logo após o texto informativo */}
+                                        {entryParcelPixInfo[orderId].expiresAt && (
+                                            <div className="mb-4">
+                                                <PixExpirationTimer expiresAt={entryParcelPixInfo[orderId].expiresAt} />
+                                            </div>
+                                        )}
+
+                                        {/* QR Code */}
+                                        {entryParcelPixInfo[orderId].qrCodeBase64 && (
+                                            <div className="mb-4 flex justify-center">
+                                                <img
+                                                    src={`data:image/png;base64,${entryParcelPixInfo[orderId].qrCodeBase64}`}
+                                                    alt="QR Code PIX"
+                                                    className="md:h-48 md:w-48 h-full w-full rounded-lg border-2 border-emerald-200 bg-white p-2"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Código PIX para copiar */}
+                                        {(entryParcelPixInfo[orderId].qrCode || entryParcel.ticketUrl) && (
+                                            <div className="mb-4">
+                                                <label className="mb-2 block text-center text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                    Código PIX (Copiar e Colar)
+                                                </label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        readOnly
+                                                        value={entryParcelPixInfo[orderId].qrCode || entryParcel.ticketUrl || ''}
+                                                        className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const codeToCopy = entryParcelPixInfo[orderId].qrCode || entryParcel.ticketUrl || '';
+                                                                await navigator.clipboard.writeText(codeToCopy);
+                                                                setPixCodeCopied((prev) => ({ ...prev, [`parcel-entry-${orderId}`]: true }));
+                                                                setTimeout(() => {
+                                                                    setPixCodeCopied((prev) => ({ ...prev, [`parcel-entry-${orderId}`]: false }));
+                                                                }, 2000);
+                                                            } catch (error) {
+                                                                // Fallback para navegadores antigos
+                                                                const textArea = document.createElement('textarea');
+                                                                textArea.value = entryParcelPixInfo[orderId].qrCode || entryParcel.ticketUrl || '';
+                                                                document.body.appendChild(textArea);
+                                                                textArea.select();
+                                                                document.execCommand('copy');
+                                                                document.body.removeChild(textArea);
+                                                                setPixCodeCopied((prev) => ({ ...prev, [`parcel-entry-${orderId}`]: true }));
+                                                                setTimeout(() => {
+                                                                    setPixCodeCopied((prev) => ({ ...prev, [`parcel-entry-${orderId}`]: false }));
+                                                                }, 2000);
+                                                            }
+                                                        }}
+                                                        className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
+                                                    >
+                                                        {pixCodeCopied[`parcel-entry-${orderId}`] ? '✓ Código copiado!' : 'Copiar'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Mensagem de aviso sobre cancelamento */}
+                                        {entryParcelPixInfo[orderId].expiresAt && (
+                                            <div className="mt-4 text-center rounded-lg border border-amber-300 bg-amber-50 p-3">
+                                                <p className="text-xs text-amber-800">
+                                                    ⚠️ Se o pagamento não for efetuado até o vencimento, seu pedido será cancelado automaticamente.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Mensagem quando entrada não foi paga e não tem PIX disponível */}
+                                {!isEntryPaid && !entryParcelPixInfo[orderId] && (
+                                    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                        <div className="mb-2 flex items-center gap-2">
+                                            <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span className="text-xs font-semibold uppercase tracking-normal text-amber-800">
+                                                Aguardando Pagamento da Entrada
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-amber-700">
+                                            As demais parcelas estarão disponíveis depois da efetivação da entrada. Pague o PIX e confirme seu pedido.
+                                        </p>
+                                        {entryParcel && entryParcel.status === 'payment_generated' && (
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    try {
+                                                        const resp = await api.post(
+                                                            `/parcelled-orders/${orderId}/parcels/${entryParcel._id}/generate-payment`
+                                                        );
+                                                        const pix = resp.data?.data?.pixPayment;
+
+                                                        // Buscar informações de expiração
+                                                        let expiresAt = null;
+                                                        if (pix?.paymentId) {
+                                                            try {
+                                                                const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
+                                                                expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
+                                                            } catch (error: any) {
+                                                                // Ignorar erro ao buscar expiração (erro 500, 404, etc)
+                                                                if (process.env.NODE_ENV === 'development') {
+                                                                    console.warn(`Não foi possível buscar expiração do PIX para paymentId ${pix.paymentId}:`, error?.response?.status || error?.message);
+                                                                }
+                                                            }
+                                                        }
+
+                                                        setEntryParcelPixInfo((prev) => ({
+                                                            ...prev,
+                                                            [orderId]: {
+                                                                orderId,
+                                                                parcelId: entryParcel._id,
+                                                                qrCode: pix?.qrCode || pix?.ticketUrl || null,
+                                                                qrCodeBase64: pix?.qrCodeBase64 || null,
+                                                                expiresAt: expiresAt,
+                                                            },
+                                                        }));
+                                                        fetchParcelledOrders();
+                                                    } catch (error: any) {
+                                                        alert(
+                                                            error?.response?.data?.message ||
+                                                            error?.message ||
+                                                            'Erro ao gerar pagamento PIX da entrada.'
+                                                        );
+                                                    }
+                                                }}
+                                                className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white shadow-md transition hover:bg-[#f97316]"
+                                            >
+                                                Gerar PIX da Entrada
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Lista de parcelas - só mostrar se entrada foi paga OU se for a própria entrada */}
+                                {parcels.length ? (
+                                    <div className="space-y-3">
+                                        {parcels
+                                            .filter((parcel) => {
+                                                // Se entrada não foi paga e tem PIX disponível, não mostrar o card da entrada
+                                                // (o PIX já está sendo exibido acima)
+                                                if (!isEntryPaid && parcel.sequence === 0 && entryParcelPixInfo[orderId]) {
+                                                    return false;
+                                                }
+                                                // Se entrada não foi paga, só mostrar a entrada (sequence 0) se não tiver PIX disponível
+                                                if (!isEntryPaid) {
+                                                    return parcel.sequence === 0;
+                                                }
+                                                // Se entrada foi paga, mostrar todas
+                                                return true;
+                                            })
+                                            .map((parcel) => {
+                                                const isNext =
+                                                    nextParcel && nextParcel._id === parcel._id;
+
+                                                // Só permitir gerar PIX de parcelas futuras se a entrada estiver paga
+                                                // A entrada (sequence 0) pode ser gerada sempre
+                                                const canGenerateParcel = parcel.sequence === 0 || isEntryPaid;
+
+                                                const isGeneratable =
+                                                    (parcel.status === 'pending' ||
+                                                        parcel.status === 'payment_generated') &&
+                                                    order.paymentType === 'pix' &&
+                                                    order.status !== 'cancelled' &&
+                                                    canGenerateParcel;
+
+                                                const dueLabel = formatDate(parcel.dueDate);
+                                                const key = `${orderId}-${parcel._id}`;
+
+                                                const hasPixPayment =
+                                                    pixParcelPayment &&
+                                                    pixParcelPayment.orderId === orderId &&
+                                                    pixParcelPayment.parcelId === parcel._id &&
+                                                    (pixParcelPayment.qrCodeBase64 ||
+                                                        pixParcelPayment.qrCode);
+
+                                                return (
+                                                    <div
+                                                        key={key}
+                                                        className="rounded-xl border border-[#ded7ca]/70 bg-white/70 p-4"
+                                                    >
+                                                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                                            <div>
+                                                                <p className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
+                                                                    Parcela {parcel.sequence + 1} de{' '}
+                                                                    {order.installmentsCount}
+                                                                    {isNext && order.status !== 'completed' && (
+                                                                        <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-normal text-emerald-700">
+                                                                            Próxima
+                                                                        </span>
+                                                                    )}
+                                                                </p>
+                                                                <p className="text-sm font-semibold text-[#1a1a1d]">
+                                                                    {currencyFormatter.format(
+                                                                        parcel.amount
+                                                                    )}
+                                                                </p>
+                                                                <p className="text-xs text-[#6a6760]">
+                                                                    Vencimento em {dueLabel}
+                                                                </p>
+                                                                <p className="text-xs text-[#6a6760]">
+                                                                    Status:{' '}
+                                                                    <span className="font-semibold">
+                                                                        {parcel.status === 'pending' &&
+                                                                            'Pendente'}
+                                                                        {parcel.status ===
+                                                                            'payment_generated' &&
+                                                                            'PIX Gerado'}
+                                                                        {parcel.status === 'paid' &&
+                                                                            'Pago'}
+                                                                        {parcel.status === 'overdue' &&
+                                                                            'Em atraso'}
+                                                                        {parcel.status ===
+                                                                            'cancelled' && 'Cancelado'}
+                                                                    </span>
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex flex-col items-start gap-2 md:items-end">
+                                                                {isGeneratable && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                const resp =
+                                                                                    await api.post(
+                                                                                        `/parcelled-orders/${orderId}/parcels/${parcel._id}/generate-payment`
+                                                                                    );
+                                                                                const pix =
+                                                                                    resp.data?.data
+                                                                                        ?.pixPayment;
+                                                                                // Se for a entrada (sequence 0), atualizar entryParcelPixInfo
+                                                                                if (parcel.sequence === 0) {
+                                                                                    // Buscar informações de expiração
+                                                                                    let expiresAt = null;
+                                                                                    if (pix?.paymentId) {
+                                                                                        try {
+                                                                                            const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
+                                                                                            expiresAt = paymentStatusResp.data?.data?.expiresAt;
+                                                                                        } catch (error) {
+                                                                                            // Ignorar erro ao buscar expiração
+                                                                                        }
+                                                                                    }
+
+                                                                                    setEntryParcelPixInfo((prev) => ({
+                                                                                        ...prev,
+                                                                                        [orderId]: {
+                                                                                            orderId,
+                                                                                            parcelId: parcel._id,
+                                                                                            qrCode: pix?.qrCode || pix?.ticketUrl || null,
+                                                                                            qrCodeBase64: pix?.qrCodeBase64 || null,
+                                                                                            expiresAt: expiresAt,
+                                                                                        },
+                                                                                    }));
+                                                                                } else {
+                                                                                    // Para outras parcelas, usar pixParcelPayment
+                                                                                    setPixParcelPayment({
+                                                                                        parcelId: parcel._id,
+                                                                                        orderId,
+                                                                                        qrCode: pix?.qrCode || pix?.ticketUrl || null,
+                                                                                        qrCodeBase64: pix?.qrCodeBase64 || null,
+                                                                                    });
+                                                                                }
+                                                                                // Atualizar lista
+                                                                                fetchParcelledOrders();
+                                                                            } catch (error: any) {
+                                                                                alert(
+                                                                                    error
+                                                                                        ?.response
+                                                                                        ?.data
+                                                                                        ?.message ||
+                                                                                    error?.message ||
+                                                                                    'Erro ao gerar pagamento PIX desta parcela.'
+                                                                                );
+                                                                            }
+                                                                        }}
+                                                                        className="inline-flex items-center gap-2 rounded-full bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white shadow-md transition hover:bg-[#f97316]"
+                                                                    >
+                                                                        Gerar PIX desta parcela
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {hasPixPayment && (
+                                                            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                                                                <p className="mb-3 text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                                    PIX desta parcela
+                                                                </p>
+                                                                {pixParcelPayment.qrCodeBase64 && (
+                                                                    <div className="mb-3 flex justify-center">
+                                                                        <img
+                                                                            src={`data:image/png;base64,${pixParcelPayment.qrCodeBase64}`}
+                                                                            alt="QR Code PIX da parcela"
+                                                                            className="h-40 w-40 rounded-lg border-2 border-emerald-200 bg-white p-2"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                                {pixParcelPayment.qrCode && (
+                                                                    <div className="flex gap-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            readOnly
+                                                                            value={pixParcelPayment.qrCode}
+                                                                            className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                                            onClick={(e) =>
+                                                                                (e.target as HTMLInputElement).select()
+                                                                            }
+                                                                        />
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={async () => {
+                                                                                try {
+                                                                                    await navigator.clipboard.writeText(
+                                                                                        pixParcelPayment.qrCode ||
+                                                                                        ''
+                                                                                    );
+                                                                                    setPixCodeCopied((prev) => ({ ...prev, [`parcel-${pixParcelPayment.parcelId}`]: true }));
+                                                                                    setTimeout(() => {
+                                                                                        setPixCodeCopied((prev) => ({ ...prev, [`parcel-${pixParcelPayment.parcelId}`]: false }));
+                                                                                    }, 2000);
+                                                                                } catch {
+                                                                                    // Fallback para navegadores antigos
+                                                                                    const textArea = document.createElement('textarea');
+                                                                                    textArea.value = pixParcelPayment.qrCode || '';
+                                                                                    document.body.appendChild(textArea);
+                                                                                    textArea.select();
+                                                                                    document.execCommand('copy');
+                                                                                    document.body.removeChild(textArea);
+                                                                                    setPixCodeCopied((prev) => ({ ...prev, [`parcel-${pixParcelPayment.parcelId}`]: true }));
+                                                                                    setTimeout(() => {
+                                                                                        setPixCodeCopied((prev) => ({ ...prev, [`parcel-${pixParcelPayment.parcelId}`]: false }));
+                                                                                    }, 2000);
+                                                                                }
+                                                                            }}
+                                                                            className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
+                                                                        >
+                                                                            {pixCodeCopied[`parcel-${pixParcelPayment.parcelId}`] ? '✓ Código copiado!' : 'Copiar'}
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-[#7d796c]">
+                                        Ainda não há parcelas registradas para esta compra.
+                                    </p>
+                                )}
+                            </div>
+                        </article>
+                    );
+                })}
+            </div>
+        );
+    };
+
     const renderRequestsContent = () => {
 
         const handleWhatsAppClick = (phone: string, name: string) => {
@@ -1073,14 +1818,14 @@ export default function DashboardPage() {
                 }
 
                 // Mensagem geral de erro
-                const errorMessage = 
+                const errorMessage =
                     error.response?.data?.message ||
                     (error.response?.data?.errors && error.response.data.errors.length > 0
                         ? 'Por favor, corrija os erros abaixo'
                         : null) ||
                     error.message ||
                     'Erro ao enviar solicitação. Tente novamente ou entre em contato pelo WhatsApp.';
-                
+
                 if (errorMessage) {
                     setSubmitMessage({
                         type: 'error',
@@ -1128,7 +1873,7 @@ export default function DashboardPage() {
                     <p className="mb-6 text-sm text-[#6a6760]">
                         Escolha o melhor canal para falar conosco. Nossa equipe está pronta para ajudar!
                     </p>
-                    
+
                     <div className="grid gap-4 md:grid-cols-2">
                         {APP_CONFIG.contact.whatsapp?.map((contact, index) => (
                             <button
@@ -1178,11 +1923,10 @@ export default function DashboardPage() {
                                 id="category"
                                 value={formData.category}
                                 onChange={(e) => handleFieldChange('category', e.target.value)}
-                                className={`w-full rounded-xl border bg-white px-4 py-3 text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 ${
-                                    fieldErrors.category
-                                        ? 'border-rose-500 focus:border-rose-500'
-                                        : 'border-[#ded7ca] focus:border-[#f97316]'
-                                }`}
+                                className={`w-full rounded-xl border bg-white px-4 py-3 text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 ${fieldErrors.category
+                                    ? 'border-rose-500 focus:border-rose-500'
+                                    : 'border-[#ded7ca] focus:border-[#f97316]'
+                                    }`}
                                 required
                             >
                                 <option value="general">Geral</option>
@@ -1207,11 +1951,10 @@ export default function DashboardPage() {
                                 value={formData.subject}
                                 onChange={(e) => handleFieldChange('subject', e.target.value)}
                                 placeholder="Ex: Problema com download dos ingressos"
-                                className={`w-full rounded-xl border bg-white px-4 py-3 text-[#1a1a1d] placeholder:text-[#a38f78] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 ${
-                                    fieldErrors.subject
-                                        ? 'border-rose-500 focus:border-rose-500'
-                                        : 'border-[#ded7ca] focus:border-[#f97316]'
-                                }`}
+                                className={`w-full rounded-xl border bg-white px-4 py-3 text-[#1a1a1d] placeholder:text-[#a38f78] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 ${fieldErrors.subject
+                                    ? 'border-rose-500 focus:border-rose-500'
+                                    : 'border-[#ded7ca] focus:border-[#f97316]'
+                                    }`}
                                 required
                             />
                             {fieldErrors.subject && (
@@ -1229,11 +1972,10 @@ export default function DashboardPage() {
                                 onChange={(e) => handleFieldChange('message', e.target.value)}
                                 placeholder="Descreva sua solicitação ou problema em detalhes..."
                                 rows={6}
-                                className={`w-full rounded-xl border bg-white px-4 py-3 text-[#1a1a1d] placeholder:text-[#a38f78] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 ${
-                                    fieldErrors.message
-                                        ? 'border-rose-500 focus:border-rose-500'
-                                        : 'border-[#ded7ca] focus:border-[#f97316]'
-                                }`}
+                                className={`w-full rounded-xl border bg-white px-4 py-3 text-[#1a1a1d] placeholder:text-[#a38f78] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 ${fieldErrors.message
+                                    ? 'border-rose-500 focus:border-rose-500'
+                                    : 'border-[#ded7ca] focus:border-[#f97316]'
+                                    }`}
                                 required
                             />
                             {fieldErrors.message && (
@@ -1243,11 +1985,10 @@ export default function DashboardPage() {
 
                         {submitMessage && (
                             <div
-                                className={`rounded-xl p-4 ${
-                                    submitMessage.type === 'success'
-                                        ? 'bg-emerald-50 text-emerald-700'
-                                        : 'bg-rose-50 text-rose-700'
-                                }`}
+                                className={`rounded-xl p-4 ${submitMessage.type === 'success'
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : 'bg-rose-50 text-rose-700'
+                                    }`}
                             >
                                 {submitMessage.text}
                             </div>
@@ -1283,9 +2024,8 @@ export default function DashboardPage() {
                                 >
                                     <span className="font-semibold text-[#1a1a1d]">{faq.question}</span>
                                     <HiOutlineChevronDown
-                                        className={`h-5 w-5 text-[#a38f78] transition ${
-                                            expandedFaq === index ? 'rotate-180' : ''
-                                        }`}
+                                        className={`h-5 w-5 text-[#a38f78] transition ${expandedFaq === index ? 'rotate-180' : ''
+                                            }`}
                                     />
                                 </button>
                                 {expandedFaq === index && (
@@ -1319,75 +2059,76 @@ export default function DashboardPage() {
         switch (activeTab) {
             case 'orders':
                 return renderOrdersContent();
+            case 'installments':
+                return renderInstallmentsContent();
             case 'requests':
                 return renderRequestsContent();
-            case 'profile':
             default:
-                return renderProfileContent();
+                return renderOrdersContent();
         }
     };
 
     return (
         <>
             <PageContainer bgColor="bg-[#faf7f0]">
-                    <header className="mb-10 space-y-3 hidden md:block">
-                        <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
-                            Área do Cliente
-                        </span>
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                            <h1 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d]">
-                                Dashboard {APP_NAME}
-                            </h1>
-                            <p className="text-sm text-[#4c4c55]">
-                                {greetingName}, gerencie sua conta, pedidos e solicitações em um só
-                                lugar.
-                            </p>
-                        </div>
-                    </header>
+                <header className="mb-10 space-y-3 hidden md:block">
+                    <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
+                        Área do Cliente
+                    </span>
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <h1 className="text-3xl font-bold uppercase tracking-normal text-[#1a1a1d]">
+                            Dashboard {APP_NAME}
+                        </h1>
+                        <p className="text-sm text-[#4c4c55]">
+                            {greetingName}, gerencie sua conta, pedidos e solicitações em um só
+                            lugar.
+                        </p>
+                    </div>
+                </header>
 
-                    <section className="space-y-10">
-                        <nav className="flex w-full flex-wrap gap-4 rounded-3xl border border-[#ded7ca] bg-white/40 p-3">
-                            {tabs.map((tab) => {
-                                const Icon = tab.icon;
-                                const isActive = activeTab === tab.key;
-                                return (
-                                    <button
-                                        key={tab.key}
-                                        type="button"
-                                        onClick={() => setActiveTab(tab.key)}
-                                        className={`group flex flex-1 min-w-[180px] items-center gap-3 rounded-2xl px-5 py-4 text-left transition ${isActive
-                                            ? 'bg-[#1a1a1d] text-white shadow-[0_20px_45px_-18px_rgba(12,12,24,0.45)]'
-                                            : 'bg-transparent text-[#4c4c55] hover:bg-white hover:text-[#1a1a1d]'
-                                            }`}
+                <section className="space-y-10">
+                    <nav className="flex w-full flex-wrap gap-4 rounded-3xl border border-[#ded7ca] bg-white/40 p-3">
+                        {tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.key;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab.key)}
+                                    className={`group flex flex-1 min-w-[180px] items-center gap-3 rounded-2xl px-5 py-4 text-left transition ${isActive
+                                        ? 'bg-[#1a1a1d] text-white shadow-[0_20px_45px_-18px_rgba(12,12,24,0.45)]'
+                                        : 'bg-transparent text-[#4c4c55] hover:bg-white hover:text-[#1a1a1d]'
+                                        }`}
+                                >
+                                    <span
+                                        className={`flex p-3 items-center justify-center rounded-full ${isActive
+                                            ? 'bg-white/10 text-white'
+                                            : 'bg-[#f5f1e8] text-[#a38f78]'
+                                            } transition`}
                                     >
-                                        <span
-                                            className={`flex p-3 items-center justify-center rounded-full ${isActive
-                                                ? 'bg-white/10 text-white'
-                                                : 'bg-[#f5f1e8] text-[#a38f78]'
-                                                } transition`}
-                                        >
-                                            <Icon className="text-xl" />
+                                        <Icon className="text-xl" />
+                                    </span>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-semibold uppercase tracking-normal">
+                                            {tab.label}
                                         </span>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-semibold uppercase tracking-normal">
-                                                {tab.label}
-                                            </span>
-                                            <span
-                                                className={`text-xs ${isActive ? 'text-white/70' : 'text-[#7d796c]'
-                                                    }`}
-                                            >
-                                                {tab.description}
-                                            </span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </nav>
+                                        <span
+                                            className={`text-xs ${isActive ? 'text-white/70' : 'text-[#7d796c]'
+                                                }`}
+                                        >
+                                            {tab.description}
+                                        </span>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </nav>
 
-                        <section>
-                            {renderActiveTabContent()}
-                        </section>
+                    <section>
+                        {renderActiveTabContent()}
                     </section>
+                </section>
             </PageContainer>
 
             {activeOrder ? (
@@ -1407,14 +2148,14 @@ export default function DashboardPage() {
 
             {/* Modal de Segurança para Desktop */}
             {showSecurityModal && (
-                <div 
+                <div
                     className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300 ${securityModalEntering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                     onClick={() => {
                         setSecurityModalEntering(false);
                         setTimeout(() => setShowSecurityModal(false), 250);
                     }}
                 >
-                    <div 
+                    <div
                         className={`relative w-full max-w-md rounded-2xl border border-[#ded7ca] bg-white/95 p-6 shadow-2xl transition-all duration-300 ${securityModalEntering ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-95'}`}
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -1717,8 +2458,8 @@ function PixExpirationTimer({ expiresAt }: { expiresAt: string }) {
 
     return (
         <div className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2">
-            <p className="text-xs font-semibold text-emerald-800">
-                ⏰ Você tem até{' '}
+            <p className="text-xs text-center font-semibold text-emerald-800">
+                ⏰ Você tem:{' '}
                 {hours > 0 && (
                     <span className="text-emerald-900">
                         {hours}h {displayMinutes.toString().padStart(2, '0')}min {seconds.toString().padStart(2, '0')}s

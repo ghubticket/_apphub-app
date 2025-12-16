@@ -88,6 +88,9 @@ const CreateTicketTypePage = () => {
     const [salesStart, setSalesStart] = useState<Date | null>(null)
     const [salesEnd, setSalesEnd] = useState<Date | null>(null)
     const [priceDisplay, setPriceDisplay] = useState('')
+    const [allowInstallments, setAllowInstallments] = useState(false)
+    const [minInstallments, setMinInstallments] = useState<number | ''>('')
+    const [maxInstallments, setMaxInstallments] = useState<number | ''>('')
 
     const {
         control,
@@ -131,6 +134,18 @@ const CreateTicketTypePage = () => {
         setServerError(null)
         
         try {
+            // Validações simples de parcelamento
+            if (allowInstallments) {
+                if (!maxInstallments || Number(maxInstallments) < 2) {
+                    setServerError('Defina pelo menos 2 parcelas máximas para habilitar o parcelamento.')
+                    return
+                }
+                if (minInstallments && maxInstallments && Number(minInstallments) > Number(maxInstallments)) {
+                    setServerError('Parcelas mínimas não podem ser maiores que parcelas máximas.')
+                    return
+                }
+            }
+
             const ticketTypeData: CreateTicketTypeData = {
                 name: data.name,
                 description: data.description || undefined,
@@ -141,6 +156,9 @@ const CreateTicketTypePage = () => {
                 maxPerPurchase: data.maxPerPurchase,
                 salesStart: salesStart ? salesStart.toISOString() : undefined,
                 salesEnd: salesEnd ? salesEnd.toISOString() : undefined,
+                allowInstallments,
+                minInstallments: allowInstallments && minInstallments !== '' ? Number(minInstallments) : null,
+                maxInstallments: allowInstallments && maxInstallments !== '' ? Number(maxInstallments) : null,
             }
 
             await createTicketType(ticketTypeData)
@@ -341,6 +359,56 @@ const CreateTicketTypePage = () => {
                                             }
                                         />
                                     </Grid>
+
+                                    <Grid size={12}>
+                                        <Typography variant='h6' sx={{ mt: 4, mb: 2 }}>
+                                            Parcelamento (Pix/Boleto)
+                                        </Typography>
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    checked={allowInstallments}
+                                                    onChange={e => setAllowInstallments(e.target.checked)}
+                                                />
+                                            }
+                                            label='Permitir compra parcelada para este tipo de ingresso'
+                                        />
+                                    </Grid>
+
+                                    {allowInstallments && (
+                                        <>
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                <CustomTextField
+                                                    fullWidth
+                                                    type='number'
+                                                    label='Parcelas mínimas (opcional)'
+                                                    placeholder='Ex: 3'
+                                                    value={minInstallments}
+                                                    onChange={e => {
+                                                        const v = e.target.value === '' ? '' : Number(e.target.value)
+                                                        setMinInstallments(v)
+                                                    }}
+                                                    inputProps={{ min: 2, max: 60 }}
+                                                    helperText='Número mínimo de parcelas que o cliente pode escolher'
+                                                />
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                <CustomTextField
+                                                    fullWidth
+                                                    type='number'
+                                                    label='Parcelas máximas'
+                                                    placeholder='Ex: 12'
+                                                    value={maxInstallments}
+                                                    onChange={e => {
+                                                        const v = e.target.value === '' ? '' : Number(e.target.value)
+                                                        setMaxInstallments(v)
+                                                    }}
+                                                    inputProps={{ min: 2, max: 60 }}
+                                                    helperText='Número máximo de parcelas permitidas neste tipo de ingresso'
+                                                />
+                                            </Grid>
+                                        </>
+                                    )}
 
                                     <Grid size={{ xs: 12, md: 6 }}>
                                         <AppReactDatepicker

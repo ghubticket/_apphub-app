@@ -773,9 +773,6 @@ export const distributeVip = async (req: Request, res: Response) => {
                 }
             }
         } catch (emailError) {
-            if (process.env.NODE_ENV !== 'production') {
-                console.log('Erro ao enviar email de cortesia:', emailError);
-            }
             // Não falhar a distribuição se o email falhar
         }
 

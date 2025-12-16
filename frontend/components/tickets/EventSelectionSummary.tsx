@@ -24,6 +24,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
     const [appliedPromoterCode, setAppliedPromoterCode] = useState<string | null>(null);
     const [hasVipTickets, setHasVipTickets] = useState<Record<string, boolean>>({});
     const [isCheckingVipTickets, setIsCheckingVipTickets] = useState(true); // Estado para controlar verificação de VIP
+    const [expandedTooltips, setExpandedTooltips] = useState<Record<string, boolean>>({}); // Estado para controlar tooltips expandidos no mobile
 
     // Ler código de desconto do sessionStorage ou da URL
     useEffect(() => {
@@ -323,9 +324,15 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                         maxQuantity: maxAllowed,
                         ticketFee: ticket.ticketFee,
                         platformFeePercentage: ticket.platformFeePercentage,
+                        allowInstallments: ticket.allowInstallments ?? false,
+                        minInstallments: ticket.minInstallments ?? null,
+                        maxInstallments: ticket.maxInstallments ?? null,
                         metadata: {
                             eventName: ticket.eventName,
                             category: ticket.category,
+                            allowInstallments: ticket.allowInstallments ?? false,
+                            minInstallments: ticket.minInstallments ?? null,
+                            maxInstallments: ticket.maxInstallments ?? null,
                         },
                     });
                 }
@@ -373,6 +380,8 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                         const maxReached = maxAllowed !== undefined && quantity >= maxAllowed;
                         const availableStock = ticket.stock ?? undefined;
 
+                        const isTooltipExpanded = expandedTooltips[ticket.id] || false;
+                        
                         return (
                             <div
                                 key={ticket.id}
@@ -382,8 +391,17 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                     <div className='flex gap-3'>
                                         {/* Tooltip com informações do ingresso */}
                                         <div className="relative inline-flex items-center group mt-0.5 mb-0.5">
-                                            <HiOutlineInformationCircle className="text-[1rem] text-[#a38f78] cursor-help hover:text-[#1a1a1d] transition-colors" />
-                                            <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-50 pointer-events-none">
+                                            <HiOutlineInformationCircle 
+                                                className="text-[1rem] text-[#a38f78] cursor-pointer md:cursor-help hover:text-[#1a1a1d] transition-colors"
+                                                onClick={(e: any) => {
+                                                    e.stopPropagation();
+                                                    setExpandedTooltips((prev) => ({
+                                                        ...prev,
+                                                        [ticket.id]: !prev[ticket.id],
+                                                    }));
+                                                }}
+                                            />
+                                            <div className="absolute top-full left-0 mt-1 hidden md:group-hover:block z-50 pointer-events-none">
                                                 <div className="bg-[#1a1a1d] text-white text-[0.7rem] rounded-lg px-3 py-2 shadow-xl min-w-[300px] max-w-[400px] whitespace-normal">
                                                     <div className="space-y-1.5">
                                                         {ticket.description && (
@@ -447,6 +465,37 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                         </div>
                                     ) : null}
                                 </div>
+                                
+                                {/* Tooltip mobile - só aparece quando clicado no ícone, expandido em 100% */}
+                                {isTooltipExpanded && (
+                                    <div 
+                                        className="mt-3 md:hidden cursor-pointer -mx-4"
+                                        onClick={() => {
+                                            setExpandedTooltips((prev) => ({
+                                                ...prev,
+                                                [ticket.id]: false,
+                                            }));
+                                        }}
+                                    >
+                                        <div className="bg-[#1a1a1d] text-white text-[0.7rem] py-2.5 transition-all rounded-none px-4">
+                                            <div className="space-y-1.5">
+                                                {ticket.description && (
+                                                    <p className="font-medium leading-snug">{ticket.description}</p>
+                                                )}
+                                                {availableStock !== undefined && (
+                                                    <p className="text-[#e5e5e5] text-[0.65rem]">
+                                                        Disponível: {availableStock} {availableStock === 1 ? 'ingresso' : 'ingressos'}
+                                                    </p>
+                                                )}
+                                                {maxAllowed !== undefined && (
+                                                    <p className="text-[#e5e5e5] text-[0.65rem]">
+                                                        Máximo por pedido: {maxAllowed}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 
                                 {/* Alerta VIP com limite por CPF */}
                                 {ticket.isVip && ticket.maxPerCPF && !hasVipTickets[ticket.id] && (

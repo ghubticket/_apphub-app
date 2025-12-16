@@ -30,7 +30,6 @@ export const validateMobileDevice = (req: Request, res: Response, next: NextFunc
 
     // Em desenvolvimento, permitir acesso de qualquer dispositivo (para testes)
     if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: allowing non-mobile device:', userAgent);
         return next();
     }
 

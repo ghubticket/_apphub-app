@@ -16,8 +16,8 @@ interface UseCheckoutStateOptions {
 }
 
 interface UseCheckoutStateReturn {
-    selectedTab: 'card' | 'pix';
-    setSelectedTab: (tab: 'card' | 'pix') => void;
+    selectedTab: 'card' | 'pix' | 'parcel';
+    setSelectedTab: (tab: 'card' | 'pix' | 'parcel') => void;
     showExitWarning: boolean;
     setShowExitWarning: (show: boolean) => void;
     hasPendingOrderInStorage: boolean;
@@ -44,7 +44,7 @@ export function useCheckoutState({
     const storage = useCheckoutStorage();
     const navigation = useCheckoutNavigation();
     
-    const [selectedTab, setSelectedTab] = useState<'card' | 'pix'>('card');
+    const [selectedTab, setSelectedTab] = useState<'card' | 'pix' | 'parcel'>('card');
     const [showExitWarning, setShowExitWarning] = useState(false);
     const [hasValidTimerInStorage, setHasValidTimerInStorage] = useState(() => {
         if (typeof window === 'undefined') return false;

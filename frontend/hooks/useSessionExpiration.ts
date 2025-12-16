@@ -16,7 +16,7 @@ interface SessionInfo {
 }
 
 export const useSessionExpiration = () => {
-  const { accessToken, refreshToken, sessionId, isAuthenticated, logout, updateAccessToken } = useAuth();
+  const { accessToken, refreshToken, sessionId, isAuthenticated, logout, updateAccessToken, updateRefreshToken } = useAuth();
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -78,9 +78,17 @@ export const useSessionExpiration = () => {
         setSessionInfo(info);
 
         // Mostrar aviso se faltar menos de 2 minutos e ainda não mostrou
+        // CRÍTICO: Só mostrar se realmente está próximo de expirar E não acabamos de fazer refresh
         if (info.timeRemaining > 0 && info.timeRemaining <= WARNING_TIME_MS && !warningShownRef.current) {
           setShowWarning(true);
           warningShownRef.current = true;
+        }
+        
+        // CRÍTICO: Se a sessão foi renovada e agora tem mais tempo, resetar o flag
+        // Isso permite que a modal apareça novamente se necessário no futuro
+        if (info.timeRemaining > WARNING_TIME_MS && warningShownRef.current) {
+          // Sessão foi renovada com sucesso, resetar flag para permitir avisos futuros
+          warningShownRef.current = false;
         }
 
         // Se expirou, fazer logout
@@ -126,29 +134,54 @@ export const useSessionExpiration = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao renovar sessão');
+        // Apenas se o backend disser explicitamente que não é autorizado,
+        // fazemos logout imediato. Em outros erros (500, rede, etc),
+        // escondemos o aviso e deixamos o usuário seguir.
+        if (response.status === 401 || response.status === 403) {
+          setShowWarning(false);
+          warningShownRef.current = true;
+          logout();
+          return;
+        }
+
+        setShowWarning(false);
+        warningShownRef.current = true;
+        return;
       }
 
       const result = await response.json();
       if (result.success && result.data) {
-        // Atualizar token no contexto
+        // Atualizar tokens no contexto
         updateAccessToken(result.data.accessToken);
+        
+        // CRÍTICO: Atualizar refreshToken também se vier na resposta (rotação de token)
+        // Isso garante que temos o refresh token mais recente para próximas renovações
+        if (result.data.refreshToken) {
+          updateRefreshToken(result.data.refreshToken);
+        }
+        
         setShowWarning(false);
-        warningShownRef.current = false;
-        // Verificar novamente após renovar
-        setTimeout(() => {
-          checkSession();
-        }, 1000);
+        // CRÍTICO: Manter warningShownRef como true por mais tempo para evitar
+        // que a modal reapareça imediatamente se o checkSession ainda detectar expiração
+        // O próximo checkSession (via intervalo) vai resetar isso se a sessão estiver ok
+        warningShownRef.current = true;
+        
+        // Não chamar checkSession imediatamente - deixar o intervalo normal fazer isso
+        // Isso evita que a modal reapareça se o backend ainda não processou o refresh
+        // O intervalo de 30s vai verificar naturalmente
       } else {
-        throw new Error('Falha ao renovar sessão');
+        // Falha lógica mas não necessariamente expirada => apenas esconder aviso
+        setShowWarning(false);
+        warningShownRef.current = true;
       }
     } catch (error) {
+      // Em erros de rede ou exceções genéricas, não derrubamos a sessão.
       setShowWarning(false);
-      logout();
+      warningShownRef.current = true;
     } finally {
       setIsRefreshing(false);
     }
-  }, [refreshToken, isRefreshing, logout, updateAccessToken, checkSession]);
+  }, [refreshToken, isRefreshing, logout, updateAccessToken, updateRefreshToken, checkSession]);
 
   const dismissWarning = useCallback(() => {
     setShowWarning(false);
