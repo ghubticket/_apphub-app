@@ -227,7 +227,24 @@ export const getParcelledOrderDetails = async (req: Request, res: Response) => {
  * POST /api/parcelled-orders/:id/parcels/:parcelId/generate-payment
  */
 export const generateParcelPayment = async (req: Request, res: Response) => {
+    const requestId = (req as any).requestId || 'unknown';
+    const startTime = Date.now();
+    
     try {
+        // Log inicial da requisição
+        console.log(`[generateParcelPayment] ${requestId} - Início`, {
+            method: req.method,
+            path: req.path,
+            params: req.params,
+            headers: {
+                'content-length': req.get('content-length'),
+                'content-type': req.get('content-type'),
+            },
+            body: req.body,
+            bodyType: typeof req.body,
+            bodyKeys: req.body ? Object.keys(req.body) : [],
+        });
+        
         // Este endpoint não usa body, apenas params
         const { id, parcelId } = req.params;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;

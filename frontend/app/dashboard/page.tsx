@@ -427,11 +427,21 @@ export default function DashboardPage() {
         try {
             setOrdersLoading(true);
             setOrdersError('');
+            
+            console.log('[Frontend] Buscando pedidos (orders)', {
+                timestamp: new Date().toISOString(),
+            });
 
             const response = await api.get('/orders', {
                 params: {
                     limit: 10,
                 },
+            });
+            
+            console.log('[Frontend] Resposta de orders recebida', {
+                success: response.data?.success,
+                ordersCount: response.data?.data?.orders?.length || 0,
+                total: response.data?.data?.pagination?.total || 0,
             });
 
             const ordersRaw = response.data?.data?.orders ?? [];
@@ -1719,12 +1729,25 @@ export default function DashboardPage() {
                                                                 {isGeneratable && (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={async () => {
-                                                                            try {
-                                                                                const resp =
-                                                                                    await api.post(
-                                                                                        `/parcelled-orders/${orderId}/parcels/${parcel._id}/generate-payment`
-                                                                                    );
+                                                                    onClick={async () => {
+                                                                                try {
+                                                                                    console.log('[Frontend] Gerando PIX da parcela', {
+                                                                                        orderId,
+                                                                                        parcelId: parcel._id,
+                                                                                        sequence: parcel.sequence,
+                                                                                    });
+                                                                                    
+                                                                                    const resp =
+                                                                                        await api.post(
+                                                                                            `/parcelled-orders/${orderId}/parcels/${parcel._id}/generate-payment`
+                                                                                        );
+                                                                                    
+                                                                                    console.log('[Frontend] Resposta do generate-payment', {
+                                                                                        success: resp.data?.success,
+                                                                                        hasPixPayment: !!resp.data?.data?.pixPayment,
+                                                                                        paymentId: resp.data?.data?.pixPayment?.paymentId,
+                                                                                    });
+                                                                                    
                                                                                 const pix =
                                                                                     resp.data?.data
                                                                                         ?.pixPayment;
@@ -1777,6 +1800,16 @@ export default function DashboardPage() {
                                                                                 // Atualizar lista
                                                                                 fetchParcelledOrders();
                                                                             } catch (error: any) {
+                                                                                console.error('[Frontend] Erro ao gerar PIX da parcela', {
+                                                                                    orderId,
+                                                                                    parcelId: parcel._id,
+                                                                                    error: error?.message,
+                                                                                    status: error?.response?.status,
+                                                                                    statusText: error?.response?.statusText,
+                                                                                    data: error?.response?.data,
+                                                                                    stack: error?.stack,
+                                                                                });
+                                                                                
                                                                                 alert(
                                                                                     error
                                                                                         ?.response

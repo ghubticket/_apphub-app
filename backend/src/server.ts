@@ -356,14 +356,31 @@ const jsonParser = express.json({
 });
 
 app.use((req: Request, res: Response, next: NextFunction) => {
+    const requestId = (req as any).requestId || 'unknown';
     const contentLength = req.get('content-length');
     const contentType = req.get('content-type') || '';
+    const isGeneratePayment = req.path.includes('/generate-payment');
+    
+    // Log para endpoints problemáticos
+    if (isGeneratePayment || req.method === 'POST') {
+        console.log(`[bodyParser] ${requestId} - Verificando`, {
+            method: req.method,
+            path: req.path,
+            contentLength,
+            contentType,
+            hasBody: (req as any).body !== undefined,
+            bodyType: typeof (req as any).body,
+        });
+    }
     
     // CRÍTICO: Em produção, proxies podem modificar ou remover headers
     // Estratégia: Verificar múltiplas condições antes de aplicar express.json()
     
     // 1. Se content-length é explicitamente '0', não há body
     if (contentLength === '0') {
+        if (isGeneratePayment) {
+            console.log(`[bodyParser] ${requestId} - Pulando parsing (content-length: 0)`);
+        }
         (req as any).body = undefined;
         return next();
     }
@@ -377,6 +394,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
             // Verificar se já tem body definido (processado por outro middleware/proxy)
             if ((req as any).body === undefined) {
                 // Não tem body - pular parsing
+                if (isGeneratePayment) {
+                    console.log(`[bodyParser] ${requestId} - Pulando parsing (sem content-length e sem content-type JSON)`);
+                }
                 (req as any).body = undefined;
                 return next();
             }
@@ -388,11 +408,32 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     
     // 3. Se tem content-type mas não é JSON, pular JSON parser
     if (contentType && !contentType.includes('application/json')) {
+        if (isGeneratePayment) {
+            console.log(`[bodyParser] ${requestId} - Pulando parsing (content-type não é JSON: ${contentType})`);
+        }
         return next();
     }
     
     // 4. Aplicar express.json() apenas se realmente parece ter body JSON
-    jsonParser(req, res, next);
+    if (isGeneratePayment) {
+        console.log(`[bodyParser] ${requestId} - Aplicando express.json()`);
+    }
+    
+    // Capturar erros do jsonParser
+    const originalNext = next;
+    const wrappedNext = (err?: any) => {
+        if (err) {
+            console.error(`[bodyParser] ${requestId} - Erro ao processar JSON`, {
+                error: err.message,
+                stack: err.stack,
+                method: req.method,
+                path: req.path,
+            });
+        }
+        originalNext(err);
+    };
+    
+    jsonParser(req, res, wrappedNext);
 });
 app.use(express.urlencoded({ extended: true }));
 

@@ -906,11 +906,22 @@ export const createOrder = async (req: Request, res: Response) => {
  * Lista pedidos do usuário autenticado com paginação
  */
 export const listMyOrders = async (req: Request, res: Response) => {
+    const requestId = (req as any).requestId || 'unknown';
+    const startTime = Date.now();
+    
     try {
+        console.log(`[listMyOrders] ${requestId} - Início`, {
+            method: req.method,
+            path: req.path,
+            query: req.query,
+            userId: (req as any).user?._id || (req as any).user?.id,
+        });
+        
         const user = (req as any).user;
         const userId = user?._id?.toString() || user?.id;
 
         if (!userId) {
+            console.warn(`[listMyOrders] ${requestId} - Usuário não autenticado`);
             return res.status(401).json({
                 success: false,
                 message: 'Usuário não autenticado',
@@ -1095,11 +1106,42 @@ export const listMyOrders = async (req: Request, res: Response) => {
                 },
             },
         });
+        
+        const duration = Date.now() - startTime;
+        console.log(`[listMyOrders] ${requestId} - Sucesso`, {
+            duration: `${duration}ms`,
+            userId,
+            ordersCount: ordersWithFilteredQR.length,
+            total,
+            page,
+            limit,
+        });
+        
+        return res.json({
+            success: true,
+            data: {
+                orders: ordersWithFilteredQR,
+                pagination: {
+                    page: Number(page),
+                    limit: Number(limit),
+                    total,
+                    totalPages: Math.ceil(total / Number(limit)),
+                },
+            },
+        });
     } catch (error: any) {
         captureControllerError(error, req, {
             controller: 'ordersController',
             action: 'listMyOrders',
             statusCode: 500,
+        });
+
+        const duration = Date.now() - startTime;
+        console.error(`[listMyOrders] ${requestId} - Erro`, {
+            duration: `${duration}ms`,
+            error: error.message,
+            stack: error.stack,
+            userId: (req as any).user?._id || (req as any).user?.id,
         });
         
         res.status(500).json({
