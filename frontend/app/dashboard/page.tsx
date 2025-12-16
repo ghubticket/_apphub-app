@@ -318,7 +318,7 @@ export default function DashboardPage() {
     const [securityModalEntering, setSecurityModalEntering] = useState(false);
     const modalScrollRef = useRef<HTMLDivElement | null>(null);
 
-    // Estado para modal de pagamento aprovado
+    // Estado para modal de pagamento aprovado (usado tanto para pedidos normais quanto parcelados)
     const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
     const [paidOrderInfo, setPaidOrderInfo] = useState<{ orderNumber?: string; message?: string } | null>(null);
 
@@ -337,6 +337,10 @@ export default function DashboardPage() {
     const [parcelledOrders, setParcelledOrders] = useState<ParcelledOrderSummary[]>([]);
     const [parcelsByOrder, setParcelsByOrder] = useState<Record<string, ParcelSummary[]>>({});
     const [installmentsLoading, setInstallmentsLoading] = useState(false);
+    // Ref para rastrear status anteriores das vendas parceladas (para detectar quando entrada é paga)
+    const lastParcelledOrderStatusesRef = useRef<Map<string, string>>(new Map());
+    // Ref para rastrear status anteriores de cada parcela individual (para detectar quando qualquer parcela é paga)
+    const lastParcelStatusesRef = useRef<Map<string, string>>(new Map());
     const [installmentsError, setInstallmentsError] = useState<string>('');
     const [hasFetchedInstallments, setHasFetchedInstallments] = useState(false);
     const [expandedParcelledId, setExpandedParcelledId] = useState<string | null>(null);
@@ -499,19 +503,50 @@ export default function DashboardPage() {
 
             const ordersRaw = Array.isArray(data?.orders) ? data.orders : [];
             const parcelsRaw = data?.parcelsByOrder || {};
+            
+            // Inicializar status na primeira busca (vendas parceladas)
+            if (lastParcelledOrderStatusesRef.current.size === 0) {
+                ordersRaw.forEach((o: any) => {
+                    const orderId = o._id || o.id;
+                    if (orderId) {
+                        lastParcelledOrderStatusesRef.current.set(orderId, o.status || 'pending_entry');
+                    }
+                });
+            }
+            
+            // Inicializar status das parcelas na primeira busca (antes de normalizar)
+            if (lastParcelStatusesRef.current.size === 0) {
+                Object.keys(parcelsRaw).forEach((orderId) => {
+                    const list = parcelsRaw[orderId] || [];
+                    list.forEach((p: any) => {
+                        const parcelId = p._id || p.id;
+                        if (parcelId) {
+                            lastParcelStatusesRef.current.set(parcelId, p.status || 'pending');
+                        }
+                    });
+                });
+            }
 
-            const normalizedOrders: ParcelledOrderSummary[] = ordersRaw.map((o: any) => ({
-                _id: o._id || o.id,
-                event: o.event || null,
-                ticketType: o.ticketType || null,
-                totalAmount: Number(o.totalAmount ?? 0),
-                entryAmount: Number(o.entryAmount ?? 0),
-                installmentsCount: Number(o.installmentsCount ?? 1),
-                status: (o.status || 'pending_entry') as ParcelledOrderStatus,
-                paymentType: o.paymentType || 'pix',
-                createdAt: o.createdAt,
-                metadata: o.metadata || undefined,
-            }));
+            const normalizedOrders: ParcelledOrderSummary[] = ordersRaw.map((o: any) => {
+                const orderId = o._id || o.id;
+                const currentStatus = (o.status || 'pending_entry') as ParcelledOrderStatus;
+                
+                // Atualizar status na ref (usado apenas para tracking, detecção de parcelas individuais é feita abaixo)
+                lastParcelledOrderStatusesRef.current.set(orderId, currentStatus);
+                
+                return {
+                    _id: orderId,
+                    event: o.event || null,
+                    ticketType: o.ticketType || null,
+                    totalAmount: Number(o.totalAmount ?? 0),
+                    entryAmount: Number(o.entryAmount ?? 0),
+                    installmentsCount: Number(o.installmentsCount ?? 1),
+                    status: currentStatus,
+                    paymentType: o.paymentType || 'pix',
+                    createdAt: o.createdAt,
+                    metadata: o.metadata || undefined,
+                };
+            });
 
             const normalizedParcels: Record<string, ParcelSummary[]> = {};
             Object.keys(parcelsRaw).forEach((orderId) => {
@@ -528,6 +563,48 @@ export default function DashboardPage() {
                     ticketUrl: p.ticketUrl,
                 }));
             });
+
+            // Detectar quando qualquer parcela é paga (similar à lógica do PIX normal)
+            Object.keys(normalizedParcels).forEach((orderId) => {
+                const parcels = normalizedParcels[orderId];
+                parcels.forEach((parcel) => {
+                    const parcelId = parcel._id;
+                    const currentStatus = parcel.status;
+                    const previousStatus = lastParcelStatusesRef.current.get(parcelId);
+                    
+                    // Detectar quando parcela muda de 'pending' ou 'payment_generated' para 'paid'
+                    if (previousStatus && 
+                        (previousStatus === 'pending' || previousStatus === 'payment_generated') && 
+                        currentStatus === 'paid') {
+                        // Disparar modal de parcela paga
+                        // Se for a entrada (sequence 0), usar mensagem especial, senão mensagem genérica
+                        const message = parcel.sequence === 0 
+                            ? 'Sua entrada foi paga seu pedido foi efetivado.'
+                            : `Parcela ${parcel.sequence + 1} foi paga com sucesso!`;
+                        
+                        setPaidOrderInfo({
+                            orderNumber: orderId,
+                            message: message,
+                        });
+                        setShowPaymentSuccessModal(true);
+                    }
+                    
+                    // Atualizar status na ref
+                    lastParcelStatusesRef.current.set(parcelId, currentStatus);
+                });
+            });
+            
+            // Limpar ref de parcelas que não existem mais (caso algum pedido seja removido)
+            const allCurrentParcelIds = new Set(
+                Object.values(normalizedParcels).flat().map(p => p._id)
+            );
+            const parcelIdsToRemove: string[] = [];
+            lastParcelStatusesRef.current.forEach((_, parcelId) => {
+                if (!allCurrentParcelIds.has(parcelId)) {
+                    parcelIdsToRemove.push(parcelId);
+                }
+            });
+            parcelIdsToRemove.forEach(id => lastParcelStatusesRef.current.delete(id));
 
             setParcelledOrders(normalizedOrders);
             setParcelsByOrder(normalizedParcels);
@@ -680,6 +757,27 @@ export default function DashboardPage() {
         isAuthenticated,
         isReady,
     ]);
+
+    // Polling automático para vendas parceladas (similar ao polling de pedidos)
+    // Atualiza a cada 5 segundos quando estiver na aba de parcelamentos
+    useEffect(() => {
+        if (!isReady || !isAuthenticated) return;
+        if (activeTab !== 'installments') return;
+
+        // Inicializar fetch
+        if (!hasFetchedInstallments) {
+            fetchParcelledOrders();
+        }
+
+        // Configurar polling a cada 5 segundos (mesmo intervalo do polling de pedidos)
+        const pollingInterval = setInterval(() => {
+            fetchParcelledOrders();
+        }, 5000);
+
+        return () => {
+            clearInterval(pollingInterval);
+        };
+    }, [activeTab, isReady, isAuthenticated, hasFetchedInstallments, fetchParcelledOrders]);
 
     // Helper para verificar se é um grupo (definido antes de ser usado)
     const isOrderGroup = (item: OrderSummary | OrderGroup): item is OrderGroup => {
@@ -2229,21 +2327,23 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {/* Modal de pagamento aprovado (detectado via polling) */}
+            {/* Modal de pagamento aprovado (detectado via polling - usado para pedidos normais E parcelados) */}
             <PaymentSuccessModal
                 isOpen={showPaymentSuccessModal}
                 onClose={() => {
                     setShowPaymentSuccessModal(false);
                     setPaidOrderInfo(null);
-                    // Recarregar pedidos para mostrar o pedido pago atualizado
+                    // Recarregar pedidos e vendas parceladas para mostrar atualizações
                     // Pequeno delay para garantir que a modal feche antes de recarregar
                     setTimeout(() => {
                         fetchOrders();
+                        fetchParcelledOrders();
                     }, 100);
                 }}
                 orderNumber={paidOrderInfo?.orderNumber}
-                message={paidOrderInfo?.message}
+                message={paidOrderInfo?.message || 'Pagamento aprovado com sucesso! Seus ingressos estão disponíveis.'}
             />
+            
         </>
     );
 }

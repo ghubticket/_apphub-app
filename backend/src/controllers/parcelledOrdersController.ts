@@ -228,6 +228,7 @@ export const getParcelledOrderDetails = async (req: Request, res: Response) => {
  */
 export const generateParcelPayment = async (req: Request, res: Response) => {
     try {
+        // Este endpoint não usa body, apenas params
         const { id, parcelId } = req.params;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
 
@@ -274,6 +275,22 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
+        // Log do erro para debug (apenas em desenvolvimento)
+        if (process.env.NODE_ENV === 'development') {
+            console.error('Erro ao gerar pagamento da parcela:', error);
+        }
+        
+        // Tratar erros específicos
+        if (error?.message?.includes('Body has already been read') || error?.message?.includes('Body is unusable')) {
+            // Este erro geralmente indica que algum middleware tentou ler o body múltiplas vezes
+            // Retornar erro mais específico
+            return res.status(500).json({
+                success: false,
+                message: 'Erro interno ao processar requisição. Tente novamente.',
+                errors: ['Erro ao processar requisição'],
+            });
+        }
+        
         return res.status(400).json({
             success: false,
             message: error.message || 'Erro ao gerar pagamento da parcela',
