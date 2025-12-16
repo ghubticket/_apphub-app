@@ -526,7 +526,7 @@ export function PaymentSection({
                             )}
                         </div>
                     ) : (
-                        <div className="md:max-h-none max-h-[calc(100vh-200px)] md:overflow-visible overflow-y-auto">
+                        <div className="">
                             <div className="rounded-2xl mt-4 border border-[#ede5d8] bg-[#faf7f0] px-4 py-4 text-sm text-[#4c4c55]">
                                 <p className="text-xs text-[#46433b]">
                                     Nesta opção você paga uma entrada agora e o restante em parcelas futuras geradas via PIX.
