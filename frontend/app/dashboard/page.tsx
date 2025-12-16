@@ -345,6 +345,8 @@ export default function DashboardPage() {
     // Estados para loading e erro ao gerar PIX de parcelas
     const [generatingPixParcelId, setGeneratingPixParcelId] = useState<string | null>(null);
     const [parcelError, setParcelError] = useState<{ parcelId: string; message: string } | null>(null);
+    // Ref para evitar fetch automático após gerar PIX
+    const justGeneratedPixRef = useRef<boolean>(false);
     const [hasFetchedInstallments, setHasFetchedInstallments] = useState(false);
     const [expandedParcelledId, setExpandedParcelledId] = useState<string | null>(null);
     const [pixParcelPayment, setPixParcelPayment] = useState<{
@@ -753,15 +755,23 @@ export default function DashboardPage() {
         return () => mediaQuery.removeEventListener('change', update);
     }, []);
 
+    // Ref para rastrear a última aba ativa e evitar fetch desnecessário
+    const previousTabRef = useRef<TabKey | null>(null);
+    
     useEffect(() => {
         if (!isReady || !isAuthenticated) return;
         if (activeTab === 'orders' && !hasFetchedOrders) {
             fetchOrders();
         }
-        // Atualizar parcelamentos sempre que voltar para a aba (para detectar pagamentos via webhook)
-        if (activeTab === 'installments') {
+        // Atualizar parcelamentos APENAS quando MUDAR para a aba (não quando já está nela)
+        // Isso evita recarregar após gerar PIX
+        if (activeTab === 'installments' && previousTabRef.current !== 'installments') {
+            // Resetar flag de PIX gerado quando mudar para a aba
+            justGeneratedPixRef.current = false;
             fetchParcelledOrders();
         }
+        // Atualizar ref da aba anterior
+        previousTabRef.current = activeTab;
     }, [
         activeTab,
         fetchOrders,
@@ -1609,6 +1619,9 @@ export default function DashboardPage() {
                                                             );
                                                             const pix = resp.data?.data?.pixPayment;
 
+                                                            // Marcar que acabamos de gerar PIX para evitar fetch automático
+                                                            justGeneratedPixRef.current = true;
+
                                                             // Atualizar apenas o estado local - NÃO recarregar toda a lista
                                                             // Isso mantém o conteúdo na tela e evita loading duplo
                                                             
@@ -1822,6 +1835,9 @@ export default function DashboardPage() {
                                                                                         resp.data?.data
                                                                                             ?.pixPayment;
                                                                                     
+                                                                                    // Marcar que acabamos de gerar PIX para evitar fetch automático
+                                                                                    justGeneratedPixRef.current = true;
+                                                                                    
                                                                                     // Atualizar apenas o estado local - NÃO recarregar toda a lista
                                                                                     // Isso mantém o conteúdo na tela e evita loading duplo
                                                                                     if (parcel.sequence === 0) {
@@ -1970,12 +1986,12 @@ export default function DashboardPage() {
                                                                         <img
                                                                             src={`data:image/png;base64,${pixParcelPayment.qrCodeBase64}`}
                                                                             alt="QR Code PIX da parcela"
-                                                                            className="h-40 w-40 rounded-lg border-2 border-emerald-200 bg-white p-2"
+                                                                            className="md:h-40 md:w-40 h-full w-full rounded-lg border-2 border-emerald-200 bg-white p-2"
                                                                         />
                                                                     </div>
                                                                 )}
                                                                 {pixParcelPayment.qrCode && (
-                                                                    <div className="flex gap-2">
+                                                                    <div className="flex flex-col md:flex-row gap-3">
                                                                         <input
                                                                             type="text"
                                                                             readOnly
