@@ -1647,11 +1647,27 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                     // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
                     // IMPORTANTE: NÃO usar .lean() aqui, pois precisamos das instâncias do Mongoose para chamar .save()
-                    const tickets = await Ticket.find({
-                        _id: { $in: order.tickets },
-                        order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
-                        deletedAt: null,
-                    }).select('_id code qrCode status ticketType holder price order');
+                    // FALLBACK: Se order.tickets estiver vazio, buscar diretamente pelo order._id
+                    let tickets;
+                    if (order.tickets && order.tickets.length > 0) {
+                        tickets = await Ticket.find({
+                            _id: { $in: order.tickets },
+                            order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
+                            deletedAt: null,
+                        }).select('_id code qrCode status ticketType holder price order');
+                    } else {
+                        // Fallback: buscar tickets diretamente pelo order._id
+                        tickets = await Ticket.find({
+                            order: order._id,
+                            deletedAt: null,
+                        }).select('_id code qrCode status ticketType holder price order');
+                        
+                        // Atualizar order.tickets se encontrou tickets
+                        if (tickets.length > 0) {
+                            order.tickets = tickets.map((t: any) => t._id);
+                            await order.save();
+                        }
+                    }
 
                     for (const ticket of tickets) {
                         // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
@@ -1810,11 +1826,27 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 // CRÍTICO: Confirmar APENAS tickets deste pedido específico
                 // NUNCA confirmar tickets de outros pedidos, mesmo que sejam do mesmo cliente
                 // IMPORTANTE: NÃO usar .lean() aqui, pois precisamos das instâncias do Mongoose para chamar .save()
-                const tickets = await Ticket.find({
-                    _id: { $in: order.tickets },
-                    order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
-                    deletedAt: null,
-                }).select('_id code qrCode status ticketType holder price order');
+                // FALLBACK: Se order.tickets estiver vazio, buscar diretamente pelo order._id
+                let tickets;
+                if (order.tickets && order.tickets.length > 0) {
+                    tickets = await Ticket.find({
+                        _id: { $in: order.tickets },
+                        order: order._id, // VALIDAÇÃO EXTRA: garantir que o ticket pertence ao pedido
+                        deletedAt: null,
+                    }).select('_id code qrCode status ticketType holder price order');
+                } else {
+                    // Fallback: buscar tickets diretamente pelo order._id
+                    tickets = await Ticket.find({
+                        order: order._id,
+                        deletedAt: null,
+                    }).select('_id code qrCode status ticketType holder price order');
+                    
+                    // Atualizar order.tickets se encontrou tickets
+                    if (tickets.length > 0) {
+                        order.tickets = tickets.map((t: any) => t._id);
+                        await order.save();
+                    }
+                }
 
                 for (const ticket of tickets) {
                     // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido

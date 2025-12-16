@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { Event, TicketType, ParcelledOrder, Parcel, IParcelledOrder, IParcel } from '../models';
-import { calculateOrderValues } from './orderService';
+import { Event, TicketType, ParcelledOrder, Parcel, Order, Ticket, IParcelledOrder, IParcel } from '../models';
+import { calculateOrderValues, createTicketsForOrder } from './orderService';
 import { createPixPayment } from './paymentService';
 
 interface CreateParcelledOrderInput {
@@ -197,6 +197,83 @@ interface SyncParcelPaymentInput {
 }
 
 /**
+ * Cria um Order e tickets quando um ParcelledOrder é completamente pago
+ * CRÍTICO: QR codes só são gerados quando TODAS as parcelas estão pagas
+ */
+async function createOrderFromCompletedParcelledOrder(parcelledOrder: any) {
+    try {
+        // Verificar se já existe um Order para este ParcelledOrder
+        const existingOrder = await Order.findOne({
+            parcelledOrder: parcelledOrder._id,
+            deletedAt: null,
+        });
+
+        if (existingOrder) {
+            // Order já existe, não criar novamente
+            return existingOrder;
+        }
+
+        const event = await Event.findById(parcelledOrder.event);
+        const ticketType = parcelledOrder.ticketType
+            ? await TicketType.findById(parcelledOrder.ticketType)
+            : null;
+
+        if (!event || !ticketType) {
+            throw new Error('Evento ou tipo de ingresso não encontrado');
+        }
+
+        const quantity = parcelledOrder.metadata?.quantity || 1;
+        const customerId = parcelledOrder.customer?.toString() || null;
+
+        // Criar Order normal (similar ao fluxo de pedidos completos)
+        const order = new Order({
+            orderNumber: `PARC-${parcelledOrder._id}`,
+            customer: customerId,
+            event: parcelledOrder.event,
+            tickets: [],
+            subtotal: parcelledOrder.totalAmount - (parcelledOrder.platformFeeAmount || 0),
+            platformFee: parcelledOrder.platformFeeAmount || 0,
+            totalAmount: parcelledOrder.totalAmount,
+            totalTickets: quantity,
+            status: 'paid', // Já está pago (todas as parcelas foram pagas)
+            paymentMethod: parcelledOrder.paymentType === 'pix' ? 'pix' : 'bank_slip',
+            paidAt: new Date(),
+            customerData: {
+                name: parcelledOrder.metadata?.customerName || 'Cliente',
+                email: parcelledOrder.metadata?.customerEmail || 'email@cliente.com',
+                cpf: parcelledOrder.metadata?.customerCpf || '',
+                phone: parcelledOrder.metadata?.customerPhone || '',
+            },
+            parcelledOrder: parcelledOrder._id, // Vincular ao ParcelledOrder
+            isActive: true,
+        });
+
+        await order.save();
+
+        // Criar tickets com status 'confirmed' e gerar QR codes
+        const createdTickets = await createTicketsForOrder(
+            order._id as mongoose.Types.ObjectId,
+            parcelledOrder.event.toString(),
+            parcelledOrder.ticketType?.toString() || '',
+            quantity,
+            ticketType.price || 0,
+            'confirmed', // Status confirmed = QR code será gerado
+            customerId || undefined,
+            false // Não é VIP
+        );
+
+        // Atualizar order com os tickets
+        order.tickets = createdTickets.map((t) => t._id as mongoose.Types.ObjectId);
+        await order.save();
+
+        return order;
+    } catch (error: any) {
+        console.error('[createOrderFromCompletedParcelledOrder] Erro ao criar Order:', error);
+        throw error;
+    }
+}
+
+/**
  * Sincroniza o pagamento de uma parcela a partir de dados do webhook do Mercado Pago.
  * Deve ser chamado pelo paymentController.handleWebhook.
  */
@@ -310,8 +387,16 @@ export async function syncParcelFromMercadoPago(input: SyncParcelPaymentInput) {
             status: { $ne: 'paid' },
         });
 
+        const wasCompletedBefore = parcelledOrder.status === 'completed';
+        
         if (remaining === 0) {
             parcelledOrder.status = 'completed';
+            
+            // CRÍTICO: Criar Order e tickets APENAS quando todas as parcelas estiverem pagas
+            // Isso garante que QR codes só sejam gerados quando o pedido estiver 100% pago
+            if (!wasCompletedBefore) {
+                await createOrderFromCompletedParcelledOrder(parcelledOrder as any);
+            }
         }
 
         await parcelledOrder.save();

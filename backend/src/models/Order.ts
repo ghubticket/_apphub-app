@@ -44,6 +44,7 @@ export interface IOrder extends Document {
     ipAddress?: string; // IP de onde o pedido foi criado (para detecção de padrões suspeitos)
     isActive: boolean;
     cardAttempts: number;
+    parcelledOrder?: mongoose.Types.ObjectId; // Referência ao ParcelledOrder (se este Order foi criado a partir de um pedido parcelado)
     deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     createdAt: Date;
     updatedAt: Date;
@@ -235,6 +236,11 @@ const orderSchema = new Schema<IOrder>(
             type: Number,
             default: 0,
             min: 0,
+        },
+        parcelledOrder: {
+            type: Schema.Types.ObjectId,
+            ref: 'ParcelledOrder',
+            default: null,
         },
         deletedAt: {
             type: Date,

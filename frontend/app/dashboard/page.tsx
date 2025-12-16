@@ -22,6 +22,7 @@ import api from '@/lib/api';
 import { APP_NAME, APP_CONFIG } from '@/lib/config';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useOrdersPolling } from './hooks/useOrdersPolling';
+import { useParcelledOrdersPolling } from './hooks/useParcelledOrdersPolling';
 import PaymentSuccessModal from '@/components/shared/PaymentSuccessModal';
 
 type TabKey = 'orders' | 'requests' | 'installments';
@@ -834,6 +835,54 @@ export default function DashboardPage() {
     const { isPolling } = useOrdersPolling({
         enabled: shouldPoll,
         onOrderPaid: handleOrderPaid,
+    });
+
+    // Callback quando parcela é paga (detectado via polling)
+    const handleParcelPaid = useCallback(async (parcelledOrderId: string, parcelId: string, sequence: number) => {
+        // Buscar informações atualizadas da venda parcelada
+        try {
+            const response = await api.get(`/parcelled-orders/${parcelledOrderId}`);
+            const parcelledOrder = response.data?.data?.parcelledOrder;
+            
+            if (parcelledOrder) {
+                const eventName = parcelledOrder.metadata?.eventName || 
+                                 parcelledOrder.event?.name || 
+                                 'Evento';
+                
+                // Mostrar modal de sucesso
+                setPaidOrderInfo({
+                    orderNumber: `${eventName} - Parcela ${sequence + 1}`,
+                    message: sequence === 0 
+                        ? 'Entrada paga com sucesso! Seus ingressos estarão disponíveis quando todas as parcelas forem pagas.'
+                        : `Parcela ${sequence + 1} paga com sucesso! Continue pagando as demais parcelas para liberar seus ingressos.`,
+                });
+                setShowPaymentSuccessModal(true);
+                
+                // Atualizar lista de parcelamentos após mostrar modal
+                setTimeout(() => {
+                    fetchParcelledOrders();
+                }, 100);
+            }
+        } catch (error) {
+            // Em caso de erro, ainda mostrar modal genérica
+            setPaidOrderInfo({
+                orderNumber: `Parcela ${sequence + 1}`,
+                message: sequence === 0 
+                    ? 'Entrada paga com sucesso!'
+                    : `Parcela ${sequence + 1} paga com sucesso!`,
+            });
+            setShowPaymentSuccessModal(true);
+        }
+    }, [fetchParcelledOrders]);
+
+    // Polling de parcelamentos (apenas quando estiver na aba de parcelamentos)
+    const shouldPollParcels = activeTab === 'installments' &&
+        isAuthenticated &&
+        isReady;
+
+    const { isPolling: isPollingParcels } = useParcelledOrdersPolling({
+        enabled: shouldPollParcels,
+        onParcelPaid: handleParcelPaid,
     });
 
     // Helper para encontrar pedido ativo ou criar ordem consolidada de grupo
