@@ -77,31 +77,77 @@ async function handleRequest(
         const queryString = searchParams.toString();
         fullUrl = queryString ? `${apiUrl}?${queryString}` : apiUrl;
 
+        // Obter body se existir (para POST, PUT, PATCH)
+        // CRÍTICO: Verificar ANTES de definir headers para evitar enviar Content-Type quando não há body
+        const isGeneratePayment = apiPath.includes('generate-payment');
+        const contentLength = request.headers.get('content-length');
+        const contentType = request.headers.get('content-type') || '';
+        
+        let body: string | undefined;
+        let hasBody = false;
+        
+        if (['POST', 'PUT', 'PATCH'].includes(method)) {
+            // CRÍTICO: Verificar se é rota que não usa body (generate-payment)
+            // Essas rotas NUNCA devem ter body lido, mesmo que venha content-length
+            if (isGeneratePayment) {
+                // Rota generate-payment não usa body - NUNCA tentar ler
+                // Isso evita "Body has already been read" no backend
+                body = undefined;
+                hasBody = false;
+            } else if (!contentLength || contentLength === '0') {
+                // Se content-length é '0' ou não existe, não há body
+                body = undefined;
+                hasBody = false;
+            } else {
+                // Tentar ler body apenas se realmente tem conteúdo
+                try {
+                    const length = parseInt(contentLength, 10);
+                    if (!isNaN(length) && length > 0) {
+                        // Verificar se é JSON antes de tentar parse
+                        if (contentType.includes('application/json')) {
+                            const requestBody = await request.json();
+                            body = JSON.stringify(requestBody);
+                            hasBody = true;
+                        } else {
+                            // Para outros tipos, ler como texto
+                            body = await request.text();
+                            hasBody = body.length > 0;
+                        }
+                    } else {
+                        body = undefined;
+                        hasBody = false;
+                    }
+                } catch (error: any) {
+                    // Se houver erro ao ler body (já foi lido ou outro problema), continuar sem body
+                    console.warn(`[Proxy] Erro ao ler body para ${apiPath}:`, error?.message);
+                    body = undefined;
+                    hasBody = false;
+                }
+            }
+        }
+
         // Obter headers da requisição original (exceto alguns que não devem ser repassados)
         const headers: HeadersInit = {
-            'Content-Type': 'application/json',
             'User-Agent': 'EventHub-API-Proxy/1.0',
             ...(process.env.NODE_ENV === 'development' && {
                 'X-Proxy-Source': 'frontend-api-proxy-dev'
             })
         };
 
+        // CRÍTICO: Só adicionar Content-Type se realmente tem body
+        // Para rotas generate-payment, não enviar Content-Type para evitar que o backend tente ler body
+        if (hasBody && body) {
+            headers['Content-Type'] = 'application/json';
+            headers['Content-Length'] = body.length.toString();
+        } else if (isGeneratePayment) {
+            // Para generate-payment, garantir que não enviamos Content-Type
+            // Isso evita que o backend tente fazer parse do body
+        }
+
         // Repassar Authorization se existir
         const authHeader = request.headers.get('authorization');
         if (authHeader) {
             headers['Authorization'] = authHeader;
-        }
-
-        // Obter body se existir (para POST, PUT, PATCH)
-        let body: string | undefined;
-        if (['POST', 'PUT', 'PATCH'].includes(method)) {
-            try {
-                const requestBody = await request.json();
-                body = JSON.stringify(requestBody);
-            } catch {
-                // Se não houver body JSON, tentar como texto
-                body = await request.text();
-            }
         }
 
         // Fazer requisição para a API backend (fetch padrão)
@@ -114,8 +160,8 @@ async function handleRequest(
         });
 
         // Obter resposta
-        const contentType = response.headers.get('content-type');
-        const isJson = contentType?.includes('application/json');
+        const responseContentType = response.headers.get('content-type');
+        const isJson = responseContentType?.includes('application/json');
 
         let data: any;
         if (isJson) {
