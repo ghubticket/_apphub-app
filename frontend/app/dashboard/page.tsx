@@ -342,6 +342,9 @@ export default function DashboardPage() {
     // Ref para rastrear status anteriores de cada parcela individual (para detectar quando qualquer parcela é paga)
     const lastParcelStatusesRef = useRef<Map<string, string>>(new Map());
     const [installmentsError, setInstallmentsError] = useState<string>('');
+    // Estados para loading e erro ao gerar PIX de parcelas
+    const [generatingPixParcelId, setGeneratingPixParcelId] = useState<string | null>(null);
+    const [parcelError, setParcelError] = useState<{ parcelId: string; message: string } | null>(null);
     const [hasFetchedInstallments, setHasFetchedInstallments] = useState(false);
     const [expandedParcelledId, setExpandedParcelledId] = useState<string | null>(null);
     const [pixParcelPayment, setPixParcelPayment] = useState<{
@@ -1592,52 +1595,107 @@ export default function DashboardPage() {
                                             As demais parcelas estarão disponíveis depois da efetivação da entrada. Pague o PIX e confirme seu pedido.
                                         </p>
                                         {entryParcel && entryParcel.status === 'payment_generated' && (
-                                            <button
-                                                type="button"
-                                                onClick={async () => {
-                                                    try {
-                                                        const resp = await api.post(
-                                                            `/parcelled-orders/${orderId}/parcels/${entryParcel._id}/generate-payment`
-                                                        );
-                                                        const pix = resp.data?.data?.pixPayment;
+                                            <div className="mt-3">
+                                                <button
+                                                    type="button"
+                                                    disabled={generatingPixParcelId === entryParcel._id}
+                                                    onClick={async () => {
+                                                        try {
+                                                            setGeneratingPixParcelId(entryParcel._id);
+                                                            setParcelError(null);
+                                                            
+                                                            const resp = await api.post(
+                                                                `/parcelled-orders/${orderId}/parcels/${entryParcel._id}/generate-payment`
+                                                            );
+                                                            const pix = resp.data?.data?.pixPayment;
 
-                                                        // Buscar informações de expiração
-                                                        let expiresAt = null;
-                                                        if (pix?.paymentId) {
-                                                            try {
-                                                                const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
-                                                                expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
-                                                            } catch (error: any) {
-                                                                // Ignorar erro ao buscar expiração (erro 500, 404, etc)
-                                                                if (process.env.NODE_ENV === 'development') {
-                                                                    console.warn(`Não foi possível buscar expiração do PIX para paymentId ${pix.paymentId}:`, error?.response?.status || error?.message);
+                                                            // Buscar informações de expiração
+                                                            let expiresAt = null;
+                                                            if (pix?.paymentId) {
+                                                                try {
+                                                                    const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
+                                                                    expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
+                                                                } catch (error: any) {
+                                                                    // Ignorar erro ao buscar expiração (erro 500, 404, etc)
+                                                                    if (process.env.NODE_ENV === 'development') {
+                                                                        console.warn(`Não foi possível buscar expiração do PIX para paymentId ${pix.paymentId}:`, error?.response?.status || error?.message);
+                                                                    }
                                                                 }
                                                             }
-                                                        }
 
-                                                        setEntryParcelPixInfo((prev) => ({
-                                                            ...prev,
-                                                            [orderId]: {
+                                                            setEntryParcelPixInfo((prev) => ({
+                                                                ...prev,
+                                                                [orderId]: {
+                                                                    orderId,
+                                                                    parcelId: entryParcel._id,
+                                                                    qrCode: pix?.qrCode || pix?.ticketUrl || null,
+                                                                    qrCodeBase64: pix?.qrCodeBase64 || null,
+                                                                    expiresAt: expiresAt,
+                                                                },
+                                                            }));
+                                                            fetchParcelledOrders();
+                                                        } catch (error: any) {
+                                                            // Extrair mensagem de erro mais específica
+                                                            let errorMessage = 'Erro ao gerar pagamento PIX da entrada.';
+                                                            
+                                                            if (error?.response?.data?.message) {
+                                                                errorMessage = error.response.data.message;
+                                                            } else if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+                                                                errorMessage = error.response.data.errors.join(', ');
+                                                            } else if (error?.message) {
+                                                                errorMessage = error.message;
+                                                            }
+                                                            
+                                                            setParcelError({
+                                                                parcelId: entryParcel._id,
+                                                                message: errorMessage,
+                                                            });
+                                                            
+                                                            console.error('[Frontend] Erro ao gerar PIX da entrada', {
                                                                 orderId,
                                                                 parcelId: entryParcel._id,
-                                                                qrCode: pix?.qrCode || pix?.ticketUrl || null,
-                                                                qrCodeBase64: pix?.qrCodeBase64 || null,
-                                                                expiresAt: expiresAt,
-                                                            },
-                                                        }));
-                                                        fetchParcelledOrders();
-                                                    } catch (error: any) {
-                                                        alert(
-                                                            error?.response?.data?.message ||
-                                                            error?.message ||
-                                                            'Erro ao gerar pagamento PIX da entrada.'
-                                                        );
-                                                    }
-                                                }}
-                                                className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white shadow-md transition hover:bg-[#f97316]"
-                                            >
-                                                Gerar PIX da Entrada
-                                            </button>
+                                                                error: errorMessage,
+                                                                status: error?.response?.status,
+                                                                data: error?.response?.data,
+                                                            });
+                                                        } finally {
+                                                            setGeneratingPixParcelId(null);
+                                                        }
+                                                    }}
+                                                    className="inline-flex items-center gap-2 rounded-full bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white shadow-md transition hover:bg-[#f97316] disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    {generatingPixParcelId === entryParcel._id ? (
+                                                        <>
+                                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                            Gerando PIX...
+                                                        </>
+                                                    ) : (
+                                                        'Gerar PIX da Entrada'
+                                                    )}
+                                                </button>
+                                                {parcelError && parcelError.parcelId === entryParcel._id && (
+                                                    <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <p className="text-xs font-semibold text-red-800 flex-1">
+                                                                {parcelError.message}
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setParcelError(null)}
+                                                                className="text-red-600 hover:text-red-800 transition"
+                                                                aria-label="Fechar erro"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 )}
@@ -1727,10 +1785,15 @@ export default function DashboardPage() {
                                                             </div>
                                                             <div className="flex flex-col items-start gap-2 md:items-end">
                                                                 {isGeneratable && (
-                                                                    <button
-                                                                        type="button"
-                                                                    onClick={async () => {
+                                                                    <div className="flex flex-col items-end gap-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            disabled={generatingPixParcelId === parcel._id}
+                                                                            onClick={async () => {
                                                                                 try {
+                                                                                    setGeneratingPixParcelId(parcel._id);
+                                                                                    setParcelError(null);
+                                                                                    
                                                                                     console.log('[Frontend] Gerando PIX da parcela', {
                                                                                         orderId,
                                                                                         parcelId: parcel._id,
@@ -1748,82 +1811,120 @@ export default function DashboardPage() {
                                                                                         paymentId: resp.data?.data?.pixPayment?.paymentId,
                                                                                     });
                                                                                     
-                                                                                const pix =
-                                                                                    resp.data?.data
-                                                                                        ?.pixPayment;
-                                                                                // Se for a entrada (sequence 0), atualizar entryParcelPixInfo
-                                                                                if (parcel.sequence === 0) {
-                                                                                    // Buscar informações de expiração
-                                                                                    let expiresAt = null;
-                                                                                    if (pix?.paymentId) {
-                                                                                        try {
-                                                                                            const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
-                                                                                            expiresAt = paymentStatusResp.data?.data?.expiresAt;
-                                                                                        } catch (error) {
-                                                                                            // Ignorar erro ao buscar expiração
+                                                                                    const pix =
+                                                                                        resp.data?.data
+                                                                                            ?.pixPayment;
+                                                                                    // Se for a entrada (sequence 0), atualizar entryParcelPixInfo
+                                                                                    if (parcel.sequence === 0) {
+                                                                                        // Buscar informações de expiração
+                                                                                        let expiresAt = null;
+                                                                                        if (pix?.paymentId) {
+                                                                                            try {
+                                                                                                const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
+                                                                                                expiresAt = paymentStatusResp.data?.data?.expiresAt;
+                                                                                            } catch (error) {
+                                                                                                // Ignorar erro ao buscar expiração
+                                                                                            }
                                                                                         }
-                                                                                    }
 
-                                                                                    setEntryParcelPixInfo((prev) => ({
-                                                                                        ...prev,
-                                                                                        [orderId]: {
-                                                                                            orderId,
+                                                                                        setEntryParcelPixInfo((prev) => ({
+                                                                                            ...prev,
+                                                                                            [orderId]: {
+                                                                                                orderId,
+                                                                                                parcelId: parcel._id,
+                                                                                                qrCode: pix?.qrCode || pix?.ticketUrl || null,
+                                                                                                qrCodeBase64: pix?.qrCodeBase64 || null,
+                                                                                                expiresAt: expiresAt,
+                                                                                            },
+                                                                                        }));
+                                                                                    } else {
+                                                                                        // Para outras parcelas, usar pixParcelPayment
+                                                                                        // O expiresAt já vem na resposta do pixPayment
+                                                                                        // Se não veio, tentar buscar via API como fallback
+                                                                                        let expiresAt = pix?.expiresAt || null;
+                                                                                        
+                                                                                        if (!expiresAt && pix?.paymentId) {
+                                                                                            try {
+                                                                                                const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
+                                                                                                expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
+                                                                                            } catch (error) {
+                                                                                                // Ignorar erro ao buscar expiração (pode não estar disponível ainda)
+                                                                                            }
+                                                                                        }
+                                                                                        
+                                                                                        setPixParcelPayment({
                                                                                             parcelId: parcel._id,
+                                                                                            orderId,
                                                                                             qrCode: pix?.qrCode || pix?.ticketUrl || null,
                                                                                             qrCodeBase64: pix?.qrCodeBase64 || null,
                                                                                             expiresAt: expiresAt,
-                                                                                        },
-                                                                                    }));
-                                                                                } else {
-                                                                                    // Para outras parcelas, usar pixParcelPayment
-                                                                                    // O expiresAt já vem na resposta do pixPayment
-                                                                                    // Se não veio, tentar buscar via API como fallback
-                                                                                    let expiresAt = pix?.expiresAt || null;
+                                                                                        });
+                                                                                    }
+                                                                                    // Atualizar lista
+                                                                                    fetchParcelledOrders();
+                                                                                } catch (error: any) {
+                                                                                    // Extrair mensagem de erro mais específica
+                                                                                    let errorMessage = 'Erro ao gerar pagamento PIX desta parcela.';
                                                                                     
-                                                                                    if (!expiresAt && pix?.paymentId) {
-                                                                                        try {
-                                                                                            const paymentStatusResp = await api.get(`/payments/${pix.paymentId}/status`);
-                                                                                            expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
-                                                                                        } catch (error) {
-                                                                                            // Ignorar erro ao buscar expiração (pode não estar disponível ainda)
-                                                                                        }
+                                                                                    if (error?.response?.data?.message) {
+                                                                                        errorMessage = error.response.data.message;
+                                                                                    } else if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+                                                                                        errorMessage = error.response.data.errors.join(', ');
+                                                                                    } else if (error?.message) {
+                                                                                        errorMessage = error.message;
                                                                                     }
                                                                                     
-                                                                                    setPixParcelPayment({
+                                                                                    setParcelError({
                                                                                         parcelId: parcel._id,
-                                                                                        orderId,
-                                                                                        qrCode: pix?.qrCode || pix?.ticketUrl || null,
-                                                                                        qrCodeBase64: pix?.qrCodeBase64 || null,
-                                                                                        expiresAt: expiresAt,
+                                                                                        message: errorMessage,
                                                                                     });
+                                                                                    
+                                                                                    console.error('[Frontend] Erro ao gerar PIX da parcela', {
+                                                                                        orderId,
+                                                                                        parcelId: parcel._id,
+                                                                                        error: errorMessage,
+                                                                                        status: error?.response?.status,
+                                                                                        data: error?.response?.data,
+                                                                                        stack: error?.stack,
+                                                                                    });
+                                                                                } finally {
+                                                                                    setGeneratingPixParcelId(null);
                                                                                 }
-                                                                                // Atualizar lista
-                                                                                fetchParcelledOrders();
-                                                                            } catch (error: any) {
-                                                                                console.error('[Frontend] Erro ao gerar PIX da parcela', {
-                                                                                    orderId,
-                                                                                    parcelId: parcel._id,
-                                                                                    error: error?.message,
-                                                                                    status: error?.response?.status,
-                                                                                    statusText: error?.response?.statusText,
-                                                                                    data: error?.response?.data,
-                                                                                    stack: error?.stack,
-                                                                                });
-                                                                                
-                                                                                alert(
-                                                                                    error
-                                                                                        ?.response
-                                                                                        ?.data
-                                                                                        ?.message ||
-                                                                                    error?.message ||
-                                                                                    'Erro ao gerar pagamento PIX desta parcela.'
-                                                                                );
-                                                                            }
-                                                                        }}
-                                                                        className="inline-flex items-center gap-2 rounded-full bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white shadow-md transition hover:bg-[#f97316]"
-                                                                    >
-                                                                        Gerar PIX desta parcela
-                                                                    </button>
+                                                                            }}
+                                                                            className="inline-flex items-center gap-2 rounded-full bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white shadow-md transition hover:bg-[#f97316] disabled:cursor-not-allowed disabled:opacity-60"
+                                                                        >
+                                                                            {generatingPixParcelId === parcel._id ? (
+                                                                                <>
+                                                                                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                                    </svg>
+                                                                                    Gerando PIX...
+                                                                                </>
+                                                                            ) : (
+                                                                                'Gerar PIX desta parcela'
+                                                                            )}
+                                                                        </button>
+                                                                        {parcelError && parcelError.parcelId === parcel._id && (
+                                                                            <div className="rounded-lg border border-red-200 bg-red-50 p-2 max-w-xs">
+                                                                                <div className="flex items-start justify-between gap-2">
+                                                                                    <p className="text-xs font-semibold text-red-800 flex-1">
+                                                                                        {parcelError.message}
+                                                                                    </p>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => setParcelError(null)}
+                                                                                        className="text-red-600 hover:text-red-800 transition flex-shrink-0"
+                                                                                        aria-label="Fechar erro"
+                                                                                    >
+                                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                                        </svg>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         </div>

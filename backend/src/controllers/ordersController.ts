@@ -984,9 +984,10 @@ export const listMyOrders = async (req: Request, res: Response) => {
         // IMPORTANTE: Para pedidos pagos, garantir que os tickets tenham QR codes
         const ordersWithFilteredQR = await Promise.all(
             orders.map(async (order) => {
-                // Se o pedido está pago mas os tickets não têm QR codes, gerar
-                if (order.status === 'paid') {
-                    const orderDoc = await Order.findById(order._id);
+                try {
+                    // Se o pedido está pago mas os tickets não têm QR codes, gerar
+                    if (order.status === 'paid') {
+                        const orderDoc = await Order.findById(order._id);
                     if (orderDoc) {
                         const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
                         let needsQRGeneration = false;
@@ -1091,6 +1092,19 @@ export const listMyOrders = async (req: Request, res: Response) => {
                 };
 
                 return orderResponse;
+                } catch (orderError: any) {
+                    // Se houver erro ao processar um pedido individual, logar mas não quebrar tudo
+                    console.error(`[listMyOrders] ${requestId} - Erro ao processar pedido ${order._id}`, {
+                        error: orderError?.message,
+                        orderId: order._id,
+                    });
+                    // Retornar pedido sem processamento adicional em caso de erro
+                    return {
+                        ...order,
+                        tickets: order.tickets || [],
+                        pixInfo: undefined,
+                    };
+                }
             })
         );
         
@@ -1103,6 +1117,12 @@ export const listMyOrders = async (req: Request, res: Response) => {
             page,
             limit,
         });
+        
+        // Verificar se a resposta já foi enviada antes de tentar enviar
+        if (res.headersSent) {
+            console.error(`[listMyOrders] ${requestId} - Tentativa de enviar resposta após headers já enviados`);
+            return;
+        }
         
         return res.json({
             success: true,
@@ -1117,12 +1137,6 @@ export const listMyOrders = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        captureControllerError(error, req, {
-            controller: 'ordersController',
-            action: 'listMyOrders',
-            statusCode: 500,
-        });
-
         const duration = Date.now() - startTime;
         console.error(`[listMyOrders] ${requestId} - Erro`, {
             duration: `${duration}ms`,
@@ -1131,7 +1145,19 @@ export const listMyOrders = async (req: Request, res: Response) => {
             userId: (req as any).user?._id || (req as any).user?.id,
         });
         
-        res.status(500).json({
+        // Verificar se a resposta já foi enviada antes de tentar enviar erro
+        if (res.headersSent) {
+            console.error(`[listMyOrders] ${requestId} - Tentativa de enviar erro após headers já enviados`);
+            return;
+        }
+        
+        captureControllerError(error, req, {
+            controller: 'ordersController',
+            action: 'listMyOrders',
+            statusCode: 500,
+        });
+        
+        return res.status(500).json({
             success: false,
             message: 'Erro ao listar pedidos',
             errors: [error.message || 'Erro desconhecido'],
@@ -1184,48 +1210,61 @@ export const listAllOrders = async (req: Request, res: Response) => {
         // IMPORTANTE: Para pedidos pagos, garantir que os tickets tenham QR codes
         const ordersWithFilteredQR = await Promise.all(
             orders.map(async (order) => {
-                // Se o pedido está pago mas os tickets não têm QR codes, gerar
-                if (order.status === 'paid') {
-                    const orderDoc = await Order.findById(order._id);
-                    if (orderDoc) {
-                        const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
-                        let needsQRGeneration = false;
-                        for (const ticket of tickets) {
-                            if (ticket.status === 'confirmed' && !ticket.qrCode) {
-                                needsQRGeneration = true;
-                                ticket.qrCode = await generateQRCode(ticket.code);
-                                await ticket.save();
+                try {
+                    // Se o pedido está pago mas os tickets não têm QR codes, gerar
+                    if (order.status === 'paid') {
+                        const orderDoc = await Order.findById(order._id);
+                        if (orderDoc) {
+                            const tickets = await Ticket.find({ order: orderDoc._id, deletedAt: null });
+                            let needsQRGeneration = false;
+                            for (const ticket of tickets) {
+                                if (ticket.status === 'confirmed' && !ticket.qrCode) {
+                                    needsQRGeneration = true;
+                                    ticket.qrCode = await generateQRCode(ticket.code);
+                                    await ticket.save();
+                                }
                             }
-                        }
-                        if (needsQRGeneration) {
-                            // Re-popular para pegar os QR codes atualizados
-                            const updatedOrder = await Order.findById(order._id)
-                                .populate({
-                                    path: 'tickets',
-                                    select: 'code qrCode status price ticketType',
-                                    match: { deletedAt: null },
-                                })
-                                .lean();
-                            if (updatedOrder) {
-                                return {
-                                    ...updatedOrder,
-                                    tickets: updatedOrder.tickets.map((ticket: any) => ({
-                                        ...ticket,
-                                        qrCode:
-                                            updatedOrder.status === 'paid' ? ticket.qrCode : null,
-                                    })),
-                                };
+                            if (needsQRGeneration) {
+                                // Re-popular para pegar os QR codes atualizados
+                                const updatedOrder = await Order.findById(order._id)
+                                    .populate({
+                                        path: 'tickets',
+                                        select: 'code qrCode status price ticketType',
+                                        match: { deletedAt: null },
+                                    })
+                                    .lean();
+                                if (updatedOrder) {
+                                    return {
+                                        ...updatedOrder,
+                                        tickets: updatedOrder.tickets.map((ticket: any) => ({
+                                            ...ticket,
+                                            qrCode:
+                                                updatedOrder.status === 'paid' ? ticket.qrCode : null,
+                                        })),
+                                    };
+                                }
                             }
                         }
                     }
+                    return {
+                        ...order,
+                        tickets: order.tickets.map((ticket: any) => ({
+                            ...ticket,
+                            qrCode: order.status === 'paid' ? ticket.qrCode : null, // Só retorna QR code se pedido estiver pago
+                        })),
+                    };
+                } catch (orderError: any) {
+                    // Se houver erro ao processar um pedido individual, logar mas não quebrar tudo
+                    console.error(`[listAllOrders] Erro ao processar pedido ${order._id}`, {
+                        error: orderError?.message,
+                        orderId: order._id,
+                    });
+                    // Retornar pedido sem processamento adicional em caso de erro
+                    return {
+                        ...order,
+                        tickets: order.tickets || [],
+                    };
                 }
-                return {
-                    ...order,
-                    tickets: order.tickets.map((ticket: any) => ({
-                        ...ticket,
-                        qrCode: order.status === 'paid' ? ticket.qrCode : null, // Só retorna QR code se pedido estiver pago
-                    })),
-                };
             })
         );
 

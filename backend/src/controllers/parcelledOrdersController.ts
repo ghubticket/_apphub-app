@@ -335,21 +335,50 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
         const duration = Date.now() - startTime;
         const errorMessage = error?.message || '';
         const errorString = String(errorMessage).toLowerCase();
+        const errorStack = error?.stack || '';
         
         // Log detalhado do erro (sempre, não só em desenvolvimento)
-        console.error(`[generateParcelPayment] ${requestId} - Erro`, {
+        const errorLogData = {
             duration: `${duration}ms`,
             error: errorMessage,
-            stack: error.stack,
+            stack: errorStack,
             errorType: errorString.includes('body') ? 'BODY_ERROR' : 'OTHER',
             params: req.params,
+            method: req.method,
+            path: req.path,
+            headers: {
+                'content-length': req.get('content-length'),
+                'content-type': req.get('content-type'),
+            },
+            skipBodyParsing: (req as any).skipBodyParsing || false,
+            hasBody: !!req.body,
+            bodyType: typeof req.body,
+            errorName: error?.name,
+            errorCode: error?.code,
+        };
+        
+        console.error(`[generateParcelPayment] ${requestId} - Erro capturado`, errorLogData);
+        
+        // Adicionar breadcrumb de erro para Sentry
+        Sentry.addBreadcrumb({
+            category: 'generate-payment',
+            message: `Erro ao gerar pagamento: ${errorMessage}`,
+            level: 'error',
+            data: {
+                requestId,
+                ...errorLogData,
+            },
         });
         
-        if (errorString.includes('body has already been read') || 
+        // Verificar se é erro relacionado ao body
+        const isBodyError = 
+            errorString.includes('body has already been read') || 
             errorString.includes('body is unusable') ||
-            errorString.includes('cannot read') && errorString.includes('body')) {
+            (errorString.includes('cannot read') && errorString.includes('body')) ||
+            errorString.includes('body has been consumed');
+        
+        if (isBodyError) {
             // Este erro geralmente indica que algum middleware tentou ler o body múltiplas vezes
-            // Retornar erro mais específico e logar para investigação
             console.error(`[generateParcelPayment] ${requestId} - Erro de body já lido detectado. Endpoint não usa body, pode ser problema de middleware.`);
             
             // Capturar erro no Sentry com contexto completo
@@ -359,19 +388,7 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
                     errorType: 'BODY_ALREADY_READ',
                     requestId,
                 },
-                extra: {
-                    method: req.method,
-                    path: req.path,
-                    params: req.params,
-                    headers: {
-                        'content-length': req.get('content-length'),
-                        'content-type': req.get('content-type'),
-                    },
-                    skipBodyParsing: (req as any).skipBodyParsing || false,
-                    hasBody: !!req.body,
-                    bodyType: typeof req.body,
-                    duration: `${duration}ms`,
-                },
+                extra: errorLogData,
                 level: 'error',
             });
             
@@ -382,7 +399,32 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
             });
         }
         
-        return res.status(400).json({
+        // Para outros erros, também capturar no Sentry e retornar 500
+        // (erros de validação devem retornar 400, mas erros inesperados devem ser 500)
+        const isValidationError = 
+            error?.name === 'ValidationError' || 
+            error?.code === 11000 ||
+            errorString.includes('not found') ||
+            errorString.includes('não encontrado') ||
+            errorString.includes('invalid') ||
+            errorString.includes('inválido');
+        
+        if (!isValidationError) {
+            // Erro inesperado - enviar ao Sentry
+            Sentry.captureException(error, {
+                tags: {
+                    component: 'generate-payment',
+                    errorType: 'UNEXPECTED_ERROR',
+                    requestId,
+                },
+                extra: errorLogData,
+                level: 'error',
+            });
+        }
+        
+        // Retornar status apropriado baseado no tipo de erro
+        const statusCode = isValidationError ? 400 : 500;
+        return res.status(statusCode).json({
             success: false,
             message: error.message || 'Erro ao gerar pagamento da parcela',
             errors: [error.message || 'Erro desconhecido'],

@@ -371,8 +371,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
                 requestId,
                 method,
                 path,
-                contentLength,
-                contentType,
+                contentLength: contentLength || 'undefined',
+                contentType: contentType || 'undefined',
                 skipBodyParsing: true,
             },
         });
@@ -380,8 +380,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
         logger.info(`[bodyParser] ${requestId} - Pulando parsing (generate-payment não usa body)`, {
             method,
             path,
-            contentLength,
-            contentType,
+            contentLength: contentLength || 'undefined',
+            contentType: contentType || 'undefined',
         });
         
         return next(); // Pular TODOS os parsers
@@ -411,44 +411,81 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     
     // Só aplicar parser se realmente tem content-type JSON E content-length válido
     if (contentType.includes('application/json')) {
-        const jsonParser = express.json({
-            verify: (req: any, _res, buf) => {
-                // Apenas capturar rawBody se houver conteúdo
-                if (buf && buf.length > 0) {
-                    req.rawBody = buf;
-                }
-            },
-        });
-        
-        // Wrapper para capturar erros de parsing e enviar ao Sentry
-        return jsonParser(req, res, (err: any) => {
-            if (err) {
-                // Log erro de parsing para Sentry
-                Sentry.captureException(err, {
-                    tags: {
-                        component: 'body-parser',
-                        requestId,
+        try {
+            const jsonParser = express.json({
+                verify: (req: any, _res, buf) => {
+                    // Apenas capturar rawBody se houver conteúdo
+                    if (buf && buf.length > 0) {
+                        req.rawBody = buf;
+                    }
+                },
+            });
+            
+            // Wrapper para capturar erros de parsing e enviar ao Sentry
+            return jsonParser(req, res, (err: any) => {
+                if (err) {
+                    const errorMessage = err?.message || '';
+                    const isBodyError = 
+                        errorMessage.includes('already been read') || 
+                        errorMessage.includes('unusable') ||
+                        errorMessage.includes('has been consumed');
+                    
+                    // Log erro de parsing para Sentry
+                    Sentry.captureException(err, {
+                        tags: {
+                            component: 'body-parser',
+                            parser: 'json',
+                            requestId,
+                            method,
+                            path,
+                            isBodyError: isBodyError.toString(),
+                        },
+                        extra: {
+                            contentLength,
+                            contentType,
+                            bodyAlreadyRead: isBodyError,
+                            skipBodyParsing: (req as any).skipBodyParsing || false,
+                        },
+                    });
+                    
+                    logger.error(`[bodyParser] ${requestId} - Erro ao fazer parse do body JSON`, {
+                        error: errorMessage,
+                        stack: err.stack,
                         method,
                         path,
-                    },
-                    extra: {
                         contentLength,
                         contentType,
-                        bodyAlreadyRead: err.message?.includes('already been read') || err.message?.includes('unusable'),
-                    },
-                });
-                
-                logger.error(`[bodyParser] ${requestId} - Erro ao fazer parse do body`, {
-                    error: err.message,
-                    stack: err.stack,
+                        isBodyError,
+                    });
+                }
+                next(err);
+            });
+        } catch (parseError: any) {
+            // Erro ao configurar o parser - capturar e continuar
+            Sentry.captureException(parseError, {
+                tags: {
+                    component: 'body-parser',
+                    action: 'setup',
+                    requestId,
                     method,
                     path,
+                },
+                extra: {
                     contentLength,
                     contentType,
-                });
-            }
-            next(err);
-        });
+                },
+            });
+            
+            logger.error(`[bodyParser] ${requestId} - Erro ao configurar parser JSON`, {
+                error: parseError?.message,
+                method,
+                path,
+            });
+            
+            // Continuar sem parser
+            (req as any).body = {};
+            return next();
+        }
     }
     
     // Para outros casos, deixar passar (pode ser urlencoded ou nenhum parser)
