@@ -345,6 +345,7 @@ app.use(
 
 // Middleware condicional para body parsing
 // Evita "Body has already been read" para rotas que não usam body
+// CRÍTICO: Este middleware deve vir ANTES de qualquer middleware que possa ler o body
 app.use((req: Request, res: Response, next: NextFunction) => {
     const requestId = (req as any).requestId || 'unknown';
     const contentLength = req.get('content-length');
@@ -353,38 +354,63 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     const method = req.method;
     
     // CRÍTICO: Rota generate-payment NUNCA usa body - pular parsing completamente
+    // Marcar a requisição para que nenhum parser seja aplicado
     const isGeneratePayment = path.includes('/generate-payment');
     
     if (isGeneratePayment) {
-        console.log(`[bodyParser] ${requestId} - Pulando parsing (generate-payment não usa body)`, {
+        // Marcar que esta rota não deve ter body parsing
+        (req as any).skipBodyParsing = true;
+        (req as any).body = {};
+        
+        // Log para Sentry com contexto completo
+        Sentry.addBreadcrumb({
+            category: 'body-parser',
+            message: 'Pulando parsing para rota generate-payment',
+            level: 'info',
+            data: {
+                requestId,
+                method,
+                path,
+                contentLength,
+                contentType,
+                skipBodyParsing: true,
+            },
+        });
+        
+        logger.info(`[bodyParser] ${requestId} - Pulando parsing (generate-payment não usa body)`, {
             method,
             path,
             contentLength,
             contentType,
         });
-        (req as any).body = undefined;
+        
         return next(); // Pular TODOS os parsers
     }
     
-    // Se content-length é '0', não há body - pular parsing
-    if (contentLength === '0') {
-        (req as any).body = undefined;
+    // Se content-length é '0' ou não existe, não há body - pular parsing
+    // IMPORTANTE: Mesmo que venha Content-Type: application/json, se não há content-length
+    // ou é zero, não tentar ler o body (axios pode enviar o header mesmo sem body)
+    if (!contentLength || contentLength === '0') {
+        (req as any).body = {};
         return next();
     }
     
-    // Se não há content-length E não há content-type, provavelmente não tem body
-    if (!contentLength && !contentType && ['POST', 'PUT', 'PATCH'].includes(method)) {
-        (req as any).body = undefined;
+    // Para métodos que não enviam body, pular parsing
+    if (!['POST', 'PUT', 'PATCH'].includes(method)) {
+        (req as any).body = {};
         return next();
     }
     
     // Aplicar express.json() apenas se realmente tem body JSON
+    // Verificar se content-length é válido e não-zero ANTES de verificar content-type
+    const length = parseInt(contentLength, 10);
+    if (isNaN(length) || length === 0) {
+        (req as any).body = {};
+        return next();
+    }
+    
+    // Só aplicar parser se realmente tem content-type JSON E content-length válido
     if (contentType.includes('application/json')) {
-        // Só aplicar se tem content-length não-zero
-        if (!contentLength || contentLength === '0') {
-            return next();
-        }
-        
         const jsonParser = express.json({
             verify: (req: any, _res, buf) => {
                 // Apenas capturar rawBody se houver conteúdo
@@ -393,8 +419,36 @@ app.use((req: Request, res: Response, next: NextFunction) => {
                 }
             },
         });
-        jsonParser(req, res, next);
-        return;
+        
+        // Wrapper para capturar erros de parsing e enviar ao Sentry
+        return jsonParser(req, res, (err: any) => {
+            if (err) {
+                // Log erro de parsing para Sentry
+                Sentry.captureException(err, {
+                    tags: {
+                        component: 'body-parser',
+                        requestId,
+                        method,
+                        path,
+                    },
+                    extra: {
+                        contentLength,
+                        contentType,
+                        bodyAlreadyRead: err.message?.includes('already been read') || err.message?.includes('unusable'),
+                    },
+                });
+                
+                logger.error(`[bodyParser] ${requestId} - Erro ao fazer parse do body`, {
+                    error: err.message,
+                    stack: err.stack,
+                    method,
+                    path,
+                    contentLength,
+                    contentType,
+                });
+            }
+            next(err);
+        });
     }
     
     // Para outros casos, deixar passar (pode ser urlencoded ou nenhum parser)
@@ -403,26 +457,67 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Aplicar urlencoded APENAS para requisições que realmente precisam
 app.use((req: Request, res: Response, next: NextFunction) => {
-    const contentType = req.get('content-type') || '';
-    const contentLength = req.get('content-length');
+    const requestId = (req as any).requestId || 'unknown';
     const path = req.path;
     
-    // CRÍTICO: Nunca aplicar urlencoded em generate-payment
-    if (path.includes('/generate-payment')) {
+    // Se foi marcado para pular parsing, não aplicar urlencoded
+    if ((req as any).skipBodyParsing) {
+        Sentry.addBreadcrumb({
+            category: 'body-parser',
+            message: 'Pulando urlencoded parser (skipBodyParsing=true)',
+            level: 'info',
+            data: {
+                requestId,
+                path,
+            },
+        });
         return next();
     }
     
-    // Se content-length é '0', não aplicar
-    if (contentLength === '0') {
+    const contentType = req.get('content-type') || '';
+    const contentLength = req.get('content-length');
+    
+    // Se content-length é '0' ou não existe, não aplicar
+    if (!contentLength || contentLength === '0') {
         return next();
     }
     
     // Só aplicar urlencoded se realmente tem content-type urlencoded E content-length não-zero
-    if (contentType.includes('application/x-www-form-urlencoded') && contentLength && contentLength !== '0') {
-        express.urlencoded({ extended: true })(req, res, next);
-    } else {
-        next();
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+        const length = parseInt(contentLength, 10);
+        if (!isNaN(length) && length > 0) {
+            // Wrapper para capturar erros de parsing
+            const urlencodedParser = express.urlencoded({ extended: true });
+            return urlencodedParser(req, res, (err: any) => {
+                if (err) {
+                    Sentry.captureException(err, {
+                        tags: {
+                            component: 'body-parser',
+                            parser: 'urlencoded',
+                            requestId,
+                        },
+                        extra: {
+                            method: req.method,
+                            path,
+                            contentLength,
+                            contentType,
+                        },
+                    });
+                    
+                    logger.error(`[bodyParser] ${requestId} - Erro ao fazer parse urlencoded`, {
+                        error: err.message,
+                        method: req.method,
+                        path,
+                        contentLength,
+                        contentType,
+                    });
+                }
+                next(err);
+            });
+        }
     }
+    
+    next();
 });
 
 // Sanitização Global - Proteção XSS

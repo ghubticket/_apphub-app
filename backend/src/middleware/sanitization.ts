@@ -43,6 +43,11 @@ function sanitizeObject(obj: any): any {
 
 // Middleware genérico de sanitização do corpo da requisição
 export function sanitizeBody(req: Request, _res: Response, next: NextFunction) {
+    // Se foi marcado para pular parsing (rotas que não usam body), não sanitizar
+    if ((req as any).skipBodyParsing) {
+        return next();
+    }
+    
     // Verificar se há body válido para sanitizar
     // Ignorar body vazio ou undefined para evitar erros
     try {

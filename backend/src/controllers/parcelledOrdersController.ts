@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import * as Sentry from '@sentry/node';
 import { Event, TicketType, ParcelledOrder, Parcel } from '../models';
 import {
     validateOrderInput,
@@ -231,8 +232,14 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
     const startTime = Date.now();
     
     try {
-        // Log inicial da requisição
-        console.log(`[generateParcelPayment] ${requestId} - Início`, {
+        // Este endpoint não usa body, apenas params
+        // Garantir que body seja sempre um objeto vazio para evitar erros
+        if (!req.body || typeof req.body !== 'object') {
+            (req as any).body = {};
+        }
+        
+        // Log inicial da requisição (sem acessar body profundamente para evitar erros)
+        const logData = {
             method: req.method,
             path: req.path,
             params: req.params,
@@ -240,12 +247,24 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
                 'content-length': req.get('content-length'),
                 'content-type': req.get('content-type'),
             },
-            body: req.body,
+            hasBody: !!req.body,
             bodyType: typeof req.body,
-            bodyKeys: req.body ? Object.keys(req.body) : [],
+            skipBodyParsing: (req as any).skipBodyParsing || false,
+        };
+        
+        console.log(`[generateParcelPayment] ${requestId} - Início`, logData);
+        
+        // Adicionar breadcrumb para Sentry
+        Sentry.addBreadcrumb({
+            category: 'generate-payment',
+            message: 'Iniciando geração de pagamento PIX para parcela',
+            level: 'info',
+            data: {
+                requestId,
+                ...logData,
+            },
         });
         
-        // Este endpoint não usa body, apenas params
         const { id, parcelId } = req.params;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
 
@@ -285,11 +304,24 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
         const result = await generatePaymentForParcel(parcelId);
         
         const duration = Date.now() - startTime;
-        console.log(`[generateParcelPayment] ${requestId} - Sucesso`, {
+        const successData = {
             duration: `${duration}ms`,
             parcelledOrderId: id,
             parcelId: parcelId,
             paymentId: result.pixPayment?.paymentId,
+        };
+        
+        console.log(`[generateParcelPayment] ${requestId} - Sucesso`, successData);
+        
+        // Adicionar breadcrumb de sucesso para Sentry
+        Sentry.addBreadcrumb({
+            category: 'generate-payment',
+            message: 'Pagamento PIX gerado com sucesso',
+            level: 'info',
+            data: {
+                requestId,
+                ...successData,
+            },
         });
 
         return res.json({
@@ -319,6 +351,30 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
             // Este erro geralmente indica que algum middleware tentou ler o body múltiplas vezes
             // Retornar erro mais específico e logar para investigação
             console.error(`[generateParcelPayment] ${requestId} - Erro de body já lido detectado. Endpoint não usa body, pode ser problema de middleware.`);
+            
+            // Capturar erro no Sentry com contexto completo
+            Sentry.captureException(error, {
+                tags: {
+                    component: 'generate-payment',
+                    errorType: 'BODY_ALREADY_READ',
+                    requestId,
+                },
+                extra: {
+                    method: req.method,
+                    path: req.path,
+                    params: req.params,
+                    headers: {
+                        'content-length': req.get('content-length'),
+                        'content-type': req.get('content-type'),
+                    },
+                    skipBodyParsing: (req as any).skipBodyParsing || false,
+                    hasBody: !!req.body,
+                    bodyType: typeof req.body,
+                    duration: `${duration}ms`,
+                },
+                level: 'error',
+            });
+            
             return res.status(500).json({
                 success: false,
                 message: 'Erro interno ao processar requisição. Tente novamente.',
