@@ -283,6 +283,14 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
         }
 
         const result = await generatePaymentForParcel(parcelId);
+        
+        const duration = Date.now() - startTime;
+        console.log(`[generateParcelPayment] ${requestId} - Sucesso`, {
+            duration: `${duration}ms`,
+            parcelledOrderId: id,
+            parcelId: parcelId,
+            paymentId: result.pixPayment?.paymentId,
+        });
 
         return res.json({
             success: true,
@@ -292,22 +300,25 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
             },
         });
     } catch (error: any) {
-        // Log do erro para debug (apenas em desenvolvimento)
-        if (process.env.NODE_ENV === 'development') {
-            console.error('Erro ao gerar pagamento da parcela:', error);
-            console.error('Stack:', error.stack);
-        }
-        
-        // Tratar erros específicos relacionados a body
+        const duration = Date.now() - startTime;
         const errorMessage = error?.message || '';
         const errorString = String(errorMessage).toLowerCase();
+        
+        // Log detalhado do erro (sempre, não só em desenvolvimento)
+        console.error(`[generateParcelPayment] ${requestId} - Erro`, {
+            duration: `${duration}ms`,
+            error: errorMessage,
+            stack: error.stack,
+            errorType: errorString.includes('body') ? 'BODY_ERROR' : 'OTHER',
+            params: req.params,
+        });
         
         if (errorString.includes('body has already been read') || 
             errorString.includes('body is unusable') ||
             errorString.includes('cannot read') && errorString.includes('body')) {
             // Este erro geralmente indica que algum middleware tentou ler o body múltiplas vezes
             // Retornar erro mais específico e logar para investigação
-            console.error('Erro de body já lido detectado. Endpoint não usa body, pode ser problema de middleware.');
+            console.error(`[generateParcelPayment] ${requestId} - Erro de body já lido detectado. Endpoint não usa body, pode ser problema de middleware.`);
             return res.status(500).json({
                 success: false,
                 message: 'Erro interno ao processar requisição. Tente novamente.',

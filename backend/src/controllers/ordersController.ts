@@ -1093,19 +1093,6 @@ export const listMyOrders = async (req: Request, res: Response) => {
                 return orderResponse;
             })
         );
-
-        res.json({
-            success: true,
-            data: {
-                orders: ordersWithFilteredQR,
-                pagination: {
-                    page: Number(page),
-                    limit: Number(limit),
-                    total,
-                    totalPages: Math.ceil(total / Number(limit)),
-                },
-            },
-        });
         
         const duration = Date.now() - startTime;
         console.log(`[listMyOrders] ${requestId} - Sucesso`, {
