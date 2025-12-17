@@ -2,9 +2,9 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { HiOutlineChevronDown, HiOutlineTicket } from 'react-icons/hi2';
-import { 
+import {
     getPaymentStatus as getPaymentStatusAction,
-    generateParcelPayment as generateParcelPaymentAction 
+    generateParcelPayment as generateParcelPaymentAction
 } from '@/app/api/payments/actions';
 import ParcelProgressBar from './ParcelProgressBar';
 import ParcelStatusBadge from './ParcelStatusBadge';
@@ -48,7 +48,7 @@ export default function ParcelledOrderCard({
         qrCodeBase64?: string | null;
         expiresAt?: string | null;
     } | null>(null);
-    
+
     // Estado para armazenar PIX de parcelas individuais
     const [parcelPixInfo, setParcelPixInfo] = useState<Record<string, {
         qrCode?: string | null;
@@ -76,15 +76,15 @@ export default function ParcelledOrderCard({
                 qrCodeBase64: entryParcel.qrCodeBase64,
                 expiresAt: null, // Será buscado em background
             });
-            
+
             // Buscar expiresAt em background (não bloqueia)
             if (entryParcel.paymentId) {
                 // Obter token de autenticação
-                const token = localStorage.getItem('accessToken') || 
-                            sessionStorage.getItem('accessToken') || 
-                            localStorage.getItem('token') || 
-                            null;
-                
+                const token = localStorage.getItem('accessToken') ||
+                    sessionStorage.getItem('accessToken') ||
+                    localStorage.getItem('token') ||
+                    null;
+
                 // Usar Server Action para buscar status (nunca expõe URL da API)
                 getPaymentStatusAction(
                     entryParcel.paymentId,
@@ -111,18 +111,18 @@ export default function ParcelledOrderCard({
                 setGeneratingPixParcelId(parcel._id);
                 setParcelError(null);
 
-console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
+                console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
                     orderId: order._id,
                     parcelId: parcel._id,
                     sequence: parcel.sequence,
                 });
 
                 // Obter token de autenticação
-                const token = localStorage.getItem('accessToken') || 
-                            sessionStorage.getItem('accessToken') || 
-                            localStorage.getItem('token') || 
-                            null;
-                
+                const token = localStorage.getItem('accessToken') ||
+                    sessionStorage.getItem('accessToken') ||
+                    localStorage.getItem('token') ||
+                    null;
+
                 // Usar Server Action para gerar pagamento da parcela (nunca expõe URL da API)
                 const response = await generateParcelPaymentAction(
                     order._id,
@@ -208,15 +208,9 @@ console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
                         <p className="text-xs text-[#7d796c]">Criado em {createdAt}</p>
                     </div>
                     <div className="flex items-center gap-10">
-                        <div className="flex flex-col gap-2">
-                            <span className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-normal ${statusConfig.badgeClass}`}>
-                                {statusConfig.label}
-                            </span>
-                        </div>
                         <HiOutlineChevronDown
-                            className={`hidden md:block text-xl text-[#a38f78] transition-transform duration-300 ${
-                                isExpanded ? 'rotate-180' : ''
-                            }`}
+                            className={`hidden md:block text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''
+                                }`}
                             aria-hidden
                         />
                     </div>
@@ -236,11 +230,10 @@ console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
 
             {/* Conteúdo expandido */}
             <div
-                className={`transition-all duration-500 ${
-                    isExpanded
+                className={`transition-all duration-500 ${isExpanded
                         ? 'pt-6 opacity-100'
                         : 'pointer-events-none max-h-0 opacity-0 overflow-hidden'
-                }`}
+                    }`}
             >
                 {/* Barra de progresso */}
                 <div className="mb-6">
@@ -335,148 +328,148 @@ console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
                             return true;
                         })
                         .map((parcel) => {
-                        const parcelLabel = getParcelLabel(parcel, sortedParcels.length);
-                        const dueLabel = formatDate(parcel.dueDate);
-                        const isEntry = parcel.sequence === 0;
-                        const entryHasPix = isEntry && entryPixInfo && (entryPixInfo.qrCode || entryPixInfo.qrCodeBase64);
-                        
-                        // Mostrar botão "Gerar PIX" apenas se:
-                        // 1. Não for entrada com PIX já mostrado acima
-                        // 2. Status seja 'pending' (não 'payment_generated')
-                        // 3. Entrada esteja paga (se não for a própria entrada)
-                        const canShowButton = !entryHasPix && 
-                                            parcel.status === 'pending' && 
-                                            (isEntry || isEntryPaidValue);
+                            const parcelLabel = getParcelLabel(parcel, sortedParcels.length);
+                            const dueLabel = formatDate(parcel.dueDate);
+                            const isEntry = parcel.sequence === 0;
+                            const entryHasPix = isEntry && entryPixInfo && (entryPixInfo.qrCode || entryPixInfo.qrCodeBase64);
 
-                        return (
-                            <div key={parcel._id} className="rounded-lg border border-[#ded7ca] bg-white/50 p-3">
-                                <div className="flex flex-col md:flex-col items-center justify-between gap-2 md:gap-3">
-                                    {/* Informações da parcela - tudo na mesma linha */}
-                                    <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-2 min-w-0">
-                                        <p className="text-xs font-semibold text-[#1a1a1d] truncate">
-                                            {parcelLabel}
-                                        </p>
-                                        <span className="hidden md:inline text-xs text-[#6a6760]">•</span>
-                                        <p className="text-sm font-bold text-[#1a1a1d] whitespace-nowrap">
-                                            {currencyFormatter.format(parcel.amount)}
-                                        </p>
-                                        <span className="hidden md:inline text-xs text-[#6a6760]">•</span>
-                                        <p className="text-xs text-[#6a6760] truncate">
-                                            Venc: {dueLabel}
-                                        </p>
-                                    </div>
-                                    
-                                    {/* Badge alinhado à direita */}
-                                    <div className="w-full md:w-auto justify-between flex items-center gap-2 flex-shrink-0">
-                                        <ParcelStatusBadge status={parcel.status} size="sm" />
-                                    
-                                        {/* Botão "Gerar PIX" apenas para parcelas pendentes */}
-                                        {canShowButton && (
-                                            <button
-                                                type="button"
-                                                disabled={generatingPixParcelId === parcel._id}
-                                                onClick={() => handleGenerateParcelPix(parcel)}
-                                                className="inline-flex items-center gap-2 rounded-full bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white shadow-sm transition hover:bg-[#f97316] disabled:cursor-not-allowed disabled:opacity-60"
-                                            >
-                                                {generatingPixParcelId === parcel._id ? (
-                                                    <>
-                                                        <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                        </svg>
-                                                        Gerando...
-                                                    </>
-                                                ) : (
-                                                    'Gerar PIX'
-                                                )}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                            // Mostrar botão "Gerar PIX" apenas se:
+                            // 1. Não for entrada com PIX já mostrado acima
+                            // 2. Status seja 'pending' (não 'payment_generated')
+                            // 3. Entrada esteja paga (se não for a própria entrada)
+                            const canShowButton = !entryHasPix &&
+                                parcel.status === 'pending' &&
+                                (isEntry || isEntryPaidValue);
 
-                                {/* Mensagem de erro */}
-                                {parcelError && parcelError.parcelId === parcel._id && (
-                                    <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2">
-                                        <div className="flex items-start justify-between gap-2">
-                                            <p className="text-xs font-semibold text-red-800 flex-1">
-                                                {parcelError.message}
+                            return (
+                                <div key={parcel._id} className="rounded-lg border border-[#ded7ca] bg-white/50 p-3">
+                                    <div className="flex items-start md:items-center flex-col md:flex-col justify-between gap-2 md:gap-3">
+                                        {/* Informações da parcela - tudo na mesma linha */}
+                                        <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-2 min-w-0">
+                                            <p className="text-xs font-semibold text-[#1a1a1d] truncate">
+                                                {parcelLabel}
                                             </p>
-                                            <button
-                                                type="button"
-                                                onClick={() => setParcelError(null)}
-                                                className="text-red-600 hover:text-red-800 transition flex-shrink-0"
-                                                aria-label="Fechar erro"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            <span className="hidden md:inline text-xs text-[#6a6760]">•</span>
+                                            <p className="text-sm font-bold text-[#1a1a1d] whitespace-nowrap">
+                                                {currencyFormatter.format(parcel.amount)}
+                                            </p>
+                                            <span className="hidden md:inline text-xs text-[#6a6760]">•</span>
+                                            <p className="text-xs text-[#6a6760] truncate">
+                                                Venc: {dueLabel}
+                                            </p>
+                                        </div>
+
+                                        {/* Badge alinhado à direita */}
+                                        <div className="w-full md:w-auto justify-between flex items-center gap-2 flex-shrink-0">
+                                            <ParcelStatusBadge status={parcel.status} size="sm" />
+
+                                            {/* Botão "Gerar PIX" apenas para parcelas pendentes */}
+                                            {canShowButton && (
+                                                <button
+                                                    type="button"
+                                                    disabled={generatingPixParcelId === parcel._id}
+                                                    onClick={() => handleGenerateParcelPix(parcel)}
+                                                    className="inline-flex items-center gap-2 rounded-full bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white shadow-sm transition hover:bg-[#f97316] disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    {generatingPixParcelId === parcel._id ? (
+                                                        <>
+                                                            <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                            Gerando...
+                                                        </>
+                                                    ) : (
+                                                        'Gerar PIX'
+                                                    )}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Mensagem de erro */}
+                                    {parcelError && parcelError.parcelId === parcel._id && (
+                                        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <p className="text-xs font-semibold text-red-800 flex-1">
+                                                    {parcelError.message}
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setParcelError(null)}
+                                                    className="text-red-600 hover:text-red-800 transition flex-shrink-0"
+                                                    aria-label="Fechar erro"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* PIX gerado da parcela (não entrada) */}
+                                    {!isEntry && parcelPixInfo[parcel._id] && (parcelPixInfo[parcel._id].qrCode || parcelPixInfo[parcel._id].qrCodeBase64) && (
+                                        <div className="mt-3 pt-3 border-t border-emerald-200 rounded-lg bg-emerald-50/30 p-3">
+                                            <div className="mb-2 flex items-center gap-2">
+                                                <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* PIX gerado da parcela (não entrada) */}
-                                {!isEntry && parcelPixInfo[parcel._id] && (parcelPixInfo[parcel._id].qrCode || parcelPixInfo[parcel._id].qrCodeBase64) && (
-                                    <div className="mt-3 pt-3 border-t border-emerald-200 rounded-lg bg-emerald-50/30 p-3">
-                                        <div className="mb-2 flex items-center gap-2">
-                                            <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            <span className="text-xs font-semibold uppercase tracking-normal text-emerald-800">
-                                                PIX para Pagamento desta Parcela
-                                            </span>
-                                        </div>
-
-                                        {parcelPixInfo[parcel._id].expiresAt && (
-                                            <div className="mb-2">
-                                                <PixExpirationTimer expiresAt={parcelPixInfo[parcel._id].expiresAt!} />
+                                                <span className="text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                    PIX para Pagamento desta Parcela
+                                                </span>
                                             </div>
-                                        )}
 
-                                        {parcelPixInfo[parcel._id].qrCodeBase64 && (
-                                            <div className="mb-3 flex justify-center">
-                                                <img
-                                                    src={`data:image/png;base64,${parcelPixInfo[parcel._id].qrCodeBase64}`}
-                                                    alt="QR Code PIX Parcela"
-                                                    className="h-40 w-40 rounded-lg border-2 border-emerald-200 bg-white p-2"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {parcelPixInfo[parcel._id].qrCode && (
-                                            <div>
-                                                <label className="mb-2 block text-center text-xs font-semibold uppercase tracking-normal text-emerald-800">
-                                                    Código PIX (Copiar e Colar)
-                                                </label>
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        readOnly
-                                                        value={parcelPixInfo[parcel._id].qrCode!}
-                                                        className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                                        onClick={(e) => (e.target as HTMLInputElement).select()}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => onPixCodeCopy(`parcel-${parcel._id}`, parcelPixInfo[parcel._id].qrCode!)}
-                                                        className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
-                                                    >
-                                                        {pixCodeCopied[`parcel-${parcel._id}`] ? '✓ Copiado!' : 'Copiar'}
-                                                    </button>
+                                            {parcelPixInfo[parcel._id].expiresAt && (
+                                                <div className="mb-2">
+                                                    <PixExpirationTimer expiresAt={parcelPixInfo[parcel._id].expiresAt!} />
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
 
-                                        <div className="mt-2 text-center">
-                                            <p className="text-xs text-emerald-600">
-                                                💳 Aguardando pagamento da parcela
-                                            </p>
+                                            {parcelPixInfo[parcel._id].qrCodeBase64 && (
+                                                <div className="mb-3 flex justify-center">
+                                                    <img
+                                                        src={`data:image/png;base64,${parcelPixInfo[parcel._id].qrCodeBase64}`}
+                                                        alt="QR Code PIX Parcela"
+                                                        className="h-40 w-40 rounded-lg border-2 border-emerald-200 bg-white p-2"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {parcelPixInfo[parcel._id].qrCode && (
+                                                <div>
+                                                    <label className="mb-2 block text-center text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                        Código PIX (Copiar e Colar)
+                                                    </label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            readOnly
+                                                            value={parcelPixInfo[parcel._id].qrCode!}
+                                                            className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => onPixCodeCopy(`parcel-${parcel._id}`, parcelPixInfo[parcel._id].qrCode!)}
+                                                            className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
+                                                        >
+                                                            {pixCodeCopied[`parcel-${parcel._id}`] ? '✓ Copiado!' : 'Copiar'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="mt-2 text-center">
+                                                <p className="text-xs text-emerald-600">
+                                                    💳 Aguardando pagamento da parcela
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
+                                    )}
+                                </div>
+                            );
+                        })}
                 </div>
 
                 {/* Botão para visualizar ingressos (se tiver tickets disponíveis) */}
