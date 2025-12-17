@@ -233,36 +233,19 @@ export default function DashboardPage() {
                     };
                 })
                 .filter((order: ParcelledOrderWithParcels) => {
-                    // Filtrar pedidos cancelados por entrada não paga
+                    // CRÍTICO: Só ocultar pedidos cancelados se a entrada NÃO foi paga
+                    // Se entrada foi paga mas 2+ parcelas atrasadas → MOSTRAR (tem histórico)
                     if (order.status === 'cancelled') {
                         const entryParcel = order.parcels.find((p: ParcelSummary) => p.sequence === 0);
                         const entryWasPaid = entryParcel?.status === 'paid';
                         
-                        // Só mostrar cancelados se a entrada foi paga (cancelado por atraso de parcelas)
+                        // Só mostrar cancelados se a entrada foi paga
                         return entryWasPaid;
                     }
                     
-                    // Filtrar pedidos pending_entry com PIX expirado
-                    if (order.status === 'pending_entry') {
-                        const entryParcel = order.parcels.find((p: ParcelSummary) => p.sequence === 0);
-                        
-                        // Se entrada tem PIX gerado, verificar se expirou
-                        if (entryParcel?.status === 'payment_generated' && entryParcel.qrCode) {
-                            // Verificar se tem expiração e se já passou
-                            const pixExpiration = entryParcel.dueDate;
-                            if (pixExpiration) {
-                                const expirationDate = new Date(pixExpiration);
-                                const now = new Date();
-                                
-                                // Se expirou, não mostrar (será cancelado pelo backend)
-                                if (now > expirationDate) {
-                                    return false;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Mostrar todos os outros status
+                    // Mostrar todos os outros status (pending_entry, active, completed)
+                    // IMPORTANTE: NÃO filtrar pending_entry mesmo com PIX expirado
+                    // O backend vai cancelar, mas enquanto isso o usuário pode ver
                     return true;
                 });
 
