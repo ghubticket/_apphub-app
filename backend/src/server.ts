@@ -440,19 +440,27 @@ app.use(
     cors({
         origin: (origin, callback) => {
             if (!origin) {
+                // Sem origin (ex: requisições do mesmo domínio, mobile apps)
                 return callback(null, true);
             }
+            
             const normalizedOrigin = normalizeOrigin(origin);
+            
+            // Log para debug em produção
+            if ((process.env.NODE_ENV || 'development') === 'production') {
+                logger.debug(`[CORS] Verificando origin: ${origin} -> ${normalizedOrigin}`);
+            }
+            
             if (allowedOrigins.includes(normalizedOrigin)) {
                 return callback(null, true);
             }
 
-            // Permitir domínio principal vicente.app (com e sem www)
-            const vicenteAppRegex = /^https:\/\/(www\.)?vicente\.app$/;
+            // Permitir domínio principal vicente.app (com e sem www, com ou sem porta)
+            const vicenteAppRegex = /^https:\/\/(www\.)?vicente\.app(:[0-9]+)?$/;
             if (vicenteAppRegex.test(normalizedOrigin)) {
                 if (!warnedCorsOrigins.has(normalizedOrigin)) {
                     warnedCorsOrigins.add(normalizedOrigin);
-                    logger.info(`[CORS] Permitindo origin vicente.app: ${normalizedOrigin}`);
+                    logger.info(`[CORS] Permitindo origin vicente.app: ${normalizedOrigin} (original: ${origin})`);
                 }
                 return callback(null, true);
             }

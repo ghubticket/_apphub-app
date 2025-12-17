@@ -37,6 +37,9 @@ export const generalRateLimit = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+    // CRÍTICO: Pular rate limiting para requisições OPTIONS (preflight CORS)
+    // Essas requisições são necessárias para o CORS funcionar corretamente
+    skip: (req: Request) => req.method === 'OPTIONS',
 });
 
 /**
