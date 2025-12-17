@@ -15,6 +15,10 @@ import RequestsSection from './components/RequestsSection';
 import TicketModal from './components/TicketModal';
 import SecurityModal from './components/SecurityModal';
 import { groupOrdersByEvent } from './utils/groupOrders';
+import { 
+    listParcelledOrders as listParcelledOrdersAction,
+    getParcelledOrder as getParcelledOrderAction 
+} from '@/app/api/payments/actions';
 import { isEntryPixExpired } from './utils/parcelHelpers';
 import type { 
     TabKey, 
@@ -193,8 +197,17 @@ export default function DashboardPage() {
             setParcelledLoading(true);
             setParcelledError('');
 
-            const response = await api.get('/parcelled-orders');
-            const data = response.data?.data;
+            // Obter token de autenticação
+            const token = localStorage.getItem('accessToken') || 
+                        sessionStorage.getItem('accessToken') || 
+                        localStorage.getItem('token') || 
+                        null;
+            
+            // Usar Server Action para listar pedidos parcelados (nunca expõe URL da API)
+            const response = await listParcelledOrdersAction(
+                token ? { 'Authorization': `Bearer ${token}` } : {}
+            );
+            const data = response?.data;
 
             const ordersRaw = Array.isArray(data?.orders) ? data.orders : [];
             const parcelsRaw = data?.parcelsByOrder || {};
@@ -355,8 +368,18 @@ export default function DashboardPage() {
     const handleParcelPaid = useCallback(
         async (parcelledOrderId: string, parcelId: string, sequence: number) => {
             try {
-                const response = await api.get(`/parcelled-orders/${parcelledOrderId}`);
-                const parcelledOrder = response.data?.data?.parcelledOrder;
+                // Obter token de autenticação
+                const token = localStorage.getItem('accessToken') || 
+                            sessionStorage.getItem('accessToken') || 
+                            localStorage.getItem('token') || 
+                            null;
+                
+                // Usar Server Action para buscar pedido parcelado (nunca expõe URL da API)
+                const response = await getParcelledOrderAction(
+                    parcelledOrderId,
+                    token ? { 'Authorization': `Bearer ${token}` } : {}
+                );
+                const parcelledOrder = response?.data?.parcelledOrder;
 
                 if (parcelledOrder) {
                     const eventName =
@@ -365,8 +388,18 @@ export default function DashboardPage() {
                         'Evento';
 
                     // Buscar parcelas para verificar se é a última
-                    const parcelsResponse = await api.get(`/parcelled-orders/${parcelledOrderId}`);
-                    const parcels = parcelsResponse.data?.data?.parcels || [];
+                    // Obter token de autenticação
+                    const token = localStorage.getItem('accessToken') || 
+                                sessionStorage.getItem('accessToken') || 
+                                localStorage.getItem('token') || 
+                                null;
+                    
+                    // Usar Server Action para buscar pedido parcelado (nunca expõe URL da API)
+                    const parcelsResponse = await getParcelledOrderAction(
+                        parcelledOrderId,
+                        token ? { 'Authorization': `Bearer ${token}` } : {}
+                    );
+                    const parcels = parcelsResponse?.data?.parcels || [];
                     const totalParcels = parcels.length;
                     const isLastParcel = sequence === totalParcels - 1;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useEffect } from 'react';
-import api from '@/lib/api';
+import { getParcelledOrder as getParcelledOrderAction } from '@/app/api/payments/actions';
 import { useRouter } from 'next/navigation';
 
 interface UseParcelledOrderPollingOptions {
@@ -59,9 +59,20 @@ export function useParcelledOrderPolling({
             }
 
             try {
-                const response = await api.get(`/parcelled-orders/${parcelledOrderId}`);
-                const parcelledOrder = response.data?.data?.parcelledOrder;
-                const parcels = response.data?.data?.parcels || [];
+                // Obter token de autenticação
+                const token = localStorage.getItem('accessToken') || 
+                            sessionStorage.getItem('accessToken') || 
+                            localStorage.getItem('token') || 
+                            null;
+                
+                // Usar Server Action para buscar pedido parcelado (nunca expõe URL da API)
+                const response = await getParcelledOrderAction(
+                    parcelledOrderId,
+                    token ? { 'Authorization': `Bearer ${token}` } : {}
+                );
+                
+                const parcelledOrder = response?.data?.parcelledOrder;
+                const parcels = response?.data?.parcels || [];
 
                 if (parcelledOrder && parcels.length > 0) {
                     // Buscar parcela de entrada (sequence 0)

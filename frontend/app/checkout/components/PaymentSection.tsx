@@ -10,7 +10,10 @@ import type { UsePixPaymentReturn } from '../hooks/usePixPayment';
 import { clearCartItems } from '@/lib/cart';
 import { storageHelpers } from '../utils/storageHelpers';
 import { getMercadoPagoDeviceId } from '../utils/deviceIdHelper';
-import api from '@/lib/api';
+import { 
+    createParcelledOrder as createParcelledOrderAction,
+    getPaymentStatus as getPaymentStatusAction 
+} from '@/app/api/payments/actions';
 
 const CardPaymentFormBrick = dynamic(
     () => import('./CardPaymentFormBrick').then((mod) => ({ default: mod.CardPaymentFormBrick })),
@@ -247,22 +250,32 @@ export function PaymentSection({
                 deviceId: deviceId?.substring(0, 20) + '...', // Log parcial por segurança
             });
 
-            const response = await api.post('/parcelled-orders', payload);
+            // Obter token de autenticação
+            const token = localStorage.getItem('accessToken') || 
+                        sessionStorage.getItem('accessToken') || 
+                        localStorage.getItem('token') || 
+                        null;
+            
+            // Usar Server Action para criar pedido parcelado (nunca expõe URL da API)
+            const response = await createParcelledOrderAction(
+                payload,
+                token ? { 'Authorization': `Bearer ${token}` } : {}
+            );
 
             // Log da resposta
             console.log('[PaymentSection] Resposta do backend:', {
-                success: response.data?.success,
-                hasParcelledOrder: !!response.data?.data?.parcelledOrder,
-                hasParcels: !!response.data?.data?.parcels,
-                hasEntryPixPayment: !!response.data?.data?.entryPixPayment,
-                parcelledOrderId: response.data?.data?.parcelledOrder?._id || response.data?.data?.parcelledOrder?.id,
+                success: response?.success,
+                hasParcelledOrder: !!response?.data?.parcelledOrder,
+                hasParcels: !!response?.data?.parcels,
+                hasEntryPixPayment: !!response?.data?.entryPixPayment,
+                parcelledOrderId: response?.data?.parcelledOrder?._id || response?.data?.parcelledOrder?.id,
             });
 
-            if (!response.data?.success || !response.data?.data?.parcelledOrder) {
-                throw new Error(response.data?.message || 'Erro ao criar venda parcelada. Tente novamente.');
+            if (!response?.success || !response?.data?.parcelledOrder) {
+                throw new Error(response?.message || 'Erro ao criar venda parcelada. Tente novamente.');
             }
 
-            const { parcelledOrder, parcels, entryPixPayment } = response.data.data;
+            const { parcelledOrder, parcels, entryPixPayment } = response.data;
 
             // Buscar a parcela de entrada (sequence 0) que deve ter o QR code
             const entryParcel = Array.isArray(parcels)
@@ -289,8 +302,18 @@ export function PaymentSection({
                         console.log('[PaymentSection] Buscando expiração do PIX via API...', {
                             paymentId: entryParcel.paymentId,
                         });
-                        const paymentStatusResp = await api.get(`/payments/${entryParcel.paymentId}/status`);
-                        expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
+                        // Obter token de autenticação
+                        const token = localStorage.getItem('accessToken') || 
+                                    sessionStorage.getItem('accessToken') || 
+                                    localStorage.getItem('token') || 
+                                    null;
+                        
+                        // Usar Server Action para buscar status (nunca expõe URL da API)
+                        const paymentStatusResp = await getPaymentStatusAction(
+                            entryParcel.paymentId,
+                            token ? { 'Authorization': `Bearer ${token}` } : {}
+                        );
+                        expiresAt = paymentStatusResp?.data?.expiresAt || null;
                         console.log('[PaymentSection] Expiração obtida:', { expiresAt });
                     } catch (error) {
                         // Log do erro ao buscar expiração

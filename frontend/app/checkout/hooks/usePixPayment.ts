@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import type { PixPaymentResult } from '../types';
 import { getMercadoPagoDeviceId, waitForMercadoPagoDeviceId } from '../utils/deviceIdHelper';
-import api from '@/lib/api';
+import { createPixPayment as createPixPaymentAction, getPaymentStatus as getPaymentStatusAction } from '@/app/api/payments/actions';
 import { useAuth } from '@/context/AuthContext';
 import { useCheckoutStorage } from './useCheckoutStorage';
 import { useCheckoutNavigation } from './useCheckoutNavigation';
@@ -338,29 +338,35 @@ export function usePixPayment(
                 });
             }
             
-            const response = await api.post(
-                `/payments/${orderId}/pix`,
+            // Obter token de autenticação
+            const token = localStorage.getItem('accessToken') || 
+                        sessionStorage.getItem('accessToken') || 
+                        localStorage.getItem('token') || 
+                        null;
+            
+            // Usar Server Action para criar PIX (nunca expõe URL da API)
+            const response = await createPixPaymentAction(
+                orderId,
                 requestBody,
                 {
-                    headers: {
-                        'X-meli-session-id': deviceId,
-                    },
+                    'X-meli-session-id': deviceId,
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                 }
             );
 
             // Log da resposta
             console.log('[usePixPayment] Resposta do backend:', {
-                success: response.data?.success,
-                hasData: !!response.data?.data,
-                hasPaymentId: !!response.data?.data?.paymentId,
-                hasQrCode: !!response.data?.data?.qrCode,
-                hasCreatedOrderId: !!response.data?.data?.createdOrderId,
-                status: response.data?.data?.status,
+                success: response?.success,
+                hasData: !!response?.data,
+                hasPaymentId: !!response?.data?.paymentId,
+                hasQrCode: !!response?.data?.qrCode,
+                hasCreatedOrderId: !!response?.data?.createdOrderId,
+                status: response?.data?.status,
             });
 
-            const paymentResult = response.data?.data || response.data;
+            const paymentResult = response?.data || response;
             
-            if (paymentResult && response.data?.success) {
+            if (paymentResult && response?.success) {
                 // NOVO: Se pedido real foi criado, atualizar orderId ANTES de iniciar polling
                 const realOrderId = paymentResult.createdOrderId || orderId;
                 const finalOrderId = realOrderId || orderId;

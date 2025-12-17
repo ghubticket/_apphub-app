@@ -2,7 +2,10 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { HiOutlineChevronDown, HiOutlineTicket } from 'react-icons/hi2';
-import api from '@/lib/api';
+import { 
+    getPaymentStatus as getPaymentStatusAction,
+    generateParcelPayment as generateParcelPaymentAction 
+} from '@/app/api/payments/actions';
 import ParcelProgressBar from './ParcelProgressBar';
 import ParcelStatusBadge from './ParcelStatusBadge';
 import PixExpirationTimer from '../PixExpirationTimer';
@@ -76,9 +79,19 @@ export default function ParcelledOrderCard({
             
             // Buscar expiresAt em background (não bloqueia)
             if (entryParcel.paymentId) {
-                api.get(`/payments/${entryParcel.paymentId}/status`)
+                // Obter token de autenticação
+                const token = localStorage.getItem('accessToken') || 
+                            sessionStorage.getItem('accessToken') || 
+                            localStorage.getItem('token') || 
+                            null;
+                
+                // Usar Server Action para buscar status (nunca expõe URL da API)
+                getPaymentStatusAction(
+                    entryParcel.paymentId,
+                    token ? { 'Authorization': `Bearer ${token}` } : {}
+                )
                     .then(response => {
-                        const expiresAt = response.data?.data?.expiresAt || null;
+                        const expiresAt = response?.data?.expiresAt || null;
                         setEntryPixInfo(prev => ({
                             ...prev!,
                             expiresAt,
@@ -104,16 +117,25 @@ console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
                     sequence: parcel.sequence,
                 });
 
-                const response = await api.post(
-                    `/parcelled-orders/${order._id}/parcels/${parcel._id}/generate-payment`,
+                // Obter token de autenticação
+                const token = localStorage.getItem('accessToken') || 
+                            sessionStorage.getItem('accessToken') || 
+                            localStorage.getItem('token') || 
+                            null;
+                
+                // Usar Server Action para gerar pagamento da parcela (nunca expõe URL da API)
+                const response = await generateParcelPaymentAction(
+                    order._id,
+                    parcel._id,
+                    token ? { 'Authorization': `Bearer ${token}` } : {}
                 );
 
                 console.log('[ParcelledOrderCard] Resposta do generate-payment', {
-                    success: response.data?.success,
-                    hasPixPayment: !!response.data?.data?.pixPayment,
+                    success: response?.success,
+                    hasPixPayment: !!response?.data?.pixPayment,
                 });
 
-                const pixData = response.data?.data?.pixPayment;
+                const pixData = response?.data?.pixPayment;
 
                 // Se for entrada, atualizar entryPixInfo
                 if (parcel.sequence === 0) {

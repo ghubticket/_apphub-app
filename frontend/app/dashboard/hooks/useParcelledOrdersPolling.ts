@@ -24,8 +24,17 @@ export function useParcelledOrdersPolling({
         try {
             isPollingRef.current = true;
 
-            const response = await api.get('/parcelled-orders');
-            const data = response.data?.data;
+            // Obter token de autenticação
+            const token = localStorage.getItem('accessToken') || 
+                        sessionStorage.getItem('accessToken') || 
+                        localStorage.getItem('token') || 
+                        null;
+            
+            // Usar Server Action para listar pedidos parcelados (nunca expõe URL da API)
+            const response = await listParcelledOrdersAction(
+                token ? { 'Authorization': `Bearer ${token}` } : {}
+            );
+            const data = response?.data;
 
             const ordersRaw = Array.isArray(data?.orders) ? data.orders : [];
             const parcelsRaw = data?.parcelsByOrder || {};

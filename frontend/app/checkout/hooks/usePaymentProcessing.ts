@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import api from "@/lib/api";
+import { createCardPayment as createCardPaymentAction } from "@/app/api/payments/actions";
 import { useAuth } from "@/context/AuthContext";
 import {
   getMercadoPagoDeviceId,
@@ -255,23 +255,32 @@ export function usePaymentProcessing({
           cartItemsCount: isFakeOrder ? payload.cartItems?.length : 0,
         });
 
-        // Enviar requisição com deviceId no body e header
-        const response = await api.post(`/payments/${orderId}/card`, payload, {
-          headers: {
-            "X-meli-session-id": deviceId,
-          },
-        });
+        // Obter token de autenticação
+        const token = localStorage.getItem('accessToken') || 
+                    sessionStorage.getItem('accessToken') || 
+                    localStorage.getItem('token') || 
+                    null;
+        
+        // Usar Server Action para processar pagamento com cartão (nunca expõe URL da API)
+        const response = await createCardPaymentAction(
+          orderId,
+          payload,
+          {
+            'X-meli-session-id': deviceId,
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          }
+        );
 
         // Log da resposta
         console.log('[usePaymentProcessing] Resposta do backend:', {
-          success: response.data?.success,
-          hasData: !!response.data?.data,
-          status: response.data?.data?.status,
-          statusDetail: response.data?.data?.statusDetail,
-          hasCreatedOrderId: !!response.data?.data?.createdOrderId,
+          success: response?.success,
+          hasData: !!response?.data,
+          status: response?.data?.status,
+          statusDetail: response?.data?.statusDetail,
+          hasCreatedOrderId: !!response?.data?.createdOrderId,
         });
 
-        const paymentResult = response.data?.data || response.data;
+        const paymentResult = response?.data || response;
         const statusInfo = paymentResult?.statusInfo;
 
         // NOVO: Se pedido real foi criado, atualizar orderId
@@ -298,7 +307,7 @@ export function usePaymentProcessing({
           paymentStatus === "paid" ||
           paymentStatus === "processed" ||
           statusInfo?.internalStatus === "paid" ||
-          (response.data?.success &&
+          (response?.success &&
             paymentStatus !== "rejected" &&
             paymentStatus !== "cancelled" &&
             paymentStatus !== "failed");
