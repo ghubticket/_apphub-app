@@ -271,6 +271,12 @@ export function usePaymentProcessing({
           }
         );
 
+        // Verificar se houve erro na Server Action
+        if (response?.error || !response?.success) {
+          const errorMessage = response?.message || 'Erro ao processar pagamento com cartão';
+          throw new Error(errorMessage);
+        }
+
         // Log da resposta
         console.log('[usePaymentProcessing] Resposta do backend:', {
           success: response?.success,
@@ -414,9 +420,9 @@ export function usePaymentProcessing({
         console.error('[usePaymentProcessing] Erro ao processar pagamento com cartão:', {
           error: error instanceof Error ? error.message : String(error),
           errorStack: error instanceof Error ? error.stack : undefined,
-          responseStatus: error?.response?.status,
-          responseData: error?.response?.data,
-          responseErrors: error?.response?.data?.errors,
+          responseStatus: error?.response?.status || error?.statusCode,
+          responseData: error?.response?.data || error?.data,
+          responseErrors: error?.response?.data?.errors || error?.errors,
           requestUrl: `/payments/${orderId}/card`,
           requestPayload: {
             hasDeviceId: !!payload?.deviceId,
@@ -428,14 +434,14 @@ export function usePaymentProcessing({
 
         setStatus("error");
 
-        // Tratar diferentes tipos de erro
-        const errorResponse = error?.response?.data;
-        const statusCode = error?.response?.status;
+        // Tratar diferentes tipos de erro (Server Action ou axios)
+        const errorResponse = error?.response?.data || error?.data;
+        const statusCode = error?.response?.status || error?.statusCode;
         const errorMessage =
           errorResponse?.message ||
           error?.message ||
           "Erro ao processar pagamento";
-        const errorDetails = errorResponse?.errors || [];
+        const errorDetails = errorResponse?.errors || error?.errors || [];
         const errorDetailsFull = errorResponse?.errorDetails || null;
 
         // Verificar se esgotou tentativas no erro

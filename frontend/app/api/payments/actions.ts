@@ -44,15 +44,32 @@ export async function createPixPayment(
             body: JSON.stringify(data),
         });
 
+        const responseData = await response.json().catch(() => ({}));
+
+        // Se não foi OK, retornar objeto de erro estruturado em vez de lançar exceção
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Erro ao criar pagamento PIX' }));
-            throw new Error(error.message || 'Erro ao criar pagamento PIX');
+            return {
+                success: false,
+                error: true,
+                message: responseData.message || 'Erro ao criar pagamento PIX',
+                statusCode: response.status,
+                data: responseData.data || null,
+                errors: responseData.errors || null,
+            };
         }
 
-        return await response.json();
+        return responseData;
     } catch (error: any) {
         console.error('[Server Action] Erro ao criar PIX:', error);
-        throw error;
+        // Retornar objeto de erro em vez de lançar exceção
+        return {
+            success: false,
+            error: true,
+            message: error.message || 'Erro ao criar pagamento PIX',
+            statusCode: 500,
+            data: null,
+            errors: null,
+        };
     }
 }
 
@@ -79,15 +96,32 @@ export async function createCardPayment(
             body: JSON.stringify(data),
         });
 
+        const responseData = await response.json().catch(() => ({}));
+
+        // Se não foi OK, retornar objeto de erro estruturado em vez de lançar exceção
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Erro ao processar pagamento com cartão' }));
-            throw new Error(error.message || 'Erro ao processar pagamento com cartão');
+            return {
+                success: false,
+                error: true,
+                message: responseData.message || 'Erro ao processar pagamento com cartão',
+                statusCode: response.status,
+                data: responseData.data || null,
+                errors: responseData.errors || null,
+            };
         }
 
-        return await response.json();
+        return responseData;
     } catch (error: any) {
         console.error('[Server Action] Erro ao processar cartão:', error);
-        throw error;
+        // Retornar objeto de erro em vez de lançar exceção
+        return {
+            success: false,
+            error: true,
+            message: error.message || 'Erro ao processar pagamento com cartão',
+            statusCode: 500,
+            data: null,
+            errors: null,
+        };
     }
 }
 

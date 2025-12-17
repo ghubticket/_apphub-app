@@ -354,6 +354,12 @@ export function usePixPayment(
                 }
             );
 
+            // Verificar se houve erro na Server Action
+            if (response?.error || !response?.success) {
+                const errorMessage = response?.message || 'Erro ao gerar pagamento PIX';
+                throw new Error(errorMessage);
+            }
+
             // Log da resposta
             console.log('[usePixPayment] Resposta do backend:', {
                 success: response?.success,
@@ -443,7 +449,9 @@ export function usePixPayment(
                 },
             });
 
-            const errorMessage = err?.response?.data?.message || 
+            // Tratar erros de Server Action ou axios
+            const errorResponse = err?.response?.data || err?.data;
+            const errorMessage = errorResponse?.message || 
                                 err?.message || 
                                 'Erro ao gerar QR Code PIX. Tente novamente.';
             
