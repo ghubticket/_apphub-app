@@ -19,6 +19,30 @@ export async function GET(
     request: NextRequest,
     { params }: { params: { path: string[] } }
 ) {
+    // CRÍTICO: Verificar se é rota de pagamento que chegou como GET por engano
+    const apiPath = Array.isArray(params.path) ? params.path.join('/') : String(params.path);
+    const isPaymentRoute = apiPath.includes('/payments/') && (apiPath.includes('/pix') || apiPath.includes('/card'));
+    
+    if (isPaymentRoute) {
+        console.error('[Proxy] ERRO CRÍTICO: Rota de pagamento recebida como GET!', {
+            apiPath,
+            requestMethod: request.method,
+            requestUrl: request.url,
+            hint: 'Esta rota requer POST. Verifique se o cliente está fazendo POST corretamente.',
+        });
+        
+        return NextResponse.json(
+            { 
+                success: false, 
+                message: 'Método HTTP incorreto. Esta rota requer POST.',
+                error: `Método recebido: GET, esperado: POST`,
+                path: apiPath,
+                hint: 'Esta é uma rota de pagamento que requer método POST. Verifique se o cliente está fazendo POST corretamente.',
+            },
+            { status: 405 } // Method Not Allowed
+        );
+    }
+    
     return handleRequest(request, params, 'GET');
 }
 
@@ -81,28 +105,55 @@ async function handleRequest(
     // CRÍTICO: Log do método original da requisição para debug
     const originalMethod = request.method;
     
-    // CRÍTICO: Validar método antes de processar
-    if (method !== originalMethod) {
+    // Reconstruir o caminho da API para verificar se é fake order
+    const apiPath = Array.isArray(params.path) ? params.path.join('/') : String(params.path);
+    const isFakeOrder = apiPath.includes('fake-');
+    const isPaymentRoute = apiPath.includes('/payments/');
+    
+    // CRÍTICO: Se for fake order ou rota de pagamento, DEVE ser POST
+    // Se chegou GET mas é rota de pagamento, corrigir para POST
+    if (isFakeOrder || (isPaymentRoute && apiPath.includes('/pix') || apiPath.includes('/card'))) {
+        if (originalMethod !== 'POST' && method !== 'POST') {
+            console.error('[Proxy] ERRO CRÍTICO: Rota de pagamento recebida com método incorreto:', {
+                expected: 'POST',
+                actual: originalMethod,
+                method,
+                apiPath,
+                url: request.url,
+            });
+            
+            // Se estivermos na função GET mas é rota de pagamento, retornar erro
+            if (method === 'GET') {
+                return NextResponse.json(
+                    { 
+                        success: false, 
+                        message: 'Método HTTP incorreto. Esta rota requer POST.',
+                        error: `Método recebido: ${originalMethod}, esperado: POST`,
+                        path: apiPath,
+                    },
+                    { status: 405 } // Method Not Allowed
+                );
+            }
+        }
+        
+        // Forçar método POST para rotas de pagamento
+        if (method !== 'POST') {
+            console.warn('[Proxy] CORREÇÃO: Forçando POST para rota de pagamento:', {
+                originalMethod,
+                method,
+                apiPath,
+            });
+        }
+    }
+    
+    // Validar método antes de processar (após correção)
+    if (method !== originalMethod && !isFakeOrder && !isPaymentRoute) {
         console.error('[Proxy] ERRO CRÍTICO: Método HTTP diferente:', {
             expected: method,
             actual: originalMethod,
-            path: params.path?.join('/'),
+            path: apiPath,
             url: request.url,
         });
-        
-        // Se for fake order e método estiver errado, retornar erro imediatamente
-        const apiPath = Array.isArray(params.path) ? params.path.join('/') : String(params.path);
-        if (apiPath.includes('fake-') && originalMethod !== 'POST') {
-            return NextResponse.json(
-                { 
-                    success: false, 
-                    message: 'Método HTTP incorreto. Esta rota requer POST.',
-                    error: `Método recebido: ${originalMethod}, esperado: POST`,
-                    path: apiPath,
-                },
-                { status: 405 } // Method Not Allowed
-            );
-        }
     }
     
     try {
@@ -242,45 +293,47 @@ async function handleRequest(
             headers['Authorization'] = authHeader;
         }
 
-        // CRÍTICO: Verificar se o método está correto antes de fazer a requisição
-        // Se for fake order, DEVE ser POST
-        if (apiPath.includes('fake-') && method !== 'POST') {
-            console.error('[Proxy] ERRO CRÍTICO: Método incorreto para fake order:', {
+        // CRÍTICO: Forçar POST para rotas de pagamento mesmo se chegou GET
+        // Isso corrige problemas do Next.js que pode chamar GET quando deveria ser POST
+        const isPaymentEndpoint = apiPath.includes('/payments/') && (apiPath.includes('/pix') || apiPath.includes('/card'));
+        const finalMethod = (isPaymentEndpoint || isFakeOrder) ? 'POST' : method;
+        
+        // Se tivermos que forçar POST, logar
+        if (finalMethod !== method || finalMethod !== originalMethod) {
+            console.warn('[Proxy] CORREÇÃO: Forçando método POST para rota de pagamento:', {
+                originalMethod,
                 method,
-                originalMethod: originalMethod,
+                finalMethod,
                 apiPath,
-                expected: 'POST',
+                isPaymentEndpoint,
+                isFakeOrder,
+            });
+        }
+        
+        // Se chegou GET mas é rota de pagamento, retornar erro explicativo
+        if (originalMethod === 'GET' && isPaymentEndpoint && method === 'GET') {
+            console.error('[Proxy] ERRO: Rota de pagamento recebida como GET:', {
+                originalMethod,
+                method,
+                apiPath,
                 requestUrl: request.url,
             });
             return NextResponse.json(
                 { 
                     success: false, 
                     message: 'Método HTTP incorreto. Esta rota requer POST.',
-                    error: `Método recebido: ${method}, esperado: POST`,
+                    error: `Método recebido: ${originalMethod}, esperado: POST`,
                     path: apiPath,
+                    hint: 'Esta é uma rota de pagamento que requer método POST. Verifique se o cliente está fazendo POST corretamente.',
                 },
                 { status: 405 } // Method Not Allowed
             );
-        }
-        
-        // CRÍTICO: Se método original não for POST mas estamos na função POST, algo está errado
-        if (originalMethod !== 'POST' && method === 'POST') {
-            console.error('[Proxy] ERRO CRÍTICO: Função POST chamada mas request.method não é POST:', {
-                method,
-                originalMethod: originalMethod,
-                apiPath,
-                requestUrl: request.url,
-            });
-            // Continuar mesmo assim, mas logar o erro
         }
 
         // Fazer requisição para a API backend (fetch padrão)
         // CRÍTICO: Aumentar timeout para 90 segundos para operações que podem demorar (criar pedido + gerar PIX)
         // O axios já tem timeout de 90s, mas o proxy também precisa ter timeout maior
         const timeoutMs = apiPath.includes('fake-') || apiPath.includes('/payments/') ? 90000 : 30000; // 90s para fake orders/payments, 30s para outros
-        
-        // CRÍTICO: Garantir que estamos usando POST para fake orders
-        const finalMethod = (apiPath.includes('fake-') && method !== 'POST') ? 'POST' : method;
         
         if (finalMethod !== method) {
             console.error('[Proxy] CORREÇÃO: Forçando método POST para fake order:', {

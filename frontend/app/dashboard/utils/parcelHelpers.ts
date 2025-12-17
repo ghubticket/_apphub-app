@@ -184,3 +184,51 @@ export function getAlertColor(order: ParcelledOrderWithParcels): 'green' | 'ambe
     
     return 'blue';
 }
+
+/**
+ * Verifica se o PIX da entrada expirou
+ * CRÍTICO: Pedidos com entrada expirada devem ser ocultados do dashboard
+ */
+export function isEntryPixExpired(order: ParcelledOrderWithParcels): boolean {
+    // Se o pedido já foi cancelado, considerar expirado (se entrada não foi paga)
+    if (order.status === 'cancelled') {
+        const entryParcel = getEntryParcel(order.parcels);
+        const entryWasPaid = entryParcel?.status === 'paid';
+        // Se entrada não foi paga e está cancelado, está expirado
+        return !entryWasPaid;
+    }
+    
+    // Só verificar se o pedido está aguardando entrada
+    if (order.status !== 'pending_entry') {
+        return false;
+    }
+    
+    const entryParcel = getEntryParcel(order.parcels);
+    
+    // Se não tem parcela de entrada ou entrada já foi paga, não está expirado
+    if (!entryParcel || entryParcel.status === 'paid') {
+        return false;
+    }
+    
+    // Se o PIX não foi gerado ainda, não está expirado
+    if (entryParcel.status !== 'payment_generated') {
+        return false;
+    }
+    
+    // Verificar se já passou 30 minutos desde a criação do pedido
+    // PIX tem validade de 30 minutos
+    const PIX_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos
+    const now = new Date();
+    
+    if (order.createdAt) {
+        const createdAt = new Date(order.createdAt);
+        const expirationTime = createdAt.getTime() + PIX_TIMEOUT_MS;
+        
+        // Se já passou 30 minutos desde a criação, considerar expirado
+        if (now.getTime() >= expirationTime) {
+            return true;
+        }
+    }
+    
+    return false;
+}

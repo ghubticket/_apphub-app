@@ -15,6 +15,7 @@ import RequestsSection from './components/RequestsSection';
 import TicketModal from './components/TicketModal';
 import SecurityModal from './components/SecurityModal';
 import { groupOrdersByEvent } from './utils/groupOrders';
+import { isEntryPixExpired } from './utils/parcelHelpers';
 import type { 
     TabKey, 
     OrderSummary, 
@@ -233,7 +234,7 @@ export default function DashboardPage() {
                     };
                 })
                 .filter((order: ParcelledOrderWithParcels) => {
-                    // CRÍTICO: Só ocultar pedidos cancelados se a entrada NÃO foi paga
+                    // CRÍTICO: Ocultar pedidos cancelados se a entrada NÃO foi paga
                     // Se entrada foi paga mas 2+ parcelas atrasadas → MOSTRAR (tem histórico)
                     if (order.status === 'cancelled') {
                         const entryParcel = order.parcels.find((p: ParcelSummary) => p.sequence === 0);
@@ -243,9 +244,13 @@ export default function DashboardPage() {
                         return entryWasPaid;
                     }
                     
-                    // Mostrar todos os outros status (pending_entry, active, completed)
-                    // IMPORTANTE: NÃO filtrar pending_entry mesmo com PIX expirado
-                    // O backend vai cancelar, mas enquanto isso o usuário pode ver
+                    // CRÍTICO: Ocultar pedidos com PIX da entrada expirado
+                    // Pedidos com entrada expirada não devem aparecer no dashboard
+                    if (isEntryPixExpired(order)) {
+                        return false; // Ocultar pedido com PIX expirado
+                    }
+                    
+                    // Mostrar todos os outros status (pending_entry com PIX válido, active, completed)
                     return true;
                 });
 
