@@ -120,8 +120,8 @@ async function handleRequest(
         const apiPath = Array.isArray(path) ? path.join('/') : String(path);
         const apiUrl = `${API_URL}/${apiPath}`;
 
-        // Log para debug (sempre para fake orders em produção também)
-        if (apiPath.includes('fake-') || apiPath.includes('/payments/')) {
+        // Log para debug (sempre para fake orders e pagamentos em produção também)
+        if (apiPath.includes('fake-') || apiPath.includes('/payments/') || apiPath.includes('/parcelled-orders')) {
             console.log('[Proxy] Requisição recebida:', {
                 method,
                 originalMethod: originalMethod,
@@ -130,6 +130,8 @@ async function handleRequest(
                 hasBody: ['POST', 'PUT', 'PATCH'].includes(method),
                 requestMethod: request.method, // Método original da requisição
                 requestUrl: request.url,
+                contentLength: request.headers.get('content-length'),
+                contentType: request.headers.get('content-type'),
             });
             
             // CRÍTICO: Se método estiver errado, logar erro imediatamente
@@ -210,9 +212,28 @@ async function handleRequest(
         if (hasBody && body) {
             headers['Content-Type'] = 'application/json';
             headers['Content-Length'] = body.length.toString();
+            
+            // Log do body para debug (apenas para pagamentos, limitado a 200 chars)
+            if (apiPath.includes('/payments/') || apiPath.includes('/parcelled-orders')) {
+                const bodyPreview = body.length > 200 ? body.substring(0, 200) + '...' : body;
+                console.log('[Proxy] Body preparado:', {
+                    apiPath,
+                    bodyLength: body.length,
+                    bodyPreview,
+                });
+            }
         } else if (isGeneratePayment) {
             // Para generate-payment, garantir que não enviamos Content-Type
             // Isso evita que o backend tente fazer parse do body
+        } else if (['POST', 'PUT', 'PATCH'].includes(method)) {
+            // Log se método requer body mas não temos
+            if (apiPath.includes('/payments/') || apiPath.includes('/parcelled-orders')) {
+                console.warn('[Proxy] POST/PUT/PATCH sem body:', {
+                    apiPath,
+                    contentLength,
+                    contentType,
+                });
+            }
         }
 
         // Repassar Authorization se existir
@@ -269,22 +290,68 @@ async function handleRequest(
             });
         }
         
-        const response = await fetch(fullUrl, {
-            method: finalMethod, // Usar método corrigido se necessário
-            headers,
-            body,
-            // Timeout ajustado
-            signal: AbortSignal.timeout(timeoutMs),
-        });
+        // CRÍTICO: Usar AbortController para timeout compatível com todos os ambientes
+        // AbortSignal.timeout() pode não estar disponível em produção
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+            console.error('[Proxy] Timeout atingido para requisição:', {
+                apiPath,
+                fullUrl,
+                method: finalMethod,
+                timeoutMs,
+            });
+            abortController.abort();
+        }, timeoutMs);
+        
+        let response: Response;
+        try {
+            // Log antes de fazer a requisição (apenas para pagamentos)
+            if (apiPath.includes('/payments/') || apiPath.includes('/parcelled-orders')) {
+                console.log('[Proxy] Fazendo requisição para backend:', {
+                    method: finalMethod,
+                    url: fullUrl,
+                    hasBody: !!body,
+                    bodyLength: body?.length || 0,
+                    timeoutMs,
+                });
+            }
+            
+            response = await fetch(fullUrl, {
+                method: finalMethod, // Usar método corrigido se necessário
+                headers,
+                body,
+                signal: abortController.signal,
+            });
+        } catch (fetchError: any) {
+            // Limpar timeout se houver erro antes do timeout
+            clearTimeout(timeoutId);
+            
+            // Se for erro de abort (timeout), relançar para ser tratado no catch externo
+            if (fetchError.name === 'AbortError') {
+                throw fetchError;
+            }
+            
+            // Para outros erros, logar e relançar
+            console.error('[Proxy] Erro ao fazer fetch:', {
+                errorName: fetchError.name,
+                errorMessage: fetchError.message,
+                apiPath,
+                fullUrl,
+            });
+            throw fetchError;
+        } finally {
+            clearTimeout(timeoutId);
+        }
 
-        // Log da resposta para debug (sempre para fake orders em produção também)
-        if (apiPath.includes('fake-') || apiPath.includes('/payments/')) {
+        // Log da resposta para debug (sempre para fake orders e pagamentos em produção também)
+        if (apiPath.includes('fake-') || apiPath.includes('/payments/') || apiPath.includes('/parcelled-orders')) {
             console.log('[Proxy] Resposta:', {
                 status: response.status,
                 statusText: response.statusText,
                 url: fullUrl,
                 method,
                 contentType: response.headers.get('content-type'),
+                apiPath,
             });
         }
 
@@ -299,12 +366,13 @@ async function handleRequest(
             data = await response.text();
         }
 
-        // Log do conteúdo da resposta para debug (sempre para fake orders em produção também)
-        if (response.status >= 400 && (apiPath.includes('fake-') || apiPath.includes('/payments/'))) {
+        // Log do conteúdo da resposta para debug (sempre para fake orders e pagamentos em produção também)
+        if (response.status >= 400 && (apiPath.includes('fake-') || apiPath.includes('/payments/') || apiPath.includes('/parcelled-orders'))) {
             console.error('[Proxy] Erro na resposta:', {
                 status: response.status,
                 method,
                 apiPath,
+                url: fullUrl,
                 data: typeof data === 'string' ? data.substring(0, 500) : data,
             });
         }
@@ -319,9 +387,18 @@ async function handleRequest(
         });
     } catch (error: any) {
         // Tratar diferentes tipos de erro
-        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+        if (error.name === 'AbortError' || error.name === 'TimeoutError' || error.name === 'AbortSignal') {
+            console.error('[Proxy] Timeout ou abort na requisição:', {
+                errorName: error.name,
+                message: error.message,
+                path: fullUrl,
+            });
             return NextResponse.json(
-                { success: false, message: 'Request timeout' },
+                { 
+                    success: false, 
+                    message: 'Request timeout - A requisição demorou muito para responder. Tente novamente.',
+                    error: 'TIMEOUT'
+                },
                 { status: 504 }
             );
         }
