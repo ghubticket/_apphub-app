@@ -162,6 +162,23 @@ export default function DashboardPage() {
             const groupedOrders = groupOrdersByEvent(normalizedOrders);
 
             setOrders(groupedOrders);
+
+            // CRÍTICO: Se há pedidos pendentes e polling não está ativo, iniciar polling
+            // Isso garante que quando novos pedidos aparecem, o polling é iniciado automaticamente
+            const hasPendingOrders = normalizedOrders.some(order => {
+                if (isOrderGroup(order)) {
+                    // É um grupo - verificar se algum pedido do grupo está pendente
+                    return order.orders.some((o: OrderSummary) => o.status === 'pending');
+                }
+                return order.status === 'pending';
+            });
+
+            if (hasPendingOrders && shouldPoll && startOrdersPolling) {
+                // Pequeno delay para evitar múltiplas chamadas
+                setTimeout(() => {
+                    startOrdersPolling();
+                }, 500);
+            }
             setOrdersPagination(
                 paginationRaw
                     ? {
@@ -441,7 +458,7 @@ export default function DashboardPage() {
     // Polling de pedidos pendentes
     const shouldPoll = activeTab === 'orders' && isAuthenticated && isReady;
 
-    const { isPolling } = useOrdersPolling({
+    const { isPolling, startPolling: startOrdersPolling } = useOrdersPolling({
         enabled: shouldPoll,
         onOrderPaid: handleOrderPaid,
     });

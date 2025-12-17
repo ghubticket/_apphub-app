@@ -11,6 +11,7 @@ interface UseOrdersPollingOptions {
 interface UseOrdersPollingReturn {
     isPolling: boolean;
     stopPolling: () => void;
+    startPolling: () => void;
 }
 
 /**
@@ -34,14 +35,20 @@ export function useOrdersPolling({
         setIsPolling(false);
     }, []);
 
+    // Flag para evitar múltiplas execuções simultâneas
+    const isCheckingRef = useRef(false);
+
     // Função para verificar pedidos pendentes
     const checkPendingOrders = useCallback(async () => {
-        if (!enabled) {
-            stopPolling();
+        if (!enabled || isCheckingRef.current) {
+            if (!enabled) {
+                stopPolling();
+            }
             return;
         }
 
         try {
+            isCheckingRef.current = true;
             // CRÍTICO: Buscar TODOS os pedidos recentes (não apenas pendentes)
             // Isso permite detectar quando um pedido muda de pending para paid
             // mesmo que ele não apareça mais na lista de pendentes
@@ -101,68 +108,53 @@ export function useOrdersPolling({
                 }
             }
 
-            // Se não há pedidos pendentes na lista, mas ainda há pedidos sendo monitorados, continuar
+            // CRÍTICO: Se não há pedidos pendentes E não há pedidos sendo monitorados, PARAR polling
+            // Não precisa ficar fazendo requisições quando não há nada para verificar
             if (pendingOrders.length === 0 && lastOrderStatusesRef.current.size === 0) {
-                // Não há mais pedidos para monitorar, mas continuar polling caso apareça um novo
+                // Não há mais pedidos para monitorar - parar polling para economizar recursos
+                stopPolling();
                 return;
             }
 
-            // Verificar cada pedido pendente individualmente para detectar mudanças
+            // Verificar cada pedido pendente - usar dados da lista em vez de buscar individualmente
+            // Só buscar individualmente se o status mudou na lista
             for (const order of pendingOrders) {
                 const orderId = order._id || order.id;
                 if (!orderId) continue;
 
                 const previousStatus = lastOrderStatusesRef.current.get(orderId) || 'pending';
+                const currentStatus = order.status || 'pending';
                 
-                try {
-                    // Buscar detalhes atualizados do pedido
-                    const orderResponse = await api.get(`/orders/${orderId}`);
-                    const orderData = orderResponse.data?.data;
-
-                    if (orderData) {
-                        const isProcessedAccredited =
-                            orderData.paymentStatus === 'processed' &&
-                            (orderData.paymentStatusDetail === 'accredited' ||
-                                String(orderData.paymentStatusDetail || '').toLowerCase().includes('accredited'));
-
-                        const isPaid =
-                            orderData.status === 'paid' ||
-                            orderData.paymentStatus === 'approved' ||
-                            isProcessedAccredited;
-
-                        // Se mudou de pending para paid, disparar callback
-                        if (previousStatus === 'pending' && isPaid) {
-                            // CRÍTICO: Disparar callback com dados completos do pedido
-                            // Garantir que orderNumber está presente
-                            const orderWithNumber = {
-                                ...orderData,
-                                orderNumber: orderData.orderNumber || orderData.order_number || orderId,
-                            };
-                            onOrderPaid(orderId, orderWithNumber);
-                            lastOrderStatusesRef.current.delete(orderId);
-                            // Continuar verificando outros pedidos (não retornar aqui)
-                        } else if (isPaid) {
-                            // Já estava pago, remover da lista
-                            lastOrderStatusesRef.current.delete(orderId);
-                        } else {
-                            // Ainda pendente, atualizar timestamp (não status)
-                            lastOrderStatusesRef.current.set(orderId, 'pending');
-                        }
-                    }
-                } catch (err: any) {
-                    // Ignorar erros individuais, continuar com outros pedidos
-                    if (err?.response?.status === 404) {
-                        // Pedido não encontrado, remover da lista
-                        lastOrderStatusesRef.current.delete(orderId);
-                    }
+                // Se o status na lista já mudou para paid, não precisa buscar individualmente
+                if (currentStatus === 'paid' && previousStatus === 'pending') {
+                    const orderWithNumber = {
+                        ...order,
+                        orderNumber: order.orderNumber || order.order_number || orderId,
+                    };
+                    onOrderPaid(orderId, orderWithNumber);
+                    lastOrderStatusesRef.current.delete(orderId);
+                    continue;
+                }
+                
+                // Se ainda está pendente na lista, verificar individualmente apenas se necessário
+                // (evitar buscar todos os pedidos toda vez)
+                if (currentStatus === 'pending') {
+                    // Só buscar individualmente se não temos dados recentes ou se passou muito tempo
+                    // Por enquanto, usar dados da lista e só buscar se realmente necessário
+                    lastOrderStatusesRef.current.set(orderId, 'pending');
+                } else if (currentStatus === 'paid') {
+                    // Já estava pago, remover da lista
+                    lastOrderStatusesRef.current.delete(orderId);
                 }
             }
         } catch (error: any) {
             // Em caso de erro, continuar tentando (pode ser temporário)
+        } finally {
+            isCheckingRef.current = false;
         }
     }, [enabled, onOrderPaid, stopPolling]);
 
-    // Iniciar polling quando habilitado
+    // Iniciar polling quando habilitado E quando há pedidos pendentes
     useEffect(() => {
         if (!enabled) {
             stopPolling();
@@ -171,6 +163,8 @@ export function useOrdersPolling({
 
         // Inicializar status dos pedidos pendentes
         const initializeStatuses = async () => {
+            // Limpar status anteriores ao reiniciar
+            lastOrderStatusesRef.current.clear();
             try {
                 const response = await api.get('/orders', {
                     params: {
@@ -190,18 +184,27 @@ export function useOrdersPolling({
                     }
                 }
 
-                // CRÍTICO: Sempre iniciar polling se enabled=true, mesmo sem pedidos pendentes na lista inicial
-                // Isso garante que se um pedido pendente aparecer depois, será detectado
-                setIsPolling(true);
-                // Primeira verificação imediata
-                checkPendingOrders();
-                // Configurar intervalo (5 segundos, igual ao PIX polling)
-                pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                // CRÍTICO: Só iniciar polling se houver pedidos pendentes
+                // Não fazer polling constante quando não há nada para verificar
+                if (pendingOrders.length > 0 || lastOrderStatusesRef.current.size > 0) {
+                    setIsPolling(true);
+                    // Primeira verificação imediata
+                    checkPendingOrders();
+                    // Configurar intervalo (5 segundos, igual ao PIX polling)
+                    pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                } else {
+                    // Não há pedidos pendentes - não iniciar polling
+                    setIsPolling(false);
+                }
             } catch (error) {
-                // Em caso de erro na inicialização, ainda tentar iniciar polling
-                // Pode ser um erro temporário
-                setIsPolling(true);
-                pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                // Em caso de erro na inicialização, verificar se há pedidos para monitorar
+                // Se não houver, não iniciar polling
+                if (lastOrderStatusesRef.current.size > 0) {
+                    setIsPolling(true);
+                    pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                } else {
+                    setIsPolling(false);
+                }
             }
         };
 
@@ -210,11 +213,61 @@ export function useOrdersPolling({
         return () => {
             stopPolling();
         };
-    }, [enabled, checkPendingOrders, stopPolling]);
+        // CRÍTICO: Remover checkPendingOrders e stopPolling das dependências
+        // para evitar re-execução do useEffect quando essas funções mudarem
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [enabled]);
+
+    // Função para reiniciar polling manualmente (útil quando novos pedidos aparecem)
+    const startPolling = useCallback(() => {
+        if (!enabled) return;
+        
+        // Verificar se já está fazendo polling
+        if (pollingIntervalRef.current) {
+            return;
+        }
+
+        // Inicializar e iniciar polling
+        const initializeAndStart = async () => {
+            try {
+                const response = await api.get('/orders', {
+                    params: {
+                        limit: 20,
+                    },
+                });
+
+                const ordersRaw = response.data?.data?.orders ?? [];
+                const pendingOrders = ordersRaw.filter((order: any) => order.status === 'pending');
+
+                // Armazenar status inicial de cada pedido pendente
+                for (const order of pendingOrders) {
+                    const orderId = order._id || order.id;
+                    if (orderId) {
+                        lastOrderStatusesRef.current.set(orderId, 'pending');
+                    }
+                }
+
+                if (pendingOrders.length > 0 || lastOrderStatusesRef.current.size > 0) {
+                    setIsPolling(true);
+                    checkPendingOrders();
+                    pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                }
+            } catch (error) {
+                // Em caso de erro, tentar iniciar mesmo assim se houver pedidos monitorados
+                if (lastOrderStatusesRef.current.size > 0) {
+                    setIsPolling(true);
+                    pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                }
+            }
+        };
+
+        initializeAndStart();
+    }, [enabled, checkPendingOrders]);
 
     return {
         isPolling,
         stopPolling,
+        startPolling,
     };
 }
 
