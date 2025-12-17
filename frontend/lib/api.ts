@@ -29,7 +29,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 segundos de timeout padrão
+  timeout: 90000, // 90 segundos de timeout padrão (aumentado para operações que criam pedidos)
 });
 
 const getStoredToken = () => {

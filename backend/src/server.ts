@@ -628,13 +628,15 @@ app.use('/api/promoters', promoterCodesRoutes);
 // Rotas de pagamento
 // CRÍTICO: Adicionar middleware de debug para verificar rotas
 app.use('/api/payments', (req, res, next) => {
-    // Log apenas para rotas com fake- para debug
-    if (req.path.includes('fake-')) {
+    // Log para todas as rotas com fake- ou /payments/ (sempre, mesmo em produção)
+    if (req.path.includes('fake-') || req.path.includes('/pix') || req.path.includes('/card')) {
         console.log('[Server] Rota de pagamento recebida:', {
             method: req.method,
             path: req.path,
             originalUrl: req.originalUrl,
             baseUrl: req.baseUrl,
+            hasBody: !!req.body,
+            bodyKeys: req.body ? Object.keys(req.body) : [],
         });
     }
     next();

@@ -26,6 +26,13 @@ export async function POST(
     request: NextRequest,
     { params }: { params: { path: string[] } }
 ) {
+    // CRÍTICO: Validar que a requisição realmente é POST
+    if (request.method !== 'POST') {
+        console.error('[Proxy] ERRO CRÍTICO: Função POST chamada mas request.method não é POST:', {
+            requestMethod: request.method,
+            path: params.path?.join('/'),
+        });
+    }
     return handleRequest(request, params, 'POST');
 }
 
@@ -50,6 +57,19 @@ export async function DELETE(
     return handleRequest(request, params, 'DELETE');
 }
 
+// Tratar requisições OPTIONS (preflight CORS)
+export async function OPTIONS() {
+    return new NextResponse(null, {
+        status: 200,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-meli-session-id',
+            'Access-Control-Max-Age': '86400',
+        },
+    });
+}
+
 async function handleRequest(
     request: NextRequest,
     params: { path: string[] },
@@ -57,6 +77,33 @@ async function handleRequest(
 ) {
     // Definir fullUrl no escopo da função para estar disponível no catch
     let fullUrl: string = 'unknown';
+    
+    // CRÍTICO: Log do método original da requisição para debug
+    const originalMethod = request.method;
+    
+    // CRÍTICO: Validar método antes de processar
+    if (method !== originalMethod) {
+        console.error('[Proxy] ERRO CRÍTICO: Método HTTP diferente:', {
+            expected: method,
+            actual: originalMethod,
+            path: params.path?.join('/'),
+            url: request.url,
+        });
+        
+        // Se for fake order e método estiver errado, retornar erro imediatamente
+        const apiPath = Array.isArray(params.path) ? params.path.join('/') : String(params.path);
+        if (apiPath.includes('fake-') && originalMethod !== 'POST') {
+            return NextResponse.json(
+                { 
+                    success: false, 
+                    message: 'Método HTTP incorreto. Esta rota requer POST.',
+                    error: `Método recebido: ${originalMethod}, esperado: POST`,
+                    path: apiPath,
+                },
+                { status: 405 } // Method Not Allowed
+            );
+        }
+    }
     
     try {
         const { path } = params;
@@ -73,14 +120,27 @@ async function handleRequest(
         const apiPath = Array.isArray(path) ? path.join('/') : String(path);
         const apiUrl = `${API_URL}/${apiPath}`;
 
-        // Log para debug (apenas em desenvolvimento ou quando houver erro)
-        if (process.env.NODE_ENV === 'development' || apiPath.includes('fake-')) {
-            console.log('[Proxy] Requisição:', {
+        // Log para debug (sempre para fake orders em produção também)
+        if (apiPath.includes('fake-') || apiPath.includes('/payments/')) {
+            console.log('[Proxy] Requisição recebida:', {
                 method,
+                originalMethod: originalMethod,
                 apiPath,
                 apiUrl,
                 hasBody: ['POST', 'PUT', 'PATCH'].includes(method),
+                requestMethod: request.method, // Método original da requisição
+                requestUrl: request.url,
             });
+            
+            // CRÍTICO: Se método estiver errado, logar erro imediatamente
+            if (apiPath.includes('fake-') && originalMethod !== 'POST') {
+                console.error('[Proxy] ERRO CRÍTICO: Fake order com método GET!', {
+                    originalMethod,
+                    method,
+                    apiPath,
+                    requestUrl: request.url,
+                });
+            }
         }
 
         // Obter query parameters
@@ -161,24 +221,69 @@ async function handleRequest(
             headers['Authorization'] = authHeader;
         }
 
+        // CRÍTICO: Verificar se o método está correto antes de fazer a requisição
+        // Se for fake order, DEVE ser POST
+        if (apiPath.includes('fake-') && method !== 'POST') {
+            console.error('[Proxy] ERRO CRÍTICO: Método incorreto para fake order:', {
+                method,
+                originalMethod: originalMethod,
+                apiPath,
+                expected: 'POST',
+                requestUrl: request.url,
+            });
+            return NextResponse.json(
+                { 
+                    success: false, 
+                    message: 'Método HTTP incorreto. Esta rota requer POST.',
+                    error: `Método recebido: ${method}, esperado: POST`,
+                    path: apiPath,
+                },
+                { status: 405 } // Method Not Allowed
+            );
+        }
+        
+        // CRÍTICO: Se método original não for POST mas estamos na função POST, algo está errado
+        if (originalMethod !== 'POST' && method === 'POST') {
+            console.error('[Proxy] ERRO CRÍTICO: Função POST chamada mas request.method não é POST:', {
+                method,
+                originalMethod: originalMethod,
+                apiPath,
+                requestUrl: request.url,
+            });
+            // Continuar mesmo assim, mas logar o erro
+        }
+
         // Fazer requisição para a API backend (fetch padrão)
-        // CRÍTICO: Aumentar timeout para 60 segundos para operações que podem demorar (criar pedido + gerar PIX)
-        const timeoutMs = apiPath.includes('fake-') ? 60000 : 30000; // 60s para fake orders, 30s para outros
+        // CRÍTICO: Aumentar timeout para 90 segundos para operações que podem demorar (criar pedido + gerar PIX)
+        // O axios já tem timeout de 90s, mas o proxy também precisa ter timeout maior
+        const timeoutMs = apiPath.includes('fake-') || apiPath.includes('/payments/') ? 90000 : 30000; // 90s para fake orders/payments, 30s para outros
+        
+        // CRÍTICO: Garantir que estamos usando POST para fake orders
+        const finalMethod = (apiPath.includes('fake-') && method !== 'POST') ? 'POST' : method;
+        
+        if (finalMethod !== method) {
+            console.error('[Proxy] CORREÇÃO: Forçando método POST para fake order:', {
+                originalMethod: method,
+                correctedMethod: finalMethod,
+                apiPath,
+            });
+        }
         
         const response = await fetch(fullUrl, {
-            method,
+            method: finalMethod, // Usar método corrigido se necessário
             headers,
             body,
             // Timeout ajustado
             signal: AbortSignal.timeout(timeoutMs),
         });
 
-        // Log da resposta para debug
-        if (process.env.NODE_ENV === 'development' || apiPath.includes('fake-')) {
+        // Log da resposta para debug (sempre para fake orders em produção também)
+        if (apiPath.includes('fake-') || apiPath.includes('/payments/')) {
             console.log('[Proxy] Resposta:', {
                 status: response.status,
                 statusText: response.statusText,
                 url: fullUrl,
+                method,
                 contentType: response.headers.get('content-type'),
             });
         }
@@ -194,11 +299,13 @@ async function handleRequest(
             data = await response.text();
         }
 
-        // Log do conteúdo da resposta para debug (apenas se houver erro)
-        if (response.status >= 400 && (process.env.NODE_ENV === 'development' || apiPath.includes('fake-'))) {
+        // Log do conteúdo da resposta para debug (sempre para fake orders em produção também)
+        if (response.status >= 400 && (apiPath.includes('fake-') || apiPath.includes('/payments/'))) {
             console.error('[Proxy] Erro na resposta:', {
                 status: response.status,
-                data: typeof data === 'string' ? data.substring(0, 200) : data,
+                method,
+                apiPath,
+                data: typeof data === 'string' ? data.substring(0, 500) : data,
             });
         }
 
