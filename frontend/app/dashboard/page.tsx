@@ -359,12 +359,27 @@ export default function DashboardPage() {
                         parcelledOrder.event?.name ||
                         'Evento';
 
+                    // Buscar parcelas para verificar se é a última
+                    const parcelsResponse = await api.get(`/parcelled-orders/${parcelledOrderId}`);
+                    const parcels = parcelsResponse.data?.data?.parcels || [];
+                    const totalParcels = parcels.length;
+                    const isLastParcel = sequence === totalParcels - 1;
+
+                    let message = '';
+                    if (sequence === 0) {
+                        // Entrada
+                        message = 'Entrada paga com sucesso! Seus ingressos estarão disponíveis quando todas as parcelas forem pagas.';
+                    } else if (isLastParcel) {
+                        // Última parcela
+                        message = '🎉 Parabéns! Você quitou seu pacote! Seus ingressos estão disponíveis agora.';
+                    } else {
+                        // Parcelas intermediárias
+                        message = `Parcela ${sequence + 1} paga com sucesso! Continue pagando as demais parcelas para liberar seus ingressos.`;
+                    }
+
                     setPaidOrderInfo({
                         orderNumber: `${eventName} - Parcela ${sequence + 1}`,
-                        message:
-                            sequence === 0
-                                ? 'Entrada paga com sucesso! Seus ingressos estarão disponíveis quando todas as parcelas forem pagas.'
-                                : `Parcela ${sequence + 1} paga com sucesso! Continue pagando as demais parcelas para liberar seus ingressos.`,
+                        message,
                     });
                     setShowPaymentSuccessModal(true);
 
@@ -375,10 +390,9 @@ export default function DashboardPage() {
             } catch (error) {
                 setPaidOrderInfo({
                     orderNumber: `Parcela ${sequence + 1}`,
-                    message:
-                        sequence === 0
-                            ? 'Entrada paga com sucesso!'
-                            : `Parcela ${sequence + 1} paga com sucesso!`,
+                    message: sequence === 0
+                        ? 'Entrada paga com sucesso!'
+                        : 'Parcela paga com sucesso!',
                 });
                 setShowPaymentSuccessModal(true);
             }

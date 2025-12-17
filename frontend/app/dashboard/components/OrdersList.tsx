@@ -133,6 +133,10 @@ export default function OrdersList({
                 if (item.type === 'parcelled') {
                     // Renderizar pedido parcelado
                     const parcelledOrder = item.data as ParcelledOrderWithParcels;
+                    
+                    // Verificar se tem tickets para mostrar
+                    const hasTickets = parcelledOrder.tickets && parcelledOrder.tickets.length > 0;
+                    
                     return (
                         <ParcelledOrderCard
                             key={parcelledOrder._id}
@@ -141,7 +145,7 @@ export default function OrdersList({
                             formatDate={formatDate}
                             onPixCodeCopy={onCopyPixCode}
                             pixCodeCopied={pixCodeCopied}
-                            onViewTickets={parcelledOrder.status === 'completed' ? onViewDetails : undefined}
+                            onViewTickets={hasTickets ? onViewDetails : undefined}
                         />
                     );
                 }

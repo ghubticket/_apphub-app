@@ -80,29 +80,29 @@ export default function PaymentSuccessModal({
 
     return (
         <div
-            className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300 ${entering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300 overflow-hidden ${entering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
             onClick={onClose}
         >
             <div
-                className={`relative w-full max-w-md rounded-2xl bg-white shadow-2xl transition-all duration-300 ${activeClass}`}
+                className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl transition-all duration-300 ${activeClass}`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex flex-col items-center gap-6 p-8 text-center">
+                <div className="flex flex-col items-center gap-4 md:gap-6 p-6 md:p-8 text-center">
                     {/* Ícone de sucesso com animação */}
-                    <div className={`flex h-20 w-20 items-center justify-center rounded-full bg-[#1f5d3d] ${entering ? 'animate-[pulse_1s_ease-in-out_infinite]' : ''}`}>
-                        <HiOutlineCheckCircle className="h-12 w-12 text-white" />
+                    <div className={`flex h-16 w-16 md:h-20 md:w-20 items-center justify-center rounded-full bg-[#1f5d3d] ${entering ? 'animate-[pulse_1s_ease-in-out_infinite]' : ''}`}>
+                        <HiOutlineCheckCircle className="h-10 w-10 md:h-12 md:w-12 text-white" />
                     </div>
 
                     {/* Título */}
-                    <h2 className="text-2xl font-bold uppercase text-[#1f5d3d]">
+                    <h2 className="text-xl md:text-2xl font-bold uppercase text-[#1f5d3d]">
                         Pagamento aprovado
                     </h2>
 
                     {/* Mensagem */}
-                    <div className="space-y-2 text-sm leading-relaxed text-[#1f5d3d]">
+                    <div className="space-y-2 text-sm leading-relaxed text-[#1f5d3d] max-w-sm">
                         <p>{message}</p>
                         {orderNumber && (
-                            <p className="text-xs text-[#2b6b47]">
+                            <p className="text-xs text-[#2b6b47] break-words">
                                 Pedido: {orderNumber}
                             </p>
                         )}
@@ -120,7 +120,7 @@ export default function PaymentSuccessModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-full bg-[#1a1a1d] px-8 py-3 text-sm font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-white"
+                        className="w-full md:w-auto rounded-full bg-[#1a1a1d] px-8 py-3 text-sm font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:text-white"
                     >
                         Ver meus pedidos
                     </button>

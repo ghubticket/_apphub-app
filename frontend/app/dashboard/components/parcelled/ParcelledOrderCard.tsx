@@ -457,8 +457,8 @@ console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
                     })}
                 </div>
 
-                {/* Botão para visualizar ingressos (só se todas as parcelas pagas) */}
-                {allPaid && onViewTickets && (
+                {/* Botão para visualizar ingressos (se tiver tickets disponíveis) */}
+                {onViewTickets && (
                     <div className="mt-6 flex justify-center">
                         <button
                             type="button"
