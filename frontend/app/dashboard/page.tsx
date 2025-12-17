@@ -444,6 +444,42 @@ export default function DashboardPage() {
         }
 
         if (openOrderId) {
+            // Primeiro, verificar se é um pedido parcelado
+            const parcelledOrder = parcelledOrders.find((po) => po._id === openOrderId);
+            if (parcelledOrder && parcelledOrder.tickets && parcelledOrder.tickets.length > 0) {
+                // Buscar o Order vinculado para pegar os dados completos
+                const linkedOrder = orders.find((o) => {
+                    if (isOrderGroup(o)) {
+                        return o.orders.some((ord) => (ord as any).parcelledOrderId === openOrderId);
+                    }
+                    return (o as any).parcelledOrderId === openOrderId;
+                });
+
+                if (linkedOrder) {
+                    const orderData = isOrderGroup(linkedOrder) 
+                        ? linkedOrder.orders.find((o) => (o as any).parcelledOrderId === openOrderId) || linkedOrder.orders[0]
+                        : linkedOrder;
+
+                    return {
+                        ...orderData,
+                        _id: openOrderId, // Usar o ID do ParcelledOrder para manter consistência
+                        tickets: parcelledOrder.tickets,
+                        totalTickets: parcelledOrder.tickets.length,
+                    } as OrderSummary;
+                }
+
+                // Se não encontrou Order vinculado, criar um objeto mínimo com os tickets
+                return {
+                    _id: openOrderId,
+                    orderNumber: parcelledOrder.orderNumber || `Parcelled-${openOrderId.slice(-8)}`,
+                    totalTickets: parcelledOrder.tickets.length,
+                    tickets: parcelledOrder.tickets,
+                    status: 'paid',
+                    totalAmount: parcelledOrder.totalAmount,
+                } as OrderSummary;
+            }
+
+            // Se não é parcelled, buscar nos orders normais
             for (const item of orders) {
                 if (isOrderGroup(item)) {
                     const found = item.orders.find((o) => o._id === openOrderId);
@@ -455,7 +491,7 @@ export default function DashboardPage() {
         }
 
         return null;
-    }, [orders, openGroupId, openOrderId]);
+    }, [orders, parcelledOrders, openGroupId, openOrderId]);
 
     useEffect(() => {
         if (activeOrder && modalScrollRef.current) {

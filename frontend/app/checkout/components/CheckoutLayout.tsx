@@ -23,6 +23,8 @@ import { useCheckoutNavigation } from '../hooks/useCheckoutNavigation';
 import { useCheckoutStorage } from '../hooks/useCheckoutStorage';
 import { useCardPayment } from '../hooks/useCardPayment';
 import { usePixPayment } from '../hooks/usePixPayment';
+import { useParcelledOrderPolling } from '../hooks/useParcelledOrderPolling';
+import PaymentSuccessModal from '@/components/shared/PaymentSuccessModal';
 import { clearCartItems, updateCartItemQuantity } from '@/lib/cart';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -433,6 +435,13 @@ export function CheckoutLayout() {
         expiresAt?: string | null;
     } | null>(null);
 
+    // Estado para modal de sucesso do pagamento parcelado
+    const [showParcelledSuccessModal, setShowParcelledSuccessModal] = useState(false);
+    const [parcelledSuccessInfo, setParcelledSuccessInfo] = useState<{
+        orderNumber: string;
+        message: string;
+    } | null>(null);
+
     // Quando houver PIX ativo de parcelamento (entrada gerada),
     // marcar flag PIX no storage e liberar navegação como no fluxo PIX normal.
     useEffect(() => {
@@ -441,6 +450,36 @@ export function CheckoutLayout() {
             storage.setAllowNavigation(true);
         }
     }, [entryParcelQrCode, order?._id, storage]);
+
+    // Polling para detectar pagamento da entrada do parcelamento
+    const { startPolling: startParcelledPolling, stopPolling: stopParcelledPolling } = useParcelledOrderPolling({
+        parcelledOrderId: entryParcelQrCode?.parcelledOrderId || null,
+        onEntryPaid: () => {
+            // Mostrar modal de sucesso
+            setParcelledSuccessInfo({
+                orderNumber: entryParcelQrCode?.parcelledOrderId.slice(-8).toUpperCase() || 'PARCELADO',
+                message: 'Entrada paga com sucesso! Seus ingressos estarão disponíveis quando todas as parcelas forem pagas.',
+            });
+            setShowParcelledSuccessModal(true);
+            
+            // Limpar storage e permitir navegação
+            storage.clearOrderRelated();
+            navigation.allowNavigation();
+        },
+    });
+
+    // Iniciar polling quando houver QR code da entrada
+    useEffect(() => {
+        if (entryParcelQrCode?.parcelledOrderId) {
+            startParcelledPolling();
+        } else {
+            stopParcelledPolling();
+        }
+
+        return () => {
+            stopParcelledPolling();
+        };
+    }, [entryParcelQrCode?.parcelledOrderId, startParcelledPolling, stopParcelledPolling]);
 
     // Memoizar se PIX está ativo (quando há QR code gerado)
     const isPixActive = useMemo(() => {
@@ -579,8 +618,31 @@ export function CheckoutLayout() {
     }
 
     return (
-        <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
-            <Container className="py-7">
+        <>
+            {/* Modal de sucesso para pagamento parcelado */}
+            <PaymentSuccessModal
+                isOpen={showParcelledSuccessModal}
+                onClose={() => {
+                    setShowParcelledSuccessModal(false);
+                    // Redirecionar para dashboard após fechar modal
+                    setTimeout(() => {
+                        if (typeof window !== 'undefined') {
+                            storageHelpers.clearActiveOrderId();
+                            storageHelpers.clearTimerStartTime();
+                            clearCartItems();
+                            (window as any).__ALLOW_NAVIGATION__ = true;
+                            window.onbeforeunload = null;
+                            window.location.replace('/dashboard');
+                        }
+                    }, 100);
+                }}
+                orderNumber={parcelledSuccessInfo?.orderNumber || ''}
+                message={parcelledSuccessInfo?.message || 'Pagamento aprovado com sucesso!'}
+                redirectCountdown={null}
+            />
+
+            <main className="bg-[#f5f1e8]" style={{ minHeight: 'calc(100vh - var(--app-header-height, 0px))' }}>
+                <Container className="py-7">
                 <div className={`grid gap-8 ${isPixActive ? 'lg:grid-cols-1 max-w-[40rem] mx-auto' : 'lg:grid-cols-[1.1fr_1fr]'}`}>
                     {/* Coluna esquerda: Timer + Resumo do pedido + Dados do comprador */}
                     <section className="space-y-6">
@@ -710,6 +772,7 @@ export function CheckoutLayout() {
                 />
             )}
         </main>
+        </>
     );
 }
 
