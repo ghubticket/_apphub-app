@@ -45,6 +45,13 @@ export default function ParcelledOrderCard({
         qrCodeBase64?: string | null;
         expiresAt?: string | null;
     } | null>(null);
+    
+    // Estado para armazenar PIX de parcelas individuais
+    const [parcelPixInfo, setParcelPixInfo] = useState<Record<string, {
+        qrCode?: string | null;
+        qrCodeBase64?: string | null;
+        expiresAt?: string | null;
+    }>>({});
 
     const statusConfig = parcelledOrderStatusConfig[order.status];
     const eventName = order.event?.name || order.metadata?.eventName || 'Evento não informado';
@@ -57,37 +64,32 @@ export default function ParcelledOrderCard({
     const alertColor = useMemo(() => getAlertColor(order), [order]);
     const allPaid = useMemo(() => areAllParcelsPaid(sortedParcels), [sortedParcels]);
 
-    // Buscar informações do PIX da entrada IMEDIATAMENTE ao montar componente
-    const fetchEntryPixInfo = useCallback(async () => {
-        if (!entryParcel || entryParcel.status !== 'payment_generated' || !entryParcel.paymentId) {
-            return;
-        }
-
-        try {
-            const response = await api.get(`/payments/${entryParcel.paymentId}/status`);
-            const expiresAt = response.data?.data?.expiresAt || null;
-
-            setEntryPixInfo({
-                qrCode: entryParcel.qrCode,
-                qrCodeBase64: entryParcel.qrCodeBase64,
-                expiresAt,
-            });
-        } catch (error) {
-            // Silenciar erro - PIX sem expiração é aceitável
-            setEntryPixInfo({
-                qrCode: entryParcel.qrCode,
-                qrCodeBase64: entryParcel.qrCodeBase64,
-                expiresAt: null,
-            });
-        }
-    }, [entryParcel]);
-
-    // Carregar PIX da entrada ao montar o componente (não esperar expandir)
+    // Carregar PIX da entrada IMEDIATAMENTE ao montar (sem delay)
     useEffect(() => {
         if (!isEntryPaidValue && entryParcel && entryParcel.status === 'payment_generated') {
-            fetchEntryPixInfo();
+            // Setar dados do PIX imediatamente (já vêm do backend)
+            setEntryPixInfo({
+                qrCode: entryParcel.qrCode,
+                qrCodeBase64: entryParcel.qrCodeBase64,
+                expiresAt: null, // Será buscado em background
+            });
+            
+            // Buscar expiresAt em background (não bloqueia)
+            if (entryParcel.paymentId) {
+                api.get(`/payments/${entryParcel.paymentId}/status`)
+                    .then(response => {
+                        const expiresAt = response.data?.data?.expiresAt || null;
+                        setEntryPixInfo(prev => ({
+                            ...prev!,
+                            expiresAt,
+                        }));
+                    })
+                    .catch(() => {
+                        // Ignorar erro - PIX sem expiração é aceitável
+                    });
+            }
         }
-    }, [fetchEntryPixInfo, isEntryPaidValue, entryParcel]);
+    }, [isEntryPaidValue, entryParcel]);
 
     // Handler para gerar PIX de uma parcela
     const handleGenerateParcelPix = useCallback(
@@ -96,23 +98,47 @@ export default function ParcelledOrderCard({
                 setGeneratingPixParcelId(parcel._id);
                 setParcelError(null);
 
+console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
+                    orderId: order._id,
+                    parcelId: parcel._id,
+                    sequence: parcel.sequence,
+                });
+
                 const response = await api.post(
                     `/parcelled-orders/${order._id}/parcels/${parcel._id}/generate-payment`,
                 );
 
+                console.log('[ParcelledOrderCard] Resposta do generate-payment', {
+                    success: response.data?.success,
+                    hasPixPayment: !!response.data?.data?.pixPayment,
+                });
+
                 const pixData = response.data?.data?.pixPayment;
 
-                // Se for entrada, atualizar estado local
+                // Se for entrada, atualizar entryPixInfo
                 if (parcel.sequence === 0) {
                     setEntryPixInfo({
                         qrCode: pixData?.qrCode || pixData?.ticketUrl || null,
                         qrCodeBase64: pixData?.qrCodeBase64 || null,
                         expiresAt: pixData?.expiresAt || null,
                     });
+                } else {
+                    // Para outras parcelas, armazenar no parcelPixInfo
+                    setParcelPixInfo(prev => ({
+                        ...prev,
+                        [parcel._id]: {
+                            qrCode: pixData?.qrCode || pixData?.ticketUrl || null,
+                            qrCodeBase64: pixData?.qrCodeBase64 || null,
+                            expiresAt: pixData?.expiresAt || null,
+                        }
+                    }));
                 }
 
-                // Atualizar parcela no estado (atualizar página seria melhor, mas isso funciona temporariamente)
-                // TODO: Implementar atualização automática via callback
+                console.log('[ParcelledOrderCard] PIX gerado com sucesso', {
+                    parcelId: parcel._id,
+                    hasQrCode: !!pixData?.qrCode,
+                    hasQrCodeBase64: !!pixData?.qrCodeBase64,
+                });
             } catch (error: any) {
                 const errorMessage =
                     error?.response?.data?.message ||
@@ -346,6 +372,7 @@ export default function ParcelledOrderCard({
                                     </div>
                                 </div>
 
+                                {/* Mensagem de erro */}
                                 {parcelError && parcelError.parcelId === parcel._id && (
                                     <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2">
                                         <div className="flex items-start justify-between gap-2">
@@ -362,6 +389,66 @@ export default function ParcelledOrderCard({
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
                                             </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* PIX gerado da parcela (não entrada) */}
+                                {!isEntry && parcelPixInfo[parcel._id] && (parcelPixInfo[parcel._id].qrCode || parcelPixInfo[parcel._id].qrCodeBase64) && (
+                                    <div className="mt-3 pt-3 border-t border-emerald-200 rounded-lg bg-emerald-50/30 p-3">
+                                        <div className="mb-2 flex items-center gap-2">
+                                            <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span className="text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                PIX para Pagamento desta Parcela
+                                            </span>
+                                        </div>
+
+                                        {parcelPixInfo[parcel._id].expiresAt && (
+                                            <div className="mb-2">
+                                                <PixExpirationTimer expiresAt={parcelPixInfo[parcel._id].expiresAt!} />
+                                            </div>
+                                        )}
+
+                                        {parcelPixInfo[parcel._id].qrCodeBase64 && (
+                                            <div className="mb-3 flex justify-center">
+                                                <img
+                                                    src={`data:image/png;base64,${parcelPixInfo[parcel._id].qrCodeBase64}`}
+                                                    alt="QR Code PIX Parcela"
+                                                    className="h-40 w-40 rounded-lg border-2 border-emerald-200 bg-white p-2"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {parcelPixInfo[parcel._id].qrCode && (
+                                            <div>
+                                                <label className="mb-2 block text-center text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                    Código PIX (Copiar e Colar)
+                                                </label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        readOnly
+                                                        value={parcelPixInfo[parcel._id].qrCode!}
+                                                        className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onPixCodeCopy(`parcel-${parcel._id}`, parcelPixInfo[parcel._id].qrCode!)}
+                                                        className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
+                                                    >
+                                                        {pixCodeCopied[`parcel-${parcel._id}`] ? '✓ Copiado!' : 'Copiar'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="mt-2 text-center">
+                                            <p className="text-xs text-emerald-600">
+                                                💳 Aguardando pagamento da parcela
+                                            </p>
                                         </div>
                                     </div>
                                 )}
