@@ -3,6 +3,36 @@ import { Event, TicketType, ParcelledOrder, Parcel, Order, Ticket, IParcelledOrd
 import { calculateOrderValues, createTicketsForOrder } from './orderService';
 import { createPixPayment } from './paymentService';
 
+// Timeout padrão de checkout (mesma regra de Order normal)
+const CHECKOUT_TIMEOUT_MINUTES = Number(process.env.CHECKOUT_TIMEOUT_MINUTES || 30);
+const CHECKOUT_TIMEOUT_MS = CHECKOUT_TIMEOUT_MINUTES * 60 * 1000;
+
+const ORDER_NUMBER_LENGTH = 10;
+
+/**
+ * Gera um número único de pedido (10 caracteres alfanuméricos)
+ */
+const generateOrderNumber = async (): Promise<string> => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const buildCode = () =>
+        Array.from({ length: ORDER_NUMBER_LENGTH })
+            .map(() => characters.charAt(Math.floor(Math.random() * characters.length)))
+            .join('');
+
+    let orderNumber = buildCode();
+    // Garantir unicidade
+    // Em casos raros de colisão, tenta novamente
+    // Limite de 5 tentativas para evitar loop infinito
+    for (let attempts = 0; attempts < 5; attempts += 1) {
+        const exists = await Order.findOne({ orderNumber }).select('_id').lean();
+        if (!exists) {
+            return orderNumber;
+        }
+        orderNumber = buildCode();
+    }
+    return orderNumber;
+};
+
 interface CreateParcelledOrderInput {
     eventId: string;
     ticketTypeId: string;
@@ -177,6 +207,36 @@ export async function createParcelledOrderFromCart(
             entryPixPayment = pixPayment;
         }
 
+        // Criar Order PENDING vinculado ao ParcelledOrder
+        // Este pedido representa o ingresso do cliente (ainda sem QR code)
+        // Gerar número único do pedido antes de criar
+        const orderNumber = await generateOrderNumber();
+        
+        const order = new Order({
+            customer: input.customerId,
+            event: event._id,
+            tickets: [],
+            subtotal: totalAmount - platformFeeAmount,
+            platformFee: platformFeeAmount,
+            totalAmount,
+            totalTickets: quantity,
+            status: 'pending', // aguardando pagamento da entrada / parcelas
+            paymentMethod: input.paymentType === 'pix' ? 'pix' : 'bank_slip',
+            expiresAt: new Date(now.getTime() + CHECKOUT_TIMEOUT_MS),
+            orderNumber, // Número único do pedido
+            customerData: {
+                name: input.customerName,
+                email: input.customerEmail,
+                cpf: input.customerCpf,
+                phone: input.customerPhone,
+            },
+            parcelledOrder: createdParcelledOrder._id,
+            isActive: true,
+            cardAttempts: 0,
+        });
+
+        await order.save();
+
         return {
             parcelledOrder: createdParcelledOrder,
             parcels: createdParcels,
@@ -197,22 +257,12 @@ interface SyncParcelPaymentInput {
 }
 
 /**
- * Cria um Order e tickets quando um ParcelledOrder é completamente pago
- * CRÍTICO: QR codes só são gerados quando TODAS as parcelas estão pagas
+ * Garante que exista um Order pago + tickets/QR para um ParcelledOrder totalmente quitado.
+ * - Se já existir Order pendente vinculado, atualiza para 'paid' e gera tickets/QR.
+ * - Se ainda não existir Order (casos antigos), cria um novo já 'paid' e gera tickets/QR.
  */
 async function createOrderFromCompletedParcelledOrder(parcelledOrder: any) {
     try {
-        // Verificar se já existe um Order para este ParcelledOrder
-        const existingOrder = await Order.findOne({
-            parcelledOrder: parcelledOrder._id,
-            deletedAt: null,
-        });
-
-        if (existingOrder) {
-            // Order já existe, não criar novamente
-            return existingOrder;
-        }
-
         const event = await Event.findById(parcelledOrder.event);
         const ticketType = parcelledOrder.ticketType
             ? await TicketType.findById(parcelledOrder.ticketType)
@@ -225,49 +275,75 @@ async function createOrderFromCompletedParcelledOrder(parcelledOrder: any) {
         const quantity = parcelledOrder.metadata?.quantity || 1;
         const customerId = parcelledOrder.customer?.toString() || null;
 
-        // Criar Order normal (similar ao fluxo de pedidos completos)
-        const order = new Order({
-            customer: customerId,
-            event: parcelledOrder.event,
-            tickets: [],
-            subtotal: parcelledOrder.totalAmount - (parcelledOrder.platformFeeAmount || 0),
-            platformFee: parcelledOrder.platformFeeAmount || 0,
-            totalAmount: parcelledOrder.totalAmount,
-            totalTickets: quantity,
-            status: 'paid', // Já está pago (todas as parcelas foram pagas)
-            paymentMethod: parcelledOrder.paymentType === 'pix' ? 'pix' : 'bank_slip',
-            paidAt: new Date(),
-            customerData: {
-                name: parcelledOrder.metadata?.customerName || 'Cliente',
-                email: parcelledOrder.metadata?.customerEmail || 'email@cliente.com',
-                cpf: parcelledOrder.metadata?.customerCpf || '',
-                phone: parcelledOrder.metadata?.customerPhone || '',
-            },
-            parcelledOrder: parcelledOrder._id, // Vincular ao ParcelledOrder
-            isActive: true,
+        // Procurar Order já vinculado a este ParcelledOrder
+        let order = await Order.findOne({
+            parcelledOrder: parcelledOrder._id,
+            deletedAt: null,
         });
 
+        if (!order) {
+            // Caso antigo: ainda não existe Order — criar agora já como 'paid'
+            // Gerar número único do pedido antes de criar
+            const orderNumber = await generateOrderNumber();
+            
+            order = new Order({
+                customer: customerId,
+                event: parcelledOrder.event,
+                tickets: [],
+                subtotal: parcelledOrder.totalAmount - (parcelledOrder.platformFeeAmount || 0),
+                platformFee: parcelledOrder.platformFeeAmount || 0,
+                totalAmount: parcelledOrder.totalAmount,
+                totalTickets: quantity,
+                status: 'paid',
+                paymentMethod: parcelledOrder.paymentType === 'pix' ? 'pix' : 'bank_slip',
+                paidAt: new Date(),
+                orderNumber, // Número único do pedido
+                customerData: {
+                    name: parcelledOrder.metadata?.customerName || 'Cliente',
+                    email: parcelledOrder.metadata?.customerEmail || 'email@cliente.com',
+                    cpf: parcelledOrder.metadata?.customerCpf || '',
+                    phone: parcelledOrder.metadata?.customerPhone || '',
+                },
+                parcelledOrder: parcelledOrder._id,
+                isActive: true,
+                cardAttempts: 0,
+            });
+        } else {
+            // Order já existe (criado na criação do parcelamento) — apenas marcar como pago
+            order.status = 'paid';
+            order.paidAt = new Date();
+            order.isActive = true;
+            // subtotal/platformFee/totalAmount já devem estar corretos desde a criação
+        }
+
         await order.save();
 
-        // Criar tickets com status 'confirmed' e gerar QR codes
-        const createdTickets = await createTicketsForOrder(
-            order._id as mongoose.Types.ObjectId,
-            parcelledOrder.event.toString(),
-            parcelledOrder.ticketType?.toString() || '',
-            quantity,
-            ticketType.price || 0,
-            'confirmed', // Status confirmed = QR code será gerado
-            customerId || undefined,
-            false // Não é VIP
-        );
+        // Se já houver tickets associados, não duplicar criação
+        const existingTickets = await Ticket.find({
+            order: order._id,
+            deletedAt: null,
+        }).select('_id');
 
-        // Atualizar order com os tickets
-        order.tickets = createdTickets.map((t) => t._id as mongoose.Types.ObjectId);
-        await order.save();
+        if (!existingTickets.length) {
+            // Criar tickets com status 'confirmed' e gerar QR codes
+            const createdTickets = await createTicketsForOrder(
+                order._id as mongoose.Types.ObjectId,
+                parcelledOrder.event.toString(),
+                parcelledOrder.ticketType?.toString() || '',
+                quantity,
+                ticketType.price || 0,
+                'confirmed', // Status confirmed = QR code será gerado
+                customerId || undefined,
+                false // Não é VIP
+            );
+
+            order.tickets = createdTickets.map((t) => t._id as mongoose.Types.ObjectId);
+            await order.save();
+        }
 
         return order;
     } catch (error: any) {
-        console.error('[createOrderFromCompletedParcelledOrder] Erro ao criar Order:', error);
+        console.error('[createOrderFromCompletedParcelledOrder] Erro ao garantir Order pago:', error);
         throw error;
     }
 }

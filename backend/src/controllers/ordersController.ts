@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as paymentService from '../services/paymentService';
 import mongoose from 'mongoose';
-import { Order, Ticket, TicketType, Event, User, PromoterCode } from '../models';
+import { Order, Ticket, TicketType, Event, User, PromoterCode, Parcel, ParcelledOrder } from '../models';
 import { sendOrderCancelledEmail, sendTicketConfirmationEmail } from '../services/emailTemplates';
 import { normalizeCPF, normalizeEmail } from '../utils/validationHelpers';
 import * as orderService from '../services/orderService';
@@ -1023,9 +1023,98 @@ export const listMyOrders = async (req: Request, res: Response) => {
 
                 // Para pedidos PIX pendentes, buscar informações do PIX para exibir no frontend
                 let pixInfo: any = null;
-                // CRÍTICO: Para PIX, sempre usar Orders API (paymentOrderId), não Payment API
-                // Payment API não funciona para PIX criado via Orders API
-                if (order.status === 'pending' && order.paymentMethod === 'pix') {
+                let parcels: any[] = [];
+                
+                // Verificar se é um pedido parcelado
+                const parcelledOrderId = (order as any).parcelledOrder;
+                if (parcelledOrderId) {
+                    try {
+                        // Buscar todas as parcelas do ParcelledOrder
+                        const allParcels = await Parcel.find({
+                            parcelledOrder: parcelledOrderId,
+                        })
+                            .sort({ sequence: 1 })
+                            .lean();
+                        
+                        parcels = allParcels.map((parcel: any) => ({
+                            _id: parcel._id,
+                            sequence: parcel.sequence,
+                            amount: parcel.amount,
+                            dueDate: parcel.dueDate,
+                            status: parcel.status,
+                            paymentMethod: parcel.paymentMethod,
+                            qrCode: parcel.qrCode || null,
+                            qrCodeBase64: parcel.qrCodeBase64 || null,
+                            ticketUrl: parcel.ticketUrl || null,
+                            paymentId: parcel.paymentId || null, // Para buscar expiresAt do Mercado Pago
+                            paymentOrderId: parcel.paymentOrderId || null, // Para buscar expiresAt do Mercado Pago
+                        }));
+                        
+                        // Incluir parcelledOrderId no Order para facilitar chamadas de API no frontend
+                        (order as any).parcelledOrderId = parcelledOrderId.toString();
+                        
+                        // Buscar a parcela de entrada (sequence 0) para o PIX
+                        const entryParcel = allParcels.find((p: any) => p.sequence === 0);
+                        if (entryParcel && entryParcel.status !== 'paid' && entryParcel.paymentMethod === 'pix') {
+                            // Se a entrada ainda não foi paga e é PIX, usar os dados da parcela
+                            if (entryParcel.qrCode || entryParcel.qrCodeBase64) {
+                                pixInfo = {
+                                    qrCode: entryParcel.qrCode || null,
+                                    qrCodeBase64: entryParcel.qrCodeBase64 || null,
+                                    ticketUrl: entryParcel.ticketUrl || null,
+                                    expiresAt: entryParcel.dueDate
+                                        ? new Date(entryParcel.dueDate).toISOString()
+                                        : null,
+                                    expirationMinutes: entryParcel.dueDate
+                                        ? Math.round(
+                                              (new Date(entryParcel.dueDate).getTime() - Date.now()) /
+                                                  (60 * 1000)
+                                          )
+                                        : null,
+                                };
+                            } else if (entryParcel.paymentOrderId) {
+                                // Tentar buscar do Mercado Pago se não tiver QR code salvo
+                                try {
+                                    const mpOrder = await paymentService.getOrderById(entryParcel.paymentOrderId);
+                                    const mpPayment = mpOrder?.transactions?.payments?.[0];
+                                    const isPix =
+                                        mpPayment?.payment_method?.type === 'pix' ||
+                                        mpPayment?.payment_method?.id === 'pix' ||
+                                        mpPayment?.payment_method_id === 'pix' ||
+                                        (mpPayment as any)?.point_of_interaction?.type === 'pix';
+
+                                    if (mpPayment && isPix) {
+                                        pixInfo = {
+                                            qrCode: mpPayment.payment_method?.qr_code || null,
+                                            qrCodeBase64: mpPayment.payment_method?.qr_code_base64 || null,
+                                            ticketUrl: mpPayment.payment_method?.ticket_url || null,
+                                            expiresAt: mpPayment.date_of_expiration
+                                                ? new Date(mpPayment.date_of_expiration).toISOString()
+                                                : null,
+                                            expirationMinutes: mpPayment.date_of_expiration
+                                                ? Math.round(
+                                                      (new Date(mpPayment.date_of_expiration).getTime() -
+                                                          Date.now()) /
+                                                          (60 * 1000)
+                                                  )
+                                                : null,
+                                        };
+                                    }
+                                } catch (mpError: any) {
+                                    // Ignorar erro ao buscar do Mercado Pago
+                                }
+                            }
+                        }
+                    } catch (parcelError: any) {
+                        // Ignorar erro ao buscar parcelas
+                        console.error(`[listMyOrders] ${requestId} - Erro ao buscar parcelas para pedido ${order._id}`, {
+                            error: parcelError?.message,
+                        });
+                    }
+                }
+                
+                // Se não é pedido parcelado, buscar PIX normalmente
+                if (!parcelledOrderId && order.status === 'pending' && order.paymentMethod === 'pix') {
                     // Buscar paymentOrderId do banco (pode não estar no lean())
                     const orderDoc = await Order.findById(order._id)
                         .select('paymentOrderId paymentId')
@@ -1089,6 +1178,7 @@ export const listMyOrders = async (req: Request, res: Response) => {
                         qrCode: order.status === 'paid' ? ticket.qrCode : null, // Só retorna QR code se pedido estiver pago
                     })),
                     pixInfo: pixInfo || undefined, // Informações do PIX para pedidos pendentes
+                    parcels: parcels.length > 0 ? parcels : undefined, // Informações das parcelas para pedidos parcelados
                 };
 
                 return orderResponse;

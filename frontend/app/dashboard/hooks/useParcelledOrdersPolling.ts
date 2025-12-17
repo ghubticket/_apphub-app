@@ -1,160 +1,103 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import api from '@/lib/api';
 
 interface UseParcelledOrdersPollingOptions {
     enabled: boolean;
-    onParcelPaid: (parcelledOrderId: string, parcelId: string, sequence: number) => void;
+    onParcelPaid?: (parcelledOrderId: string, parcelId: string, sequence: number) => void;
+    intervalMs?: number;
 }
 
-interface UseParcelledOrdersPollingReturn {
-    isPolling: boolean;
-    stopPolling: () => void;
-}
-
-/**
- * Hook para fazer polling de parcelamentos e detectar quando parcelas são pagas
- * Similar ao useOrdersPolling, mas para vendas parceladas
- */
 export function useParcelledOrdersPolling({
     enabled,
     onParcelPaid,
-}: UseParcelledOrdersPollingOptions): UseParcelledOrdersPollingReturn {
-    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const [isPolling, setIsPolling] = useState(false);
-    const lastParcelStatusesRef = useRef<Map<string, string>>(new Map()); // parcelId -> status
+    intervalMs = 5000, // 5 segundos
+}: UseParcelledOrdersPollingOptions) {
+    const lastParcelStatusesRef = useRef<Map<string, string>>(new Map());
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const isPollingRef = useRef(false);
 
-    // Parar polling
-    const stopPolling = useCallback(() => {
-        if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-        }
-        setIsPolling(false);
-    }, []);
-
-    // Função para verificar parcelas pendentes
-    const checkParcels = useCallback(async () => {
-        if (!enabled) {
-            stopPolling();
-            return;
-        }
+    const checkParcelsStatus = useCallback(async () => {
+        if (!enabled || isPollingRef.current) return;
 
         try {
-            // Buscar todas as vendas parceladas ativas
-            const response = await api.get('/parcelled-orders', {
-                params: {
-                    limit: 50, // Buscar mais para pegar todas as parcelas
-                },
-            });
+            isPollingRef.current = true;
 
+            const response = await api.get('/parcelled-orders');
             const data = response.data?.data;
+
             const ordersRaw = Array.isArray(data?.orders) ? data.orders : [];
             const parcelsRaw = data?.parcelsByOrder || {};
-            
-            // Coletar todas as parcelas de todas as vendas parceladas
-            const allParcels: Array<{ parcelId: string; status: string; sequence: number; parcelledOrderId: string }> = [];
-            
-            // Processar parcelas por orderId
+
+            // Verificar mudanças de status das parcelas
             Object.keys(parcelsRaw).forEach((orderId) => {
                 const parcels = parcelsRaw[orderId] || [];
-                for (const parcel of parcels) {
-                    allParcels.push({
-                        parcelId: parcel._id || parcel.id,
-                        status: parcel.status,
-                        sequence: parcel.sequence,
-                        parcelledOrderId: orderId,
-                    });
-                }
-            });
-
-            // Verificar cada parcela para detectar mudanças de status
-            for (const parcel of allParcels) {
-                const parcelId = parcel.parcelId;
-                if (!parcelId) continue;
-
-                const previousStatus = lastParcelStatusesRef.current.get(parcelId) || parcel.status;
                 
-                // Se mudou de qualquer status para 'paid', disparar callback
-                if (previousStatus !== 'paid' && parcel.status === 'paid') {
-                    onParcelPaid(parcel.parcelledOrderId, parcelId, parcel.sequence);
-                    lastParcelStatusesRef.current.set(parcelId, 'paid');
-                } else if (parcel.status !== 'paid') {
-                    // Atualizar status na ref se não estiver pago
-                    lastParcelStatusesRef.current.set(parcelId, parcel.status);
-                } else {
-                    // Já estava pago, manter na ref
-                    lastParcelStatusesRef.current.set(parcelId, 'paid');
-                }
-            }
+                parcels.forEach((parcel: any) => {
+                    const parcelId = parcel._id || parcel.id;
+                    if (!parcelId) return;
 
-            // Remover parcelas que não estão mais na lista (já foram pagas e removidas)
-            const currentParcelIds = new Set(allParcels.map(p => p.parcelId));
-            const monitoredParcelIds = Array.from(lastParcelStatusesRef.current.keys());
-            for (const parcelId of monitoredParcelIds) {
-                if (!currentParcelIds.has(parcelId)) {
-                    // Parcela não está mais na lista, pode ter sido removida ou paga
-                    // Manter na ref por enquanto, mas não disparar callback
-                }
-            }
-        } catch (error: any) {
-            // Em caso de erro, continuar tentando (pode ser temporário)
+                    const currentStatus = parcel.status || 'pending';
+                    const lastStatus = lastParcelStatusesRef.current.get(parcelId);
+
+                    // Detectar quando uma parcela foi paga
+                    if (lastStatus && lastStatus !== 'paid' && currentStatus === 'paid') {
+                        console.log('[ParcelledOrdersPolling] Parcela paga detectada:', {
+                            parcelId,
+                            orderId,
+                            sequence: parcel.sequence,
+                            lastStatus,
+                            currentStatus,
+                        });
+
+                        // Vibrar dispositivo (se suportado)
+                        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+                            navigator.vibrate([200, 100, 200]);
+                        }
+
+                        // Notificar callback
+                        if (onParcelPaid) {
+                            onParcelPaid(orderId, parcelId, parcel.sequence);
+                        }
+                    }
+
+                    // Atualizar status na ref
+                    lastParcelStatusesRef.current.set(parcelId, currentStatus);
+                });
+            });
+        } catch (error) {
+            console.error('[ParcelledOrdersPolling] Erro ao verificar status:', error);
+        } finally {
+            isPollingRef.current = false;
         }
-    }, [enabled, onParcelPaid, stopPolling]);
+    }, [enabled, onParcelPaid]);
 
-    // Iniciar polling quando habilitado
+    // Iniciar/parar polling
     useEffect(() => {
         if (!enabled) {
-            stopPolling();
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
             return;
         }
 
-        // Inicializar status das parcelas
-        const initializeStatuses = async () => {
-            try {
-                const response = await api.get('/parcelled-orders', {
-                    params: {
-                        limit: 50,
-                    },
-                });
+        // Primeira verificação imediata
+        checkParcelsStatus();
 
-                const data = response.data?.data;
-                const parcelsRaw = data?.parcelsByOrder || {};
-                
-                // Armazenar status inicial de cada parcela
-                lastParcelStatusesRef.current.clear();
-                Object.keys(parcelsRaw).forEach((orderId) => {
-                    const parcels = parcelsRaw[orderId] || [];
-                    for (const parcel of parcels) {
-                        const parcelId = parcel._id || parcel.id;
-                        if (parcelId) {
-                            lastParcelStatusesRef.current.set(parcelId, parcel.status || 'pending');
-                        }
-                    }
-                });
-
-                setIsPolling(true);
-                // Primeira verificação imediata
-                checkParcels();
-                // Configurar intervalo (5 segundos, igual ao orders polling)
-                pollingIntervalRef.current = setInterval(checkParcels, 5000);
-            } catch (error) {
-                // Em caso de erro na inicialização, ainda tentar iniciar polling
-                setIsPolling(true);
-                pollingIntervalRef.current = setInterval(checkParcels, 5000);
-            }
-        };
-
-        initializeStatuses();
+        // Polling periódico
+        intervalRef.current = setInterval(checkParcelsStatus, intervalMs);
 
         return () => {
-            stopPolling();
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
         };
-    }, [enabled, checkParcels, stopPolling]);
+    }, [enabled, checkParcelsStatus, intervalMs]);
 
     return {
-        isPolling,
-        stopPolling,
+        isPolling: enabled && isPollingRef.current,
     };
 }

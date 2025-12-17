@@ -312,8 +312,8 @@ orderSchema.virtual('isFailed').get(function () {
 // Middleware para gerar número único do pedido e criptografar dados sensíveis antes de salvar
 orderSchema.pre('save', async function (next) {
     try {
-        if (this.isNew) {
-            // Gerar número único do pedido (10 caracteres)
+        if (this.isNew && !this.orderNumber) {
+            // Gerar número único do pedido (10 caracteres) apenas se não foi fornecido
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
             let orderNumber = '';
 
