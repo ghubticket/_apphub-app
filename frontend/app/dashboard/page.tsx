@@ -580,36 +580,6 @@ export default function DashboardPage() {
                 }));
             });
 
-            // Detectar quando qualquer parcela é paga (similar à lógica do PIX normal)
-            Object.keys(normalizedParcels).forEach((orderId) => {
-                const parcels = normalizedParcels[orderId];
-                parcels.forEach((parcel) => {
-                    const parcelId = parcel._id;
-                    const currentStatus = parcel.status;
-                    const previousStatus = lastParcelStatusesRef.current.get(parcelId);
-                    
-                    // Detectar quando parcela muda de 'pending' ou 'payment_generated' para 'paid'
-                    if (previousStatus && 
-                        (previousStatus === 'pending' || previousStatus === 'payment_generated') && 
-                        currentStatus === 'paid') {
-                        // Disparar modal de parcela paga
-                        // Se for a entrada (sequence 0), usar mensagem especial, senão mensagem genérica
-                        const message = parcel.sequence === 0 
-                            ? 'Sua entrada foi paga seu pedido foi efetivado.'
-                            : `Parcela ${parcel.sequence + 1} foi paga com sucesso!`;
-                        
-                        setPaidOrderInfo({
-                            orderNumber: orderId,
-                            message: message,
-                        });
-                        setShowPaymentSuccessModal(true);
-                    }
-                    
-                    // Atualizar status na ref
-                    lastParcelStatusesRef.current.set(parcelId, currentStatus);
-                });
-            });
-            
             // Limpar ref de parcelas que não existem mais (caso algum pedido seja removido)
             const allCurrentParcelIds = new Set(
                 Object.values(normalizedParcels).flat().map(p => p._id)
@@ -2562,6 +2532,8 @@ export default function DashboardPage() {
                 onClose={() => {
                     setShowPaymentSuccessModal(false);
                     setPaidOrderInfo(null);
+                    // Levar usuário para a aba de pedidos ao fechar a modal
+                    setActiveTab('orders');
                     // Recarregar pedidos e vendas parceladas para mostrar atualizações
                     // Pequeno delay para garantir que a modal feche antes de recarregar
                     setTimeout(() => {

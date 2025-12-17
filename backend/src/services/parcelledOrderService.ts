@@ -227,7 +227,6 @@ async function createOrderFromCompletedParcelledOrder(parcelledOrder: any) {
 
         // Criar Order normal (similar ao fluxo de pedidos completos)
         const order = new Order({
-            orderNumber: `PARC-${parcelledOrder._id}`,
             customer: customerId,
             event: parcelledOrder.event,
             tickets: [],
