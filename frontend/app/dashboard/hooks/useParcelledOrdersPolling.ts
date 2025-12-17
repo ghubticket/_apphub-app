@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import api from '@/lib/api';
+import { listParcelledOrders as listParcelledOrdersAction } from '@/app/api/payments/actions';
 
 interface UseParcelledOrdersPollingOptions {
     enabled: boolean;
