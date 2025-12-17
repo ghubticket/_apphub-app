@@ -69,7 +69,8 @@ async function handleRequest(
         }
 
         // Reconstruir o caminho da API
-        const apiPath = path.join('/');
+        // CRÍTICO: path é um array, então join('/') reconstrói corretamente
+        const apiPath = Array.isArray(path) ? path.join('/') : String(path);
         const apiUrl = `${API_URL}/${apiPath}`;
 
         // Obter query parameters

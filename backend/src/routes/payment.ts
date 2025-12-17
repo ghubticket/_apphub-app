@@ -39,6 +39,10 @@ const paymentRateLimit = rateLimit({
  *       404:
  *         description: Pedido não encontrado
  */
+// CRÍTICO: Rotas específicas ANTES de rotas genéricas para evitar conflitos
+// Ordem: rotas com path completo > rotas com parâmetros específicos > rotas genéricas
+router.post('/webhook', paymentController.handleWebhook);
+router.get('/order/:orderId/status', authenticate, paymentController.getOrderPaymentStatus);
 router.post('/:orderId/pix', authenticate, paymentRateLimit, paymentController.createPixPayment);
 
 /**
@@ -91,18 +95,6 @@ router.post('/:orderId/card', authenticate, paymentRateLimit, paymentController.
 
 /**
  * @swagger
- * /api/payments/webhook:
- *   post:
- *     summary: Webhook do Mercado Pago para receber notificações de pagamento
- *     tags: [Payments]
- *     responses:
- *       200:
- *         description: Webhook processado com sucesso
- */
-router.post('/webhook', paymentController.handleWebhook);
-
-/**
- * @swagger
  * /api/payments/{paymentId}/status:
  *   get:
  *     summary: Busca status de um pagamento no Mercado Pago
@@ -123,28 +115,5 @@ router.post('/webhook', paymentController.handleWebhook);
  *         description: Pagamento não encontrado
  */
 router.get('/:paymentId/status', authenticate, paymentController.getPaymentStatus);
-
-/**
- * @swagger
- * /api/payments/order/{orderId}/status:
- *   get:
- *     summary: Busca status de pagamento de um pedido
- *     tags: [Payments]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: orderId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do pedido
- *     responses:
- *       200:
- *         description: Status do pagamento do pedido
- *       404:
- *         description: Pedido não encontrado
- */
-router.get('/order/:orderId/status', authenticate, paymentController.getOrderPaymentStatus);
 
 export default router;
