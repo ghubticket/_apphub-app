@@ -8,7 +8,8 @@ import { shouldTriggerGlobalError, getErrorType, triggerGlobalError } from './gl
  */
 
 // Determinar se deve usar proxy (sempre true em produção, opcional em dev)
-const USE_PROXY = process.env.NEXT_PUBLIC_USE_API_PROXY !== 'false';
+// TEMPORÁRIO: Desabilitado para testar se o problema é o proxy
+const USE_PROXY = false; // process.env.NEXT_PUBLIC_USE_API_PROXY !== 'false';
 
 // URL base do proxy Next.js (client-side)
 const PROXY_BASE_URL = '/api/proxy';
