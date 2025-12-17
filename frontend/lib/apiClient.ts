@@ -1,51 +1,18 @@
 import axios, { AxiosHeaders, AxiosInstance, AxiosRequestConfig } from 'axios';
 
 /**
- * Cliente API com proxy automático
- * Todas as requisições passam pelo proxy Next.js, nunca expondo a URL da API
+ * Cliente API
+ * Requisições vão direto para o backend
  */
 
-// Determinar se deve usar proxy (sempre true em produção, opcional em dev)
-// TEMPORÁRIO: Desabilitado para testar se o problema é o proxy
-const USE_PROXY = false; // process.env.NEXT_PUBLIC_USE_API_PROXY !== 'false';
-
-// URL base do proxy Next.js (client-side)
-const PROXY_BASE_URL = '/api/proxy';
-
-// URL da API backend (apenas para fallback ou server-side)
+// URL da API backend
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api';
 
 /**
- * Converte uma URL da API para usar o proxy
- */
-function getProxiedUrl(url: string): string {
-    // Se já começar com /api/proxy, retornar como está
-    if (url.startsWith('/api/proxy')) {
-        return url;
-    }
-
-    // Se começar com a URL completa da API, extrair o path
-    if (url.startsWith(API_BASE_URL)) {
-        const path = url.replace(API_BASE_URL, '').replace(/^\//, '');
-        return `${PROXY_BASE_URL}/${path}`;
-    }
-
-    // Se começar com /api/, remover /api/ e usar proxy
-    if (url.startsWith('/api/')) {
-        const path = url.replace('/api/', '');
-        return `${PROXY_BASE_URL}/${path}`;
-    }
-
-    // Se for um path relativo, assumir que é da API
-    const cleanPath = url.startsWith('/') ? url.substring(1) : url;
-    return `${PROXY_BASE_URL}/${cleanPath}`;
-}
-
-/**
- * Criar instância do axios com proxy automático
+ * Criar instância do axios
  */
 function createApiClient(): AxiosInstance {
-    const baseURL = USE_PROXY ? PROXY_BASE_URL : API_BASE_URL;
+    const baseURL = API_BASE_URL;
 
     const api = axios.create({
         baseURL,
@@ -55,7 +22,7 @@ function createApiClient(): AxiosInstance {
         timeout: 30000, // 30 segundos de timeout padrão
     });
 
-    // Interceptor para ajustar URLs quando usar proxy e aumentar timeout
+    // Interceptor para adicionar token e ajustar timeout
     api.interceptors.request.use(
         (config) => {
             // CRÍTICO: Aumentar timeout para requisições que envolvem fake orders
@@ -63,15 +30,6 @@ function createApiClient(): AxiosInstance {
             const url = config.url || '';
             if (url.includes('fake-') || url.includes('/payments/') || url.includes('/parcelled-orders')) {
                 config.timeout = 90000; // 90 segundos para operações que criam pedidos
-            }
-
-            // Se estiver usando proxy e a URL não começar com /api/proxy, converter
-            if (USE_PROXY && config.url && !config.url.startsWith('/api/proxy')) {
-                // Se baseURL já é /api/proxy, apenas usar a URL como está
-                // Caso contrário, converter
-                if (!config.baseURL?.includes('/api/proxy')) {
-                    config.url = getProxiedUrl(config.url || '');
-                }
             }
 
             // Adicionar token se existir

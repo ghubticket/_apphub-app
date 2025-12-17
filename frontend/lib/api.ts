@@ -2,23 +2,12 @@ import axios, { AxiosHeaders } from 'axios';
 import { shouldTriggerGlobalError, getErrorType, triggerGlobalError } from './globalErrorHandler';
 
 /**
- * API Client com Proxy Automático
- * Todas as requisições passam pelo proxy Next.js (/api/proxy)
- * Nunca expõe a URL da API backend no cliente
+ * API Client
+ * Requisições vão direto para o backend
  */
 
-// Determinar se deve usar proxy (sempre true em produção, opcional em dev)
-// TEMPORÁRIO: Desabilitado para testar se o problema é o proxy
-const USE_PROXY = false; // process.env.NEXT_PUBLIC_USE_API_PROXY !== 'false';
-
-// URL base do proxy Next.js (client-side)
-const PROXY_BASE_URL = '/api/proxy';
-
-// URL da API backend (apenas para referência, nunca usada diretamente no cliente)
+// URL da API backend
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.ghubtech.com.br/api';
-
-// URL base que será usada (proxy ou API direta)
-const apiBaseURL = USE_PROXY ? PROXY_BASE_URL : API_BASE_URL;
 
 // Contador para evitar mostrar múltiplas modais ao mesmo tempo
 let globalErrorShown = false;
@@ -26,7 +15,7 @@ let globalErrorTimeout: NodeJS.Timeout | null = null;
 
 
 const api = axios.create({
-  baseURL: apiBaseURL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
