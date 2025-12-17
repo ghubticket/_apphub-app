@@ -350,7 +350,7 @@ console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
 
                         return (
                             <div key={parcel._id} className="rounded-lg border border-[#ded7ca] bg-white/50 p-3">
-                                <div className="flex items-center justify-between gap-2 md:gap-3">
+                                <div className="flex flex-col md:flex-col items-center justify-between gap-2 md:gap-3">
                                     {/* Informações da parcela - tudo na mesma linha */}
                                     <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-2 min-w-0">
                                         <p className="text-xs font-semibold text-[#1a1a1d] truncate">
@@ -367,7 +367,7 @@ console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
                                     </div>
                                     
                                     {/* Badge alinhado à direita */}
-                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                    <div className="w-full md:w-auto justify-between flex items-center gap-2 flex-shrink-0">
                                         <ParcelStatusBadge status={parcel.status} size="sm" />
                                     
                                         {/* Botão "Gerar PIX" apenas para parcelas pendentes */}
