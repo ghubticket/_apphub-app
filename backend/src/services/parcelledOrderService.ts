@@ -44,6 +44,7 @@ interface CreateParcelledOrderInput {
     customerPhone?: string;
     paymentType: 'pix' | 'boleto';
     installmentsCount: number;
+    deviceId?: string; // Device ID do Mercado Pago (X-meli-session-id)
 }
 
 export interface CreateParcelledOrderResult {
@@ -172,39 +173,58 @@ export async function createParcelledOrderFromCart(
 
         let entryPixPayment = null;
         if (input.paymentType === 'pix') {
-            const pixPayment = await createPixPayment({
-                orderId: createdParcelledOrder._id.toString(),
-                orderNumber: createdParcelledOrder._id.toString(),
-                totalAmount: entryParcel.amount,
-                customerData: {
-                    name: input.customerName,
-                    email: input.customerEmail,
-                    cpf: input.customerCpf,
-                    phone: input.customerPhone,
-                },
-                description: `Entrada plano parcelado - ${event.name}`,
-                items: [
-                    {
-                        title: `Entrada ${ticketType.name}`,
-                        quantity,
-                        unit_price: entryParcel.amount,
-                        description: `Entrada plano parcelado para ${event.name}`,
+            try {
+                const pixPayment = await createPixPayment({
+                    orderId: createdParcelledOrder._id.toString(),
+                    orderNumber: createdParcelledOrder._id.toString(),
+                    totalAmount: entryParcel.amount,
+                    customerData: {
+                        name: input.customerName,
+                        email: input.customerEmail,
+                        cpf: input.customerCpf,
+                        phone: input.customerPhone,
                     },
-                ],
-            });
+                    description: `Entrada plano parcelado - ${event.name}`,
+                    items: [
+                        {
+                            title: `Entrada ${ticketType.name}`,
+                            quantity,
+                            unit_price: entryParcel.amount,
+                            description: `Entrada plano parcelado para ${event.name}`,
+                        },
+                    ],
+                }, input.deviceId); // Passar deviceId se disponível
 
-            entryParcel.paymentId = pixPayment.paymentId;
-            entryParcel.paymentOrderId = pixPayment.orderId; // Salvar orderId do MP para buscar depois
-            entryParcel.qrCode = pixPayment.qrCode;
-            entryParcel.qrCodeBase64 = pixPayment.qrCodeBase64;
-            entryParcel.ticketUrl = pixPayment.ticketUrl;
-            entryParcel.generatedAt = new Date();
-            entryParcel.status = 'payment_generated';
+                entryParcel.paymentId = pixPayment.paymentId;
+                entryParcel.paymentOrderId = pixPayment.orderId; // Salvar orderId do MP para buscar depois
+                entryParcel.qrCode = pixPayment.qrCode;
+                entryParcel.qrCodeBase64 = pixPayment.qrCodeBase64;
+                entryParcel.ticketUrl = pixPayment.ticketUrl;
+                entryParcel.generatedAt = new Date();
+                entryParcel.status = 'payment_generated';
 
-            await entryParcel.save();
+                await entryParcel.save();
 
-            // Armazenar pixPayment completo para retornar expiresAt
-            entryPixPayment = pixPayment;
+                // Armazenar pixPayment completo para retornar expiresAt
+                entryPixPayment = pixPayment;
+            } catch (pixError: any) {
+                // Log detalhado do erro em produção também
+                console.error('[createParcelledOrderFromCart] Erro ao gerar PIX da entrada:', {
+                    error: pixError.message,
+                    code: pixError.code,
+                    response: pixError.response?.data,
+                    parcelledOrderId: createdParcelledOrder._id,
+                    entryAmount: entryParcel.amount,
+                    customerEmail: input.customerEmail,
+                    hasDeviceId: !!input.deviceId,
+                });
+
+                // Re-throw com mensagem mais clara
+                throw new Error(
+                    `Erro ao gerar PIX da entrada: ${pixError.message || 'Erro desconhecido'}. ` +
+                    `Verifique as credenciais do Mercado Pago (MP_ACCESS_TOKEN) e se o ambiente está configurado corretamente.`
+                );
+            }
         }
 
         // Criar Order PENDING vinculado ao ParcelledOrder

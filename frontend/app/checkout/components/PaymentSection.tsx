@@ -9,6 +9,7 @@ import { usePixPayment } from '../hooks/usePixPayment';
 import type { UsePixPaymentReturn } from '../hooks/usePixPayment';
 import { clearCartItems } from '@/lib/cart';
 import { storageHelpers } from '../utils/storageHelpers';
+import { getMercadoPagoDeviceId } from '../utils/deviceIdHelper';
 import api from '@/lib/api';
 
 const CardPaymentFormBrick = dynamic(
@@ -216,6 +217,9 @@ export function PaymentSection({
             setInstallmentLoading(true);
             setInstallmentError(null);
 
+            // Obter deviceId do Mercado Pago (necessário para PIX em produção)
+            const deviceId = getMercadoPagoDeviceId();
+
             const payload = {
                 eventId: primaryEventId,
                 ticketTypeId: primaryTicketTypeId,
@@ -228,9 +232,31 @@ export function PaymentSection({
                     cpf: customerCpf,
                     phone: customerPhone,
                 },
+                deviceId, // Incluir deviceId para melhorar rastreamento no Mercado Pago
             };
 
+            // Log detalhado do payload antes de enviar
+            console.log('[PaymentSection] Criando pedido parcelado - Payload:', {
+                eventId: primaryEventId,
+                ticketTypeId: primaryTicketTypeId,
+                quantity: primaryQuantity,
+                installmentsCount: selectedInstallments,
+                customerEmail: customerEmail,
+                customerName: customerName,
+                hasDeviceId: !!deviceId,
+                deviceId: deviceId?.substring(0, 20) + '...', // Log parcial por segurança
+            });
+
             const response = await api.post('/parcelled-orders', payload);
+
+            // Log da resposta
+            console.log('[PaymentSection] Resposta do backend:', {
+                success: response.data?.success,
+                hasParcelledOrder: !!response.data?.data?.parcelledOrder,
+                hasParcels: !!response.data?.data?.parcels,
+                hasEntryPixPayment: !!response.data?.data?.entryPixPayment,
+                parcelledOrderId: response.data?.data?.parcelledOrder?._id || response.data?.data?.parcelledOrder?.id,
+            });
 
             if (!response.data?.success || !response.data?.data?.parcelledOrder) {
                 throw new Error(response.data?.message || 'Erro ao criar venda parcelada. Tente novamente.');
@@ -244,6 +270,15 @@ export function PaymentSection({
                 : null;
 
             if (entryParcel && entryParcel.qrCode) {
+                // Log do QR code gerado
+                console.log('[PaymentSection] QR Code da entrada gerado com sucesso:', {
+                    hasQrCode: !!entryParcel.qrCode,
+                    hasQrCodeBase64: !!entryParcel.qrCodeBase64,
+                    paymentId: entryParcel.paymentId,
+                    amount: entryParcel.amount,
+                    expiresAt: entryPixPayment?.expiresAt,
+                });
+
                 // Usar expiresAt da resposta do backend (já vem do createPixPayment)
                 // Se não vier na resposta, tentar buscar via API como fallback
                 let expiresAt: string | null = entryPixPayment?.expiresAt || null;
@@ -251,13 +286,19 @@ export function PaymentSection({
                 // Fallback: buscar via API se não veio na resposta
                 if (!expiresAt && entryParcel.paymentId) {
                     try {
+                        console.log('[PaymentSection] Buscando expiração do PIX via API...', {
+                            paymentId: entryParcel.paymentId,
+                        });
                         const paymentStatusResp = await api.get(`/payments/${entryParcel.paymentId}/status`);
                         expiresAt = paymentStatusResp.data?.data?.expiresAt || null;
+                        console.log('[PaymentSection] Expiração obtida:', { expiresAt });
                     } catch (error) {
-                        // Ignorar erro ao buscar expiração, continuar sem timer
-                        if (process.env.NODE_ENV === 'development') {
-                            console.debug('Não foi possível buscar expiração do PIX:', error);
-                        }
+                        // Log do erro ao buscar expiração
+                        console.error('[PaymentSection] Erro ao buscar expiração do PIX:', {
+                            error: error instanceof Error ? error.message : String(error),
+                            paymentId: entryParcel.paymentId,
+                            response: (error as any)?.response?.data,
+                        });
                     }
                 }
 
@@ -275,6 +316,15 @@ export function PaymentSection({
                     onEntryParcelQrCodeChange(qrData);
                 }
             } else {
+                // Log de aviso: QR code não foi gerado
+                console.warn('[PaymentSection] Pedido parcelado criado mas QR code não foi gerado:', {
+                    hasEntryParcel: !!entryParcel,
+                    entryParcelStatus: entryParcel?.status,
+                    hasQrCode: !!entryParcel?.qrCode,
+                    hasPaymentId: !!entryParcel?.paymentId,
+                    parcelledOrderId: parcelledOrder?._id || parcelledOrder?.id,
+                });
+
                 // Se não houver QR code, redirecionar para o dashboard
                 if (typeof window !== 'undefined') {
                     storageHelpers.clearActiveOrderId();
@@ -289,6 +339,22 @@ export function PaymentSection({
                 }
             }
         } catch (error: any) {
+            // Log detalhado do erro
+            console.error('[PaymentSection] Erro ao criar pedido parcelado:', {
+                error: error instanceof Error ? error.message : String(error),
+                errorStack: error instanceof Error ? error.stack : undefined,
+                responseStatus: error?.response?.status,
+                responseData: error?.response?.data,
+                responseErrors: error?.response?.data?.errors,
+                requestPayload: {
+                    eventId: primaryEventId,
+                    ticketTypeId: primaryTicketTypeId,
+                    quantity: primaryQuantity,
+                    installmentsCount: selectedInstallments,
+                    customerEmail: customerEmail,
+                },
+            });
+
             const message =
                 error?.response?.data?.message ||
                 error?.message ||

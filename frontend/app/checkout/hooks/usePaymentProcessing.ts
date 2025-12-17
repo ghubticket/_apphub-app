@@ -105,9 +105,13 @@ export function usePaymentProcessing({
       setStatusMessage("Processando pagamento...");
       setStatusDetails([]);
 
+      // Declarar variáveis no escopo externo para uso no catch
+      let payload: any = null;
+      let isFakeOrder = false;
+      let deviceId: string = '';
+
       try {
         // Obter Device ID do Mercado Pago (obrigatório para processar pagamento)
-        let deviceId: string;
         try {
           deviceId = await waitForMercadoPagoDeviceId(1000); // Aguardar até 1s pelo deviceId do SDK
         } catch (error) {
@@ -127,7 +131,7 @@ export function usePaymentProcessing({
             ? paymentData.cardholder
             : undefined;
 
-        const payload: any = {
+        payload = {
           token: paymentData.token,
           installments: paymentData.installments || 1,
           paymentMethodId: paymentData.paymentMethodId,
@@ -140,7 +144,7 @@ export function usePaymentProcessing({
         }
 
         // NOVO: Se orderId é fake, enviar dados do carrinho e cliente para criar pedido real
-        const isFakeOrder = orderId.startsWith("fake-");
+        isFakeOrder = orderId.startsWith("fake-");
         if (isFakeOrder) {
           // Obter dados do carrinho e cliente - tentar múltiplas fontes
           let currentCartItems = (paymentData as any).cartItems;
@@ -239,11 +243,32 @@ export function usePaymentProcessing({
           }
         }
 
+        // Log do payload antes de enviar
+        console.log('[usePaymentProcessing] Processando pagamento com cartão:', {
+          orderId,
+          isFakeOrder,
+          hasDeviceId: !!deviceId,
+          deviceIdPrefix: deviceId?.substring(0, 20) + '...', // Log parcial por segurança
+          paymentMethodId: paymentData.paymentMethodId,
+          installments: paymentData.installments,
+          hasCardholder: !!cardholderData,
+          cartItemsCount: isFakeOrder ? payload.cartItems?.length : 0,
+        });
+
         // Enviar requisição com deviceId no body e header
         const response = await api.post(`/payments/${orderId}/card`, payload, {
           headers: {
             "X-meli-session-id": deviceId,
           },
+        });
+
+        // Log da resposta
+        console.log('[usePaymentProcessing] Resposta do backend:', {
+          success: response.data?.success,
+          hasData: !!response.data?.data,
+          status: response.data?.data?.status,
+          statusDetail: response.data?.data?.statusDetail,
+          hasCreatedOrderId: !!response.data?.data?.createdOrderId,
         });
 
         const paymentResult = response.data?.data || response.data;
@@ -376,6 +401,22 @@ export function usePaymentProcessing({
           }
         }
       } catch (error: any) {
+        // Log detalhado do erro
+        console.error('[usePaymentProcessing] Erro ao processar pagamento com cartão:', {
+          error: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          responseStatus: error?.response?.status,
+          responseData: error?.response?.data,
+          responseErrors: error?.response?.data?.errors,
+          requestUrl: `/payments/${orderId}/card`,
+          requestPayload: {
+            hasDeviceId: !!payload?.deviceId,
+            paymentMethodId: payload?.paymentMethodId,
+            installments: payload?.installments,
+            isFakeOrder,
+          },
+        });
+
         setStatus("error");
 
         // Tratar diferentes tipos de erro

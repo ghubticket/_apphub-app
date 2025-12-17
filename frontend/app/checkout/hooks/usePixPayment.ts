@@ -231,6 +231,13 @@ export function usePixPayment(
             } catch (error) {
                 deviceId = getMercadoPagoDeviceId();
             }
+
+            // Log do deviceId obtido
+            console.log('[usePixPayment] Gersando PIX - Device ID:', {
+                hasDeviceId: !!deviceId,
+                deviceIdPrefix: deviceId?.substring(0, 20) + '...', // Log parcial por segurança
+                orderId,
+            });
             
             // Se orderId é fake, enviar dados do carrinho e cliente para criar pedido real
             const isFakeOrder = orderId.startsWith('fake-');
@@ -310,7 +317,20 @@ export function usePixPayment(
                     requestBody.promoterCode = currentPromoterCode;
                 }
                 
-                // Log removido para reduzir ruído
+                // Log do payload quando é fake order
+                console.log('[usePixPayment] Criando pedido real (fake order) - Payload:', {
+                    isFakeOrder: true,
+                    cartItemsCount: requestBody.cartItems?.length || 0,
+                    customerEmail: requestBody.customerData?.email,
+                    customerName: requestBody.customerData?.name,
+                    hasPromoterCode: !!requestBody.promoterCode,
+                    hasDeviceId: !!deviceId,
+                });
+            } else {
+                console.log('[usePixPayment] Gerando PIX para pedido existente:', {
+                    orderId,
+                    hasDeviceId: !!deviceId,
+                });
             }
             
             const response = await api.post(
@@ -322,6 +342,16 @@ export function usePixPayment(
                     },
                 }
             );
+
+            // Log da resposta
+            console.log('[usePixPayment] Resposta do backend:', {
+                success: response.data?.success,
+                hasData: !!response.data?.data,
+                hasPaymentId: !!response.data?.data?.paymentId,
+                hasQrCode: !!response.data?.data?.qrCode,
+                hasCreatedOrderId: !!response.data?.data?.createdOrderId,
+                status: response.data?.data?.status,
+            });
 
             const paymentResult = response.data?.data || response.data;
             

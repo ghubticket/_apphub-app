@@ -117,6 +117,9 @@ export const createParcelledOrder = async (req: Request, res: Response) => {
         // Calcular valores usando serviço existente
         const calc = await calculateOrderValues(ticketType, event, quantity);
 
+        // Extrair deviceId do body se disponível (para PIX parcelado)
+        const deviceId = (req.body as any).deviceId || undefined;
+
         // Criar venda parcelada + parcelas + pagamento da entrada
         const result = await createParcelledOrderFromCart({
             eventId,
@@ -129,6 +132,7 @@ export const createParcelledOrder = async (req: Request, res: Response) => {
             customerPhone: customerData.phone,
             paymentType,
             installmentsCount,
+            deviceId, // Passar deviceId para createPixPayment
         });
 
         // Buscar parcelas atualizadas para retorno mais enxuto
@@ -156,6 +160,23 @@ export const createParcelledOrder = async (req: Request, res: Response) => {
             data: responseData,
         });
     } catch (error: any) {
+        // Log detalhado do erro em produção também
+        console.error('[createParcelledOrder] Erro ao criar venda parcelada:', {
+            error: error.message,
+            stack: error.stack,
+            body: req.body,
+            userId: (req as any).user?._id,
+        });
+
+        // Se o erro contém informações sobre MP_ACCESS_TOKEN, retornar mensagem mais clara
+        if (error.message?.includes('MP_ACCESS_TOKEN')) {
+            return res.status(500).json({
+                success: false,
+                message: 'Erro de configuração do Mercado Pago. Verifique as credenciais em produção.',
+                errors: [error.message],
+            });
+        }
+
         return res.status(500).json({
             success: false,
             message: error.message || 'Erro ao criar venda parcelada',

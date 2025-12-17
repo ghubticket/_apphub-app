@@ -409,10 +409,17 @@ export const createPixPayment = async (
             orderStatus: orderResponse.status, // Status da Order
         };
     } catch (error: any) {
-        // Log detalhado do erro para debug
-        if (process.env.NODE_ENV !== 'production') {
-            
-        }
+        // Log detalhado do erro para debug (também em produção para troubleshooting)
+        console.error('[createPixPayment] Erro ao criar pagamento PIX:', {
+            error: error.message,
+            code: error.code,
+            response: error.response?.data,
+            orderId: params.orderId,
+            totalAmount: params.totalAmount,
+            customerEmail: params.customerData.email,
+            hasDeviceId: !!params.deviceId,
+            stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+        });
 
         // Tratamento específico para erro de autenticação
         if (
