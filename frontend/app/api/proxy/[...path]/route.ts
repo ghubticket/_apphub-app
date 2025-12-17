@@ -19,6 +19,19 @@ export async function GET(
     request: NextRequest,
     { params }: { params: { path: string[] } }
 ) {
+    // CRÍTICO: Next.js pode chamar GET mesmo quando request.method é POST
+    // Verificar o método real da requisição e processar corretamente
+    const actualMethod = request.method;
+    
+    if (actualMethod === 'POST') {
+        // Se o método real é POST, processar como POST mesmo estando na função GET
+        console.warn('[Proxy] CORREÇÃO: Função GET chamada mas request.method é POST. Processando como POST.', {
+            apiPath: Array.isArray(params.path) ? params.path.join('/') : String(params.path),
+            requestUrl: request.url,
+        });
+        return handleRequest(request, params, 'POST');
+    }
+    
     // CRÍTICO: Verificar se é rota de pagamento que chegou como GET por engano
     const apiPath = Array.isArray(params.path) ? params.path.join('/') : String(params.path);
     const isPaymentRoute = apiPath.includes('/payments/') && (apiPath.includes('/pix') || apiPath.includes('/card'));
@@ -51,12 +64,19 @@ export async function POST(
     { params }: { params: { path: string[] } }
 ) {
     // CRÍTICO: Validar que a requisição realmente é POST
-    if (request.method !== 'POST') {
+    const actualMethod = request.method;
+    
+    if (actualMethod !== 'POST') {
         console.error('[Proxy] ERRO CRÍTICO: Função POST chamada mas request.method não é POST:', {
-            requestMethod: request.method,
+            requestMethod: actualMethod,
             path: params.path?.join('/'),
+            requestUrl: request.url,
         });
+        
+        // Se o método real não é POST, processar com o método real
+        return handleRequest(request, params, actualMethod);
     }
+    
     return handleRequest(request, params, 'POST');
 }
 
