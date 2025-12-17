@@ -51,11 +51,19 @@ function createApiClient(): AxiosInstance {
         headers: {
             'Content-Type': 'application/json',
         },
+        timeout: 30000, // 30 segundos de timeout padrão
     });
 
-    // Interceptor para ajustar URLs quando usar proxy
+    // Interceptor para ajustar URLs quando usar proxy e aumentar timeout
     api.interceptors.request.use(
         (config) => {
+            // CRÍTICO: Aumentar timeout para requisições que envolvem fake orders
+            // Essas requisições precisam criar o pedido primeiro, então podem demorar mais
+            const url = config.url || '';
+            if (url.includes('fake-') || url.includes('/payments/') || url.includes('/parcelled-orders')) {
+                config.timeout = 90000; // 90 segundos para operações que criam pedidos
+            }
+
             // Se estiver usando proxy e a URL não começar com /api/proxy, converter
             if (USE_PROXY && config.url && !config.url.startsWith('/api/proxy')) {
                 // Se baseURL já é /api/proxy, apenas usar a URL como está

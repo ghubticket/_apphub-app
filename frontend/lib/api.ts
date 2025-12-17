@@ -29,7 +29,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 segundos de timeout
+  timeout: 30000, // 30 segundos de timeout padrão
 });
 
 const getStoredToken = () => {
@@ -42,9 +42,16 @@ const getStoredToken = () => {
   );
 };
 
-// Interceptor para adicionar token (se necessário)
+// Interceptor para adicionar token e ajustar timeout
 api.interceptors.request.use(
   (config) => {
+    // CRÍTICO: Aumentar timeout para requisições que envolvem fake orders
+    // Essas requisições precisam criar o pedido primeiro, então podem demorar mais
+    const url = config.url || '';
+    if (url.includes('fake-') || url.includes('/payments/') || url.includes('/parcelled-orders')) {
+      config.timeout = 90000; // 90 segundos para operações que criam pedidos
+    }
+
     // Adicionar token se existir
     const token = getStoredToken();
     if (token) {

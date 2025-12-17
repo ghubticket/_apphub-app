@@ -768,6 +768,21 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
 // ====================================
 
 app.use((req: Request, res: Response) => {
+    // Log detalhado para debug (apenas para rotas de pagamento com fake-)
+    if (req.path.includes('fake-') || req.path.includes('/payments/')) {
+        console.error('[Server 404] Rota não encontrada:', {
+            method: req.method,
+            path: req.path,
+            originalUrl: req.originalUrl,
+            baseUrl: req.baseUrl,
+            url: req.url,
+            headers: {
+                'content-type': req.headers['content-type'],
+                'authorization': req.headers.authorization ? 'present' : 'missing',
+            },
+        });
+    }
+    
     res.status(404).json({
         success: false,
         message: 'Rota não encontrada',
