@@ -162,12 +162,15 @@ async function handleRequest(
         }
 
         // Fazer requisição para a API backend (fetch padrão)
+        // CRÍTICO: Aumentar timeout para 60 segundos para operações que podem demorar (criar pedido + gerar PIX)
+        const timeoutMs = apiPath.includes('fake-') ? 60000 : 30000; // 60s para fake orders, 30s para outros
+        
         const response = await fetch(fullUrl, {
             method,
             headers,
             body,
-            // Timeout de 30 segundos
-            signal: AbortSignal.timeout(30000),
+            // Timeout ajustado
+            signal: AbortSignal.timeout(timeoutMs),
         });
 
         // Log da resposta para debug

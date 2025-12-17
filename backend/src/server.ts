@@ -626,7 +626,19 @@ app.use('/api/tickets', ticketsRoutes);
 // Rotas de códigos de promotor
 app.use('/api/promoters', promoterCodesRoutes);
 // Rotas de pagamento
-app.use('/api/payments', paymentRoutes);
+// CRÍTICO: Adicionar middleware de debug para verificar rotas
+app.use('/api/payments', (req, res, next) => {
+    // Log apenas para rotas com fake- para debug
+    if (req.path.includes('fake-')) {
+        console.log('[Server] Rota de pagamento recebida:', {
+            method: req.method,
+            path: req.path,
+            originalUrl: req.originalUrl,
+            baseUrl: req.baseUrl,
+        });
+    }
+    next();
+}, paymentRoutes);
 // Rotas de vendas parceladas
 app.use('/api/parcelled-orders', parcelledOrdersRoutes);
 // Rotas de novidades/newsletter

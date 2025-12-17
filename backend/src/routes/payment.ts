@@ -49,7 +49,23 @@ router.post('/webhook', paymentController.handleWebhook);
 router.get('/order/:orderId/status', authenticate, paymentController.getOrderPaymentStatus);
 
 // Rotas com parâmetros específicos (POST)
-router.post('/:orderId/pix', authenticate, paymentRateLimit, paymentController.createPixPayment);
+// CRÍTICO: Adicionar middleware de debug antes do controller
+router.post('/:orderId/pix', 
+    (req, res, next) => {
+        // Log para debug
+        if (req.params.orderId?.startsWith('fake-')) {
+            console.log('[Payment Router] Rota POST /:orderId/pix capturada:', {
+                orderId: req.params.orderId,
+                path: req.path,
+                originalUrl: req.originalUrl,
+            });
+        }
+        next();
+    },
+    authenticate, 
+    paymentRateLimit, 
+    paymentController.createPixPayment
+);
 
 /**
  * @swagger
@@ -97,7 +113,22 @@ router.post('/:orderId/pix', authenticate, paymentRateLimit, paymentController.c
  *       404:
  *         description: Pedido não encontrado
  */
-router.post('/:orderId/card', authenticate, paymentRateLimit, paymentController.createCardPayment);
+router.post('/:orderId/card', 
+    (req, res, next) => {
+        // Log para debug
+        if (req.params.orderId?.startsWith('fake-')) {
+            console.log('[Payment Router] Rota POST /:orderId/card capturada:', {
+                orderId: req.params.orderId,
+                path: req.path,
+                originalUrl: req.originalUrl,
+            });
+        }
+        next();
+    },
+    authenticate, 
+    paymentRateLimit, 
+    paymentController.createCardPayment
+);
 
 /**
  * @swagger
@@ -120,6 +151,19 @@ router.post('/:orderId/card', authenticate, paymentRateLimit, paymentController.
  *       404:
  *         description: Pagamento não encontrado
  */
+// CRÍTICO: Rota genérica por último (GET)
+// Esta rota deve vir DEPOIS das rotas POST para evitar conflitos
 router.get('/:paymentId/status', authenticate, paymentController.getPaymentStatus);
+
+// Log de todas as rotas registradas (apenas em desenvolvimento)
+if (process.env.NODE_ENV === 'development') {
+    console.log('[Payment Routes] Rotas registradas:');
+    router.stack.forEach((r: any) => {
+        if (r.route) {
+            const methods = Object.keys(r.route.methods).join(', ').toUpperCase();
+            console.log(`  ${methods} ${r.route.path}`);
+        }
+    });
+}
 
 export default router;
