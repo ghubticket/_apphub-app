@@ -121,12 +121,36 @@ export function usePixPolling({
                 const errorMessage = err?.response?.data?.message || err?.message;
                 const orderIdToCheck = orderIdRef.current || orderId;
                 
+                // Log do erro no polling (apenas a cada 10 tentativas para não poluir)
+                if (attempts % 10 === 0) {
+                    console.warn('[usePixPolling] Erro ao verificar status:', {
+                        statusCode,
+                        errorMessage,
+                        orderId: orderIdToCheck,
+                        attempts,
+                    });
+                }
                 
-                // Se pedido não encontrado (404), parar polling
+                // Se pedido não encontrado (404), parar polling imediatamente
                 if (statusCode === 404) {
+                    console.error('[usePixPolling] Pedido não encontrado (404), parando polling:', orderIdToCheck);
                     stopPolling();
+                    setStatus('error');
+                    setStatusMessage('Pedido não encontrado. Por favor, recarregue a página.');
+                    onPaymentError('Pedido não encontrado');
                     return; // Parar execução
                 }
+                
+                // Se erro 500 ou outros erros críticos, parar após algumas tentativas
+                if (statusCode >= 500 && attempts >= 5) {
+                    console.error('[usePixPolling] Erro crítico do servidor, parando polling após 5 tentativas');
+                    stopPolling();
+                    setStatus('error');
+                    setStatusMessage('Erro ao verificar pagamento. Tente recarregar a página.');
+                    onPaymentError('Erro ao verificar pagamento');
+                    return;
+                }
+                
                 // Não parar polling em outros erros (pode ser temporário)
             }
 

@@ -41,8 +41,14 @@ const paymentRateLimit = rateLimit({
  */
 // CRÍTICO: Rotas específicas ANTES de rotas genéricas para evitar conflitos
 // Ordem: rotas com path completo > rotas com parâmetros específicos > rotas genéricas
+// IMPORTANTE: Express faz match por método HTTP primeiro, então GET e POST não conflitam
+// Mas ainda é melhor manter ordem específica > genérica
+
+// Rotas específicas (path completo)
 router.post('/webhook', paymentController.handleWebhook);
 router.get('/order/:orderId/status', authenticate, paymentController.getOrderPaymentStatus);
+
+// Rotas com parâmetros específicos (POST)
 router.post('/:orderId/pix', authenticate, paymentRateLimit, paymentController.createPixPayment);
 
 /**

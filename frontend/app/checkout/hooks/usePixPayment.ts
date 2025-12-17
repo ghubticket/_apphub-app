@@ -98,6 +98,8 @@ export function usePixPayment(
             redirectCountdown.startCountdown('/dashboard', 5);
         },
         onPaymentError: (message) => {
+            // CRÍTICO: Parar polling quando há erro
+            stopPolling();
             setStatus('error');
             setStatusMessage(message);
         },
@@ -224,8 +226,12 @@ export function usePixPayment(
         setPixResult(null);
         setPixCopySuccess(false);
 
+        // Declarar variáveis no escopo externo para uso no catch
+        let deviceId: string = '';
+        let requestBody: any = null;
+        const isFakeOrder = orderId.startsWith('fake-');
+
         try {
-            let deviceId: string;
             try {
                 deviceId = await waitForMercadoPagoDeviceId(1000);
             } catch (error) {
@@ -240,8 +246,7 @@ export function usePixPayment(
             });
             
             // Se orderId é fake, enviar dados do carrinho e cliente para criar pedido real
-            const isFakeOrder = orderId.startsWith('fake-');
-            const requestBody: any = { deviceId };
+            requestBody = { deviceId };
             
             if (isFakeOrder) {
                 // Obter dados do carrinho e cliente - tentar múltiplas fontes
@@ -417,13 +422,34 @@ export function usePixPayment(
                 throw new Error('Resposta inválida do servidor');
             }
         } catch (err: any) {
+            // Log detalhado do erro
+            console.error('[usePixPayment] Erro ao gerar PIX:', {
+                error: err instanceof Error ? err.message : String(err),
+                errorStack: err instanceof Error ? err.stack : undefined,
+                responseStatus: err?.response?.status,
+                responseData: err?.response?.data,
+                responseErrors: err?.response?.data?.errors,
+                requestUrl: `/payments/${orderId}/pix`,
+                requestBody: {
+                    hasDeviceId: !!deviceId,
+                    isFakeOrder: orderId.startsWith('fake-'),
+                    cartItemsCount: requestBody?.cartItems?.length || 0,
+                },
+            });
+
             const errorMessage = err?.response?.data?.message || 
                                 err?.message || 
                                 'Erro ao gerar QR Code PIX. Tente novamente.';
             
+            // CRÍTICO: Parar polling se houver erro (não iniciar polling em caso de erro)
+            stopPolling();
+            
             setStatus('error');
             setStatusMessage(errorMessage);
             setPixResult(null);
+            
+            // CRÍTICO: Não iniciar polling em caso de erro
+            // O polling só deve ser iniciado quando o PIX for gerado com sucesso
         } finally {
             processingRef.current = false;
         }

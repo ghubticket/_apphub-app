@@ -73,6 +73,16 @@ async function handleRequest(
         const apiPath = Array.isArray(path) ? path.join('/') : String(path);
         const apiUrl = `${API_URL}/${apiPath}`;
 
+        // Log para debug (apenas em desenvolvimento ou quando houver erro)
+        if (process.env.NODE_ENV === 'development' || apiPath.includes('fake-')) {
+            console.log('[Proxy] Requisição:', {
+                method,
+                apiPath,
+                apiUrl,
+                hasBody: ['POST', 'PUT', 'PATCH'].includes(method),
+            });
+        }
+
         // Obter query parameters
         const searchParams = request.nextUrl.searchParams;
         const queryString = searchParams.toString();
@@ -160,6 +170,16 @@ async function handleRequest(
             signal: AbortSignal.timeout(30000),
         });
 
+        // Log da resposta para debug
+        if (process.env.NODE_ENV === 'development' || apiPath.includes('fake-')) {
+            console.log('[Proxy] Resposta:', {
+                status: response.status,
+                statusText: response.statusText,
+                url: fullUrl,
+                contentType: response.headers.get('content-type'),
+            });
+        }
+
         // Obter resposta
         const responseContentType = response.headers.get('content-type');
         const isJson = responseContentType?.includes('application/json');
@@ -169,6 +189,14 @@ async function handleRequest(
             data = await response.json();
         } else {
             data = await response.text();
+        }
+
+        // Log do conteúdo da resposta para debug (apenas se houver erro)
+        if (response.status >= 400 && (process.env.NODE_ENV === 'development' || apiPath.includes('fake-'))) {
+            console.error('[Proxy] Erro na resposta:', {
+                status: response.status,
+                data: typeof data === 'string' ? data.substring(0, 200) : data,
+            });
         }
 
         // Retornar resposta com status e headers apropriados

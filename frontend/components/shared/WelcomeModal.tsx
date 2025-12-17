@@ -123,15 +123,15 @@ export default function WelcomeModal() {
 
                                 <div className="bg-gradient-to-r from-[#f97316]/10 to-[#ea6820]/10 rounded-lg md:rounded-xl p-3 md:p-4 border border-[#f97316]/20">
                                     <h3 className="font-bold text-center text-[#1a1a1d] mb-1 text-xs md:text-sm">
-                                        Loja Demo
+                                                Loja Demo
                                         <span className="text-[10px] md:text-xs font-normal text-gray-500 block md:inline md:ml-2">(mas os pedidos são reais!)</span>
-                                    </h3>
+                                            </h3>
                                     <p className="text-[10px] md:text-xs text-center text-gray-600 leading-relaxed">
-                                        Essa é uma <strong>loja demo</strong> para você conhecer a plataforma. 
-                                        Todos os pedidos são <strong>reais</strong>, então pode usar e abusar para testar os limites! 
-                                    </p>
-                                </div>
-                            </div>
+                                                Essa é uma <strong>loja demo</strong> para você conhecer a plataforma. 
+                                                Todos os pedidos são <strong>reais</strong>, então pode usar e abusar para testar os limites! 
+                                            </p>
+                                        </div>
+                                    </div>
 
                             {/* Features rápidas - compacto */}
                             <div className="grid grid-cols-2 gap-2">
@@ -142,7 +142,7 @@ export default function WelcomeModal() {
                                 <div className="bg-gray-50 rounded-lg p-2 md:p-3 text-center">
                                     <span className="text-base md:text-xl mb-1 block">🔒</span>
                                     <p className="text-[10px] md:text-xs font-semibold text-[#1a1a1d]">Sem Concorrência</p>
-                                </div>
+                            </div>
                                 <div className="bg-gray-50 rounded-lg p-2 md:p-3 text-center">
                                     <span className="text-base md:text-xl mb-1 block">👑</span>
                                     <p className="text-[10px] md:text-xs font-semibold text-[#1a1a1d]">Você no Comando</p>
@@ -151,31 +151,31 @@ export default function WelcomeModal() {
                                     <span className="text-base md:text-xl mb-1 block">⚡</span>
                                     <p className="text-[10px] md:text-xs font-semibold text-[#1a1a1d]">Sem Filas</p>
                                 </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
                     {/* Footer fixo - sem scroll */}
                     <div className="px-4 md:px-6 pb-4 md:pb-6 space-y-2 border-t border-gray-100 pt-3 md:pt-4 flex-shrink-0 bg-white">
-                        <a
-                            href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre a plataforma! 💬"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={handleClose}
+                            <a
+                                href="https://wa.me/5511982631238?text=Olá Vicente! Quero saber mais sobre a plataforma! 💬"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={handleClose}
                             className="w-full inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-[#1a1a1d] hover:bg-[#f97316] text-white text-xs md:text-sm font-semibold rounded-full transition-all shadow-lg"
-                        >
+                            >
                             <HiOutlineBolt className="w-4 h-4" />
                             <span>Fale com o Vicente!</span>
                             <HiOutlineArrowRight className="w-4 h-4" />
-                        </a>
-                        
-                        <a
-                            href="/sobre"
-                            onClick={handleClose}
+                            </a>
+                            
+                            <a
+                                href="/sobre"
+                                onClick={handleClose}
                             className="w-full inline-flex border border-gray-200 items-center justify-center gap-2 px-4 md:px-6 py-2 md:py-2.5 text-xs md:text-sm text-gray-600 hover:text-[#1a1a1d] font-medium rounded-full transition-all hover:bg-gray-50"
-                        >
-                            Quero Saber Mais
-                        </a>
+                            >
+                                Quero Saber Mais
+                            </a>
                     </div>
                 </div>
             </div>
