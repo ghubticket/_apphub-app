@@ -10,6 +10,11 @@ interface ParcelStatusBadgeProps {
 }
 
 export default function ParcelStatusBadge({ status, size = 'sm' }: ParcelStatusBadgeProps) {
+    // Não renderizar badge quando status é 'payment_generated' (PIX GERADO)
+    if (status === 'payment_generated') {
+        return null;
+    }
+    
     const config = parcelStatusConfig[status];
     
     const sizeClasses = size === 'sm' 

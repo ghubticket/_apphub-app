@@ -333,12 +333,12 @@ export default function ParcelledOrderCard({
                             const isEntry = parcel.sequence === 0;
                             const entryHasPix = isEntry && entryPixInfo && (entryPixInfo.qrCode || entryPixInfo.qrCodeBase64);
 
-                            // Mostrar botão "Gerar PIX" apenas se:
+                            // Mostrar botão "Gerar PIX" se:
                             // 1. Não for entrada com PIX já mostrado acima
-                            // 2. Status seja 'pending' (não 'payment_generated')
+                            // 2. Status seja 'pending' OU 'payment_generated' (PIX gerado mas ainda não vencido)
                             // 3. Entrada esteja paga (se não for a própria entrada)
                             const canShowButton = !entryHasPix &&
-                                parcel.status === 'pending' &&
+                                (parcel.status === 'pending' || parcel.status === 'payment_generated') &&
                                 (isEntry || isEntryPaidValue);
 
                             return (
@@ -361,9 +361,7 @@ export default function ParcelledOrderCard({
                                         </p>
                                         
                                         {/* Status e Botão */}
-                                        <div className="flex items-center justify-between gap-2 mt-1">
-                                            <ParcelStatusBadge status={parcel.status} size="sm" />
-
+                                        <div className="flex flex-col md:flex-row items-center justify-between gap-2 mt-1 w-full md:w-auto">
                                             {/* Botão "GERAR PIX" apenas para parcelas pendentes */}
                                             {canShowButton && (
                                                 <button
@@ -381,7 +379,7 @@ export default function ParcelledOrderCard({
                                                             Gerando...
                                                         </>
                                                     ) : (
-                                                        'GERAR PIX'
+                                                        'Gerar Pix dessa Parcela'
                                                     )}
                                                 </button>
                                             )}
