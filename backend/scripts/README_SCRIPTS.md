@@ -7,22 +7,43 @@
 Script para pagar automaticamente todas as parcelas de um pedido parcelado e gerar os ingressos.
 
 #### Uso:
+
+**Se estiver na raiz do projeto:**
 ```bash
+# Com ID específico:
 npx ts-node backend/scripts/payAllParcels.ts <parcelledOrderId>
+
+# Sem ID (pega qualquer pedido ativo automaticamente):
+npx ts-node backend/scripts/payAllParcels.ts
 ```
 
-#### Exemplo:
+**Se estiver no diretório `backend`:**
 ```bash
-npx ts-node backend/scripts/payAllParcels.ts 6942c08ffdf39be7c0950eb0
+# Com ID específico:
+npx ts-node scripts/payAllParcels.ts <parcelledOrderId>
+
+# Sem ID (pega qualquer pedido ativo automaticamente):
+npx ts-node scripts/payAllParcels.ts
+```
+
+#### Exemplos:
+```bash
+# Com ID específico:
+npx ts-node scripts/payAllParcels.ts 6942c08ffdf39be7c0950eb0
+
+# Sem ID (modo teste - pega qualquer pedido):
+npx ts-node scripts/payAllParcels.ts
 ```
 
 #### O Que Faz:
-1. ✅ Busca o pedido parcelado
+1. ✅ Busca o pedido parcelado (por ID ou automaticamente)
 2. ✅ Busca todas as parcelas
 3. ✅ Marca todas como pagas
 4. ✅ Atualiza status do pedido para `completed`
 5. ✅ Gera QR codes dos ingressos
 6. ✅ Ativa o pedido vinculado
+
+**Nota:** Se não informar um ID, o script busca automaticamente o primeiro pedido parcelado com status `active` ou `pending`. Se não encontrar, busca qualquer pedido não completado. Perfeito para testes! 🧪
 
 #### Output Esperado:
 ```
@@ -77,21 +98,27 @@ npx ts-node backend/scripts/payAllParcels.ts 6942c08ffdf39be7c0950eb0
 
 ## 🚀 Como Usar
 
-### Passo 1: Obter ID do Pedido Parcelado
+### Passo 1: Executar Script
 
+**Opção 1 - Modo Automático (Recomendado para testes):**
+```bash
+cd backend
+npx ts-node scripts/payAllParcels.ts
+```
+O script vai buscar automaticamente um pedido parcelado ativo!
+
+**Opção 2 - Com ID Específico:**
+```bash
+cd backend
+npx ts-node scripts/payAllParcels.ts 6942c08ffdf39be7c0950eb0
+```
+
+**Para obter um ID específico:**
 No dashboard, copie o ID do pedido parcelado ou use a API:
-
 ```bash
 # Listar pedidos parcelados de um usuário
 curl http://localhost:3443/api/parcelled-orders \
   -H "Authorization: Bearer <token>"
-```
-
-### Passo 2: Executar Script
-
-```bash
-cd backend
-npx ts-node scripts/payAllParcels.ts 6942c08ffdf39be7c0950eb0
 ```
 
 ### Passo 3: Verificar no Dashboard
@@ -138,22 +165,24 @@ db.parcelledorders.updateOne(
 ### 1. Testes de QA
 ```bash
 # Criar pedido parcelado
-# Pagar todas as parcelas automaticamente
-npx ts-node scripts/payAllParcels.ts <id>
+# Pagar todas as parcelas automaticamente (sem precisar do ID!)
+npx ts-node scripts/payAllParcels.ts
 # Testar visualização de ingressos
 ```
 
 ### 2. Correção de Bugs
 ```bash
 # Se um pedido ficou travado
-# Forçar pagamento de todas as parcelas
+# Forçar pagamento de todas as parcelas (pega automaticamente)
+npx ts-node scripts/payAllParcels.ts
+# Ou com ID específico:
 npx ts-node scripts/payAllParcels.ts <id>
 ```
 
 ### 3. Demo para Clientes
 ```bash
-# Mostrar fluxo completo rapidamente
-npx ts-node scripts/payAllParcels.ts <id>
+# Mostrar fluxo completo rapidamente (sem precisar do ID!)
+npx ts-node scripts/payAllParcels.ts
 ```
 
 ---

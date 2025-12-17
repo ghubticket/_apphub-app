@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import * as Sentry from '@sentry/node';
-import { Event, TicketType, ParcelledOrder, Parcel } from '../models';
+import { Event, TicketType, ParcelledOrder, Parcel, Order, Ticket } from '../models';
 import {
     validateOrderInput,
     fetchOrderRelatedData,
@@ -515,10 +515,43 @@ export const listMyParcelledOrders = async (req: Request, res: Response) => {
             parcelsByOrder[key].push(p);
         });
 
+        // Buscar tickets dos Orders vinculados para pedidos completados
+        const ordersWithTickets = await Promise.all(
+            orders.map(async (parcelledOrder) => {
+                // Buscar Order vinculado
+                const linkedOrder = await Order.findOne({
+                    parcelledOrder: parcelledOrder._id,
+                }).lean();
+
+                if (linkedOrder && parcelledOrder.status === 'completed') {
+                    // Buscar tickets do Order vinculado
+                    const tickets = await Ticket.find({
+                        order: linkedOrder._id,
+                        deletedAt: null,
+                    })
+                        .select('_id code status qrCode price')
+                        .lean();
+
+                    return {
+                        ...parcelledOrder,
+                        tickets: tickets.map((t: any) => ({
+                            _id: t._id.toString(),
+                            code: t.code,
+                            status: t.status,
+                            qrCode: t.qrCode,
+                            price: t.price,
+                        })),
+                    };
+                }
+
+                return parcelledOrder;
+            })
+        );
+
         return res.json({
             success: true,
             data: {
-                orders,
+                orders: ordersWithTickets,
                 parcelsByOrder,
             },
         });

@@ -261,7 +261,7 @@ interface SyncParcelPaymentInput {
  * - Se já existir Order pendente vinculado, atualiza para 'paid' e gera tickets/QR.
  * - Se ainda não existir Order (casos antigos), cria um novo já 'paid' e gera tickets/QR.
  */
-async function createOrderFromCompletedParcelledOrder(parcelledOrder: any) {
+export async function createOrderFromCompletedParcelledOrder(parcelledOrder: any) {
     try {
         const event = await Event.findById(parcelledOrder.event);
         const ticketType = parcelledOrder.ticketType
