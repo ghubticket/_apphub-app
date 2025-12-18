@@ -544,6 +544,8 @@ export const listMyParcelledOrders = async (req: Request, res: Response) => {
                     parcelledOrder: parcelledOrder._id,
                 }).lean();
 
+                // REGRA: Tickets só aparecem quando TODAS as parcelas estão quitadas
+                // Isso significa que o status deve ser 'completed' (todas as parcelas pagas)
                 if (linkedOrder && parcelledOrder.status === 'completed') {
                     // Buscar tickets do Order vinculado
                     const tickets = await Ticket.find({
@@ -553,16 +555,19 @@ export const listMyParcelledOrders = async (req: Request, res: Response) => {
                         .select('_id code status qrCode price')
                         .lean();
 
-                    return {
-                        ...parcelledOrder,
-                        tickets: tickets.map((t: any) => ({
-                            _id: t._id.toString(),
-                            code: t.code,
-                            status: t.status,
-                            qrCode: t.qrCode,
-                            price: t.price,
-                        })),
-                    };
+                    // Retornar tickets apenas se houver pelo menos um ticket confirmado
+                    if (tickets.length > 0 && tickets.some((t: any) => t.status === 'confirmed')) {
+                        return {
+                            ...parcelledOrder,
+                            tickets: tickets.map((t: any) => ({
+                                _id: t._id.toString(),
+                                code: t.code,
+                                status: t.status,
+                                qrCode: t.qrCode,
+                                price: t.price,
+                            })),
+                        };
+                    }
                 }
 
                 return parcelledOrder;

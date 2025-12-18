@@ -362,6 +362,18 @@ export default function ParcelledOrderCard({
                                         
                                         {/* Status e Botão */}
                                         <div className="flex flex-col md:flex-row items-center justify-between gap-2 mt-1 w-full md:w-auto">
+                                            {/* Badge de status da parcela */}
+                                            {parcel.status === 'paid' ? (
+                                                <ParcelStatusBadge status="paid" size="sm" />
+                                            ) : parcel.status === 'overdue' ? (
+                                                <ParcelStatusBadge status="overdue" size="sm" />
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 rounded-full border border-gray-400/30 bg-gray-400/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-normal text-gray-600">
+                                                    <span>📅</span>
+                                                    <span>Aguardando Pagamento</span>
+                                                </span>
+                                            )}
+
                                             {/* Botão "GERAR PIX" apenas para parcelas pendentes */}
                                             {canShowButton && (
                                                 <button
@@ -471,16 +483,26 @@ export default function ParcelledOrderCard({
                         })}
                 </div>
 
-                {/* Botão para visualizar ingressos (se tiver tickets disponíveis) */}
-                {onViewTickets && (
-                    <div className="mt-6 flex justify-center">
+                {/* Box de ingressos padronizado (igual aos pedidos normais) */}
+                {onViewTickets && order.tickets && order.tickets.length > 0 && (
+                    <div className="mt-6 rounded-2xl border border-[#ded7ca] bg-white/70 p-4">
+                        <span className="text-xs font-semibold uppercase tracking-normal text-[#a38f78]">
+                            Ingressos
+                        </span>
+                        <p className="mt-2 text-2xl font-bold text-[#1a1a1d]">
+                            {order.tickets.length}x
+                        </p>
+                        <p className="mt-1 text-xs font-medium tracking-normal text-[#6a6760]">
+                            {order.tickets.filter((t: any) => t.status === 'confirmed').length} confirmados
+                        </p>
+
                         <button
                             type="button"
                             onClick={() => onViewTickets(order._id)}
-                            className="flex items-center gap-2 w-full md:w-auto justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-white"
+                            className="mt-4 flex gap-3 w-full md:w-fit text-center justify-center rounded-full bg-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase text-white shadow-[0_18px_38px_-22px_rgba(20,20,32,0.6)] transition hover:bg-[#f97316] hover:text-white"
                         >
                             <HiOutlineTicket className="text-base" />
-                            Visualizar Ingressos
+                            Abrir ingressos
                         </button>
                     </div>
                 )}

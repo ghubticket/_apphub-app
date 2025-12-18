@@ -215,17 +215,15 @@ export function isEntryPixExpired(order: ParcelledOrderWithParcels): boolean {
         return false;
     }
     
-    // Verificar se já passou 30 minutos desde a criação do pedido
-    // PIX tem validade de 30 minutos
-    const PIX_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos
+    // REGRA: Só considera expirado se passou do dueDate da entrada
+    // Não cancela pelos 30min do PIX, apenas pela data de vencimento
     const now = new Date();
     
-    if (order.createdAt) {
-        const createdAt = new Date(order.createdAt);
-        const expirationTime = createdAt.getTime() + PIX_TIMEOUT_MS;
+    if (entryParcel.dueDate) {
+        const dueDate = new Date(entryParcel.dueDate);
         
-        // Se já passou 30 minutos desde a criação, considerar expirado
-        if (now.getTime() >= expirationTime) {
+        // Se já passou do dueDate E não foi paga, considerar expirado
+        if (now.getTime() >= dueDate.getTime()) {
             return true;
         }
     }

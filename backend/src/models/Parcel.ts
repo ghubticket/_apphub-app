@@ -30,6 +30,7 @@ export interface IParcel extends Document {
     generatedAt?: Date | null;
     paidAt?: Date | null;
     cancelledAt?: Date | null;
+    overdueAt?: Date | null; // Data em que a parcela ficou overdue (para calcular 60 dias)
 
     createdAt: Date;
     updatedAt: Date;
@@ -102,6 +103,9 @@ const parcelSchema = new Schema<IParcel>(
             type: Date,
         },
         cancelledAt: {
+            type: Date,
+        },
+        overdueAt: {
             type: Date,
         },
     },
