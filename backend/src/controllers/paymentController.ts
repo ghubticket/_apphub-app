@@ -561,9 +561,6 @@ export const createCardPayment = async (req: Request, res: Response) => {
         const { orderId } = req.params;
         const { token, installments, paymentMethodId, issuerId, cardholder } = req.body;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
-                hasCustomerData: !!req.body?.customerData,
-            });
-        }
 
         // Validações básicas
         if (!token) {

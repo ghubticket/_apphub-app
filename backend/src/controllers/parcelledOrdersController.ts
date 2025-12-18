@@ -266,7 +266,8 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
             level: 'info',
             data: {
                 requestId,
-                ...logData,
+                method: req.method,
+                path: req.path,
             },
         });
         
@@ -315,7 +316,9 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
             level: 'info',
             data: {
                 requestId,
-                ...successData,
+                parcelledOrderId: id,
+                parcelId: parcelId,
+                paymentId: result.pixPayment?.paymentId,
             },
         });
 
