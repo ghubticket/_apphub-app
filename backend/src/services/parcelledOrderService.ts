@@ -133,11 +133,17 @@ export async function createParcelledOrderFromCart(
         const now = new Date();
 
         // Entrada (sequence 0)
+        // REGRA: dueDate da entrada deve ser uma data futura (ex: 30 dias)
+        // Não usar 'now' pois isso faria o pedido expirar imediatamente
+        // O PIX tem validade de 30min, mas o pedido só cancela após o dueDate real
+        const entryDueDate = new Date();
+        entryDueDate.setDate(entryDueDate.getDate() + 30); // 30 dias a partir de agora
+        
         parcelsToCreate.push({
             parcelledOrder: createdParcelledOrder._id,
             sequence: 0,
             amount: entryAmount,
-            dueDate: now,
+            dueDate: entryDueDate, // Data futura, não 'now'
             status: 'pending',
             paymentProvider: 'mercadopago',
             paymentMethod: input.paymentType,

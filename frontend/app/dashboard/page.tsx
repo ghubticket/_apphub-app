@@ -231,7 +231,9 @@ export default function DashboardPage() {
 
             const normalizedOrders: ParcelledOrderWithParcels[] = ordersRaw
                 .map((order: any) => {
-                    const orderId = order._id || order.id;
+                    // Backend retorna _id como ObjectId, precisa converter para string
+                    const orderId = String(order._id || order.id);
+                    // Backend usa String(p.parcelledOrder) como chave em parcelsByOrder
                     const orderParcels = parcelsRaw[orderId] || [];
 
                     const normalizedParcels: ParcelSummary[] = orderParcels.map((p: any) => ({
@@ -274,13 +276,17 @@ export default function DashboardPage() {
                         return entryWasPaid;
                     }
                     
-                    // CRÍTICO: Ocultar pedidos com PIX da entrada expirado
-                    // Pedidos com entrada expirada não devem aparecer no dashboard
+                    // REGRA: Mostrar pedidos com entrada não paga enquanto ainda não expirou
+                    // Só ocultar se realmente passou do dueDate E não foi paga
                     if (isEntryPixExpired(order)) {
-                        return false; // Ocultar pedido com PIX expirado
+                        return false; // Ocultar apenas se realmente expirou
                     }
                     
-                    // Mostrar todos os outros status (pending_entry com PIX válido, active, completed)
+                    // Mostrar todos os outros pedidos:
+                    // - pending_entry com entrada não paga mas ainda não expirou (mostrar)
+                    // - pending_entry com entrada paga (mostrar)
+                    // - active (mostrar)
+                    // - completed (mostrar)
                     return true;
                 });
 

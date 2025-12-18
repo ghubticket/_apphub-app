@@ -63,6 +63,13 @@ export function countPaidParcels(parcels: ParcelSummary[]): number {
 }
 
 /**
+ * Conta parcelas não pagas (pending ou payment_generated)
+ */
+export function countUnpaidParcels(parcels: ParcelSummary[]): number {
+    return parcels.filter(p => p.status !== 'paid').length;
+}
+
+/**
  * Verifica se a entrada foi paga
  */
 export function isEntryPaid(parcels: ParcelSummary[]): boolean {
@@ -188,6 +195,9 @@ export function getAlertColor(order: ParcelledOrderWithParcels): 'green' | 'ambe
 /**
  * Verifica se o PIX da entrada expirou
  * CRÍTICO: Pedidos com entrada expirada devem ser ocultados do dashboard
+ * 
+ * REGRA: Mostrar pedidos com entrada não paga enquanto ainda não expirou
+ * Só ocultar se realmente passou do dueDate E não foi paga
  */
 export function isEntryPixExpired(order: ParcelledOrderWithParcels): boolean {
     // Se o pedido já foi cancelado, considerar expirado (se entrada não foi paga)
@@ -200,33 +210,43 @@ export function isEntryPixExpired(order: ParcelledOrderWithParcels): boolean {
     
     // Só verificar se o pedido está aguardando entrada
     if (order.status !== 'pending_entry') {
-        return false;
+        return false; // Pedidos active/completed sempre aparecem
     }
     
     const entryParcel = getEntryParcel(order.parcels);
     
-    // Se não tem parcela de entrada ou entrada já foi paga, não está expirado
-    if (!entryParcel || entryParcel.status === 'paid') {
-        return false;
+    // Se não tem parcela de entrada, mostrar o pedido (pode estar sendo criado ainda)
+    if (!entryParcel) {
+        return false; // Sem entrada ainda = mostrar sempre (pedido recém criado)
     }
     
-    // Se o PIX não foi gerado ainda, não está expirado
-    if (entryParcel.status !== 'payment_generated') {
-        return false;
+    // Se entrada já foi paga, não está expirado
+    if (entryParcel.status === 'paid') {
+        return false; // Entrada paga = mostrar sempre
     }
     
-    // REGRA: Só considera expirado se passou do dueDate da entrada
-    // Não cancela pelos 30min do PIX, apenas pela data de vencimento
+    // REGRA: Mostrar pedidos com entrada não paga enquanto ainda não expirou
+    // Só considerar expirado se passou do dueDate E não foi paga
+    // Não importa se o PIX foi gerado ou não - o que importa é o dueDate
+    
+    // Se não tem dueDate, mostrar o pedido (não ocultar)
+    if (!entryParcel.dueDate) {
+        return false; // Sem dueDate = mostrar sempre (pedido recém criado)
+    }
+    
     const now = new Date();
+    const dueDate = new Date(entryParcel.dueDate);
     
-    if (entryParcel.dueDate) {
-        const dueDate = new Date(entryParcel.dueDate);
-        
-        // Se já passou do dueDate E não foi paga, considerar expirado
-        if (now.getTime() >= dueDate.getTime()) {
-            return true;
-        }
+    // Verificar se a data é válida
+    if (isNaN(dueDate.getTime())) {
+        return false; // Data inválida = mostrar sempre
     }
     
-    return false;
+    // Se já passou do dueDate E não foi paga, considerar expirado
+    if (now.getTime() >= dueDate.getTime()) {
+        return true; // Expirou = ocultar
+    }
+    
+    // Ainda não expirou, mostrar o pedido
+    return false; // Não expirou = mostrar
 }

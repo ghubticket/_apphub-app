@@ -96,6 +96,94 @@ npx ts-node scripts/payAllParcels.ts
 
 ---
 
+### 2. `mark-first-parcel-as-paid.ts` - Pagar Apenas a Parcela de Entrada
+
+Script para marcar apenas a primeira parcela (entrada) como paga, permitindo visualizar as demais parcelas no frontend.
+
+#### Uso:
+
+**Se estiver na raiz do projeto:**
+```bash
+# Com ID específico:
+npx ts-node backend/scripts/mark-first-parcel-as-paid.ts <parcelledOrderId>
+
+# Sem ID (paga entrada de TODOS os pedidos com pending_entry):
+npx ts-node backend/scripts/mark-first-parcel-as-paid.ts
+```
+
+**Se estiver no diretório `backend`:**
+```bash
+# Com ID específico:
+npx ts-node scripts/mark-first-parcel-as-paid.ts <parcelledOrderId>
+
+# Sem ID (paga entrada de TODOS os pedidos com pending_entry):
+npx ts-node scripts/mark-first-parcel-as-paid.ts
+```
+
+#### Exemplos:
+```bash
+# Com ID específico:
+npx ts-node scripts/mark-first-parcel-as-paid.ts 6943f2b4ab6d2f10d0cc8686
+
+# Sem ID (modo teste - paga TODOS os pedidos com entrada não paga):
+npx ts-node scripts/mark-first-parcel-as-paid.ts
+```
+
+#### O Que Faz:
+1. ✅ Busca o(s) pedido(s) parcelado(s) (por ID específico ou TODOS com `pending_entry`)
+2. ✅ Encontra a parcela de entrada (sequence === 0) de cada pedido
+3. ✅ Marca a entrada como paga (apenas se ainda não estiver paga)
+4. ✅ Atualiza status do pedido de `pending_entry` para `active`
+5. ✅ Permite visualizar as demais parcelas no frontend
+
+**Nota:** 
+- Se não passar ID, o script processa **TODOS** os pedidos com entrada não paga
+- Este script é útil para testar o fluxo de parcelas no frontend
+- Após pagar a entrada, o pedido muda para `active` e as demais parcelas ficam visíveis
+
+#### Output Esperado:
+```
+🔌 Conectando ao MongoDB...
+✅ Conectado ao MongoDB
+
+🔍 Nenhum ID informado. Buscando TODOS os pedidos parcelados com entrada não paga...
+
+✅ Encontrados 2 pedido(s) com entrada não paga:
+
+   - ID: 6943f2b4ab6d2f10d0cc8686 (Criado em: 18/12/2025 12:25:24)
+   - ID: 6943f2b4ab6d2f10d0cc8687 (Criado em: 18/12/2025 11:15:10)
+
+📦 Processando pedido: 6943f2b4ab6d2f10d0cc8686
+   💳 Marcando entrada como paga...
+      Parcela ID: 6943f2b4ab6d2f10d0cc8688
+      Valor: R$ 17.50
+      Status atual: pending
+   ✅ Entrada marcada como paga
+   ✅ Status do pedido atualizado para: active
+
+📦 Processando pedido: 6943f2b4ab6d2f10d0cc8687
+   💳 Marcando entrada como paga...
+      Parcela ID: 6943f2b4ab6d2f10d0cc8689
+      Valor: R$ 25.00
+      Status atual: pending
+   ✅ Entrada marcada como paga
+   ✅ Status do pedido atualizado para: active
+
+════════════════════════════════════════════════════════════
+📊 Resumo:
+   ✅ Atualizadas: 2
+   ❌ Erros: 0
+   📦 Total processado: 2
+════════════════════════════════════════════════════════════
+
+✨ Pronto! Agora você pode ver as demais parcelas no frontend.
+   2 pedido(s) mudaram de "pending_entry" para "active".
+
+👋 Desconectado do MongoDB
+```
+
+---
+
 ## 🚀 Como Usar
 
 ### Passo 1: Executar Script

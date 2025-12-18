@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { HiOutlineTicket, HiOutlineChevronDown } from 'react-icons/hi2';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import PixExpirationTimer from './PixExpirationTimer';
@@ -38,6 +38,7 @@ export default function OrdersList({
     onCopyPixCode,
 }: OrdersListProps) {
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+    const [expandedParcelledOrderId, setExpandedParcelledOrderId] = useState<string | null>(null);
 
     const currencyFormatter = useMemo(
         () =>
@@ -74,6 +75,27 @@ export default function OrdersList({
     const isOrderGroup = (item: OrderSummary | OrderGroup): item is OrderGroup => {
         return 'orders' in item && Array.isArray((item as OrderGroup).orders);
     };
+
+    // Verificar se PIX expirou
+    const isPixExpired = useCallback((expiresAt?: string | null): boolean => {
+        if (!expiresAt) return false;
+        const expirationDate = new Date(expiresAt);
+        const now = new Date();
+        return now.getTime() >= expirationDate.getTime();
+    }, []);
+
+    // Estado para forçar re-render quando PIX expirar
+    const [expirationCheck, setExpirationCheck] = useState(0);
+
+    // Verificar expiração de PIX a cada segundo para remover box imediatamente
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // Forçar re-render para verificar expiração em tempo real
+            setExpirationCheck(prev => prev + 1);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     if (loading) {
         return (
@@ -136,6 +158,7 @@ export default function OrdersList({
                     
                     // Verificar se tem tickets para mostrar
                     const hasTickets = parcelledOrder.tickets && parcelledOrder.tickets.length > 0;
+                    const isParcelledExpanded = expandedParcelledOrderId === parcelledOrder._id;
                     
                     return (
                         <ParcelledOrderCard
@@ -146,6 +169,15 @@ export default function OrdersList({
                             onPixCodeCopy={onCopyPixCode}
                             pixCodeCopied={pixCodeCopied}
                             onViewTickets={hasTickets ? onViewDetails : undefined}
+                            isExpanded={isParcelledExpanded}
+                            onToggleExpand={(orderId) => {
+                                // Fechar pedidos normais quando abrir um parcelado
+                                setExpandedOrderId(null);
+                                // Toggle do pedido parcelado
+                                setExpandedParcelledOrderId((current) => 
+                                    current === orderId ? null : orderId
+                                );
+                            }}
                         />
                     );
                 }
@@ -183,11 +215,14 @@ export default function OrdersList({
                             <header>
                                 <button
                                     type="button"
-                                    onClick={() =>
+                                    onClick={() => {
+                                        // Fechar pedidos parcelados quando abrir um grupo
+                                        setExpandedParcelledOrderId(null);
+                                        // Toggle do grupo
                                         setExpandedOrderId((current) =>
                                             current === groupId ? null : groupId,
-                                        )
-                                    }
+                                        );
+                                    }}
                                     className="flex w-full flex-col gap-4 text-left transition hover:text-[#1a1a1d] md:flex-row md:items-center md:justify-between"
                                 >
                                     <div className="space-y-1">
@@ -223,15 +258,19 @@ export default function OrdersList({
                                 </button>
                             </header>
 
-                            <div className="mt-4 flex">
+                            {/* Botão para expandir (apenas mobile) */}
+                            <div className="mt-4 flex md:hidden">
                                 <button
                                     type="button"
-                                    onClick={() =>
+                                    onClick={() => {
+                                        // Fechar pedidos parcelados quando abrir um grupo
+                                        setExpandedParcelledOrderId(null);
+                                        // Toggle do grupo
                                         setExpandedOrderId((current) =>
                                             current === groupId ? null : groupId,
-                                        )
-                                    }
-                                    className="inline-flex items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/20 hover:text-white"
+                                        );
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-full border border-[#1a1a1d]/20 bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:border-[#f97316]"
                                 >
                                     {isExpanded ? 'Recolher pedido' : 'Expandir pedido'}
                                 </button>
@@ -333,11 +372,14 @@ export default function OrdersList({
                         <header>
                             <button
                                 type="button"
-                                onClick={() =>
+                                onClick={() => {
+                                    // Fechar pedidos parcelados quando abrir um normal
+                                    setExpandedParcelledOrderId(null);
+                                    // Toggle do pedido normal
                                     setExpandedOrderId((current) =>
                                         current === order._id ? null : order._id,
-                                    )
-                                }
+                                    );
+                                }}
                                 className="flex w-full flex-col gap-4 text-left transition hover:text-[#1a1a1d] md:flex-row md:items-center md:justify-between"
                             >
                                 <div className="space-y-1">
@@ -352,7 +394,7 @@ export default function OrdersList({
                                         {eventLocation ? ` • ${eventLocation}` : ''}
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-10 w-full md:w-auto">
+                                <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-10 w-full md:w-auto">
                                     {isVipOrder ? (
                                         <div className="w-full md:w-auto">
                                             <p className="text-xs text-[#4c4c55] leading-relaxed">
@@ -361,7 +403,7 @@ export default function OrdersList({
                                             </p>
                                         </div>
                                     ) : (
-                                        <div className="flex gap-3 w-full md:w-auto justify-between">
+                                        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                                             <p className="text-black">
                                                 Seu pedido foi:
                                                 <span>
@@ -378,18 +420,28 @@ export default function OrdersList({
                                             </span>
                                         </div>
                                     )}
+                                    <HiOutlineChevronDown
+                                        className={`hidden md:block text-xl text-[#a38f78] transition-transform duration-300 ${
+                                            isExpanded ? 'rotate-180' : ''
+                                        }`}
+                                        aria-hidden
+                                    />
                                 </div>
                             </button>
 
-                            <div className="mt-4 flex">
+                            {/* Botão para expandir (apenas mobile) */}
+                            <div className="mt-4 flex md:hidden">
                                 <button
                                     type="button"
-                                    onClick={() =>
+                                    onClick={() => {
+                                        // Fechar pedidos parcelados quando abrir um normal
+                                        setExpandedParcelledOrderId(null);
+                                        // Toggle do pedido normal
                                         setExpandedOrderId((current) =>
                                             current === order._id ? null : order._id,
-                                        )
-                                    }
-                                    className="inline-flex items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/20 hover:text-white"
+                                        );
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-full border border-[#1a1a1d]/20 bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:border-[#f97316]"
                                 >
                                     {isExpanded ? 'Recolher pedido' : 'Expandir pedido'}
                                 </button>
@@ -406,98 +458,107 @@ export default function OrdersList({
                             {/* Seção de PIX pendente */}
                             {order.status === 'pending' &&
                                 order.paymentMethod === 'pix' &&
-                                (order.pixInfo ? (
-                                    <div className="flex-1 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                                        <div className="mb-3 flex justify-center items-center gap-2">
-                                            <svg
-                                                className="h-5 w-5 text-emerald-600"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                />
-                                            </svg>
-                                            <span className="text-xs font-semibold uppercase tracking-normal text-emerald-800">
-                                                Pagamento PIX Pendente
-                                            </span>
-                                        </div>
-
-                                        {isPolling && (
-                                            <div className="mb-4 rounded-lg border border-emerald-300 bg-emerald-100/80 p-2.5">
-                                                <div className="flex flex-col md:flex-row items-center justify-center gap-2">
-                                                    <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-600"></div>
-                                                    <p className="text-xs text-center font-semibold text-emerald-800">
-                                                        Aguardando confirmação de pagamento em tempo
-                                                        real...
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <p className="mb-4 text-center text-sm text-emerald-700">
-                                            Seu pedido ainda está pendente. Copie e cole o código
-                                            PIX abaixo para finalizar o pagamento.
-                                        </p>
-
-                                        {order.pixInfo.qrCodeBase64 && (
-                                            <div className="mb-4 flex justify-center">
-                                                <img
-                                                    src={`data:image/png;base64,${order.pixInfo.qrCodeBase64}`}
-                                                    alt="QR Code PIX"
-                                                    className="md:h-48 md:w-48 h-full w-full rounded-lg border-2 border-emerald-200 bg-white p-2"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {(order.pixInfo.qrCode || order.pixInfo.ticketUrl) && (
-                                            <div className="mb-4">
-                                                <label className="mb-2 block text-center text-xs font-semibold uppercase tracking-normal text-emerald-800">
-                                                    Código PIX (Copiar e Colar)
-                                                </label>
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        readOnly
-                                                        value={
-                                                            order.pixInfo.qrCode ||
-                                                            order.pixInfo.ticketUrl ||
-                                                            ''
-                                                        }
-                                                        className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                                        onClick={(e) =>
-                                                            (e.target as HTMLInputElement).select()
-                                                        }
+                                (order.pixInfo ? (() => {
+                                    const pixExpired = isPixExpired(order.pixInfo.expiresAt);
+                                    
+                                    // Se expirou, não mostrar o box do PIX (será removido pelo backend em breve)
+                                    if (pixExpired) {
+                                        return null;
+                                    }
+                                    
+                                    return (
+                                        <div className="flex-1 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                                            <div className="mb-3 flex justify-center items-center gap-2">
+                                                <svg
+                                                    className="h-5 w-5 text-emerald-600"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                                                     />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            onCopyPixCode(
-                                                                `order-${order._id}`,
-                                                                order.pixInfo!.qrCode ||
-                                                                    order.pixInfo!.ticketUrl ||
-                                                                    '',
-                                                            )
-                                                        }
-                                                        className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
-                                                    >
-                                                        {pixCodeCopied[`order-${order._id}`]
-                                                            ? '✓ Código copiado!'
-                                                            : 'Copiar'}
-                                                    </button>
-                                                </div>
+                                                </svg>
+                                                <span className="text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                    Pagamento PIX Pendente
+                                                </span>
                                             </div>
-                                        )}
 
-                                        {order.pixInfo.expiresAt && (
-                                            <PixExpirationTimer expiresAt={order.pixInfo.expiresAt} />
-                                        )}
-                                    </div>
-                                ) : (
+                                            {isPolling && (
+                                                <div className="mb-4 rounded-lg border border-emerald-300 bg-emerald-100/80 p-2.5">
+                                                    <div className="flex flex-col md:flex-row items-center justify-center gap-2">
+                                                        <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-600"></div>
+                                                        <p className="text-xs text-center font-semibold text-emerald-800">
+                                                            Aguardando confirmação de pagamento em tempo
+                                                            real...
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <p className="mb-4 text-center text-sm text-emerald-700">
+                                                Seu pedido ainda está pendente. Copie e cole o código
+                                                PIX abaixo para finalizar o pagamento.
+                                            </p>
+
+                                            {order.pixInfo.qrCodeBase64 && (
+                                                <div className="mb-4 flex justify-center">
+                                                    <img
+                                                        src={`data:image/png;base64,${order.pixInfo.qrCodeBase64}`}
+                                                        alt="QR Code PIX"
+                                                        className="md:h-48 md:w-48 h-full w-full rounded-lg border-2 border-emerald-200 bg-white p-2"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {(order.pixInfo.qrCode || order.pixInfo.ticketUrl) && (
+                                                <div className="mb-4">
+                                                    <label className="mb-2 block text-center text-xs font-semibold uppercase tracking-normal text-emerald-800">
+                                                        Código PIX (Copiar e Colar)
+                                                    </label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            readOnly
+                                                            value={
+                                                                order.pixInfo.qrCode ||
+                                                                order.pixInfo.ticketUrl ||
+                                                                ''
+                                                            }
+                                                            className="flex-1 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                            onClick={(e) =>
+                                                                (e.target as HTMLInputElement).select()
+                                                            }
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                onCopyPixCode(
+                                                                    `order-${order._id}`,
+                                                                    order.pixInfo!.qrCode ||
+                                                                        order.pixInfo!.ticketUrl ||
+                                                                        '',
+                                                                )
+                                                            }
+                                                            className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
+                                                        >
+                                                            {pixCodeCopied[`order-${order._id}`]
+                                                                ? '✓ Código copiado!'
+                                                                : 'Copiar'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {order.pixInfo.expiresAt && (
+                                                <PixExpirationTimer expiresAt={order.pixInfo.expiresAt} />
+                                            )}
+                                        </div>
+                                    );
+                                })() : (
                                     <div className="flex-1 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                                         <div className="mb-3 flex items-center gap-2">
                                             <svg

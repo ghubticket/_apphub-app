@@ -20,6 +20,7 @@ import {
     getOrderAlertMessage,
     getAlertColor,
     areAllParcelsPaid,
+    countUnpaidParcels,
 } from '../../utils/parcelHelpers';
 import type { ParcelledOrderWithParcels, ParcelSummary } from '../../types/parcelled';
 
@@ -30,6 +31,8 @@ interface ParcelledOrderCardProps {
     onPixCodeCopy: (key: string, code: string) => Promise<void>;
     pixCodeCopied: Record<string, boolean>;
     onViewTickets?: (orderId: string) => void;
+    isExpanded?: boolean;
+    onToggleExpand?: (orderId: string) => void;
 }
 
 export default function ParcelledOrderCard({
@@ -39,8 +42,12 @@ export default function ParcelledOrderCard({
     onPixCodeCopy,
     pixCodeCopied,
     onViewTickets,
+    isExpanded: isExpandedProp,
+    onToggleExpand,
 }: ParcelledOrderCardProps) {
-    const [isExpanded, setIsExpanded] = useState(false);
+    // Se receber props de expansão, usar controle externo; caso contrário, usar estado interno
+    const [internalExpanded, setInternalExpanded] = useState(false);
+    const isExpanded = isExpandedProp !== undefined ? isExpandedProp : internalExpanded;
     const [generatingPixParcelId, setGeneratingPixParcelId] = useState<string | null>(null);
     const [parcelError, setParcelError] = useState<{ parcelId: string; message: string } | null>(null);
     const [entryPixInfo, setEntryPixInfo] = useState<{
@@ -66,6 +73,24 @@ export default function ParcelledOrderCard({
     const alertMessage = useMemo(() => getOrderAlertMessage(order), [order]);
     const alertColor = useMemo(() => getAlertColor(order), [order]);
     const allPaid = useMemo(() => areAllParcelsPaid(sortedParcels), [sortedParcels]);
+    
+    // Calcular quantas parcelas faltam pagar
+    const unpaidParcelsCount = useMemo(() => countUnpaidParcels(sortedParcels), [sortedParcels]);
+    
+    // Status descritivo para exibição
+    const statusLabel = useMemo(() => {
+        if (!isEntryPaidValue) {
+            return 'Entrada pendente';
+        }
+        if (allPaid) {
+            return 'Pago';
+        }
+        // Gramática correta: singular "Falta 1 parcela" vs plural "Faltam X parcelas"
+        if (unpaidParcelsCount === 1) {
+            return 'Falta 1 parcela';
+        }
+        return `Faltam ${unpaidParcelsCount} parcelas`;
+    }, [isEntryPaidValue, allPaid, unpaidParcelsCount]);
 
     // Carregar PIX da entrada IMEDIATAMENTE ao montar (sem delay)
     useEffect(() => {
@@ -180,8 +205,14 @@ export default function ParcelledOrderCard({
 
     // Expandir (PIX já foi carregado no mount)
     const handleToggleExpand = useCallback(() => {
-        setIsExpanded((prev) => !prev);
-    }, []);
+        if (onToggleExpand) {
+            // Controle externo: notificar o componente pai
+            onToggleExpand(order._id);
+        } else {
+            // Controle interno: usar estado local
+            setInternalExpanded((prev) => !prev);
+        }
+    }, [onToggleExpand, order._id]);
 
     const alertColorClasses = {
         green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -207,7 +238,27 @@ export default function ParcelledOrderCard({
                         </h3>
                         <p className="text-xs text-[#7d796c]">Criado em {createdAt}</p>
                     </div>
-                    <div className="flex items-center gap-10">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-10 w-full md:w-auto">
+                        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                            <p className="text-black">
+                                Seu pedido foi:
+                                <span>
+                                    {' '}
+                                    {currencyFormatter.format(order.totalAmount ?? 0)}
+                                </span>
+                            </p>
+                            <span
+                                className={`flex w-fit items-center gap-2 rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-normal ${
+                                    !isEntryPaidValue
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                        : allPaid
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                        : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                }`}
+                            >
+                                {statusLabel}
+                            </span>
+                        </div>
                         <HiOutlineChevronDown
                             className={`hidden md:block text-xl text-[#a38f78] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''
                                 }`}
@@ -217,14 +268,14 @@ export default function ParcelledOrderCard({
                 </button>
             </header>
 
-            {/* Botão para expandir */}
-            <div className="md:mt-6 flex">
+            {/* Botão para expandir (apenas mobile) */}
+            <div className="mt-4 flex md:hidden">
                 <button
                     type="button"
                     onClick={handleToggleExpand}
-                    className="inline-flex items-center gap-2 rounded-full border border-[#f97316]/30 bg-[#fff7ec] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#f97316] transition hover:bg-[#f97316]/20 hover:text-white"
+                    className="inline-flex items-center gap-2 rounded-full border border-[#1a1a1d]/20 bg-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#f97316] hover:border-[#f97316]"
                 >
-                    {isExpanded ? 'Recolher detalhes' : 'Ver detalhes'}
+                    {isExpanded ? 'Recolher pedido' : 'Expandir pedido'}
                 </button>
             </div>
 
@@ -243,7 +294,7 @@ export default function ParcelledOrderCard({
                 {/* Alerta */}
                 {alertMessage && (
                     <div
-                        className={`mb-6 rounded-xl border p-4 text-sm font-medium ${alertColorClasses[alertColor]}`}
+                        className={`mb-6 rounded-xl border  p-4 text-sm font-medium ${alertColorClasses[alertColor]}`}
                     >
                         {alertMessage}
                     </div>
@@ -251,7 +302,7 @@ export default function ParcelledOrderCard({
 
                 {/* Seção de PIX pendente (se entrada não paga E tem PIX) */}
                 {!isEntryPaidValue && entryParcel && entryPixInfo && (entryPixInfo.qrCode || entryPixInfo.qrCodeBase64) && (
-                    <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 md:p-4">
                         <div className="mb-3 flex justify-center items-center gap-2">
                             <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -282,7 +333,7 @@ export default function ParcelledOrderCard({
                                 <label className="mb-2 block text-center text-xs font-semibold uppercase tracking-normal text-emerald-800">
                                     Código PIX (Copiar e Colar)
                                 </label>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col md:flex-row gap-2">
                                     <input
                                         type="text"
                                         readOnly
@@ -303,10 +354,10 @@ export default function ParcelledOrderCard({
 
                         {/* Mensagem de aguardando pagamento */}
                         <div className="text-center">
-                            <p className="text-sm font-medium text-emerald-700">
+                            <p className="text-[0.7rem] md:text-sm font-medium text-emerald-700 mb-1">
                                 💳 Aguardando pagamento
                             </p>
-                            <p className="text-xs text-emerald-600 mt-1">
+                            <p className="text-[0.65rem] md:text-xs text-emerald-600 leading-snug">
                                 Pague a entrada para efetivar seu pedido e liberar as demais parcelas.
                             </p>
                         </div>
@@ -346,29 +397,25 @@ export default function ParcelledOrderCard({
                                     {/* Layout mobile: informações verticais */}
                                     <div className="flex flex-col gap-3">
                                         {/* Cabeçalho: Parcela X/Y */}
-                                        <p className="text-sm font-bold text-[#1a1a1d]">
+                                        <p className="text-sm font-semibold text-[#1a1a1d]">
                                             {parcelLabel}
                                         </p>
                                         
-                                        {/* Valor */}
-                                        <p className="text-lg font-bold text-[#1a1a1d]">
-                                            {currencyFormatter.format(parcel.amount)}
-                                        </p>
-                                        
-                                        {/* Vencimento */}
-                                        <p className="text-xs text-[#6a6760]">
-                                            Venc: {dueLabel}
+                                        {/* Valor e Vencimento na mesma linha */}
+                                        <p className="text-base md:text-lg text-[#1a1a1d] leading-tight">
+                                            <span className="font-bold">{currencyFormatter.format(parcel.amount)}</span>
+                                            <span className="font-normal text-[#6a6760]"> - Venc: {dueLabel}</span>
                                         </p>
                                         
                                         {/* Status e Botão */}
-                                        <div className="flex flex-col md:flex-row items-center justify-between gap-2 mt-1 w-full md:w-auto">
+                                        <div className="flex flex-col md:flex-row justify-between gap-2 mt-1 w-full md:w-auto">
                                             {/* Badge de status da parcela */}
                                             {parcel.status === 'paid' ? (
                                                 <ParcelStatusBadge status="paid" size="sm" />
                                             ) : parcel.status === 'overdue' ? (
                                                 <ParcelStatusBadge status="overdue" size="sm" />
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 rounded-full border border-gray-400/30 bg-gray-400/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-normal text-gray-600">
+                                                <span className="inline-flex text-center items-center gap-1 rounded-full justify-center border border-gray-400/30 bg-gray-400/10 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-normal text-gray-600">
                                                     <span>📅</span>
                                                     <span>Aguardando Pagamento</span>
                                                 </span>
@@ -452,7 +499,7 @@ export default function ParcelledOrderCard({
                                                     <label className="mb-2 block text-center text-xs font-semibold uppercase tracking-normal text-emerald-800">
                                                         Código PIX (Copiar e Colar)
                                                     </label>
-                                                    <div className="flex gap-2">
+                                                    <div className="flex gap-2 flex-col md:flex-row">
                                                         <input
                                                             type="text"
                                                             readOnly
