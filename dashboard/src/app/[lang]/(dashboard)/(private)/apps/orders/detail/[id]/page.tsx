@@ -11,6 +11,8 @@ import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import LinearProgress from '@mui/material/LinearProgress'
+import Divider from '@mui/material/Divider'
 
 import { useOrder } from '@/hooks/useOrders'
 
@@ -76,6 +78,37 @@ return withCountry
     }
 
     const isVip = order.paymentMethod === 'vip_free'
+    const isParcelled = !!order.parcelledOrderInfo
+    const parcelledInfo = order.parcelledOrderInfo
+
+    // Função para formatar data
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        })
+    }
+
+    // Função para obter status do pedido parcelado
+    const getParcelledStatusLabel = () => {
+        if (!parcelledInfo) return 'PENDENTE'
+        
+        if (parcelledInfo.status === 'completed') return 'PAGO'
+        if (parcelledInfo.status === 'cancelled') return 'CANCELADO'
+        if (parcelledInfo.isEntryPaid) return 'ENTRADA PAGA'
+        return 'ENTRADA PENDENTE'
+    }
+
+    // Função para obter cor do status do pedido parcelado
+    const getParcelledStatusColor = (): 'success' | 'warning' | 'error' | 'info' => {
+        if (!parcelledInfo) return 'warning'
+        
+        if (parcelledInfo.status === 'completed') return 'success'
+        if (parcelledInfo.status === 'cancelled') return 'error'
+        if (parcelledInfo.isEntryPaid) return 'info'
+        return 'warning'
+    }
 
     return (
         <Card>
@@ -90,6 +123,8 @@ return withCountry
                         <InfoRow label='Evento' value={typeof order.event === 'string' ? order.event : `${(order.event as any)?.name} • ${(order.event as any)?.location}`} />
                         <InfoRow label='Tipo' value={(order.paymentMethod === 'vip_free') ? (
                             <Chip size='small' label='VIP' color='secondary' variant='tonal' />
+                        ) : isParcelled ? (
+                            <Chip size='small' label='PARCELADO' color='primary' variant='tonal' />
                         ) : (
                             <Chip size='small' label='NORMAL' variant='tonal' />
                         )} />
@@ -117,6 +152,11 @@ return (
                         })()} />
                         <InfoRow label='Pagamento - Status' value={(
                             (() => {
+                                // Se for pedido parcelado, usar status do pedido parcelado
+                                if (isParcelled && parcelledInfo) {
+                                    return <Chip size='small' label={getParcelledStatusLabel()} color={getParcelledStatusColor()} variant='tonal' />
+                                }
+
                                 const status = (order.paymentStatus || order.status || '').toLowerCase()
 
                                 const labelMap: Record<string, string> = {
@@ -150,6 +190,100 @@ return <Chip size='small' label={label} color={color as any} variant='tonal' />
                                 {order.paymentStatusDetail && <Chip size='small' label={order.paymentStatusDetail} variant='tonal' className='mr-2' />}
                                 {order.paymentErrorCode && <Chip size='small' color='error' label={`erro: ${order.paymentErrorCode}`} variant='tonal' />}
                                 {order.paymentErrorDescription && <Typography variant='caption' color='error' className='block mt-1'>{order.paymentErrorDescription}</Typography>}
+                            </Box>
+                        )}
+
+                        {/* Informações do pedido parcelado */}
+                        {isParcelled && parcelledInfo && (
+                            <Box className='mt-4 p-4 rounded border bg-actionHover'>
+                                <Typography variant='subtitle1' className='mb-3 font-semibold'>Pedido Parcelado</Typography>
+                                
+                                {/* Barra de progresso */}
+                                <Box className='mb-3'>
+                                    <Box className='flex items-center justify-between mb-1'>
+                                        <Typography variant='body2' color='text.secondary'>
+                                            Progresso do pagamento
+                                        </Typography>
+                                        <Typography variant='body2' className='font-medium'>
+                                            {parcelledInfo.paidParcels} de {parcelledInfo.totalParcels} parcelas pagas
+                                        </Typography>
+                                    </Box>
+                                    <LinearProgress 
+                                        variant='determinate' 
+                                        value={parcelledInfo.progressPercentage} 
+                                        sx={{ height: 8, borderRadius: 4 }}
+                                        color={parcelledInfo.progressPercentage === 100 ? 'success' : 'primary'}
+                                    />
+                                    <Typography variant='caption' color='text.secondary' className='mt-1 block text-center'>
+                                        {parcelledInfo.progressPercentage}% concluído
+                                    </Typography>
+                                </Box>
+
+                                <Divider className='my-3' />
+
+                                {/* Entrada */}
+                                {parcelledInfo.entryParcel && (
+                                    <Box className='mb-3'>
+                                        <Typography variant='subtitle2' className='mb-2'>Entrada</Typography>
+                                        <Box className='flex items-center justify-between p-2 rounded bg-background'>
+                                            <div>
+                                                <Typography variant='body2' className='font-medium'>
+                                                    R$ {parcelledInfo.entryParcel.amount.toFixed(2).replace('.', ',')}
+                                                </Typography>
+                                                <Typography variant='caption' color='text.secondary'>
+                                                    Venc: {formatDate(parcelledInfo.entryParcel.dueDate)}
+                                                </Typography>
+                                            </div>
+                                            <Chip 
+                                                size='small' 
+                                                label={parcelledInfo.entryParcel.status === 'paid' ? 'PAGA' : 'PENDENTE'} 
+                                                color={parcelledInfo.entryParcel.status === 'paid' ? 'success' : 'warning'} 
+                                                variant='tonal' 
+                                            />
+                                        </Box>
+                                    </Box>
+                                )}
+
+                                {/* Próximas parcelas */}
+                                {parcelledInfo.upcomingParcels && parcelledInfo.upcomingParcels.length > 0 && (
+                                    <Box>
+                                        <Typography variant='subtitle2' className='mb-2'>Próximas Parcelas</Typography>
+                                        <Box className='space-y-2'>
+                                            {parcelledInfo.upcomingParcels.map((parcel: any) => {
+                                                const isOverdue = parcel.overdueAt && new Date(parcel.overdueAt) < new Date()
+                                                const statusLabel = parcel.status === 'paid' 
+                                                    ? 'PAGA' 
+                                                    : isOverdue 
+                                                        ? 'EM ATRASO' 
+                                                        : 'PENDENTE'
+                                                const statusColor = parcel.status === 'paid' 
+                                                    ? 'success' 
+                                                    : isOverdue 
+                                                        ? 'error' 
+                                                        : 'warning'
+
+                                                return (
+                                                    <Box key={parcel._id} className='flex items-center justify-between p-2 rounded bg-background'>
+                                                        <div>
+                                                            <Typography variant='body2' className='font-medium'>
+                                                                Parcela {parcel.sequence} • R$ {parcel.amount.toFixed(2).replace('.', ',')}
+                                                            </Typography>
+                                                            <Typography variant='caption' color='text.secondary'>
+                                                                Venc: {formatDate(parcel.dueDate)}
+                                                            </Typography>
+                                                        </div>
+                                                        <Chip 
+                                                            size='small' 
+                                                            label={statusLabel} 
+                                                            color={statusColor as any} 
+                                                            variant='tonal' 
+                                                        />
+                                                    </Box>
+                                                )
+                                            })}
+                                        </Box>
+                                    </Box>
+                                )}
                             </Box>
                         )}
                     </Grid>

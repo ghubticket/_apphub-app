@@ -13,6 +13,33 @@ export interface Ticket {
     };
 }
 
+export interface ParcelledOrderInfo {
+    _id: string;
+    orderNumber: string;
+    status: 'pending_entry' | 'active' | 'completed' | 'cancelled';
+    totalAmount: number;
+    totalParcels: number;
+    paidParcels: number;
+    progressPercentage: number;
+    isEntryPaid: boolean;
+    entryParcel: {
+        _id: string;
+        sequence: number;
+        amount: number;
+        status: string;
+        dueDate: string;
+        paidAt?: string;
+    } | null;
+    upcomingParcels: Array<{
+        _id: string;
+        sequence: number;
+        amount: number;
+        status: string;
+        dueDate: string;
+        overdueAt?: string;
+    }>;
+}
+
 export interface OrderItem {
     _id: string;
     orderNumber: string;
@@ -47,6 +74,7 @@ export interface OrderItem {
     paidAt?: string;
     createdAt: string;
     updatedAt: string;
+    parcelledOrderInfo?: ParcelledOrderInfo;
 }
 
 export interface OrderListResponse {

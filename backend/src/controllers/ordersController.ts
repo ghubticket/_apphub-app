@@ -1729,6 +1729,70 @@ export const getOrderById = async (req: Request, res: Response) => {
             }
         }
 
+        // Buscar informações do pedido parcelado se existir
+        let parcelledOrderInfo: any = null;
+        if (freshOrder.parcelledOrder) {
+            try {
+                const ParcelledOrder = (await import('../models/ParcelledOrder')).default;
+                const Parcel = (await import('../models/Parcel')).default;
+
+                const parcelledOrder = await ParcelledOrder.findById(freshOrder.parcelledOrder)
+                    .populate('event', 'name date location')
+                    .populate('ticketType', 'name')
+                    .lean();
+
+                if (parcelledOrder) {
+                    const parcels = await Parcel.find({ parcelledOrder: parcelledOrder._id })
+                        .sort({ sequence: 1 })
+                        .lean();
+
+                    // Calcular progresso
+                    const totalParcels = parcels.length;
+                    const paidParcels = parcels.filter((p) => p.status === 'paid').length;
+                    const progressPercentage = totalParcels > 0 ? (paidParcels / totalParcels) * 100 : 0;
+
+                    // Encontrar entrada (sequence 0)
+                    const entryParcel = parcels.find((p) => p.sequence === 0);
+                    const isEntryPaid = entryParcel?.status === 'paid';
+
+                    // Próximas parcelas (não pagas, ordenadas por sequence)
+                    const upcomingParcels = parcels
+                        .filter((p) => p.status !== 'paid' && p.sequence > 0)
+                        .sort((a, b) => a.sequence - b.sequence)
+                        .slice(0, 5); // Limitar a 5 próximas parcelas
+
+                    parcelledOrderInfo = {
+                        _id: parcelledOrder._id,
+                        orderNumber: String(parcelledOrder._id), // Usar _id como orderNumber (padrão usado no serviço)
+                        status: parcelledOrder.status,
+                        totalAmount: parcelledOrder.totalAmount,
+                        totalParcels,
+                        paidParcels,
+                        progressPercentage: Math.round(progressPercentage),
+                        isEntryPaid,
+                        entryParcel: entryParcel ? {
+                            _id: entryParcel._id,
+                            sequence: entryParcel.sequence,
+                            amount: entryParcel.amount,
+                            status: entryParcel.status,
+                            dueDate: entryParcel.dueDate,
+                            paidAt: entryParcel.paidAt,
+                        } : null,
+                        upcomingParcels: upcomingParcels.map((p) => ({
+                            _id: p._id,
+                            sequence: p.sequence,
+                            amount: p.amount,
+                            status: p.status,
+                            dueDate: p.dueDate,
+                            overdueAt: p.overdueAt,
+                        })),
+                    };
+                }
+            } catch (parcelledError) {
+                // Erro ao buscar pedido parcelado - ignorar
+            }
+        }
+
         // Remover QR codes de pedidos pendentes (segurança)
         const orderWithFilteredQR = {
             ...freshOrder,
@@ -1737,6 +1801,7 @@ export const getOrderById = async (req: Request, res: Response) => {
                 qrCode: freshOrder.status === 'paid' ? ticket.qrCode : null, // Só retorna QR code se pedido estiver pago
             })),
             pixInfo: pixInfo || undefined, // Informações do PIX para pedidos pendentes
+            parcelledOrderInfo: parcelledOrderInfo || undefined, // Informações do pedido parcelado
         };
 
         res.json({
