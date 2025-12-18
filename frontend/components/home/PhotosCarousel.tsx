@@ -15,14 +15,13 @@ type PhotosCarouselProps = {
 
 // Fotos padrão se não forem fornecidas
 const DEFAULT_PHOTOS = [
-    '/images/03.02cdmbrunocavaalcanti-shakeitbsb-18.jpg',
-    '/images/03.02cdmbrunocavaalcanti-shakeitbsb-197.jpg',
-    '/images/Copia-de-22.04-meskla-brunocavaalcanti-shakeit-57.jpg',
-    '/images/Copia-de-22.04-meskla-fercoutinho-shakeit-270.jpg',
-    '/images/_ (1).jpg',
-    '/images/_ (2).jpg',
-    '/images/_ (3).jpg',
-    '/images/_ (4).jpg',
+    '/images/240_F_1561273697_KXKCPEecl0TRIdctbVF6yFba6l2x5ad5.jpg',
+    '/images/240_F_179402547_PnnvfD9ODtjZBPzHt0SN04IzeUXFZHwp.jpg',
+    '/images/240_F_212574210_j5J3GOIbfBkCxR1s9SlxxUkwjY5G47Fd.jpg',
+    '/images/240_F_317316611_rwL4EexQCewkcRAZpW8mpLNY6VwQS01A.jpg',
+    '/images/240_F_327586933_LUK7WE141nf2kw4NMLhnfOqYA37zOsrZ.jpg',
+    '/images/240_F_357298456_WdvVwqW1b7tssPPcm2puVLdJ7weT1JmO.jpg',
+    '/images/240_F_620418502_h5OOg9mNskAXtwsqcfCfydnSy6Zvq8VT.jpg',
 ];
 
 export default function PhotosCarousel({
