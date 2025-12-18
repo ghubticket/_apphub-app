@@ -184,6 +184,111 @@ npx ts-node scripts/mark-first-parcel-as-paid.ts
 
 ---
 
+### 3. `payNextParcel.ts` - Pagar Próxima Parcela (Uma de Cada Vez)
+
+Script para pagar apenas a **próxima parcela não paga** de um pedido parcelado. Perfeito para testar o fluxo parcela por parcela!
+
+#### Uso:
+
+**Se estiver na raiz do projeto:**
+```bash
+# Com ID específico:
+npx ts-node backend/scripts/payNextParcel.ts <parcelledOrderId>
+
+# Sem ID (pega qualquer pedido ativo automaticamente):
+npx ts-node backend/scripts/payNextParcel.ts
+```
+
+**Se estiver no diretório `backend`:**
+```bash
+# Com ID específico:
+npx ts-node scripts/payNextParcel.ts <parcelledOrderId>
+
+# Sem ID (pega qualquer pedido ativo automaticamente):
+npx ts-node scripts/payNextParcel.ts
+```
+
+#### Exemplos:
+```bash
+# Com ID específico:
+npx ts-node scripts/payNextParcel.ts 6942c08ffdf39be7c0950eb0
+
+# Sem ID (modo teste - pega qualquer pedido):
+npx ts-node scripts/payNextParcel.ts
+```
+
+#### O Que Faz:
+1. ✅ Busca o pedido parcelado (por ID ou automaticamente)
+2. ✅ Lista todas as parcelas com seus status
+3. ✅ Encontra a **próxima parcela não paga** (em ordem de sequência)
+4. ✅ Marca **apenas essa parcela** como paga
+5. ✅ Atualiza status do pedido se necessário:
+   - Se pagou entrada → muda de `pending_entry` para `active`
+   - Se pagou todas → muda para `completed` e gera ingressos
+6. ✅ Mostra qual é a próxima parcela a pagar
+
+**Nota:** 
+- Execute o script várias vezes para pagar todas as parcelas uma a uma
+- Perfeito para testar o fluxo completo de parcelamento
+- O script mostra qual parcela será paga antes de confirmar
+
+#### Output Esperado:
+```
+🔌 Conectando ao MongoDB...
+✅ Conectado ao MongoDB
+
+🔍 Nenhum ID informado. Buscando pedido parcelado ativo...
+
+✅ Pedido encontrado automaticamente: Teste Evento
+   ID: 6942c08ffdf39be7c0950eb0
+   Status atual: active
+
+📦 Encontradas 3 parcelas:
+
+   ✅ Entrada: R$ 35.00 - PAGA (paga em: 18/12/2025 12:25:24)
+   ⏳ Parcela 1: R$ 35.00 - PENDENTE
+   ⏳ Parcela 2: R$ 35.00 - PENDENTE
+
+💳 Próxima parcela a pagar: Parcela 1
+   Parcela ID: 6942c08ffdf39be7c0950eb1
+   Valor: R$ 35.00
+   Status atual: pending
+   Vencimento: 17/02/2026
+
+💳 Pagando Parcela 1...
+✅ Parcela 1 paga com sucesso!
+
+════════════════════════════════════════════════════════════
+📊 Resumo:
+   Pedido ID: 6942c08ffdf39be7c0950eb0
+   Status: active
+   Parcelas pagas: 2/3
+   Próxima parcela: Parcela 2
+════════════════════════════════════════════════════════════
+
+💡 Dica: Execute o script novamente para pagar a próxima parcela!
+   npx ts-node scripts/payNextParcel.ts 6942c08ffdf39be7c0950eb0
+
+👋 Desconectado do MongoDB
+```
+
+#### Fluxo de Teste Completo:
+```bash
+# 1. Pagar entrada (se ainda não pagou)
+npx ts-node scripts/mark-first-parcel-as-paid.ts
+
+# 2. Pagar próxima parcela (Parcela 1)
+npx ts-node scripts/payNextParcel.ts
+
+# 3. Pagar próxima parcela (Parcela 2)
+npx ts-node scripts/payNextParcel.ts
+
+# 4. Continuar até pagar todas...
+npx ts-node scripts/payNextParcel.ts
+```
+
+---
+
 ## 🚀 Como Usar
 
 ### Passo 1: Executar Script

@@ -913,45 +913,69 @@ return
             <Grid container spacing={6}>
 
                 <Grid size={{ xs: 12 }}>
-                    <Card>
+                    <Card sx={{ position: 'relative' }}>
                         <CardHeader
                             title={event.name}
                             subheader={event.date ? new Date(event.date).toLocaleDateString('pt-BR') : ''}
-                            action={
-                                <Box className='flex gap-3'>
-                                    <Button
-                                        variant='contained'
-                                        startIcon={<i className='tabler-ticket' />}
-                                        onClick={() => router.push(`/${lang}/apps/events/view/${id}/tickets/list`)}
-                                    >
-                                        Cadastrar Tickets
-                                    </Button>
-                                    <Button
-                                        variant='tonal'
-                                        color='secondary'
-                                        startIcon={<i className='tabler-gift' />}
-                                        onClick={() => { setVipOpen(true); setVipTypeId(vipTypes[0]?._id || null) }}
-                                    >
-                                        Distribuir Cortesia
-                                    </Button>
-                                    <Button
-                                        variant='outlined'
-                                        startIcon={<i className='tabler-edit' />}
-                                        onClick={() => setIsEditing(true)}
-                                    >
-                                        Editar Evento
-                                    </Button>
-                                    <Button
-                                        variant='tonal'
-                                        color='secondary'
-                                        startIcon={<i className='tabler-arrow-left' />}
-                                        onClick={() => router.push(`/${lang}/apps/events/list`)}
-                                    >
-                                        Voltar
-                                    </Button>
-                                </Box>
-                            }
                         />
+                        <CardContent sx={{ pt: { xs: 2, md: 0 } }}>
+                            <Box className='flex flex-col sm:flex-row gap-2 sm:gap-3'>
+                                <Button
+                                    variant='contained'
+                                    startIcon={<i className='tabler-ticket' />}
+                                    onClick={() => router.push(`/${lang}/apps/events/view/${id}/tickets/list`)}
+                                    fullWidth
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 'auto' },
+                                        fontSize: { xs: '0.875rem', md: '1rem' },
+                                        py: { xs: 1.25, md: 1.5 }
+                                    }}
+                                >
+                                    Cadastrar Tickets
+                                </Button>
+                                <Button
+                                    variant='tonal'
+                                    color='secondary'
+                                    startIcon={<i className='tabler-gift' />}
+                                    onClick={() => { setVipOpen(true); setVipTypeId(vipTypes[0]?._id || null) }}
+                                    fullWidth
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 'auto' },
+                                        fontSize: { xs: '0.875rem', md: '1rem' },
+                                        py: { xs: 1.25, md: 1.5 }
+                                    }}
+                                >
+                                    Distribuir Cortesia
+                                </Button>
+                                <Button
+                                    variant='outlined'
+                                    startIcon={<i className='tabler-edit' />}
+                                    onClick={() => setIsEditing(true)}
+                                    fullWidth
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 'auto' },
+                                        fontSize: { xs: '0.875rem', md: '1rem' },
+                                        py: { xs: 1.25, md: 1.5 }
+                                    }}
+                                >
+                                    Editar Evento
+                                </Button>
+                                <Button
+                                    variant='tonal'
+                                    color='secondary'
+                                    startIcon={<i className='tabler-arrow-left' />}
+                                    onClick={() => router.push(`/${lang}/apps/events/list`)}
+                                    fullWidth
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 'auto' },
+                                        fontSize: { xs: '0.875rem', md: '1rem' },
+                                        py: { xs: 1.25, md: 1.5 }
+                                    }}
+                                >
+                                    Voltar
+                                </Button>
+                            </Box>
+                        </CardContent>
                     </Card>
                 </Grid>
 

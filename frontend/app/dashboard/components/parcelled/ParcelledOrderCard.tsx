@@ -21,6 +21,7 @@ import {
     getAlertColor,
     areAllParcelsPaid,
     countUnpaidParcels,
+    isEntryPixExpired,
 } from '../../utils/parcelHelpers';
 import type { ParcelledOrderWithParcels, ParcelSummary } from '../../types/parcelled';
 
@@ -92,40 +93,110 @@ export default function ParcelledOrderCard({
         return `Faltam ${unpaidParcelsCount} parcelas`;
     }, [isEntryPaidValue, allPaid, unpaidParcelsCount]);
 
-    // Carregar PIX da entrada IMEDIATAMENTE ao montar (sem delay)
+    // Estado para controlar se o PIX expirou (atualizado em tempo real)
+    const [isPixExpired, setIsPixExpired] = useState(false);
+
+    // Verificar continuamente se o PIX expirou e limpar entryPixInfo se expirar
+    // IMPORTANTE: Não limpar quando expiresAt é null (ainda carregando), apenas quando realmente expirou
+    useEffect(() => {
+        if (!entryPixInfo) {
+            setIsPixExpired(false);
+            return;
+        }
+
+        // Se não tem expiresAt ainda, não verificar expiração (ainda carregando em background)
+        if (!entryPixInfo.expiresAt) {
+            setIsPixExpired(false);
+            return;
+        }
+
+        const checkExpiration = () => {
+            const expirationDate = new Date(entryPixInfo.expiresAt!);
+            const now = new Date();
+            const expired = now.getTime() >= expirationDate.getTime();
+            
+            if (expired) {
+                setIsPixExpired(true);
+                // Limpar entryPixInfo quando expirar para garantir que o box não apareça
+                setEntryPixInfo(null);
+            } else {
+                setIsPixExpired(false);
+            }
+        };
+
+        // Verificar imediatamente
+        checkExpiration();
+
+        // Verificar a cada segundo para atualizar em tempo real
+        const interval = setInterval(checkExpiration, 1000);
+
+        return () => clearInterval(interval);
+    }, [entryPixInfo?.expiresAt]);
+
+    // Carregar PIX da entrada IMEDIATAMENTE (sem delay)
+    // Mostrar box instantaneamente com dados disponíveis, buscar expiresAt em background
     useEffect(() => {
         if (!isEntryPaidValue && entryParcel && entryParcel.status === 'payment_generated') {
-            // Setar dados do PIX imediatamente (já vêm do backend)
-            setEntryPixInfo({
-                qrCode: entryParcel.qrCode,
-                qrCodeBase64: entryParcel.qrCodeBase64,
-                expiresAt: null, // Será buscado em background
-            });
+            // Verificar se tem QR code disponível para mostrar imediatamente
+            const hasQrCode = entryParcel.qrCode || entryParcel.qrCodeBase64;
+            
+            if (hasQrCode) {
+                // MOSTRAR IMEDIATAMENTE com dados disponíveis (sem esperar expiresAt)
+                setEntryPixInfo({
+                    qrCode: entryParcel.qrCode || null,
+                    qrCodeBase64: entryParcel.qrCodeBase64 || null,
+                    expiresAt: null, // Será atualizado em background
+                });
+                
+                // Buscar expiresAt em background (não bloqueia a exibição)
+                if (entryParcel.paymentId) {
+                    const fetchExpiresAt = async () => {
+                        try {
+                            const token = localStorage.getItem('accessToken') ||
+                                sessionStorage.getItem('accessToken') ||
+                                localStorage.getItem('token') ||
+                                null;
 
-            // Buscar expiresAt em background (não bloqueia)
-            if (entryParcel.paymentId) {
-                // Obter token de autenticação
-                const token = localStorage.getItem('accessToken') ||
-                    sessionStorage.getItem('accessToken') ||
-                    localStorage.getItem('token') ||
-                    null;
+                            const response = await getPaymentStatusAction(
+                                entryParcel.paymentId!,
+                                token ? { 'Authorization': `Bearer ${token}` } : {}
+                            );
+                            const expiresAt = response?.data?.expiresAt || null;
 
-                // Usar Server Action para buscar status (nunca expõe URL da API)
-                getPaymentStatusAction(
-                    entryParcel.paymentId,
-                    token ? { 'Authorization': `Bearer ${token}` } : {}
-                )
-                    .then(response => {
-                        const expiresAt = response?.data?.expiresAt || null;
-                        setEntryPixInfo(prev => ({
-                            ...prev!,
-                            expiresAt,
-                        }));
-                    })
-                    .catch(() => {
-                        // Ignorar erro - PIX sem expiração é aceitável
-                    });
+                            // Atualizar expiresAt quando chegar
+                            if (expiresAt) {
+                                const expirationDate = new Date(expiresAt);
+                                const now = new Date();
+                                
+                                // Se expirou, esconder o box
+                                if (now.getTime() >= expirationDate.getTime()) {
+                                    setEntryPixInfo(null);
+                                    setIsPixExpired(true);
+                                    return;
+                                }
+                                
+                                // Atualizar com expiresAt válido
+                                setEntryPixInfo(prev => prev ? {
+                                    ...prev,
+                                    expiresAt,
+                                } : null);
+                            }
+                        } catch {
+                            // Se der erro, manter o box visível (já está mostrando)
+                            // Não limpar porque já temos os dados do QR code
+                        }
+                    };
+                    
+                    // Buscar em background (não bloqueia)
+                    fetchExpiresAt();
+                }
+            } else {
+                // Se não tem QR code, não mostrar o box
+                setEntryPixInfo(null);
             }
+        } else if (isEntryPaidValue || !entryParcel || entryParcel.status !== 'payment_generated') {
+            // Limpar se entrada foi paga ou não tem mais PIX
+            setEntryPixInfo(null);
         }
     }, [isEntryPaidValue, entryParcel]);
 
@@ -283,8 +354,14 @@ export default function ParcelledOrderCard({
                     </div>
                 )}
 
-                {/* Seção de PIX pendente (se entrada não paga E tem PIX) */}
-                {!isEntryPaidValue && entryParcel && entryPixInfo && (entryPixInfo.qrCode || entryPixInfo.qrCodeBase64) && (
+                {/* Seção de PIX pendente (se entrada não paga E tem PIX E não expirou) */}
+                {/* Mostrar se: entrada não paga, tem PIX info, tem QR code, e não expirou */}
+                {/* expiresAt pode ser null inicialmente (será carregado em background) */}
+                {!isEntryPaidValue && 
+                 entryParcel && 
+                 entryPixInfo && 
+                 (entryPixInfo.qrCode || entryPixInfo.qrCodeBase64) && 
+                 !isPixExpired && (
                     <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 md:p-4">
                         <div className="mb-3 flex justify-center items-center gap-2">
                             <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -371,14 +448,18 @@ export default function ParcelledOrderCard({
                             // 1. Não for entrada com PIX já mostrado acima
                             // 2. Status seja 'pending' OU 'payment_generated' (PIX gerado mas ainda não vencido)
                             // 3. Entrada esteja paga (se não for a própria entrada)
+                            // 4. Se for entrada, PIX não pode ter expirado (verificar pelo pedido)
+                            //    A função isEntryPixExpired já verifica se passou 30min desde criação
+                            const pixExpired = isEntryPixExpired(order);
                             const canShowButton = !entryHasPix &&
                                 (parcel.status === 'pending' || parcel.status === 'payment_generated') &&
-                                (isEntry || isEntryPaidValue);
+                                (isEntry || isEntryPaidValue) &&
+                                (!isEntry || !pixExpired); // Se for entrada, PIX não pode ter expirado
 
                             return (
                                 <div key={parcel._id} className="rounded-lg border border-[#ded7ca] bg-white p-4">
                                     {/* Layout mobile: informações verticais */}
-                                    <div className="flex flex-col gap-3">
+                                    <div className="flex flex-col md:flex-row justify-between items-center gap-3">
                                         {/* Cabeçalho: Parcela X/Y */}
                                         <p className="text-sm font-semibold text-[#1a1a1d]">
                                             {parcelLabel}
@@ -452,7 +533,7 @@ export default function ParcelledOrderCard({
                                     {/* PIX gerado da parcela (não entrada) */}
                                     {!isEntry && parcelPixInfo[parcel._id] && (parcelPixInfo[parcel._id].qrCode || parcelPixInfo[parcel._id].qrCodeBase64) && (
                                         <div className="mt-3 pt-3 border-t border-emerald-200 rounded-lg bg-emerald-50/30 p-3">
-                                            <div className="mb-2 flex items-center gap-2">
+                                            <div className="mb-3 flex text-center justify-center items-center gap-2">
                                                 <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>

@@ -1318,12 +1318,77 @@ export const listAllOrders = async (req: Request, res: Response) => {
                             }
                         }
                     }
+                    // Buscar informações do pedido parcelado se existir
+                    let parcelledOrderInfo: any = null;
+                    if (order.parcelledOrder) {
+                        try {
+                            const ParcelledOrder = (await import('../models/ParcelledOrder')).default;
+                            const Parcel = (await import('../models/Parcel')).default;
+
+                            const parcelledOrder = await ParcelledOrder.findById(order.parcelledOrder)
+                                .populate('event', 'name date location')
+                                .populate('ticketType', 'name')
+                                .lean();
+
+                            if (parcelledOrder) {
+                                const parcels = await Parcel.find({ parcelledOrder: parcelledOrder._id })
+                                    .sort({ sequence: 1 })
+                                    .lean();
+
+                                // Calcular progresso
+                                const totalParcels = parcels.length;
+                                const paidParcels = parcels.filter((p) => p.status === 'paid').length;
+                                const progressPercentage = totalParcels > 0 ? (paidParcels / totalParcels) * 100 : 0;
+
+                                // Encontrar entrada (sequence 0)
+                                const entryParcel = parcels.find((p) => p.sequence === 0);
+                                const isEntryPaid = entryParcel?.status === 'paid';
+
+                                // Próximas parcelas (não pagas, ordenadas por sequence)
+                                const upcomingParcels = parcels
+                                    .filter((p) => p.status !== 'paid' && p.sequence > 0)
+                                    .sort((a, b) => a.sequence - b.sequence)
+                                    .slice(0, 5); // Limitar a 5 próximas parcelas
+
+                                parcelledOrderInfo = {
+                                    _id: parcelledOrder._id,
+                                    orderNumber: String(parcelledOrder._id), // Usar _id como orderNumber (padrão usado no serviço)
+                                    status: parcelledOrder.status,
+                                    totalAmount: parcelledOrder.totalAmount,
+                                    totalParcels,
+                                    paidParcels,
+                                    progressPercentage: Math.round(progressPercentage),
+                                    isEntryPaid,
+                                    entryParcel: entryParcel ? {
+                                        _id: entryParcel._id,
+                                        sequence: entryParcel.sequence,
+                                        amount: entryParcel.amount,
+                                        status: entryParcel.status,
+                                        dueDate: entryParcel.dueDate,
+                                        paidAt: entryParcel.paidAt,
+                                    } : null,
+                                    upcomingParcels: upcomingParcels.map((p) => ({
+                                        _id: p._id,
+                                        sequence: p.sequence,
+                                        amount: p.amount,
+                                        status: p.status,
+                                        dueDate: p.dueDate,
+                                        overdueAt: p.overdueAt,
+                                    })),
+                                };
+                            }
+                        } catch (parcelledError) {
+                            // Erro ao buscar pedido parcelado - ignorar
+                        }
+                    }
+
                     return {
                         ...order,
                         tickets: order.tickets.map((ticket: any) => ({
                             ...ticket,
                             qrCode: order.status === 'paid' ? ticket.qrCode : null, // Só retorna QR code se pedido estiver pago
                         })),
+                        parcelledOrderInfo: parcelledOrderInfo || undefined, // Informações do pedido parcelado
                     };
                 } catch (orderError: any) {
                     // Se houver erro ao processar um pedido individual, logar mas não quebrar tudo
@@ -1331,10 +1396,70 @@ export const listAllOrders = async (req: Request, res: Response) => {
                         error: orderError?.message,
                         orderId: order._id,
                     });
+                    
+                    // Mesmo em caso de erro, tentar incluir informações do pedido parcelado se existir
+                    let parcelledOrderInfo: any = null;
+                    if (order.parcelledOrder) {
+                        try {
+                            const ParcelledOrder = (await import('../models/ParcelledOrder')).default;
+                            const Parcel = (await import('../models/Parcel')).default;
+
+                            const parcelledOrder = await ParcelledOrder.findById(order.parcelledOrder)
+                                .populate('event', 'name date location')
+                                .populate('ticketType', 'name')
+                                .lean();
+
+                            if (parcelledOrder) {
+                                const parcels = await Parcel.find({ parcelledOrder: parcelledOrder._id })
+                                    .sort({ sequence: 1 })
+                                    .lean();
+
+                                const totalParcels = parcels.length;
+                                const paidParcels = parcels.filter((p) => p.status === 'paid').length;
+                                const progressPercentage = totalParcels > 0 ? (paidParcels / totalParcels) * 100 : 0;
+                                const entryParcel = parcels.find((p) => p.sequence === 0);
+                                const isEntryPaid = entryParcel?.status === 'paid';
+
+                                parcelledOrderInfo = {
+                                    _id: parcelledOrder._id,
+                                    orderNumber: String(parcelledOrder._id),
+                                    status: parcelledOrder.status,
+                                    totalAmount: parcelledOrder.totalAmount,
+                                    totalParcels,
+                                    paidParcels,
+                                    progressPercentage: Math.round(progressPercentage),
+                                    isEntryPaid,
+                                    entryParcel: entryParcel ? {
+                                        _id: entryParcel._id,
+                                        sequence: entryParcel.sequence,
+                                        amount: entryParcel.amount,
+                                        status: entryParcel.status,
+                                        dueDate: entryParcel.dueDate,
+                                        paidAt: entryParcel.paidAt,
+                                    } : null,
+                                    upcomingParcels: parcels
+                                        .filter((p) => p.sequence > 0) // Todas as parcelas exceto entrada, independente do status
+                                        .sort((a, b) => a.sequence - b.sequence)
+                                        .map((p) => ({
+                                            _id: p._id,
+                                            sequence: p.sequence,
+                                            amount: p.amount,
+                                            status: p.status,
+                                            dueDate: p.dueDate,
+                                            overdueAt: p.overdueAt,
+                                        })),
+                                };
+                            }
+                        } catch (parcelledError) {
+                            // Ignorar erro ao buscar pedido parcelado em caso de erro geral
+                        }
+                    }
+                    
                     // Retornar pedido sem processamento adicional em caso de erro
                     return {
                         ...order,
                         tickets: order.tickets || [],
+                        parcelledOrderInfo: parcelledOrderInfo || undefined,
                     };
                 }
             })
@@ -1755,11 +1880,10 @@ export const getOrderById = async (req: Request, res: Response) => {
                     const entryParcel = parcels.find((p) => p.sequence === 0);
                     const isEntryPaid = entryParcel?.status === 'paid';
 
-                    // Próximas parcelas (não pagas, ordenadas por sequence)
+                    // Todas as parcelas (exceto entrada), ordenadas por sequence - mostrar todas independente do status
                     const upcomingParcels = parcels
-                        .filter((p) => p.status !== 'paid' && p.sequence > 0)
-                        .sort((a, b) => a.sequence - b.sequence)
-                        .slice(0, 5); // Limitar a 5 próximas parcelas
+                        .filter((p) => p.sequence > 0) // Todas as parcelas exceto entrada, independente do status
+                        .sort((a, b) => a.sequence - b.sequence);
 
                     parcelledOrderInfo = {
                         _id: parcelledOrder._id,

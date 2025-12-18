@@ -22,7 +22,6 @@ import type { SubmitHandler } from 'react-hook-form'
 import type { InferInput } from 'valibot'
 
 import CustomTextField from '@core/components/mui/TextField'
-import AppReactDatepicker from '@/libs/styles/AppReactDatepicker'
 
 import { AdminOnly } from '@/components/RoleGuard'
 import { useTicketTypes } from '@/hooks/useTicketTypes'
@@ -76,8 +75,6 @@ const schema = object({
     lotNumber: pipe(number(), minValue(1, 'Número do lote deve ser pelo menos 1')),
     maxQuantity: pipe(number(), minValue(1, 'Quantidade máxima deve ser pelo menos 1'), maxValue(100000, 'Quantidade máxima não pode ser maior que 100.000')),
     maxPerPurchase: pipe(number(), minValue(1, 'Limite por compra deve ser pelo menos 1'), maxValue(50, 'Limite por compra não pode ser maior que 50')),
-    salesStart: optional(string()),
-    salesEnd: optional(string()),
 })
 
 const CreateTicketTypePage = () => {
@@ -85,8 +82,6 @@ const CreateTicketTypePage = () => {
     const { lang, id } = useParams()
     const { createTicketType, loading, error } = useTicketTypes(id as string)
     const [isVIP, setIsVIP] = useState(false)
-    const [salesStart, setSalesStart] = useState<Date | null>(null)
-    const [salesEnd, setSalesEnd] = useState<Date | null>(null)
     const [priceDisplay, setPriceDisplay] = useState('')
     const [allowInstallments, setAllowInstallments] = useState(false)
     const [minInstallments, setMinInstallments] = useState<number | ''>('')
@@ -154,8 +149,6 @@ const CreateTicketTypePage = () => {
                 lotNumber: data.lotNumber,
                 maxQuantity: data.maxQuantity,
                 maxPerPurchase: data.maxPerPurchase,
-                salesStart: salesStart ? salesStart.toISOString() : undefined,
-                salesEnd: salesEnd ? salesEnd.toISOString() : undefined,
                 allowInstallments,
                 minInstallments: allowInstallments && minInstallments !== '' ? Number(minInstallments) : null,
                 maxInstallments: allowInstallments && maxInstallments !== '' ? Number(maxInstallments) : null,
@@ -342,24 +335,6 @@ const CreateTicketTypePage = () => {
                                         />
                                     </Grid>
 
-                                    <Grid size={{ xs: 12, md: 6 }}>
-                                        <AppReactDatepicker
-                                            selected={salesStart}
-                                            onChange={(date: Date | null) => setSalesStart(date)}
-                                            placeholderText='Data de Início da Venda (Opcional)'
-                                            showTimeSelect
-                                            dateFormat='dd/MM/yyyy HH:mm'
-                                            isClearable
-                                            customInput={
-                                                <CustomTextField
-                                                    fullWidth
-                                                    label='Data de Início da Venda'
-                                                    helperText='Quando as vendas deste tipo de ingresso começam'
-                                                />
-                                            }
-                                        />
-                                    </Grid>
-
                                     <Grid size={12}>
                                         <Typography variant='h6' sx={{ mt: 4, mb: 2 }}>
                                             Parcelamento (Pix/Boleto)
@@ -409,25 +384,6 @@ const CreateTicketTypePage = () => {
                                             </Grid>
                                         </>
                                     )}
-
-                                    <Grid size={{ xs: 12, md: 6 }}>
-                                        <AppReactDatepicker
-                                            selected={salesEnd}
-                                            onChange={(date: Date | null) => setSalesEnd(date)}
-                                            placeholderText='Data de Fim da Venda (Opcional)'
-                                            showTimeSelect
-                                            dateFormat='dd/MM/yyyy HH:mm'
-                                            isClearable
-                                            minDate={salesStart || undefined}
-                                            customInput={
-                                                <CustomTextField
-                                                    fullWidth
-                                                    label='Data de Fim da Venda'
-                                                    helperText='Quando as vendas deste tipo de ingresso terminam'
-                                                />
-                                            }
-                                        />
-                                    </Grid>
 
                                     <Grid size={12}>
                                         <Box className='flex gap-4 justify-end'>

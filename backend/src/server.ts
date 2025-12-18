@@ -15,6 +15,9 @@ import { validateUserAgent } from './middleware/deviceValidation';
 import { sanitizeBody } from './middleware/sanitization';
 import { performanceLogger } from './middleware/performanceLogger';
 import crypto from 'crypto';
+// Log inicial para debug
+console.log('📝 Arquivo server.ts carregado');
+
 // IMPORTANT: Importar instrument.ts ANTES de qualquer outro código
 import './instrument';
 import * as Sentry from '@sentry/node';
@@ -43,7 +46,7 @@ dotenv.config();
 
 // Criar aplicação Express
 const app: Application = express();
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 3002; // Porta padrão: 3002 (3001 é usada pelo frontend)
 
 // ====================================
 // Middlewares de Segurança
@@ -411,10 +414,11 @@ const expandOriginVariants = (origin: string): string[] => {
 const fallbackOrigins = [
     'http://localhost:3000',
     'https://localhost:3000',
-    'http://localhost:3001',
-    'https://localhost:3001',
-    'http://localhost:3443',
-    'https://localhost:3001',
+    'http://localhost:3001', // Frontend
+    'https://localhost:3001', // Frontend
+    'http://localhost:3002', // Backend API
+    'https://localhost:3002', // Backend API
+    'http://localhost:3443', // HTTPS alternativo
 ];
 const rawOrigins = [
     process.env.FRONTEND_URL,
@@ -792,12 +796,24 @@ app.use((req: Request, res: Response) => {
 
 const startServer = async () => {
     try {
+        // Logs básicos para garantir que apareçam
+        console.log('🔌 Iniciando servidor...');
+        logger.info('🔌 Iniciando servidor...');
+        
         // Conectar ao banco de dados
+        console.log('📦 Conectando ao banco de dados...');
+        logger.info('📦 Conectando ao banco de dados...');
         await connectDatabase();
+        console.log('✅ Banco de dados conectado com sucesso');
+        logger.info('✅ Banco de dados conectado com sucesso');
 
         // Verificar configuração do Mercado Pago
+        console.log('🔍 Verificando configurações...');
+        logger.info('🔍 Verificando configurações...');
         checkMercadoPagoConfig();
         checkEmailConfig();
+        console.log('✅ Configurações verificadas');
+        logger.info('✅ Configurações verificadas');
 
         // Verificar se SSL está disponível
         // No Railway, sempre usar HTTP na porta PORT (Railway faz proxy HTTPS automaticamente)
@@ -807,13 +823,26 @@ const startServer = async () => {
         const useHttps = sslOptions !== null && !isRailway;
 
         // Iniciar servidor
+        console.log(`🔧 Configurando servidor (HTTPS: ${useHttps}, Porta: ${useHttps ? httpsPort : PORT})...`);
         if (useHttps) {
             // Servidor HTTPS
             const httpsServer = https.createServer(sslOptions!, app);
-            httpsServer.listen(httpsPort, '0.0.0.0', () => {});
+            httpsServer.listen(httpsPort, '0.0.0.0', () => {
+                console.log(`🚀 Servidor HTTPS rodando na porta ${httpsPort}`);
+                console.log(`📡 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+                logger.info(`🚀 Servidor HTTPS rodando na porta ${httpsPort}`);
+                logger.info(`📡 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+            });
         } else {
             // Servidor HTTP (fallback)
-            app.listen(PORT, '0.0.0.0', () => {});
+            app.listen(PORT, '0.0.0.0', () => {
+                console.log(`🚀 Servidor HTTP rodando na porta ${PORT}`);
+                console.log(`📡 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+                console.log(`🌐 API disponível em: http://localhost:${PORT}/api`);
+                logger.info(`🚀 Servidor HTTP rodando na porta ${PORT}`);
+                logger.info(`📡 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+                logger.info(`🌐 API disponível em: http://localhost:${PORT}/api`);
+            });
         }
 
         // Iniciar job de expiração de pedidos pendentes
@@ -845,6 +874,16 @@ const startServer = async () => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
 
+        // Log do erro no console para debug (usar console.error para garantir que apareça)
+        console.error('❌ Erro ao iniciar servidor:', errorMessage);
+        if (errorStack) {
+            console.error('Stack trace:', errorStack);
+        }
+        logger.error('❌ Erro ao iniciar servidor:', errorMessage);
+        if (errorStack) {
+            logger.error('Stack trace:', errorStack);
+        }
+
         // Capturar erro fatal de inicialização no Sentry
         if (process.env.SENTRY_DSN) {
             Sentry.captureException(error instanceof Error ? error : new Error(errorMessage), {
@@ -857,7 +896,10 @@ const startServer = async () => {
             });
         }
 
-        process.exit(1);
+        // Aguardar um pouco antes de sair para que os logs sejam exibidos
+        setTimeout(() => {
+            process.exit(1);
+        }, 1000);
     }
 };
 

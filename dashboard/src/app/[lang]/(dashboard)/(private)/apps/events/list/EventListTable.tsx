@@ -223,12 +223,12 @@ const EventListTable = () => {
             />
             <CardContent>
                 {/* Sempre mostrar os filtros */}
-                <div className='flex items-center gap-4 mb-6 flex-wrap'>
+                <div className='flex flex-col md:flex-row md:items-center gap-4 mb-6'>
                     <CustomTextField
                         value={globalFilter}
                         onChange={(e) => setGlobalFilter(e.target.value)}
                         placeholder='Buscar eventos...'
-                        className='flex-1 min-w-[200px]'
+                        className='w-full md:flex-1 md:min-w-[200px]'
                         InputProps={{
                             startAdornment: <i className='tabler-search text-xl text-textSecondary' />
                         }}
@@ -238,6 +238,7 @@ const EventListTable = () => {
                         href={`/${lang}/apps/events/create`}
                         variant='contained'
                         startIcon={<i className='tabler-plus' />}
+                        className='w-full md:w-auto'
                     >
                         Novo Evento
                     </Button>
@@ -330,8 +331,8 @@ const EventListTable = () => {
 
                         <TablePagination
                             component={() => (
-                                <div className='flex justify-between items-center flex-wrap border-bs bs-auto pt-5 gap-2'>
-                                    <Typography color='text.disabled'>
+                                <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-3 border-bs bs-auto pt-5'>
+                                    <Typography color='text.disabled' className='text-sm md:text-base text-center md:text-left'>
                                         {pagination ? (
                                             `Mostrando ${pagination.total === 0
                                                 ? 0
@@ -341,7 +342,7 @@ const EventListTable = () => {
                                             `Mostrando ${data.length} registros`
                                         )}
                                     </Typography>
-                                    <div className='flex items-center gap-2'>
+                                    <div className='flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto'>
                                         <CustomTextField
                                             select
                                             size='small'
@@ -352,7 +353,8 @@ const EventListTable = () => {
                                                 setPageSize(newPageSize)
                                                 setCurrentPage(1)
                                             }}
-                                            sx={{ minWidth: 80 }}
+                                            className='w-full sm:w-auto'
+                                            sx={{ minWidth: { xs: '100%', sm: 80 } }}
                                         >
                                             <MenuItem value={10}>10</MenuItem>
                                             <MenuItem value={25}>25</MenuItem>
@@ -369,6 +371,13 @@ const EventListTable = () => {
                                                 onChange={(_: any, page: number) => setCurrentPage(page)}
                                                 showFirstButton
                                                 showLastButton
+                                                size='small'
+                                                sx={{
+                                                    '& .MuiPagination-ul': {
+                                                        flexWrap: 'wrap',
+                                                        justifyContent: 'center'
+                                                    }
+                                                }}
                                             />
                                         )}
                                     </div>

@@ -123,7 +123,7 @@ const OrderListTable = () => {
     const [currentPage, setCurrentPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'cancelled' | 'refunded'>('all')
-    const [typeFilter, setTypeFilter] = useState<'all' | 'vip' | 'normal'>('all')
+    const [typeFilter, setTypeFilter] = useState<'all' | 'vip' | 'normal' | 'parcelled'>('all')
 
     const { lang } = useParams()
 
@@ -137,7 +137,8 @@ const OrderListTable = () => {
     // Usar orders diretamente ao invés de manter estado separado
     const data = (orders || []).filter(o => {
         if (typeFilter === 'vip') return o.paymentMethod === 'vip_free'
-        if (typeFilter === 'normal') return o.paymentMethod !== 'vip_free'
+        if (typeFilter === 'normal') return o.paymentMethod !== 'vip_free' && !o.parcelledOrderInfo
+        if (typeFilter === 'parcelled') return !!o.parcelledOrderInfo
         
 return true
     })
@@ -245,8 +246,23 @@ return (
                         refunded: 'Reembolsado'
                     }
 
-                    const label = row.original.paymentMethod === 'vip_free' ? 'VIP' : (statusLabels[row.original.status] || row.original.status)
-                    const color = row.original.paymentMethod === 'vip_free' ? 'success' : (statusColors[row.original.status] || 'default')
+                    // Verificar se é pedido parcelado
+                    const isParcelled = !!row.original.parcelledOrderInfo
+
+                    let label: string
+                    let color: 'success' | 'warning' | 'error' | 'info' | 'default'
+
+                    if (row.original.paymentMethod === 'vip_free') {
+                        label = 'VIP'
+                        color = 'success'
+                    } else if (isParcelled) {
+                        // Pedido parcelado - sempre mostrar PARCELADO
+                        label = 'PARCELADO'
+                        color = 'info'
+                    } else {
+                        label = statusLabels[row.original.status] || row.original.status
+                        color = statusColors[row.original.status] || 'default'
+                    }
 
                     
 return (
@@ -322,12 +338,12 @@ return (
                 />
                 <CardContent>
                     {/* Sempre mostrar os filtros */}
-                    <div className='flex items-center gap-4 mb-6 flex-wrap'>
+                    <div className='flex flex-col md:flex-row md:items-center gap-4 mb-6'>
                         <CustomTextField
                             value={globalFilter}
                             onChange={(e) => setGlobalFilter(e.target.value)}
                             placeholder='Buscar pedidos...'
-                            className='flex-1 min-w-[200px]'
+                            className='w-full md:flex-1 md:min-w-[200px]'
                             InputProps={{
                                 startAdornment: <i className='tabler-search text-xl text-textSecondary' />
                             }}
@@ -336,6 +352,8 @@ return (
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value as any)}
                             size='small'
+                            className='w-full md:w-auto'
+                            sx={{ minWidth: { xs: '100%', md: 150 } }}
                         >
                             <MenuItem value='all'>Todos</MenuItem>
                             <MenuItem value='pending'>Pendentes</MenuItem>
@@ -347,10 +365,13 @@ return (
                             value={typeFilter}
                             onChange={(e) => setTypeFilter(e.target.value as any)}
                             size='small'
+                            className='w-full md:w-auto'
+                            sx={{ minWidth: { xs: '100%', md: 150 } }}
                         >
                             <MenuItem value='all'>Todos os tipos</MenuItem>
                             <MenuItem value='vip'>VIP</MenuItem>
                             <MenuItem value='normal'>Normal</MenuItem>
+                            <MenuItem value='parcelled'>Parcelado</MenuItem>
                         </Select>
                     </div>
 
@@ -431,8 +452,8 @@ return (
 
                             <TablePagination
                                 component={() => (
-                                    <div className='flex justify-between items-center flex-wrap border-bs bs-auto pt-5 gap-2'>
-                                        <Typography color='text.disabled'>
+                                    <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-3 border-bs bs-auto pt-5'>
+                                        <Typography color='text.disabled' className='text-sm md:text-base text-center md:text-left'>
                                             {pagination ? (
                                                 `Mostrando ${pagination.total === 0
                                                     ? 0
@@ -442,7 +463,7 @@ return (
                                                 `Mostrando ${data.length} registros`
                                             )}
                                         </Typography>
-                                        <div className='flex items-center gap-2'>
+                                        <div className='flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto'>
                                             <CustomTextField
                                                 select
                                                 size='small'
@@ -453,7 +474,8 @@ return (
                                                     setPageSize(newPageSize)
                                                     setCurrentPage(1)
                                                 }}
-                                                sx={{ minWidth: 80 }}
+                                                className='w-full sm:w-auto'
+                                                sx={{ minWidth: { xs: '100%', sm: 80 } }}
                                             >
                                                 <MenuItem value={10}>10</MenuItem>
                                                 <MenuItem value={25}>25</MenuItem>
@@ -470,6 +492,13 @@ return (
                                                     onChange={(_: any, page: number) => setCurrentPage(page)}
                                                     showFirstButton
                                                     showLastButton
+                                                    size='small'
+                                                    sx={{
+                                                        '& .MuiPagination-ul': {
+                                                            flexWrap: 'wrap',
+                                                            justifyContent: 'center'
+                                                        }
+                                                    }}
                                                 />
                                             )}
                                         </div>

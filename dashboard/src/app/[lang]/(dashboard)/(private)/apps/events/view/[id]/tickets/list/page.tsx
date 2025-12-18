@@ -205,27 +205,37 @@ const TicketTypesListPage = () => {
                 <CardHeader
                     title='Tipos de Ingressos'
                     subheader='Gerencie os tipos de ingressos deste evento'
-                    action={
-                        <Box className='flex gap-3'>
-                            <Button
-                                variant='contained'
-                                startIcon={<i className='tabler-plus' />}
-                                onClick={() => router.push(`/${lang}/apps/events/view/${id}/tickets/create`)}
-                            >
-                                Criar Tipo de Ingresso
-                            </Button>
-                            <Button
-                                variant='tonal'
-                                color='secondary'
-                                startIcon={<i className='tabler-arrow-left' />}
-                                onClick={() => router.push(`/${lang}/apps/events/view/${id}`)}
-                            >
-                                Voltar
-                            </Button>
-                        </Box>
-                    }
                 />
-                <CardContent>
+                <CardContent sx={{ pt: { xs: 2, md: 0 } }}>
+                    <Box className='flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4'>
+                        <Button
+                            variant='contained'
+                            startIcon={<i className='tabler-plus' />}
+                            onClick={() => router.push(`/${lang}/apps/events/view/${id}/tickets/create`)}
+                            fullWidth
+                            sx={{
+                                minWidth: { xs: '100%', sm: 'auto' },
+                                fontSize: { xs: '0.875rem', md: '1rem' },
+                                py: { xs: 1.25, md: 1.5 }
+                            }}
+                        >
+                            Criar Tipo de Ingresso
+                        </Button>
+                        <Button
+                            variant='tonal'
+                            color='secondary'
+                            startIcon={<i className='tabler-arrow-left' />}
+                            onClick={() => router.push(`/${lang}/apps/events/view/${id}`)}
+                            fullWidth
+                            sx={{
+                                minWidth: { xs: '100%', sm: 'auto' },
+                                fontSize: { xs: '0.875rem', md: '1rem' },
+                                py: { xs: 1.25, md: 1.5 }
+                            }}
+                        >
+                            Voltar
+                        </Button>
+                    </Box>
                     {error && (
                         <Alert severity='error' sx={{ mb: 4 }}>
                             {error}
@@ -251,12 +261,12 @@ const TicketTypesListPage = () => {
                         </Box>
                     ) : (
                         <>
-                            <div className='flex items-center gap-4 mb-6'>
+                            <div className='flex flex-col md:flex-row md:items-center gap-4 mb-6'>
                                 <CustomTextField
                                     value={globalFilter}
                                     onChange={(e) => setGlobalFilter(e.target.value)}
                                     placeholder='Buscar tipos de ingressos...'
-                                    className='flex-1'
+                                    className='w-full md:flex-1'
                                     InputProps={{
                                         startAdornment: <i className='tabler-search text-xl text-textSecondary' />
                                     }}

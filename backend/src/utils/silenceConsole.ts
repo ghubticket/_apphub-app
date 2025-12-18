@@ -1,14 +1,10 @@
 /**
- * Silencia TODOS os console.log (desenvolvimento e produção)
- * 
- * Sentry faz todo o monitoramento - não precisamos de logs no console
+ * Silencia console.log em produção (Sentry faz o monitoramento)
+ * Em desenvolvimento, mantém os logs para facilitar debug
  * 
  * Este arquivo deve ser importado ANTES de qualquer outro código
  * Importar no início de instrument.ts
  */
-
-// Silenciar console em TODOS os ambientes (Sentry faz o monitoramento)
-const noop = () => {};
 
 // Salvar console original (caso precise para debug emergencial)
 const originalConsole = {
@@ -19,12 +15,22 @@ const originalConsole = {
     debug: console.debug,
 };
 
-// Substituir por funções vazias - SEMPRE (desenvolvimento e produção)
-console.log = noop;
-console.error = noop;
-console.warn = noop;
-console.info = noop;
-console.debug = noop;
+// Silenciar console apenas em PRODUÇÃO (em dev, manter logs para debug)
+const isProduction = process.env.NODE_ENV === 'production';
+const noop = () => {};
+
+if (isProduction) {
+    // Em produção, silenciar (Sentry faz o monitoramento)
+    console.log = noop;
+    console.info = noop;
+    console.debug = noop;
+    // Manter console.error e console.warn mesmo em produção para erros críticos
+    // console.error = noop;
+    // console.warn = noop;
+} else {
+    // Em desenvolvimento, manter todos os logs
+    // Não fazer nada - console funciona normalmente
+}
 
 // Exportar console original caso precise para debug emergencial
 // Uso: import { originalConsole } from './utils/silenceConsole';

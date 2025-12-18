@@ -7,8 +7,8 @@ import type { useReactTable } from '@tanstack/react-table'
 
 const TablePaginationComponent = ({ table }: { table: ReturnType<typeof useReactTable> }) => {
   return (
-    <div className='flex justify-between items-center flex-wrap border-bs bs-auto pt-5 gap-2'>
-      <Typography color='text.disabled'>
+    <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-3 border-bs bs-auto pt-5'>
+      <Typography color='text.disabled' className='text-sm md:text-base text-center md:text-left'>
         {`Showing ${
           table.getFilteredRowModel().rows.length === 0
             ? 0
@@ -30,6 +30,13 @@ const TablePaginationComponent = ({ table }: { table: ReturnType<typeof useReact
         }}
         showFirstButton
         showLastButton
+        size='small'
+        sx={{
+          '& .MuiPagination-ul': {
+            flexWrap: 'wrap',
+            justifyContent: 'center'
+          }
+        }}
       />
     </div>
   )

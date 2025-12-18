@@ -149,50 +149,68 @@ const UserEditPage = () => {
                     <Card>
                         <CardHeader
                             title='Informações do Usuário'
-                            action={
-                                <Box className='flex gap-2'>
-                                    {isEditing ? (
-                                        <>
-                                            <Button
-                                                variant='outlined'
-                                                size='small'
-                                                onClick={() => {
-                                                    setIsEditing(false)
+                        />
+                        <CardContent sx={{ pt: { xs: 2, md: 0 } }}>
+                            <Box className='flex flex-col sm:flex-row gap-2 mb-4'>
+                                {isEditing ? (
+                                    <>
+                                        <Button
+                                            variant='outlined'
+                                            size='small'
+                                            onClick={() => {
+                                                setIsEditing(false)
 
-                                                    // Restaurar dados originais
-                                                    setFormData({
-                                                        name: user.name || '',
-                                                        email: user.email || '',
-                                                        phone: user.phone || '',
-                                                        cpf: user.cpf || '',
-                                                        role: user.role || '',
-                                                        isActive: user.isActive ?? true,
-                                                    })
-                                                }}
-                                            >
-                                                Cancelar
-                                            </Button>
-                                            <Button
-                                                variant='contained'
-                                                size='small'
-                                                onClick={handleSave}
-                                            >
-                                                Salvar
-                                            </Button>
-                                        </>
-                                    ) : (
+                                                // Restaurar dados originais
+                                                setFormData({
+                                                    name: user.name || '',
+                                                    email: user.email || '',
+                                                    phone: user.phone || '',
+                                                    cpf: user.cpf || '',
+                                                    role: user.role || '',
+                                                    isActive: user.isActive ?? true,
+                                                })
+                                            }}
+                                            fullWidth
+                                            sx={{
+                                                minWidth: { xs: '100%', sm: 'auto' },
+                                                fontSize: { xs: '0.875rem', md: '0.875rem' },
+                                                py: { xs: 1.25, md: 1 }
+                                            }}
+                                        >
+                                            Cancelar
+                                        </Button>
                                         <Button
                                             variant='contained'
                                             size='small'
-                                            startIcon={<i className='tabler-edit' />}
-                                            onClick={() => setIsEditing(true)}
+                                            onClick={handleSave}
+                                            fullWidth
+                                            sx={{
+                                                minWidth: { xs: '100%', sm: 'auto' },
+                                                fontSize: { xs: '0.875rem', md: '0.875rem' },
+                                                py: { xs: 1.25, md: 1 }
+                                            }}
                                         >
-                                            Editar
+                                            Salvar
                                         </Button>
-                                    )}
-                                </Box>
-                            }
-                        />
+                                    </>
+                                ) : (
+                                    <Button
+                                        variant='contained'
+                                        size='small'
+                                        startIcon={<i className='tabler-edit' />}
+                                        onClick={() => setIsEditing(true)}
+                                        fullWidth
+                                        sx={{
+                                            minWidth: { xs: '100%', sm: 'auto' },
+                                            fontSize: { xs: '0.875rem', md: '0.875rem' },
+                                            py: { xs: 1.25, md: 1 }
+                                        }}
+                                    >
+                                        Editar
+                                    </Button>
+                                )}
+                            </Box>
+                        </CardContent>
                         <Divider />
                         <CardContent>
                             <Box className='flex flex-col gap-4'>

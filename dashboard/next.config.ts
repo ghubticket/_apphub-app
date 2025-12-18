@@ -69,7 +69,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: https: blob:",
               "font-src 'self' https://fonts.gstatic.com data:",
               // Permitir chamadas à API em dev e produção
-              "connect-src 'self' https://localhost:3001 http://localhost:3001 https://api.ghubtech.com.br https://brasilapi.com.br",
+              "connect-src 'self' https://localhost:3001 http://localhost:3001 https://localhost:3002 http://localhost:3002 https://api.ghubtech.com.br https://brasilapi.com.br",
               "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self'"

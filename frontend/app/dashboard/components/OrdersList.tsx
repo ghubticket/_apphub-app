@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import PixExpirationTimer from './PixExpirationTimer';
 import ParcelledOrderCard from './parcelled/ParcelledOrderCard';
 import { statusConfig, paymentLabels } from '../config';
+import { isPixActive } from '../utils/parcelHelpers';
 import type { OrderSummary, OrderGroup, ParcelledOrderWithParcels } from '../types';
 
 interface OrdersListProps {
@@ -155,6 +156,14 @@ export default function OrdersList({
                 if (item.type === 'parcelled') {
                     // Renderizar pedido parcelado
                     const parcelledOrder = item.data as ParcelledOrderWithParcels;
+                    
+                    // LÓGICA SIMPLES: PIX ativo? SIM → mostrar, NÃO → não mostrar
+                    const pixActive = isPixActive(parcelledOrder);
+                    
+                    if (!pixActive) {
+                        // PIX não está ativo (expirado), não mostrar o pedido
+                        return null;
+                    }
                     
                     // Verificar se tem tickets para mostrar
                     const hasTickets = parcelledOrder.tickets && parcelledOrder.tickets.length > 0;

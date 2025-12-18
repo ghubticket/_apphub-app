@@ -21,7 +21,7 @@ export interface EventItem {
 
 export const getEventTicketStats = async (id: string) => {
     const token = await getAuthToken()
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api'
 
     const res = await fetch(`${API_BASE_URL}/events/${id}/tickets/stats`, {
         headers: {
@@ -46,7 +46,7 @@ export const distributeVip = async (
     payload: { email: string; quantity?: number; ticketTypeId?: string }
 ) => {
     const token = await getAuthToken()
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api'
 
     const res = await fetch(`${API_BASE_URL}/events/${id}/vip/distribute`, {
         method: 'POST',
@@ -78,7 +78,7 @@ export interface EventListResponse {
     }
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api'
 
 const getAuthToken = async (): Promise<string | null> => {
     if (typeof window === 'undefined') return null

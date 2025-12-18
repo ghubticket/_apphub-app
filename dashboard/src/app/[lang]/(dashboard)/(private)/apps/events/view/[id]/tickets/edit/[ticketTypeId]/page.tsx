@@ -22,7 +22,6 @@ import type { SubmitHandler } from 'react-hook-form'
 import type { InferInput } from 'valibot'
 
 import CustomTextField from '@core/components/mui/TextField'
-import AppReactDatepicker from '@/libs/styles/AppReactDatepicker'
 
 import { AdminOnly } from '@/components/RoleGuard'
 import { useTicketTypes } from '@/hooks/useTicketTypes'
@@ -38,8 +37,6 @@ const schema = object({
     lotNumber: pipe(number(), minValue(1, 'Número do lote deve ser pelo menos 1')),
     maxQuantity: pipe(number(), minValue(1, 'Quantidade máxima deve ser pelo menos 1'), maxValue(100000, 'Quantidade máxima não pode ser maior que 100.000')),
     maxPerPurchase: pipe(number(), minValue(1, 'Limite por compra deve ser pelo menos 1'), maxValue(50, 'Limite por compra não pode ser maior que 50')),
-    salesStart: optional(string()),
-    salesEnd: optional(string()),
 })
 
 // Função para formatar número para moeda brasileira
@@ -84,8 +81,6 @@ const EditTicketTypePage = () => {
     const [fetchError, setFetchError] = useState<string | null>(null)
     const [ticketType, setTicketType] = useState<ticketTypeService.TicketTypeItem | null>(null)
     const [isVIP, setIsVIP] = useState(false)
-    const [salesStart, setSalesStart] = useState<Date | null>(null)
-    const [salesEnd, setSalesEnd] = useState<Date | null>(null)
     const [priceDisplay, setPriceDisplay] = useState('')
     const [allowInstallments, setAllowInstallments] = useState(false)
     const [minInstallments, setMinInstallments] = useState<number | ''>('')
@@ -135,15 +130,6 @@ const EditTicketTypePage = () => {
                     maxQuantity: data.maxQuantity,
                     maxPerPurchase: data.maxPerPurchase,
                 })
-
-                // Preencher datas
-                if (data.salesStart) {
-                    setSalesStart(new Date(data.salesStart))
-                }
-
-                if (data.salesEnd) {
-                    setSalesEnd(new Date(data.salesEnd))
-                }
 
                 // Preencher preço formatado
                 setPriceDisplay(formatCurrency(data.price))
@@ -200,8 +186,6 @@ const EditTicketTypePage = () => {
                 lotNumber: data.lotNumber,
                 maxQuantity: data.maxQuantity,
                 maxPerPurchase: data.maxPerPurchase,
-                salesStart: salesStart ? salesStart.toISOString() : undefined,
-                salesEnd: salesEnd ? salesEnd.toISOString() : undefined,
                 allowInstallments,
                 minInstallments: allowInstallments && minInstallments !== '' ? Number(minInstallments) : null,
                 maxInstallments: allowInstallments && maxInstallments !== '' ? Number(maxInstallments) : null,
@@ -421,42 +405,55 @@ const EditTicketTypePage = () => {
                                         />
                                     </Grid>
 
-                                    <Grid size={{ xs: 12, md: 6 }}>
-                                        <AppReactDatepicker
-                                            selected={salesStart}
-                                            onChange={(date: Date | null) => setSalesStart(date)}
-                                            placeholderText='Data de Início da Venda (Opcional)'
-                                            showTimeSelect
-                                            dateFormat='dd/MM/yyyy HH:mm'
-                                            isClearable
-                                            customInput={
-                                                <CustomTextField
-                                                    fullWidth
-                                                    label='Data de Início da Venda'
-                                                    helperText='Quando as vendas deste tipo de ingresso começam'
+                                    <Grid size={12}>
+                                        <Typography variant='h6' sx={{ mt: 4, mb: 2 }}>
+                                            Parcelamento (Pix/Boleto)
+                                        </Typography>
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    checked={allowInstallments}
+                                                    onChange={e => setAllowInstallments(e.target.checked)}
                                                 />
                                             }
+                                            label='Permitir compra parcelada para este tipo de ingresso'
                                         />
                                     </Grid>
 
-                                    <Grid size={{ xs: 12, md: 6 }}>
-                                        <AppReactDatepicker
-                                            selected={salesEnd}
-                                            onChange={(date: Date | null) => setSalesEnd(date)}
-                                            placeholderText='Data de Fim da Venda (Opcional)'
-                                            showTimeSelect
-                                            dateFormat='dd/MM/yyyy HH:mm'
-                                            isClearable
-                                            minDate={salesStart || undefined}
-                                            customInput={
+                                    {allowInstallments && (
+                                        <>
+                                            <Grid size={{ xs: 12, md: 6 }}>
                                                 <CustomTextField
                                                     fullWidth
-                                                    label='Data de Fim da Venda'
-                                                    helperText='Quando as vendas deste tipo de ingresso terminam'
+                                                    type='number'
+                                                    label='Parcelas mínimas (opcional)'
+                                                    placeholder='Ex: 3'
+                                                    value={minInstallments}
+                                                    onChange={e => {
+                                                        const v = e.target.value === '' ? '' : Number(e.target.value)
+                                                        setMinInstallments(v)
+                                                    }}
+                                                    inputProps={{ min: 2, max: 60 }}
+                                                    helperText='Número mínimo de parcelas que o cliente pode escolher'
                                                 />
-                                            }
-                                        />
-                                    </Grid>
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                <CustomTextField
+                                                    fullWidth
+                                                    type='number'
+                                                    label='Parcelas máximas'
+                                                    placeholder='Ex: 12'
+                                                    value={maxInstallments}
+                                                    onChange={e => {
+                                                        const v = e.target.value === '' ? '' : Number(e.target.value)
+                                                        setMaxInstallments(v)
+                                                    }}
+                                                    inputProps={{ min: 2, max: 60 }}
+                                                    helperText='Número máximo de parcelas permitidas neste tipo de ingresso'
+                                                />
+                                            </Grid>
+                                        </>
+                                    )}
 
                                     <Grid size={12}>
                                         <Box className='flex gap-4 justify-end'>

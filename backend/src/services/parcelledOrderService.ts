@@ -133,11 +133,10 @@ export async function createParcelledOrderFromCart(
         const now = new Date();
 
         // Entrada (sequence 0)
-        // REGRA: dueDate da entrada deve ser uma data futura (ex: 30 dias)
-        // Não usar 'now' pois isso faria o pedido expirar imediatamente
-        // O PIX tem validade de 30min, mas o pedido só cancela após o dueDate real
+        // REGRA CRÍTICA: dueDate da entrada deve ser 30 minutos (validade do PIX)
+        // O PIX expira em 30 minutos, então o dueDate da entrada também deve ser 30 minutos
         const entryDueDate = new Date();
-        entryDueDate.setDate(entryDueDate.getDate() + 30); // 30 dias a partir de agora
+        entryDueDate.setTime(entryDueDate.getTime() + (30 * 60 * 1000)); // 30 minutos a partir de agora
         
         parcelsToCreate.push({
             parcelledOrder: createdParcelledOrder._id,
@@ -150,6 +149,11 @@ export async function createParcelledOrderFromCart(
         } as any);
 
         // Demais parcelas
+        // IMPORTANTE: Se installmentsCount = 12, criamos:
+        // - Entrada (sequence 0) = 1 parcela
+        // - Parcelas de sequence 1 até 11 = 11 parcelas
+        // - Total = 12 parcelas
+        // O loop deve ir de 1 até installmentsCount - 1 (inclusive)
         for (let i = 1; i < input.installmentsCount; i++) {
             const dueDate = new Date();
             // Por enquanto, intervalo fixo aproximado de 30 dias; depois podemos parametrizar
@@ -164,6 +168,15 @@ export async function createParcelledOrderFromCart(
                 paymentProvider: 'mercadopago',
                 paymentMethod: input.paymentType,
             } as any);
+        }
+        
+        // Validação: garantir que o total de parcelas criadas está correto
+        const expectedTotal = input.installmentsCount; // Entrada (1) + demais (installmentsCount - 1)
+        if (parcelsToCreate.length !== expectedTotal) {
+            throw new Error(
+                `Erro ao criar parcelas: esperado ${expectedTotal} parcelas, mas ${parcelsToCreate.length} foram criadas. ` +
+                `InstallmentsCount: ${input.installmentsCount}, Sequences: ${parcelsToCreate.map(p => p.sequence).join(', ')}`
+            );
         }
 
         const createdParcels = (await Parcel.insertMany(
@@ -289,13 +302,48 @@ interface SyncParcelPaymentInput {
  */
 export async function createOrderFromCompletedParcelledOrder(parcelledOrder: any) {
     try {
-        const event = await Event.findById(parcelledOrder.event);
-        const ticketType = parcelledOrder.ticketType
-            ? await TicketType.findById(parcelledOrder.ticketType)
+        // Extrair IDs corretos (pode estar populado ou não)
+        // Se estiver populado, pegar o _id do objeto; se não, usar o valor direto
+        let eventId: string;
+        if (parcelledOrder.event && typeof parcelledOrder.event === 'object' && parcelledOrder.event._id) {
+            // Está populado, pegar o _id e converter para string
+            eventId = parcelledOrder.event._id.toString();
+        } else if (parcelledOrder.event) {
+            // Não está populado, converter para string
+            eventId = parcelledOrder.event.toString();
+        } else {
+            throw new Error(`Evento não encontrado no pedido parcelado (ID: ${parcelledOrder._id})`);
+        }
+        
+        let ticketTypeId: string | null = null;
+        if (parcelledOrder.ticketType && typeof parcelledOrder.ticketType === 'object' && parcelledOrder.ticketType._id) {
+            // Está populado, pegar o _id e converter para string
+            ticketTypeId = parcelledOrder.ticketType._id.toString();
+        } else if (parcelledOrder.ticketType) {
+            // Não está populado, converter para string
+            ticketTypeId = parcelledOrder.ticketType.toString();
+        }
+        
+        // Buscar evento (mesmo se deletado, para casos de teste)
+        const event = await Event.findById(eventId);
+        
+        // Buscar ticketType (pode ser opcional em alguns casos)
+        const ticketType = ticketTypeId
+            ? await TicketType.findById(ticketTypeId)
             : null;
 
-        if (!event || !ticketType) {
-            throw new Error('Evento ou tipo de ingresso não encontrado');
+        // Verificar se evento existe
+        if (!event) {
+            const errorMsg = `Evento não encontrado (ID: ${parcelledOrder.event}). ` +
+                `Pode ter sido deletado. Pedido: ${parcelledOrder._id}`;
+            throw new Error(errorMsg);
+        }
+        
+        // Verificar se ticketType existe (se foi especificado)
+        if (parcelledOrder.ticketType && !ticketType) {
+            const errorMsg = `Tipo de ingresso não encontrado (ID: ${parcelledOrder.ticketType}). ` +
+                `Pode ter sido deletado. Pedido: ${parcelledOrder._id}`;
+            throw new Error(errorMsg);
         }
 
         const quantity = parcelledOrder.metadata?.quantity || 1;
@@ -314,7 +362,7 @@ export async function createOrderFromCompletedParcelledOrder(parcelledOrder: any
             
             order = new Order({
                 customer: customerId,
-                event: parcelledOrder.event,
+                event: eventId, // Usar eventId extraído (pode ser string ou ObjectId)
                 tickets: [],
                 subtotal: parcelledOrder.totalAmount - (parcelledOrder.platformFeeAmount || 0),
                 platformFee: parcelledOrder.platformFeeAmount || 0,
@@ -352,10 +400,15 @@ export async function createOrderFromCompletedParcelledOrder(parcelledOrder: any
 
         if (!existingTickets.length) {
             // Criar tickets com status 'confirmed' e gerar QR codes
+            // ticketType já foi verificado acima, mas TypeScript precisa de garantia
+            if (!ticketType) {
+                throw new Error('Tipo de ingresso é obrigatório para criar tickets');
+            }
+            
             const createdTickets = await createTicketsForOrder(
                 order._id as mongoose.Types.ObjectId,
-                parcelledOrder.event.toString(),
-                parcelledOrder.ticketType?.toString() || '',
+                eventId, // Usar eventId extraído corretamente
+                ticketTypeId || '', // Usar ticketTypeId extraído corretamente
                 quantity,
                 ticketType.price || 0,
                 'confirmed', // Status confirmed = QR code será gerado

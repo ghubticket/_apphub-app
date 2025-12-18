@@ -104,12 +104,16 @@ export function isParcelDueSoon(parcel: ParcelSummary): boolean {
 
 /**
  * Formata o nome da parcela
+ * IMPORTANTE: A entrada conta como a primeira parcela!
+ * Exemplo: 6 parcelas = Entrada (1/6) + Parcela 2/6 + Parcela 3/6 + ... + Parcela 6/6
  */
 export function getParcelLabel(parcel: ParcelSummary, totalParcels: number): string {
     if (parcel.sequence === 0) {
-        return 'Entrada';
+        // Entrada é a Parcela 1
+        return `Entrada (1/${totalParcels})`;
     }
-    return `Parcela ${parcel.sequence}/${totalParcels - 1}`;
+    // Demais parcelas: sequence 1 = Parcela 2, sequence 2 = Parcela 3, etc.
+    return `Parcela ${parcel.sequence + 1}/${totalParcels}`;
 }
 
 /**
@@ -151,9 +155,11 @@ export function isValidExpirationDate(expiresAt: string | null | undefined): boo
 
 /**
  * Calcula mensagem de alerta baseado no status do pedido
+ * IMPORTANTE: Verifica se TODAS as parcelas estão realmente pagas antes de mostrar mensagem de sucesso
  */
 export function getOrderAlertMessage(order: ParcelledOrderWithParcels): string | null {
     const overdueCount = countOverdueParcels(order.parcels);
+    const allParcelsPaid = areAllParcelsPaid(order.parcels);
     
     if (order.status === 'pending_entry') {
         const entry = getEntryParcel(order.parcels);
@@ -163,7 +169,9 @@ export function getOrderAlertMessage(order: ParcelledOrderWithParcels): string |
         return '⏰ Pague a entrada para efetivar seu pedido e liberar as demais parcelas';
     }
     
-    if (order.status === 'completed') {
+    // Só mostrar mensagem de sucesso se TODAS as parcelas estiverem realmente pagas
+    // Não confiar apenas no status 'completed' do pedido
+    if (order.status === 'completed' && allParcelsPaid) {
         return '🎉 Parabéns! Todas as parcelas pagas. Seus ingressos estão disponíveis!';
     }
     
@@ -196,8 +204,14 @@ export function getAlertColor(order: ParcelledOrderWithParcels): 'green' | 'ambe
  * Verifica se o PIX da entrada expirou
  * CRÍTICO: Pedidos com entrada expirada devem ser ocultados do dashboard
  * 
- * REGRA: Mostrar pedidos com entrada não paga enquanto ainda não expirou
- * Só ocultar se realmente passou do dueDate E não foi paga
+ * REGRAS:
+ * 1. Se entrada foi paga → NÃO expirou (mostrar sempre)
+ * 2. Se pedido foi cancelado e entrada não foi paga → expirado (ocultar)
+ * 3. Se entrada não foi paga e PIX não foi gerado (pending) → verificar se passou 30min desde criação
+ * 4. Se entrada não foi paga e PIX foi gerado (payment_generated) → verificar se passou 30min desde criação
+ * 5. Se passou do dueDate E não foi paga → expirado (ocultar)
+ * 
+ * IMPORTANTE: O PIX tem validade de 30 minutos, não o dueDate (que é 30 dias)
  */
 export function isEntryPixExpired(order: ParcelledOrderWithParcels): boolean {
     // Se o pedido já foi cancelado, considerar expirado (se entrada não foi paga)
@@ -225,28 +239,67 @@ export function isEntryPixExpired(order: ParcelledOrderWithParcels): boolean {
         return false; // Entrada paga = mostrar sempre
     }
     
-    // REGRA: Mostrar pedidos com entrada não paga enquanto ainda não expirou
-    // Só considerar expirado se passou do dueDate E não foi paga
-    // Não importa se o PIX foi gerado ou não - o que importa é o dueDate
-    
-    // Se não tem dueDate, mostrar o pedido (não ocultar)
-    if (!entryParcel.dueDate) {
-        return false; // Sem dueDate = mostrar sempre (pedido recém criado)
-    }
-    
     const now = new Date();
-    const dueDate = new Date(entryParcel.dueDate);
     
-    // Verificar se a data é válida
-    if (isNaN(dueDate.getTime())) {
-        return false; // Data inválida = mostrar sempre
+    // REGRA CRÍTICA: Verificar expiração do PIX
+    // - Se PIX foi gerado (payment_generated): verificar se passou 30 minutos desde criação
+    // - Se PIX não foi gerado (pending): dar mais tempo (1 hora) para o usuário gerar o PIX
+    if (order.createdAt) {
+        const createdAt = new Date(order.createdAt);
+        if (!isNaN(createdAt.getTime())) {
+            const timeSinceCreation = now.getTime() - createdAt.getTime();
+            
+            // Se PIX foi gerado, usar timeout de 30 minutos (validade do PIX)
+            if (entryParcel.status === 'payment_generated') {
+                const PIX_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos
+                if (timeSinceCreation >= PIX_TIMEOUT_MS) {
+                    return true; // PIX gerado mas expirou = ocultar
+                }
+            }
+            // Se PIX não foi gerado ainda, dar mais tempo (1 hora) para o usuário gerar
+            else if (entryParcel.status === 'pending') {
+                const PENDING_TIMEOUT_MS = 60 * 60 * 1000; // 1 hora
+                if (timeSinceCreation >= PENDING_TIMEOUT_MS) {
+                    return true; // Passou muito tempo sem gerar PIX = ocultar
+                }
+            }
+        }
     }
     
-    // Se já passou do dueDate E não foi paga, considerar expirado
-    if (now.getTime() >= dueDate.getTime()) {
-        return true; // Expirou = ocultar
+    // Verificar também o dueDate como fallback (caso o pedido tenha mais de 30 dias)
+    if (entryParcel.dueDate) {
+        const dueDate = new Date(entryParcel.dueDate);
+        
+        // Verificar se a data é válida
+        if (!isNaN(dueDate.getTime())) {
+            // Se já passou do dueDate E não foi paga, considerar expirado
+            if (now.getTime() >= dueDate.getTime()) {
+                return true; // Expirou = ocultar
+            }
+        }
     }
     
     // Ainda não expirou, mostrar o pedido
     return false; // Não expirou = mostrar
+}
+
+/**
+ * Verifica se o PIX está ativo (não expirado)
+ * Lógica simples: PIX ativo = não expirado
+ */
+export function isPixActive(order: ParcelledOrderWithParcels): boolean {
+    // Se entrada foi paga, PIX está "ativo" (pedido efetivado)
+    const entryParcel = getEntryParcel(order.parcels);
+    if (entryParcel?.status === 'paid') {
+        return true;
+    }
+    
+    // Se pedido está ativo ou completo, PIX está "ativo"
+    if (order.status === 'active' || order.status === 'completed') {
+        return true;
+    }
+    
+    // Para pedidos pending_entry, verificar se expirou
+    // Se não expirou = ativo, se expirou = não ativo
+    return !isEntryPixExpired(order);
 }

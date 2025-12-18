@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api';
 
 // Obter quantidade disponível (pedidos PENDING já estão em soldQuantity)
 export const getAvailableQuantity = async (

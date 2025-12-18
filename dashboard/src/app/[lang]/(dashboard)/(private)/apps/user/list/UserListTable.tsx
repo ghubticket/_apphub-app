@@ -402,71 +402,81 @@ return (
                 />
                 <CardContent>
                     {/* Sempre mostrar os filtros */}
-                    <div className='flex items-center gap-4 mb-6 flex-wrap'>
+                    <div className='flex flex-col gap-4 mb-6'>
                         <CustomTextField
                             value={globalFilter}
                             onChange={(e) => setGlobalFilter(e.target.value)}
                             placeholder='Buscar usuários...'
-                            className='flex-1 min-w-[200px]'
+                            className='w-full'
                             InputProps={{
                                 startAdornment: <i className='tabler-search text-xl text-textSecondary' />
                             }}
                         />
-                        <Select
-                            value={roleFilter}
-                            onChange={(e: any) => setRoleFilter(e.target.value as UserRole | 'all')}
-                            size='small'
-                        >
-                            <MenuItem value='all'>Todas as Roles</MenuItem>
-                            <MenuItem value='ADMIN'>Admin</MenuItem>
-                            <MenuItem value='QRCODE'>QR Code</MenuItem>
-                            <MenuItem value='CLIENTE'>Cliente</MenuItem>
-                        </Select>
-                        <Select
-                            value={statusFilter}
-                            onChange={(e: any) => {
-                                const value = e.target.value
+                        <div className='flex flex-col md:flex-row md:items-center gap-4'>
+                            <Select
+                                value={roleFilter}
+                                onChange={(e: any) => setRoleFilter(e.target.value as UserRole | 'all')}
+                                size='small'
+                                className='w-full md:w-auto'
+                                sx={{ minWidth: { xs: '100%', md: 150 } }}
+                            >
+                                <MenuItem value='all'>Todas as Roles</MenuItem>
+                                <MenuItem value='ADMIN'>Admin</MenuItem>
+                                <MenuItem value='QRCODE'>QR Code</MenuItem>
+                                <MenuItem value='CLIENTE'>Cliente</MenuItem>
+                            </Select>
+                            <Select
+                                value={statusFilter}
+                                onChange={(e: any) => {
+                                    const value = e.target.value
 
-                                if (value === 'all' || value === 'true' || value === 'false') {
-                                    setStatusFilter(value)
-                                }
-                            }}
-                            size='small'
-                        >
-                            <MenuItem value='all'>Todos os Status</MenuItem>
-                            <MenuItem value='true'>Ativo</MenuItem>
-                            <MenuItem value='false'>Inativo</MenuItem>
-                        </Select>
-                        <Select
-                            value={suspiciousFilter}
-                            onChange={(e: any) => {
-                                const value = e.target.value
+                                    if (value === 'all' || value === 'true' || value === 'false') {
+                                        setStatusFilter(value)
+                                    }
+                                }}
+                                size='small'
+                                className='w-full md:w-auto'
+                                sx={{ minWidth: { xs: '100%', md: 150 } }}
+                            >
+                                <MenuItem value='all'>Todos os Status</MenuItem>
+                                <MenuItem value='true'>Ativo</MenuItem>
+                                <MenuItem value='false'>Inativo</MenuItem>
+                            </Select>
+                            <Select
+                                value={suspiciousFilter}
+                                onChange={(e: any) => {
+                                    const value = e.target.value
 
-                                if (value === 'all' || value === 'true' || value === 'false') {
-                                    setSuspiciousFilter(value)
-                                }
-                            }}
-                            size='small'
-                        >
-                            <MenuItem value='all'>Todos (Suspeitos)</MenuItem>
-                            <MenuItem value='true'>Suspeitos</MenuItem>
-                            <MenuItem value='false'>Não Suspeitos</MenuItem>
-                        </Select>
-                        <Select
-                            value={blacklistedFilter}
-                            onChange={(e: any) => {
-                                const value = e.target.value
+                                    if (value === 'all' || value === 'true' || value === 'false') {
+                                        setSuspiciousFilter(value)
+                                    }
+                                }}
+                                size='small'
+                                className='w-full md:w-auto'
+                                sx={{ minWidth: { xs: '100%', md: 150 } }}
+                            >
+                                <MenuItem value='all'>Todos (Suspeitos)</MenuItem>
+                                <MenuItem value='true'>Suspeitos</MenuItem>
+                                <MenuItem value='false'>Não Suspeitos</MenuItem>
+                            </Select>
+                            <Select
+                                value={blacklistedFilter}
+                                onChange={(e: any) => {
+                                    const value = e.target.value
 
-                                if (value === 'all' || value === 'true' || value === 'false') {
-                                    setBlacklistedFilter(value)
-                                }
-                            }}
-                            size='small'
-                        >
-                            <MenuItem value='all'>Todos (Blacklist)</MenuItem>
-                            <MenuItem value='true'>Bloqueados</MenuItem>
-                            <MenuItem value='false'>Não Bloqueados</MenuItem>
-                        </Select>
+                                    if (value === 'all' || value === 'true' || value === 'false') {
+                                        setBlacklistedFilter(value)
+                                    }
+                                }}
+                                size='small'
+                                className='w-full md:w-auto'
+                                sx={{ minWidth: { xs: '100%', md: 150 } }}
+                            >
+                                <MenuItem value='all'>Todos (Blacklist)</MenuItem>
+                                <MenuItem value='true'>Bloqueados</MenuItem>
+                                <MenuItem value='false'>Não Bloqueados</MenuItem>
+                            </Select>
+                        </div>
                     </div>
 
                     {loading ? (
@@ -545,8 +555,8 @@ return (
 
                             <TablePagination
                                 component={() => (
-                                    <div className='flex justify-between items-center flex-wrap pli-6 border-bs bs-auto plb-[12.5px] gap-2'>
-                                        <Typography color='text.disabled'>
+                                    <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-3 pli-6 border-bs bs-auto plb-[12.5px]'>
+                                        <Typography color='text.disabled' className='text-sm md:text-base text-center md:text-left'>
                                             {pagination ? (
                                                 `Mostrando ${pagination.total === 0
                                                     ? 0
@@ -556,7 +566,7 @@ return (
                                                 `Mostrando ${filteredData.length} registros`
                                             )}
                                         </Typography>
-                                        <div className='flex items-center gap-2'>
+                                        <div className='flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto'>
                                             <CustomTextField
                                                 select
                                                 size='small'
@@ -567,7 +577,8 @@ return (
                                                     setPageSize(newPageSize)
                                                     setCurrentPage(1)
                                                 }}
-                                                sx={{ minWidth: 80 }}
+                                                className='w-full sm:w-auto'
+                                                sx={{ minWidth: { xs: '100%', sm: 80 } }}
                                             >
                                                 <MenuItem value={10}>10</MenuItem>
                                                 <MenuItem value={25}>25</MenuItem>
@@ -584,6 +595,13 @@ return (
                                                     onChange={(_: any, page: number) => setCurrentPage(page)}
                                                     showFirstButton
                                                     showLastButton
+                                                    size='small'
+                                                    sx={{
+                                                        '& .MuiPagination-ul': {
+                                                            flexWrap: 'wrap',
+                                                            justifyContent: 'center'
+                                                        }
+                                                    }}
                                                 />
                                             )}
                                         </div>
