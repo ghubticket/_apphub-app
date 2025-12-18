@@ -52,14 +52,6 @@ export function useParcelledOrdersPolling({
 
                     // Detectar quando uma parcela foi paga
                     if (lastStatus && lastStatus !== 'paid' && currentStatus === 'paid') {
-                        console.log('[ParcelledOrdersPolling] Parcela paga detectada:', {
-                            parcelId,
-                            orderId,
-                            sequence: parcel.sequence,
-                            lastStatus,
-                            currentStatus,
-                        });
-
                         // Vibrar dispositivo (se suportado)
                         if (typeof window !== 'undefined' && 'vibrate' in navigator) {
                             navigator.vibrate([200, 100, 200]);

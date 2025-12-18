@@ -910,18 +910,10 @@ export const listMyOrders = async (req: Request, res: Response) => {
     const startTime = Date.now();
     
     try {
-        console.log(`[listMyOrders] ${requestId} - Início`, {
-            method: req.method,
-            path: req.path,
-            query: req.query,
-            userId: (req as any).user?._id || (req as any).user?.id,
-        });
-        
         const user = (req as any).user;
         const userId = user?._id?.toString() || user?.id;
 
         if (!userId) {
-            console.warn(`[listMyOrders] ${requestId} - Usuário não autenticado`);
             return res.status(401).json({
                 success: false,
                 message: 'Usuário não autenticado',
@@ -1197,16 +1189,6 @@ export const listMyOrders = async (req: Request, res: Response) => {
                 }
             })
         );
-        
-        const duration = Date.now() - startTime;
-        console.log(`[listMyOrders] ${requestId} - Sucesso`, {
-            duration: `${duration}ms`,
-            userId,
-            ordersCount: ordersWithFilteredQR.length,
-            total,
-            page,
-            limit,
-        });
         
         // Verificar se a resposta já foi enviada antes de tentar enviar
         if (res.headersSent) {

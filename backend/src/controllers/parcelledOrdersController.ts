@@ -259,22 +259,6 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
             (req as any).body = {};
         }
         
-        // Log inicial da requisição (sem acessar body profundamente para evitar erros)
-        const logData = {
-            method: req.method,
-            path: req.path,
-            params: req.params,
-            headers: {
-                'content-length': req.get('content-length'),
-                'content-type': req.get('content-type'),
-            },
-            hasBody: !!req.body,
-            bodyType: typeof req.body,
-            skipBodyParsing: (req as any).skipBodyParsing || false,
-        };
-        
-        console.log(`[generateParcelPayment] ${requestId} - Início`, logData);
-        
         // Adicionar breadcrumb para Sentry
         Sentry.addBreadcrumb({
             category: 'generate-payment',
@@ -323,16 +307,6 @@ export const generateParcelPayment = async (req: Request, res: Response) => {
         }
 
         const result = await generatePaymentForParcel(parcelId);
-        
-        const duration = Date.now() - startTime;
-        const successData = {
-            duration: `${duration}ms`,
-            parcelledOrderId: id,
-            parcelId: parcelId,
-            paymentId: result.pixPayment?.paymentId,
-        };
-        
-        console.log(`[generateParcelPayment] ${requestId} - Sucesso`, successData);
         
         // Adicionar breadcrumb de sucesso para Sentry
         Sentry.addBreadcrumb({

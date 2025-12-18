@@ -101,18 +101,6 @@ export const createPixPayment = async (req: Request, res: Response) => {
         const { orderId } = req.params;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
 
-        // Log para debug em produção (apenas para fake orders)
-        if (orderId?.startsWith('fake-')) {
-            console.log('[createPixPayment] Recebida requisição:', {
-                orderId,
-                method: req.method,
-                path: req.path,
-                hasBody: !!req.body,
-                hasCartItems: !!req.body?.cartItems,
-                hasCustomerData: !!req.body?.customerData,
-            });
-        }
-
         // NOVO: Se orderId começa com "fake-", criar pedido real primeiro
         let order: any;
         let createdOrderId: string | null = null;
@@ -573,15 +561,6 @@ export const createCardPayment = async (req: Request, res: Response) => {
         const { orderId } = req.params;
         const { token, installments, paymentMethodId, issuerId, cardholder } = req.body;
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
-
-        // Log para debug em produção (apenas para fake orders)
-        if (orderId?.startsWith('fake-')) {
-            console.log('[createCardPayment] Recebida requisição:', {
-                orderId,
-                method: req.method,
-                path: req.path,
-                hasBody: !!req.body,
-                hasCartItems: !!req.body?.cartItems,
                 hasCustomerData: !!req.body?.customerData,
             });
         }

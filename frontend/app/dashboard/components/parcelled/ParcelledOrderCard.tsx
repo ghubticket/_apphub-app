@@ -136,12 +136,6 @@ export default function ParcelledOrderCard({
                 setGeneratingPixParcelId(parcel._id);
                 setParcelError(null);
 
-                console.log('[ParcelledOrderCard] Gerando PIX da parcela', {
-                    orderId: order._id,
-                    parcelId: parcel._id,
-                    sequence: parcel.sequence,
-                });
-
                 // Obter token de autenticação
                 const token = localStorage.getItem('accessToken') ||
                     sessionStorage.getItem('accessToken') ||
@@ -154,11 +148,6 @@ export default function ParcelledOrderCard({
                     parcel._id,
                     token ? { 'Authorization': `Bearer ${token}` } : {}
                 );
-
-                console.log('[ParcelledOrderCard] Resposta do generate-payment', {
-                    success: response?.success,
-                    hasPixPayment: !!response?.data?.pixPayment,
-                });
 
                 const pixData = response?.data?.pixPayment;
 
@@ -180,12 +169,6 @@ export default function ParcelledOrderCard({
                         }
                     }));
                 }
-
-                console.log('[ParcelledOrderCard] PIX gerado com sucesso', {
-                    parcelId: parcel._id,
-                    hasQrCode: !!pixData?.qrCode,
-                    hasQrCodeBase64: !!pixData?.qrCodeBase64,
-                });
             } catch (error: any) {
                 const errorMessage =
                     error?.response?.data?.message ||

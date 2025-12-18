@@ -49,19 +49,7 @@ router.post('/webhook', paymentController.handleWebhook);
 router.get('/order/:orderId/status', authenticate, paymentController.getOrderPaymentStatus);
 
 // Rotas com parâmetros específicos (POST)
-// CRÍTICO: Adicionar middleware de debug antes do controller
 router.post('/:orderId/pix', 
-    (req, res, next) => {
-        // Log para debug
-        if (req.params.orderId?.startsWith('fake-')) {
-            console.log('[Payment Router] Rota POST /:orderId/pix capturada:', {
-                orderId: req.params.orderId,
-                path: req.path,
-                originalUrl: req.originalUrl,
-            });
-        }
-        next();
-    },
     authenticate, 
     paymentRateLimit, 
     paymentController.createPixPayment
@@ -114,17 +102,6 @@ router.post('/:orderId/pix',
  *         description: Pedido não encontrado
  */
 router.post('/:orderId/card', 
-    (req, res, next) => {
-        // Log para debug
-        if (req.params.orderId?.startsWith('fake-')) {
-            console.log('[Payment Router] Rota POST /:orderId/card capturada:', {
-                orderId: req.params.orderId,
-                path: req.path,
-                originalUrl: req.originalUrl,
-            });
-        }
-        next();
-    },
     authenticate, 
     paymentRateLimit, 
     paymentController.createCardPayment

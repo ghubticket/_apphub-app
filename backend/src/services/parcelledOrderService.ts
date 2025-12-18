@@ -466,16 +466,7 @@ export async function syncParcelFromMercadoPago(input: SyncParcelPaymentInput) {
         parcel.paidAt = new Date();
         await parcel.save();
         
-        // Log em desenvolvimento
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('[syncParcelFromMercadoPago] Parcela marcada como paga:', {
-                parcelId: parcel._id,
-                sequence: parcel.sequence,
-                parcelledOrderId: parcelledOrder._id,
-                statusAnterior: parcelledOrder.status,
-                encontradoPor: foundByPaymentOrderId ? 'paymentOrderId' : parcel.paymentId ? 'paymentId' : 'externalReference',
-            });
-        }
+        // Parcela marcada como paga
 
         // Atualizar status da venda parcelada
         if (parcel.sequence === 0 && parcelledOrder.status === 'pending_entry') {
