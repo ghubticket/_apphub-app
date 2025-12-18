@@ -84,8 +84,8 @@ export function generateMetadata(options: SEOOptions = {}): Metadata {
 
   const baseUrl = getBaseUrl();
   const siteName = APP_NAME;
-  const defaultTitle = `${APP_NAME} - Ingressos para Eventos`;
-  const defaultDescription = `Compre ingressos para os melhores eventos com ${APP_NAME}. Eventos exclusivos, pagamento seguro e entrega imediata.`;
+  const defaultTitle = `${APP_NAME} - O app pro seu rolê!`;
+  const defaultDescription = `Aqui não tem distração de outros eventos, o app É SEU, ÚNICO, exclusivo! Ingresso é só o tcha.`;
   const defaultImage = getOgImageUrl();
 
   const finalTitle = title ? `${title} | ${APP_NAME}` : defaultTitle;

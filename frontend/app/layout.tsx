@@ -24,8 +24,8 @@ const jost = Jost({
 });
 
 const baseMetadata = generateSEOMetadata({
-    title: 'Ingressos para Eventos',
-    description: 'Vicente: app exclusivo de eventos. Sem concorrência, QR seguro, emails/PDF automáticos, split Mercado Pago, SEO, cupons e dashboard completo',
+    title: 'O app pro seu rolê!',
+    description: 'Aqui não tem distração de outros eventos, o app É SEU, ÚNICO, exclusivo! Ingresso é só o tcha.',
     tags: [
         'vicente',
         'plataforma de eventos',
@@ -74,7 +74,7 @@ export const metadata: Metadata = {
     appleWebApp: {
         capable: true,
         statusBarStyle: 'default',
-        title: 'vicente',
+        title: 'Vicente',
     },
 };
 

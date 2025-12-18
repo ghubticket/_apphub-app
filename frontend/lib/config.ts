@@ -5,18 +5,18 @@
 
 export const APP_CONFIG = {
   // Nome da marca/projeto
-  name: 'vicente',
+  name: 'Vicente',
   
   // Nome completo com prefixo (se necessário)
-  fullName: 'vicente',
+  fullName: 'Vicente',
   
   // Nome curto/abreviação (se necessário)
-  shortName: 'vicente',
+  shortName: 'Vicente',
   
   // Logo
   logo: {
     src: '/images/logo-header.svg',
-    alt: 'Logotipo vicente',
+    alt: 'Logotipo Vicente',
   },
   
   // Informações de contato
@@ -42,7 +42,7 @@ export const APP_CONFIG = {
   // Informações legais
   legal: {
     cnpj: '00.380.558/0001-88',
-    companyName: 'vicente',
+    companyName: 'Vicente',
     lgpdLaw: 'Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)',
   },
   
