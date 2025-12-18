@@ -11,6 +11,7 @@ import {
 } from 'react-icons/hi2';
 import type { CheckoutCustomerData } from '../types';
 import { INPUT_BASE_CLASS } from '../constants';
+import { normalizeCpf, formatCpfDisplay, isValidCpf } from '@/utils/sanitize';
 
 type CustomerDataFormProps = {
     data: CheckoutCustomerData;
@@ -51,6 +52,7 @@ export function CustomerDataForm({
     const [showBillingInfoModal, setShowBillingInfoModal] = useState(false);
     const [billingModalEntering, setBillingModalEntering] = useState(false);
     const [isFetchingCep, setIsFetchingCep] = useState(false);
+    const [cpfError, setCpfError] = useState<string>('');
 
     // Fechar BillingInfoModal com ESC
     useEffect(() => {
@@ -167,12 +169,43 @@ export function CustomerDataForm({
                             inputMode="numeric"
                             pattern="[0-9]*"
                             value={data.cpf}
-                            onChange={isDisabled ? undefined : (event) => onChange('cpf', event.target.value)}
+                            onChange={isDisabled ? undefined : (event) => {
+                                // Aplicar máscara de CPF
+                                const normalized = normalizeCpf(event.target.value);
+                                const formatted = formatCpfDisplay(normalized);
+                                onChange('cpf', formatted);
+                                // Limpar erro quando começar a digitar
+                                if (cpfError) {
+                                    setCpfError('');
+                                }
+                            }}
+                            onBlur={isDisabled ? undefined : (event) => {
+                                // Validar CPF quando sair do campo
+                                const cpfValue = event.target.value;
+                                if (!cpfValue || !cpfValue.trim()) {
+                                    setCpfError('Informe seu CPF.');
+                                    return;
+                                }
+                                const digits = normalizeCpf(cpfValue);
+                                if (digits.length !== 11) {
+                                    setCpfError('CPF deve ter 11 dígitos.');
+                                    return;
+                                }
+                                if (!isValidCpf(cpfValue)) {
+                                    setCpfError('CPF inválido. Verifique os dígitos e tente novamente.');
+                                    return;
+                                }
+                                // CPF válido, limpar erro
+                                setCpfError('');
+                            }}
                             {...inputProps}
-                            className={sharedClass}
+                            className={`${sharedClass} ${cpfError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                             placeholder="000.000.000-00"
                         />
                     </div>
+                    {cpfError && (
+                        <span className="text-xs text-red-600 mt-1">{cpfError}</span>
+                    )}
                 </label>
                 <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     Celular
