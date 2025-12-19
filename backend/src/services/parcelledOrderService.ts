@@ -1,7 +1,16 @@
 import mongoose from 'mongoose';
-import { Event, TicketType, ParcelledOrder, Parcel, Order, Ticket, IParcelledOrder, IParcel } from '../models';
+import { Event, TicketType, ParcelledOrder, Parcel, Order, Ticket, IParcelledOrder, IParcel, User } from '../models';
 import { calculateOrderValues, createTicketsForOrder } from './orderService';
 import { createPixPayment } from './paymentService';
+import {
+    sendParcelledOrderCreatedEmail,
+    sendParcelledEntryPaidEmail,
+    sendParcelledParcelPaidEmail,
+    sendParcelledParcelOverdue1Email,
+    sendParcelledParcelOverdue2Email,
+    sendParcelledOrderCompletedEmail,
+} from './emailTemplates';
+import { generateTicketPDF } from './pdfService';
 
 // Timeout padrão de checkout (mesma regra de Order normal)
 const CHECKOUT_TIMEOUT_MINUTES = Number(process.env.CHECKOUT_TIMEOUT_MINUTES || 30);
@@ -276,6 +285,41 @@ export async function createParcelledOrderFromCart(
 
         await order.save();
 
+        // Enviar email de criação do pacote parcelado (em background)
+        setImmediate(async () => {
+            try {
+                const frontendUrl = process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
+                const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+
+                const paymentLink = entryPixPayment?.ticketUrl || entryPixPayment?.qrCode 
+                    ? `${frontendUrl}/dashboard` 
+                    : undefined;
+
+                await sendParcelledOrderCreatedEmail(input.customerEmail, {
+                    customerName: input.customerName,
+                    eventName: event.name,
+                    eventDate,
+                    eventLocation: event.location || 'A definir',
+                    totalAmount: `R$ ${totalAmount.toFixed(2).replace('.', ',')}`,
+                    installmentsCount: input.installmentsCount,
+                    parcelAmount: `R$ ${entryAmount.toFixed(2).replace('.', ',')}`,
+                    expirationMinutes: CHECKOUT_TIMEOUT_MINUTES,
+                    paymentLink,
+                    dashboardLink: `${frontendUrl}/dashboard`,
+                });
+            } catch (emailError) {
+                // Não falhar a criação se o email falhar
+                console.error('[createParcelledOrderFromCart] Erro ao enviar email de criação:', emailError);
+            }
+        });
+
         return {
             parcelledOrder: createdParcelledOrder,
             parcels: createdParcels,
@@ -515,6 +559,7 @@ export async function syncParcelFromMercadoPago(input: SyncParcelPaymentInput) {
             parcel.paymentId = paymentId;
         }
         
+        const wasPaidBefore = parcel.status === 'paid';
         parcel.status = 'paid';
         parcel.paidAt = new Date();
         await parcel.save();
@@ -522,7 +567,8 @@ export async function syncParcelFromMercadoPago(input: SyncParcelPaymentInput) {
         // Parcela marcada como paga
 
         // Atualizar status da venda parcelada
-        if (parcel.sequence === 0 && parcelledOrder.status === 'pending_entry') {
+        const wasPendingEntry = parcelledOrder.status === 'pending_entry';
+        if (parcel.sequence === 0 && wasPendingEntry) {
             parcelledOrder.status = 'active';
         }
 
@@ -545,6 +591,163 @@ export async function syncParcelFromMercadoPago(input: SyncParcelPaymentInput) {
         }
 
         await parcelledOrder.save();
+
+        // Enviar emails em background (não bloquear o webhook)
+        if (!wasPaidBefore) {
+            setImmediate(async () => {
+                try {
+                    const [event, ticketType, customer] = await Promise.all([
+                        Event.findById(parcelledOrder.event).lean(),
+                        parcelledOrder.ticketType ? TicketType.findById(parcelledOrder.ticketType).lean() : null,
+                        User.findById(parcelledOrder.customer).lean(),
+                    ]);
+
+                    if (!event || !customer) {
+                        return;
+                    }
+
+                    const customerEmail = customer.email || parcelledOrder.metadata?.customerEmail;
+                    const customerName = customer.name || parcelledOrder.metadata?.customerName || 'Cliente';
+                    
+                    if (!customerEmail) {
+                        return;
+                    }
+
+                    const frontendUrl = process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
+                    const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    });
+
+                    const paymentDate = new Date().toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    });
+
+                    // Email quando paga a entrada
+                    if (parcel.sequence === 0 && wasPendingEntry) {
+                        await sendParcelledEntryPaidEmail(customerEmail, {
+                            customerName,
+                            eventName: event.name,
+                            eventDate,
+                            totalAmount: `R$ ${parcelledOrder.totalAmount.toFixed(2).replace('.', ',')}`,
+                            installmentsCount: parcelledOrder.installmentsCount,
+                            parcelAmount: `R$ ${parcelledOrder.entryAmount.toFixed(2).replace('.', ',')}`,
+                            entryAmount: `R$ ${parcelledOrder.entryAmount.toFixed(2).replace('.', ',')}`,
+                            paymentMethod: parcelledOrder.paymentType === 'pix' ? 'PIX' : 'Boleto',
+                            paymentDate,
+                            dashboardLink: `${frontendUrl}/dashboard`,
+                        });
+                    }
+                    // Email quando paga uma parcela (não é entrada)
+                    else if (parcel.sequence > 0) {
+                        const allParcels = await Parcel.find({
+                            parcelledOrder: parcelledOrder._id,
+                        }).sort({ sequence: 1 });
+
+                        const paidParcels = allParcels.filter(p => p.status === 'paid').length;
+                        const totalPaid = allParcels
+                            .filter(p => p.status === 'paid')
+                            .reduce((sum, p) => sum + p.amount, 0);
+                        const remainingAmount = parcelledOrder.totalAmount - totalPaid;
+
+                        await sendParcelledParcelPaidEmail(customerEmail, {
+                            customerName,
+                            eventName: event.name,
+                            eventDate,
+                            eventLocation: event.location || 'A definir',
+                            parcelNumber: parcel.sequence + 1, // +1 porque sequence 0 é entrada
+                            totalParcels: parcelledOrder.installmentsCount,
+                            parcelAmount: `R$ ${parcel.amount.toFixed(2).replace('.', ',')}`,
+                            paymentMethod: parcelledOrder.paymentType === 'pix' ? 'PIX' : 'Boleto',
+                            paymentDate,
+                            paidParcels,
+                            remainingParcels: parcelledOrder.installmentsCount - paidParcels,
+                            totalPaid: `R$ ${totalPaid.toFixed(2).replace('.', ',')}`,
+                            remainingAmount: `R$ ${remainingAmount.toFixed(2).replace('.', ',')}`,
+                            dashboardLink: `${frontendUrl}/dashboard`,
+                        });
+                    }
+
+                    // Email quando completa todas as parcelas (com ingressos)
+                    if (remaining === 0 && !wasCompletedBefore) {
+                        // Buscar Order e tickets criados
+                        const order = await Order.findOne({
+                            parcelledOrder: parcelledOrder._id,
+                            deletedAt: null,
+                        }).populate('tickets').lean();
+
+                        if (order && order.tickets && Array.isArray(order.tickets) && order.tickets.length > 0) {
+                            const tickets = order.tickets as any[];
+                            const ticketsWithQR = tickets.filter((t: any) => t.qrCode);
+
+                            if (ticketsWithQR.length > 0) {
+                                // Gerar PDF com QR codes
+                                const pdfBuffer = await generateTicketPDF({
+                                    event: {
+                                        name: event.name,
+                                        date: event.date,
+                                        location: event.location || 'A definir',
+                                        address: event.address,
+                                    },
+                                    orderNumber: order.orderNumber || (parcelledOrder._id as mongoose.Types.ObjectId).toString(),
+                                    customerName,
+                                    tickets: ticketsWithQR.map((t: any) => ({
+                                        code: t.code,
+                                        qrCode: t.qrCode,
+                                        ticketType: ticketType?.name || 'Ingresso',
+                                        holderName: t.holder?.name || customerName,
+                                    })),
+                                });
+
+                                const completionDate = new Date().toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                });
+
+                                await sendParcelledOrderCompletedEmail(
+                                    customerEmail,
+                                    {
+                                        customerName,
+                                        eventName: event.name,
+                                        eventDate,
+                                        eventLocation: event.location || 'A definir',
+                                        eventAddress: event.address,
+                                        totalParcels: parcelledOrder.installmentsCount,
+                                        totalAmount: `R$ ${parcelledOrder.totalAmount.toFixed(2).replace('.', ',')}`,
+                                        completionDate,
+                                        totalTickets: ticketsWithQR.length,
+                                        ticketType: ticketType?.name || 'Ingresso',
+                                        downloadLink: `${frontendUrl}/dashboard`,
+                                    },
+                                    [
+                                        {
+                                            filename: `ingressos-${order.orderNumber || (parcelledOrder._id as mongoose.Types.ObjectId).toString()}.pdf`,
+                                            content: pdfBuffer,
+                                            contentType: 'application/pdf',
+                                        },
+                                    ]
+                                );
+                            }
+                        }
+                    }
+                } catch (emailError) {
+                    // Não falhar o webhook se o email falhar
+                    console.error('[syncParcelFromMercadoPago] Erro ao enviar email:', emailError);
+                }
+            });
+        }
+
         return;
     }
 
@@ -809,12 +1012,159 @@ export async function applyOverdueAndCancellationRules() {
         status: { $in: ['pending', 'payment_generated'] },
         dueDate: { $lt: now },
         overdueAt: null, // Só atualizar se ainda não foi marcado como overdue
-    });
+    }).populate('parcelledOrder');
 
     for (const parcel of newlyOverdueParcels) {
+        const wasNotOverdue = parcel.status !== 'overdue';
         parcel.status = 'overdue';
         parcel.overdueAt = now; // Registrar quando ficou overdue (para calcular 60 dias)
         await parcel.save();
+
+        // Enviar email quando marca como overdue pela primeira vez
+        if (wasNotOverdue && parcel.parcelledOrder) {
+            const parcelledOrder = parcel.parcelledOrder as any;
+            
+            // Extrair ID do parcelledOrder (pode estar populado ou não)
+            const parcelledOrderId = (parcelledOrder._id as mongoose.Types.ObjectId) || parcelledOrder._id;
+            
+            // Verificar quantas parcelas estão overdue agora
+            const overdueParcels = await Parcel.find({
+                parcelledOrder: parcelledOrderId,
+                status: 'overdue',
+            });
+
+            // Só enviar email se for a primeira parcela overdue OU se já tem 2+ overdue
+            if (overdueParcels.length === 1) {
+                // Primeira parcela overdue - enviar email de aviso
+                setImmediate(async () => {
+                    try {
+                        const [event, customer] = await Promise.all([
+                            Event.findById(parcelledOrder.event).lean(),
+                            User.findById(parcelledOrder.customer).lean(),
+                        ]);
+
+                        if (!event || !customer) {
+                            return;
+                        }
+
+                        const customerEmail = customer.email || parcelledOrder.metadata?.customerEmail;
+                        const customerName = customer.name || parcelledOrder.metadata?.customerName || 'Cliente';
+                        
+                        if (!customerEmail) {
+                            return;
+                        }
+
+                        const frontendUrl = process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
+                        const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        });
+
+                        const allParcels = await Parcel.find({
+                            parcelledOrder: parcelledOrder._id,
+                        }).sort({ sequence: 1 });
+
+                        const paidParcels = allParcels.filter(p => p.status === 'paid').length;
+                        const daysOverdue = Math.floor((now.getTime() - new Date(parcel.dueDate).getTime()) / (1000 * 60 * 60 * 24));
+
+                        const paymentLink = parcel.ticketUrl || parcel.qrCode 
+                            ? `${frontendUrl}/dashboard` 
+                            : undefined;
+
+                        await sendParcelledParcelOverdue1Email(customerEmail, {
+                            customerName,
+                            eventName: event.name,
+                            eventDate,
+                            parcelNumber: parcel.sequence + 1,
+                            totalParcels: parcelledOrder.installmentsCount,
+                            parcelAmount: `R$ ${parcel.amount.toFixed(2).replace('.', ',')}`,
+                            dueDate: new Date(parcel.dueDate).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                            }),
+                            daysOverdue,
+                            paidParcels,
+                            totalAmount: `R$ ${parcelledOrder.totalAmount.toFixed(2).replace('.', ',')}`,
+                            paymentLink,
+                            dashboardLink: `${frontendUrl}/dashboard`,
+                        });
+                    } catch (emailError) {
+                        console.error('[applyOverdueAndCancellationRules] Erro ao enviar email de 1 atraso:', emailError);
+                    }
+                });
+            } else if (overdueParcels.length >= 2) {
+                // 2+ parcelas overdue - enviar email de aviso de cancelamento
+                setImmediate(async () => {
+                    try {
+                        const [event, customer] = await Promise.all([
+                            Event.findById(parcelledOrder.event).lean(),
+                            User.findById(parcelledOrder.customer).lean(),
+                        ]);
+
+                        if (!event || !customer) {
+                            return;
+                        }
+
+                        const customerEmail = customer.email || parcelledOrder.metadata?.customerEmail;
+                        const customerName = customer.name || parcelledOrder.metadata?.customerName || 'Cliente';
+                        
+                        if (!customerEmail) {
+                            return;
+                        }
+
+                        const frontendUrl = process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
+                        const eventDate = new Date(event.date).toLocaleDateString('pt-BR', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        });
+
+                        const allParcels = await Parcel.find({
+                            parcelledOrder: parcelledOrderId,
+                        }).sort({ sequence: 1 });
+
+                        const paidParcels = allParcels.filter(p => p.status === 'paid').length;
+                        const overdueAmount = overdueParcels.reduce((sum, p) => sum + p.amount, 0);
+                        const oldestOverdue = overdueParcels.reduce((oldest, p) => {
+                            if (!p.overdueAt) return oldest;
+                            if (!oldest) return p;
+                            return p.overdueAt < oldest.overdueAt ? p : oldest;
+                        }, null as any);
+                        const daysOverdue = oldestOverdue && oldestOverdue.overdueAt
+                            ? Math.floor((now.getTime() - new Date(oldestOverdue.overdueAt).getTime()) / (1000 * 60 * 60 * 24))
+                            : 0;
+
+                        const paymentLink = overdueParcels.some(p => p.ticketUrl || p.qrCode)
+                            ? `${frontendUrl}/dashboard` 
+                            : undefined;
+
+                        await sendParcelledParcelOverdue2Email(customerEmail, {
+                            customerName,
+                            eventName: event.name,
+                            eventDate,
+                            overdueCount: overdueParcels.length,
+                            overdueAmount: `R$ ${overdueAmount.toFixed(2).replace('.', ',')}`,
+                            daysOverdue,
+                            paidParcels,
+                            totalParcels: parcelledOrder.installmentsCount,
+                            totalAmount: `R$ ${parcelledOrder.totalAmount.toFixed(2).replace('.', ',')}`,
+                            paymentLink,
+                            dashboardLink: `${frontendUrl}/dashboard`,
+                        });
+                    } catch (emailError) {
+                        console.error('[applyOverdueAndCancellationRules] Erro ao enviar email de 2+ atrasos:', emailError);
+                    }
+                });
+            }
+        }
     }
 
     // 3. Buscar vendas ativas para avaliar cancelamento por múltiplas parcelas atrasadas

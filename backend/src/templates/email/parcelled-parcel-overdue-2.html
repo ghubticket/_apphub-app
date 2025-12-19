@@ -1,0 +1,66 @@
+<h2>🚨 AVISO: Risco de Cancelamento do Pacote</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p><strong>ATENÇÃO:</strong> Você possui <strong>2 ou mais parcelas em atraso</strong> no seu pacote parcelado.</p>
+
+<div class="error-box">
+    <h3>⚠️ Situação Crítica</h3>
+    <ul>
+        <li><strong>Parcelas em Atraso:</strong> {{overdueCount}}</li>
+        <li><strong>Valor Total em Atraso:</strong> {{overdueAmount}}</li>
+        <li><strong>Dias em Atraso:</strong> {{daysOverdue}}</li>
+    </ul>
+</div>
+
+<div class="info-box">
+    <h3>Informações do Pacote</h3>
+    <ul>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data do Evento:</strong> {{eventDate}}</li>
+        <li><strong>Valor Total:</strong> {{totalAmount}}</li>
+        <li><strong>Parcelas Pagas:</strong> {{paidParcels}}/{{totalParcels}}</li>
+    </ul>
+</div>
+
+<div class="error-box">
+    <h3>🚨 AVISO IMPORTANTE SOBRE CANCELAMENTO</h3>
+    <p><strong>Seu pacote está em risco de ser cancelado.</strong></p>
+    <ul>
+        <li>O pacote será <strong>cancelado automaticamente</strong> se o atraso persistir</li>
+        <li><strong>NÃO HAVERÁ REEMBOLSO</strong> dos valores já pagos em caso de cancelamento</li>
+        <li>Os ingressos <strong>NÃO serão liberados</strong> se o pacote for cancelado</li>
+        <li>Você perderá o acesso ao evento e todos os valores já pagos</li>
+    </ul>
+</div>
+
+<div class="warning-box">
+    <h3>O que fazer agora?</h3>
+    <p><strong>Para evitar o cancelamento, você precisa regularizar TODAS as parcelas em atraso imediatamente.</strong></p>
+    <ul>
+        <li>Pague todas as parcelas em atraso o quanto antes</li>
+        <li>Mantenha as próximas parcelas em dia</li>
+        <li>Entre em contato conosco se tiver alguma dificuldade</li>
+    </ul>
+</div>
+
+{{#if paymentLink}}
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{paymentLink}}" class="button">Pagar Parcelas em Atraso</a>
+</div>
+{{/if}}
+
+{{#if dashboardLink}}
+<div style="text-align: center; margin: 16px 0;">
+    <a href="{{dashboardLink}}" style="color: #666666; text-decoration: underline;">Ver Detalhes do Pacote</a>
+</div>
+{{/if}}
+
+<p style="margin-top: 24px; font-weight: 600;">
+    Este é um aviso final. Por favor, regularize o pagamento imediatamente para evitar o cancelamento do seu pacote.
+</p>
+
+<p style="margin-top: 32px; color: #666666; font-size: 14px;">
+    Em caso de dúvidas ou dificuldades, entre em contato conosco imediatamente através do email de suporte: {{supportEmail}}
+</p>
+

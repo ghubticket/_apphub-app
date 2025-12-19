@@ -1,0 +1,49 @@
+<h2>Parcela Paga com Sucesso</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p>Ótimas notícias! A <strong>Parcela {{parcelNumber}}/{{totalParcels}}</strong> do seu pacote parcelado foi paga com sucesso.</p>
+
+<div class="success-box">
+    <h3>Pagamento Confirmado</h3>
+    <ul>
+        <li><strong>Parcela:</strong> {{parcelNumber}}/{{totalParcels}}</li>
+        <li><strong>Valor Pago:</strong> {{parcelAmount}}</li>
+        <li><strong>Método:</strong> {{paymentMethod}}</li>
+        <li><strong>Data:</strong> {{paymentDate}}</li>
+    </ul>
+</div>
+
+<div class="info-box">
+    <h3>Progresso do Pagamento</h3>
+    <ul>
+        <li><strong>Parcelas Pagas:</strong> {{paidParcels}}/{{totalParcels}}</li>
+        <li><strong>Parcelas Restantes:</strong> {{remainingParcels}}</li>
+        <li><strong>Valor Total Pago:</strong> {{totalPaid}}</li>
+        <li><strong>Valor Restante:</strong> {{remainingAmount}}</li>
+    </ul>
+</div>
+
+<div class="info-box">
+    <h3>Informações do Evento</h3>
+    <ul>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data do Evento:</strong> {{eventDate}}</li>
+        <li><strong>Local:</strong> {{eventLocation}}</li>
+    </ul>
+</div>
+
+{{#if dashboardLink}}
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{dashboardLink}}" class="button">Acompanhar Meu Pacote</a>
+</div>
+{{/if}}
+
+<p style="margin-top: 24px;">
+    Continue mantendo seus pagamentos em dia! Os ingressos serão liberados assim que todas as parcelas forem pagas.
+</p>
+
+<p style="margin-top: 32px; color: #666666; font-size: 14px;">
+    Em caso de dúvidas, entre em contato conosco através do email de suporte: {{supportEmail}}
+</p>
+

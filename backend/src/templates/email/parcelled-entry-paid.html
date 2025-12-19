@@ -1,0 +1,51 @@
+<h2>Entrada Confirmada - Pacote Parcelado</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p>Ótimas notícias! O pagamento da <strong>entrada</strong> do seu pacote parcelado foi confirmado.</p>
+
+<div class="success-box">
+    <h3>Pagamento da Entrada Confirmado</h3>
+    <ul>
+        <li><strong>Valor Pago:</strong> {{entryAmount}}</li>
+        <li><strong>Método:</strong> {{paymentMethod}}</li>
+        <li><strong>Data:</strong> {{paymentDate}}</li>
+    </ul>
+</div>
+
+<div class="info-box">
+    <h3>Informações do Pacote</h3>
+    <ul>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data do Evento:</strong> {{eventDate}}</li>
+        <li><strong>Valor Total:</strong> {{totalAmount}}</li>
+        <li><strong>Número de Parcelas:</strong> {{installmentsCount}}x</li>
+        <li><strong>Valor por Parcela:</strong> {{parcelAmount}}</li>
+    </ul>
+</div>
+
+<div class="warning-box">
+    <h3>⚠️ IMPORTANTE - Pagamento das Parcelas em Dia</h3>
+    <p><strong>É fundamental que você pague todas as parcelas em dia para garantir seu ingresso.</strong></p>
+    <ul>
+        <li>As parcelas serão geradas automaticamente conforme o cronograma</li>
+        <li>Você receberá notificações quando cada parcela estiver disponível para pagamento</li>
+        <li><strong>O atraso no pagamento de parcelas pode resultar no cancelamento do pacote</strong></li>
+        <li>Os ingressos só serão liberados após o pagamento de <strong>todas</strong> as parcelas</li>
+    </ul>
+</div>
+
+{{#if dashboardLink}}
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{dashboardLink}}" class="button">Acompanhar Meu Pacote</a>
+</div>
+{{/if}}
+
+<p style="margin-top: 24px;">
+    Fique atento às datas de vencimento e mantenha seus pagamentos em dia!
+</p>
+
+<p style="margin-top: 32px; color: #666666; font-size: 14px;">
+    Em caso de dúvidas, entre em contato conosco através do email de suporte: {{supportEmail}}
+</p>
+

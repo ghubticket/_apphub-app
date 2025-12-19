@@ -286,3 +286,235 @@ export const sendCourtesyTicketEmail = async (
         attachments,
     });
 };
+
+/**
+ * ============================================
+ * EMAILS DE PARCELAMENTO
+ * ============================================
+ */
+
+/**
+ * Interface para dados de pacote parcelado criado
+ */
+export interface ParcelledOrderCreatedData {
+    customerName: string;
+    eventName: string;
+    eventDate: string;
+    eventLocation: string;
+    totalAmount: string;
+    installmentsCount: number;
+    parcelAmount: string;
+    expirationMinutes: number;
+    paymentLink?: string;
+    dashboardLink?: string;
+}
+
+/**
+ * Envia email quando um pacote parcelado é criado (entrada ainda não paga)
+ */
+export const sendParcelledOrderCreatedEmail = async (
+    to: string,
+    data: ParcelledOrderCreatedData
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    const html = renderTemplate('parcelled-order-created', {
+        ...data,
+        subject: `Pacote parcelado criado - ${data.eventName}`,
+        supportEmail: SUPPORT_EMAIL,
+    });
+
+    return sendEmail({
+        to,
+        subject: `📦 Pacote parcelado criado - ${data.eventName}`,
+        html,
+    });
+};
+
+/**
+ * Interface para dados de entrada paga
+ */
+export interface ParcelledEntryPaidData {
+    customerName: string;
+    eventName: string;
+    eventDate: string;
+    totalAmount: string;
+    installmentsCount: number;
+    parcelAmount: string;
+    entryAmount: string;
+    paymentMethod: string;
+    paymentDate: string;
+    dashboardLink?: string;
+}
+
+/**
+ * Envia email quando a entrada do pacote parcelado é paga
+ */
+export const sendParcelledEntryPaidEmail = async (
+    to: string,
+    data: ParcelledEntryPaidData
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    const html = renderTemplate('parcelled-entry-paid', {
+        ...data,
+        subject: `Entrada confirmada - ${data.eventName}`,
+        supportEmail: SUPPORT_EMAIL,
+    });
+
+    return sendEmail({
+        to,
+        subject: `✅ Entrada confirmada - ${data.eventName}`,
+        html,
+    });
+};
+
+/**
+ * Interface para dados de parcela paga
+ */
+export interface ParcelledParcelPaidData {
+    customerName: string;
+    eventName: string;
+    eventDate: string;
+    eventLocation: string;
+    parcelNumber: number;
+    totalParcels: number;
+    parcelAmount: string;
+    paymentMethod: string;
+    paymentDate: string;
+    paidParcels: number;
+    remainingParcels: number;
+    totalPaid: string;
+    remainingAmount: string;
+    dashboardLink?: string;
+}
+
+/**
+ * Envia email quando uma parcela é paga
+ */
+export const sendParcelledParcelPaidEmail = async (
+    to: string,
+    data: ParcelledParcelPaidData
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    const html = renderTemplate('parcelled-parcel-paid', {
+        ...data,
+        subject: `Parcela ${data.parcelNumber}/${data.totalParcels} paga - ${data.eventName}`,
+        supportEmail: SUPPORT_EMAIL,
+    });
+
+    return sendEmail({
+        to,
+        subject: `✅ Parcela ${data.parcelNumber}/${data.totalParcels} paga - ${data.eventName}`,
+        html,
+    });
+};
+
+/**
+ * Interface para dados de parcela em atraso (1 parcela)
+ */
+export interface ParcelledParcelOverdue1Data {
+    customerName: string;
+    eventName: string;
+    eventDate: string;
+    parcelNumber: number;
+    totalParcels: number;
+    parcelAmount: string;
+    dueDate: string;
+    daysOverdue: number;
+    paidParcels: number;
+    totalAmount: string;
+    paymentLink?: string;
+    dashboardLink?: string;
+}
+
+/**
+ * Envia email quando 1 parcela está em atraso
+ */
+export const sendParcelledParcelOverdue1Email = async (
+    to: string,
+    data: ParcelledParcelOverdue1Data
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    const html = renderTemplate('parcelled-parcel-overdue-1', {
+        ...data,
+        subject: `Parcela em atraso - ${data.eventName}`,
+        supportEmail: SUPPORT_EMAIL,
+    });
+
+    return sendEmail({
+        to,
+        subject: `⚠️ Parcela em atraso - ${data.eventName}`,
+        html,
+    });
+};
+
+/**
+ * Interface para dados de múltiplas parcelas em atraso (2+)
+ */
+export interface ParcelledParcelOverdue2Data {
+    customerName: string;
+    eventName: string;
+    eventDate: string;
+    overdueCount: number;
+    overdueAmount: string;
+    daysOverdue: number;
+    paidParcels: number;
+    totalParcels: number;
+    totalAmount: string;
+    paymentLink?: string;
+    dashboardLink?: string;
+}
+
+/**
+ * Envia email quando 2 ou mais parcelas estão em atraso (aviso de cancelamento)
+ */
+export const sendParcelledParcelOverdue2Email = async (
+    to: string,
+    data: ParcelledParcelOverdue2Data
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    const html = renderTemplate('parcelled-parcel-overdue-2', {
+        ...data,
+        subject: `Aviso: Risco de cancelamento - ${data.eventName}`,
+        supportEmail: SUPPORT_EMAIL,
+    });
+
+    return sendEmail({
+        to,
+        subject: `🚨 Aviso: Risco de cancelamento - ${data.eventName}`,
+        html,
+    });
+};
+
+/**
+ * Interface para dados de pacote parcelado completo (todas parcelas pagas)
+ */
+export interface ParcelledOrderCompletedData {
+    customerName: string;
+    eventName: string;
+    eventDate: string;
+    eventLocation: string;
+    eventAddress?: string;
+    totalParcels: number;
+    totalAmount: string;
+    completionDate: string;
+    totalTickets: number;
+    ticketType: string;
+    downloadLink?: string;
+}
+
+/**
+ * Envia email quando todas as parcelas são pagas (com ingressos)
+ */
+export const sendParcelledOrderCompletedEmail = async (
+    to: string,
+    data: ParcelledOrderCompletedData,
+    attachments?: EmailAttachment[]
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    const html = renderTemplate('parcelled-order-completed', {
+        ...data,
+        subject: `Todas as parcelas pagas - ${data.eventName}`,
+        supportEmail: SUPPORT_EMAIL,
+    });
+
+    return sendEmail({
+        to,
+        subject: `🎉 Todas as parcelas pagas - Seus ingressos - ${data.eventName}`,
+        html,
+        attachments,
+    });
+};

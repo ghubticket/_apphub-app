@@ -1,0 +1,56 @@
+<h2>⚠️ Parcela em Atraso</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p>Identificamos que você possui <strong>1 parcela em atraso</strong> no seu pacote parcelado.</p>
+
+<div class="warning-box">
+    <h3>Parcela em Atraso</h3>
+    <ul>
+        <li><strong>Parcela:</strong> {{parcelNumber}}/{{totalParcels}}</li>
+        <li><strong>Valor:</strong> {{parcelAmount}}</li>
+        <li><strong>Data de Vencimento:</strong> {{dueDate}}</li>
+        <li><strong>Dias em Atraso:</strong> {{daysOverdue}}</li>
+    </ul>
+</div>
+
+<div class="info-box">
+    <h3>Informações do Pacote</h3>
+    <ul>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data do Evento:</strong> {{eventDate}}</li>
+        <li><strong>Valor Total:</strong> {{totalAmount}}</li>
+        <li><strong>Parcelas Pagas:</strong> {{paidParcels}}/{{totalParcels}}</li>
+    </ul>
+</div>
+
+<div class="warning-box">
+    <h3>⚠️ ATENÇÃO</h3>
+    <p><strong>É importante regularizar o pagamento desta parcela o quanto antes.</strong></p>
+    <ul>
+        <li>O atraso no pagamento pode afetar a liberação dos seus ingressos</li>
+        <li>Se acumular <strong>2 ou mais parcelas em atraso</strong>, o pacote poderá ser cancelado</li>
+        <li>Em caso de cancelamento, <strong>não haverá reembolso</strong> dos valores já pagos</li>
+    </ul>
+</div>
+
+{{#if paymentLink}}
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{paymentLink}}" class="button">Pagar Parcela Agora</a>
+</div>
+{{/if}}
+
+{{#if dashboardLink}}
+<div style="text-align: center; margin: 16px 0;">
+    <a href="{{dashboardLink}}" style="color: #666666; text-decoration: underline;">Ver Detalhes do Pacote</a>
+</div>
+{{/if}}
+
+<p style="margin-top: 24px;">
+    Por favor, regularize o pagamento para garantir seu ingresso no evento.
+</p>
+
+<p style="margin-top: 32px; color: #666666; font-size: 14px;">
+    Em caso de dúvidas ou dificuldades, entre em contato conosco através do email de suporte: {{supportEmail}}
+</p>
+

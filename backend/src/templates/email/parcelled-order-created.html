@@ -1,0 +1,38 @@
+<h2>Pacote Parcelado Criado</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p>Seu pacote parcelado foi criado com sucesso para o evento <strong>{{eventName}}</strong>!</p>
+
+<div class="info-box">
+    <h3>Informações do Pacote</h3>
+    <ul>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data do Evento:</strong> {{eventDate}}</li>
+        <li><strong>Local:</strong> {{eventLocation}}</li>
+        <li><strong>Valor Total:</strong> {{totalAmount}}</li>
+        <li><strong>Número de Parcelas:</strong> {{installmentsCount}}x</li>
+        <li><strong>Valor por Parcela:</strong> {{parcelAmount}}</li>
+    </ul>
+</div>
+
+<div class="warning-box">
+    <h3>Próximo Passo</h3>
+    <p><strong>Para confirmar seu pacote, você precisa pagar a entrada agora.</strong></p>
+    <p>O pagamento da entrada deve ser realizado em até <strong>{{expirationMinutes}} minutos</strong>.</p>
+</div>
+
+{{#if paymentLink}}
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{paymentLink}}" class="button">Pagar Entrada Agora</a>
+</div>
+{{/if}}
+
+<p style="margin-top: 24px;">
+    Após o pagamento da entrada, as demais parcelas serão geradas automaticamente conforme o cronograma.
+</p>
+
+<p style="margin-top: 32px; color: #666666; font-size: 14px;">
+    Em caso de dúvidas, entre em contato conosco através do email de suporte: {{supportEmail}}
+</p>
+

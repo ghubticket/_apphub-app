@@ -1,0 +1,62 @@
+<h2>🎉 Parabéns! Todas as Parcelas Foram Pagas</h2>
+
+<p>Olá <strong>{{customerName}}</strong>,</p>
+
+<p>Excelente notícia! Todas as parcelas do seu pacote foram pagas com sucesso. Seus ingressos estão confirmados!</p>
+
+<div class="success-box">
+    <h3>Pagamento Completo</h3>
+    <ul>
+        <li><strong>Total de Parcelas:</strong> {{totalParcels}}x</li>
+        <li><strong>Todas as Parcelas:</strong> Pagas ✅</li>
+        <li><strong>Valor Total Pago:</strong> {{totalAmount}}</li>
+        <li><strong>Data de Conclusão:</strong> {{completionDate}}</li>
+    </ul>
+</div>
+
+<div class="info-box">
+    <h3>Informações do Evento</h3>
+    <ul>
+        <li><strong>Evento:</strong> {{eventName}}</li>
+        <li><strong>Data:</strong> {{eventDate}}</li>
+        <li><strong>Local:</strong> {{eventLocation}}</li>
+        {{#if eventAddress}}
+        <li><strong>Endereço:</strong> {{eventAddress}}</li>
+        {{/if}}
+    </ul>
+</div>
+
+<div class="success-box">
+    <h3>Seus Ingressos</h3>
+    <p>Você comprou <strong>{{totalTickets}}</strong> ingresso(s) do tipo <strong>{{ticketType}}</strong>.</p>
+
+    <p style="margin-top: 16px;">
+        O PDF com todos os QR Codes está anexo neste email. Você pode apresentar o PDF no celular ou
+        impresso na entrada do evento.
+    </p>
+</div>
+
+<div class="warning-box">
+    <h3>IMPORTANTE</h3>
+    <ul>
+        <li>Guarde este email - ele é seu comprovante</li>
+        <li>Pode apresentar no celular, ou PDF (NÃO PODE SER IMPRESSO)</li>
+        <li>Um QR Code por pessoa na entrada</li>
+        <li>Não compartilhe o QR Code (uso único)</li>
+    </ul>
+</div>
+
+{{#if downloadLink}}
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{downloadLink}}" class="button">Ver Meus Ingressos</a>
+</div>
+{{/if}}
+
+<p style="margin-top: 24px;">
+    Obrigado por manter seus pagamentos em dia! Nos vemos no evento! 🎉
+</p>
+
+<p style="margin-top: 32px; color: #666666; font-size: 14px;">
+    Em caso de dúvidas, entre em contato conosco através do email de suporte: {{supportEmail}}
+</p>
+
