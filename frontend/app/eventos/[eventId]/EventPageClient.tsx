@@ -484,7 +484,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                         
                     </section>
                 </div>
-                <hr />
+               
                 {/* Seção de Informações Gerais (Abas) - 100% da largura, como terceira coluna */}
                 {eventDetails && (
                     <section className="w-full mt-8 lg:mt-10">
