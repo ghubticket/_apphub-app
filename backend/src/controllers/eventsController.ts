@@ -376,6 +376,68 @@ export const updateEventStatus = async (req: Request, res: Response) => {
     }
 };
 
+export const updateEventSalesStatus = async (req: Request, res: Response) => {
+    try {
+        const { salesClosed } = req.body;
+        
+        if (typeof salesClosed !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                message: 'salesClosed deve ser um valor booleano',
+                errors: ['salesClosed inválido'],
+            });
+        }
+        
+        const event = await Event.findOneAndUpdate(
+            {
+                _id: req.params.id,
+                deletedAt: null, // Não atualizar eventos deletados
+            },
+            { salesClosed },
+            { new: true }
+        );
+        
+        if (!event) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Evento não encontrado' 
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: salesClosed 
+                ? 'Vendas desativadas com sucesso' 
+                : 'Vendas reativadas com sucesso',
+            data: event,
+        });
+    } catch (error: any) {
+        // Se for erro de validação, não enviar ao Sentry
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Erro ao atualizar status de vendas do evento',
+                errors: [error.message],
+            });
+        }
+        
+        captureControllerError(error, req, {
+            controller: 'eventsController',
+            action: 'updateEventSalesStatus',
+            statusCode: 500,
+            extra: {
+                eventId: req.params?.id,
+            },
+        });
+        
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao atualizar status de vendas do evento',
+            errors: [error.message],
+        });
+    }
+};
+
 export const deleteEvent = async (req: Request, res: Response) => {
     try {
         const event = await Event.findOne({

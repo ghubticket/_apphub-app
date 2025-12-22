@@ -8,6 +8,7 @@ import {
     getEvent,
     updateEvent,
     updateEventStatus,
+    updateEventSalesStatus,
     deleteEvent,
     getEventTicketStats,
     distributeVip,
@@ -147,6 +148,34 @@ router.put('/:id', authenticate, isAdmin, uploadFields, validatePngMagicBytes, u
  *       404: { description: Evento não encontrado }
  */
 router.patch('/:id/status', authenticate, isAdmin, updateEventStatus);
+
+/**
+ * @swagger
+ * /events/{id}/sales:
+ *   patch:
+ *     summary: Atualizar status de vendas do evento (apenas ADMIN)
+ *     tags: [Events]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               salesClosed:
+ *                 type: boolean
+ *     responses:
+ *       200: { description: Status de vendas atualizado }
+ *       404: { description: Evento não encontrado }
+ */
+router.patch('/:id/sales', authenticate, isAdmin, updateEventSalesStatus);
 
 /**
  * @swagger

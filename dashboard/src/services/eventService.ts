@@ -12,6 +12,7 @@ export interface EventItem {
     coverImage?: string
     squareImage?: string
     isActive?: boolean
+    salesClosed?: boolean
     capacity?: number
     soldTickets?: number
     platformFeePercentage?: number
@@ -115,6 +116,13 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
 
+        // Se for erro de token inválido ou não autorizado, disparar evento
+        if (response.status === 401 || errorData.message?.includes('Token inválido') || errorData.message?.includes('token')) {
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('token-expired'))
+            }
+        }
+
         throw new Error(errorData.message || `HTTP ${response.status}`)
     }
 
@@ -192,6 +200,13 @@ return response.json()
         return authenticatedRequest(`/events/${id}/status`, {
             method: 'PATCH',
             body: JSON.stringify({ isActive })
+        })
+    },
+
+    async updateSalesStatus(id: string, salesClosed: boolean): Promise<{ success: boolean; message: string; data: EventItem }> {
+        return authenticatedRequest(`/events/${id}/sales`, {
+            method: 'PATCH',
+            body: JSON.stringify({ salesClosed })
         })
     }
 }

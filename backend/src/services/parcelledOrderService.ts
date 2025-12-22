@@ -87,6 +87,12 @@ export async function createParcelledOrderFromCart(
         if (!event) {
             throw new Error('Evento não encontrado ou inativo');
         }
+        
+        // Verificar se as vendas estão encerradas
+        if (event.salesClosed) {
+            throw new Error('As vendas de ingressos para este evento foram temporariamente encerradas');
+        }
+        
         if (!ticketType) {
             throw new Error('Tipo de ingresso não encontrado ou inativo');
         }

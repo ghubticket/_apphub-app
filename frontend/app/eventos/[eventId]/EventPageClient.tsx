@@ -35,6 +35,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
         state?: string;
         coverImage?: string;
         squareImage?: string;
+        salesClosed?: boolean;
     } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -70,6 +71,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                             state: event.state,
                             coverImage: event.coverImage,
                             squareImage: event.squareImage,
+                            salesClosed: event.salesClosed,
                         });
                     }
                 } catch (eventErr) {
@@ -430,7 +432,25 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
                         {/* Seção de Seleção de Ingressos */}
                         <div id="ticket-selection">
-                            <EventSelectionSummary tickets={tickets} loading={loading} eventId={eventId} />
+                            {eventData?.salesClosed ? (
+                                <div className="rounded-3xl border border-[#ded7ca] bg-white/95 p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
+                                    <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f5f1e8]">
+                                            <HiOutlineTicket className="text-3xl text-[#7d796c]" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-semibold text-[#1a1a1d] mb-2">
+                                                Vendas Finalizadas
+                                            </h2>
+                                            <p className="text-sm text-[#7d796c]">
+                                                As vendas de ingressos para este evento foram temporariamente encerradas.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <EventSelectionSummary tickets={tickets} loading={loading} eventId={eventId} />
+                            )}
                         </div>
 
                         {/* Chamada para Seção Sobre - DESKTOP */}

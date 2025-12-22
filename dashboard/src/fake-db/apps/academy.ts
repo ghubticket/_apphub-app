@@ -503,7 +503,7 @@ export const db: AcademyType = {
         title: 'Course Content',
         id: 'section1',
         topics: [
-          { title: 'Welcome to this course', time: '2.4 min', isCompleted: true },
+          { title: 'Bem Vindo ao this course', time: '2.4 min', isCompleted: true },
           { title: 'Watch before you start', time: '4.8 min', isCompleted: true },
           { title: 'Basic Design theory', time: '5.9 min', isCompleted: false },
           { title: 'Basic Fundamentals', time: '3.6 min', isCompleted: false },

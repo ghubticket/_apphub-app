@@ -307,7 +307,11 @@ export default function OrderDetailPage() {
                                 <CardContent>
                                     <Typography variant='h6' className='mb-3 font-semibold'>Ingressos</Typography>
                                     <Box className='space-y-2'>
-                                        {order.tickets?.map((t: any) => (
+                                        {/* VIP sempre tem ingressos confirmados, mas vamos filtrar apenas os confirmados/used por segurança */}
+                                        {order.tickets?.filter((t: any) => {
+                                            const status = String(t.status || '').toLowerCase()
+                                            return status === 'confirmed' || status === 'used'
+                                        }).map((t: any) => (
                                             <Box key={t._id} className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border rounded p-3'>
                                                 <div className='flex-1 min-w-0'>
                                                     <div className='font-semibold text-base mb-1'>{t.code}</div>
@@ -318,7 +322,11 @@ export default function OrderDetailPage() {
                                                         <div className='text-xs text-textSecondary mt-1'>
                                                             USADO em {t.usedAt ? new Date(t.usedAt).toLocaleString() : '—'}{t.usedBy ? ` por ${(t.usedBy as any)?.name || (t.usedBy as any)?.email}` : ''}
                                                         </div>
-                                                    ) : null}
+                                                    ) : (
+                                                        <div className='text-xs text-textSecondary mt-1'>
+                                                            NÃO UTILIZADO
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <Box className='flex justify-start sm:justify-end flex-shrink-0'>
                                                     {(() => {
@@ -333,7 +341,6 @@ export default function OrderDetailPage() {
                                                         }
 
                                                         const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
-
 
                                                         return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
                                                     })()}
@@ -378,48 +385,76 @@ export default function OrderDetailPage() {
                     )}
                 </Grid>
 
-                {!isVip && (<>
-                    <Typography variant='h6' className='mt-6 mb-4 font-semibold'>Ingressos</Typography>
-                    <Box className='space-y-3'>
-                        {order.tickets?.map((t: any) => (
-                            <Box key={t._id} className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border rounded p-3'>
-                                <div className='flex-1 min-w-0'>
-                                    <div className='font-semibold text-base mb-1'>{t.code}</div>
-                                    <div className='text-sm text-textSecondary mb-1'>
-                                        {t?.ticketType?.name || 'Ingresso'} • R$ {(t.price || 0).toFixed(2)}
-                                    </div>
-                                    {t.status === 'used' ? (
-                                        <div className='text-xs text-textSecondary mt-1'>
-                                            USADO em {t.usedAt ? new Date(t.usedAt).toLocaleString() : '—'}{t.usedBy ? ` por ${(t.usedBy as any)?.name || (t.usedBy as any)?.email}` : ''}
+                {/* Mostrar ingressos APENAS se o pedido foi pago ou se é VIP */}
+                {!isVip && (() => {
+                    const orderStatus = (order.status || '').toLowerCase()
+                    const paymentStatus = (order.paymentStatus || '').toLowerCase()
+                    const isPaid = orderStatus === 'paid' || paymentStatus === 'paid' || paymentStatus === 'approved'
+                    const isCancelled = orderStatus === 'cancelled' || paymentStatus === 'cancelled'
+                    const orderAny = order as any
+                    const isExpired = paymentStatus === 'expired' || (orderAny.expiresAt && new Date(orderAny.expiresAt) < new Date() && !isPaid)
+                    
+                    // Só mostrar ingressos se o pedido foi pago
+                    if (!isPaid || isCancelled || isExpired) {
+                        return null
+                    }
+
+                    // Filtrar apenas tickets confirmados (com QR code gerado)
+                    const confirmedTickets = order.tickets?.filter((t: any) => {
+                        const ticketStatus = String(t.status || '').toLowerCase()
+                        return ticketStatus === 'confirmed' || ticketStatus === 'used'
+                    }) || []
+
+                    // Se não houver tickets confirmados, não mostrar a seção
+                    if (confirmedTickets.length === 0) {
+                        return null
+                    }
+
+                    return (
+                        <>
+                            <Typography variant='h6' className='mt-6 mb-4 font-semibold'>Ingressos</Typography>
+                            <Box className='space-y-3'>
+                                {confirmedTickets.map((t: any) => (
+                                    <Box key={t._id} className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border rounded p-3'>
+                                        <div className='flex-1 min-w-0'>
+                                            <div className='font-semibold text-base mb-1'>{t.code}</div>
+                                            <div className='text-sm text-textSecondary mb-1'>
+                                                {t?.ticketType?.name || 'Ingresso'} • R$ {(t.price || 0).toFixed(2)}
+                                            </div>
+                                            {t.status === 'used' ? (
+                                                <div className='text-xs text-textSecondary mt-1'>
+                                                    USADO em {t.usedAt ? new Date(t.usedAt).toLocaleString() : '—'}{t.usedBy ? ` por ${(t.usedBy as any)?.name || (t.usedBy as any)?.email}` : ''}
+                                                </div>
+                                            ) : (
+                                                <div className='text-xs text-textSecondary mt-1'>
+                                                    NÃO UTILIZADO
+                                                </div>
+                                            )}
                                         </div>
-                                    ) : (
-                                        <div className='text-xs text-textSecondary mt-1'>
-                                            NÃO UTILIZADO
-                                        </div>
-                                    )}
-                                </div>
-                                <Box className='flex justify-start sm:justify-end flex-shrink-0'>
-                                    {(() => {
-                                        const status = String(t.status || '').toLowerCase()
+                                        <Box className='flex justify-start sm:justify-end flex-shrink-0'>
+                                            {(() => {
+                                                const status = String(t.status || '').toLowerCase()
 
-                                        const labelMap: Record<string, string> = {
-                                            confirmed: 'CONFIRMADO',
-                                            pending: 'PENDENTE',
-                                            cancelled: 'CANCELADO',
-                                            refunded: 'REEMBOLSADO',
-                                            used: 'USADO'
-                                        }
+                                                const labelMap: Record<string, string> = {
+                                                    confirmed: 'CONFIRMADO',
+                                                    pending: 'PENDENTE',
+                                                    cancelled: 'CANCELADO',
+                                                    refunded: 'REEMBOLSADO',
+                                                    used: 'USADO'
+                                                }
 
-                                        const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
+                                                const color = status === 'confirmed' || status === 'used' ? 'success' : status === 'pending' ? 'warning' : status === 'cancelled' ? 'error' : 'default'
 
-                                        
+                                                
 return <Chip size='small' label={labelMap[status] || status.toUpperCase()} color={color as any} variant='tonal' />
-                                    })()}
-                                </Box>
+                                            })()}
+                                        </Box>
+                                    </Box>
+                                ))}
                             </Box>
-                        ))}
-                    </Box>
-                </>)}
+                        </>
+                    )
+                })()}
 
                 {/* Informações do pedido parcelado - Movido para baixo */}
                 {isParcelled && parcelledInfo && (

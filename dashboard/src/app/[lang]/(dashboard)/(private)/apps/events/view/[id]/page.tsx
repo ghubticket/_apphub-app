@@ -917,18 +917,98 @@ return
                         <CardHeader
                             title={event.name}
                             subheader={event.date ? new Date(event.date).toLocaleDateString('pt-BR') : ''}
+                            action={
+                                <Box 
+                                    sx={{ 
+                                        display: { xs: 'none', md: 'flex' },
+                                        gap: 1.5,
+                                        flexWrap: 'wrap',
+                                        justifyContent: 'center',
+                                        alignItems: 'center'
+                                    }}
+                                >
+                                    <Button
+                                        variant='contained'
+                                        startIcon={<i className='tabler-ticket' />}
+                                        onClick={() => router.push(`/${lang}/apps/events/view/${id}/tickets/list`)}
+                                        sx={{
+                                            fontSize: '0.875rem',
+                                            py: 1.25
+                                        }}
+                                    >
+                                        Cadastrar Tickets
+                                    </Button>
+                                    <Button
+                                        variant='tonal'
+                                        color='secondary'
+                                        startIcon={<i className='tabler-gift' />}
+                                        onClick={() => { setVipOpen(true); setVipTypeId(vipTypes[0]?._id || null) }}
+                                        sx={{
+                                            fontSize: '0.875rem',
+                                            py: 1.25
+                                        }}
+                                    >
+                                        Distribuir Cortesia
+                                    </Button>
+                                    <Button
+                                        variant='outlined'
+                                        startIcon={<i className='tabler-edit' />}
+                                        onClick={() => setIsEditing(true)}
+                                        sx={{
+                                            fontSize: '0.875rem',
+                                            py: 1.25
+                                        }}
+                                    >
+                                        Editar Evento
+                                    </Button>
+                                    <Button
+                                        variant={event?.salesClosed ? 'contained' : 'outlined'}
+                                        color={event?.salesClosed ? 'warning' : 'primary'}
+                                        startIcon={<i className={event?.salesClosed ? 'tabler-toggle-right' : 'tabler-toggle-left'} />}
+                                        onClick={async () => {
+                                            if (!event || !id) return
+                                            try {
+                                                const newSalesClosed = !event.salesClosed
+                                                await eventService.updateSalesStatus(id as string, newSalesClosed)
+                                                const updatedResponse = await eventService.getById(id as string)
+                                                setEvent(updatedResponse.data)
+                                            } catch (error: any) {
+                                                console.error('Erro ao atualizar status de vendas:', error)
+                                                alert(error.message || 'Erro ao atualizar status de vendas')
+                                            }
+                                        }}
+                                        sx={{
+                                            fontSize: '0.875rem',
+                                            py: 1.25
+                                        }}
+                                    >
+                                        {event?.salesClosed ? 'Reativar Vendas' : 'Desativar Vendas Temporariamente'}
+                                    </Button>
+                                    <Button
+                                        variant='tonal'
+                                        color='secondary'
+                                        startIcon={<i className='tabler-arrow-left' />}
+                                        onClick={() => router.push(`/${lang}/apps/events/list`)}
+                                        sx={{
+                                            fontSize: '0.875rem',
+                                            py: 1.25
+                                        }}
+                                    >
+                                        Voltar
+                                    </Button>
+                                </Box>
+                            }
                         />
-                        <CardContent sx={{ pt: { xs: 2, md: 0 } }}>
-                            <Box className='flex flex-col sm:flex-row gap-2 sm:gap-3'>
+                        <CardContent sx={{ pt: { xs: 2, md: 0 }, display: { xs: 'block', md: 'none' } }}>
+                            <Box className='flex flex-col gap-2'>
                                 <Button
                                     variant='contained'
                                     startIcon={<i className='tabler-ticket' />}
                                     onClick={() => router.push(`/${lang}/apps/events/view/${id}/tickets/list`)}
                                     fullWidth
                                     sx={{
-                                        minWidth: { xs: '100%', sm: 'auto' },
-                                        fontSize: { xs: '0.875rem', md: '1rem' },
-                                        py: { xs: 1.25, md: 1.5 }
+                                        fontSize: '0.875rem',
+                                        py: 1.25
                                     }}
                                 >
                                     Cadastrar Tickets
@@ -940,9 +1020,8 @@ return
                                     onClick={() => { setVipOpen(true); setVipTypeId(vipTypes[0]?._id || null) }}
                                     fullWidth
                                     sx={{
-                                        minWidth: { xs: '100%', sm: 'auto' },
-                                        fontSize: { xs: '0.875rem', md: '1rem' },
-                                        py: { xs: 1.25, md: 1.5 }
+                                        fontSize: '0.875rem',
+                                        py: 1.25
                                     }}
                                 >
                                     Distribuir Cortesia
@@ -953,12 +1032,35 @@ return
                                     onClick={() => setIsEditing(true)}
                                     fullWidth
                                     sx={{
-                                        minWidth: { xs: '100%', sm: 'auto' },
-                                        fontSize: { xs: '0.875rem', md: '1rem' },
-                                        py: { xs: 1.25, md: 1.5 }
+                                        fontSize: '0.875rem',
+                                        py: 1.25
                                     }}
                                 >
                                     Editar Evento
+                                </Button>
+                                <Button
+                                    variant={event?.salesClosed ? 'contained' : 'outlined'}
+                                    color={event?.salesClosed ? 'warning' : 'primary'}
+                                    startIcon={<i className={event?.salesClosed ? 'tabler-toggle-right' : 'tabler-toggle-left'} />}
+                                    onClick={async () => {
+                                        if (!event || !id) return
+                                        try {
+                                            const newSalesClosed = !event.salesClosed
+                                            await eventService.updateSalesStatus(id as string, newSalesClosed)
+                                            const updatedResponse = await eventService.getById(id as string)
+                                            setEvent(updatedResponse.data)
+                                        } catch (error: any) {
+                                            console.error('Erro ao atualizar status de vendas:', error)
+                                            alert(error.message || 'Erro ao atualizar status de vendas')
+                                        }
+                                    }}
+                                    fullWidth
+                                    sx={{
+                                        fontSize: '0.875rem',
+                                        py: 1.25
+                                    }}
+                                >
+                                    {event?.salesClosed ? 'Reativar Vendas' : 'Desativar Vendas Temporariamente'}
                                 </Button>
                                 <Button
                                     variant='tonal'
@@ -967,9 +1069,8 @@ return
                                     onClick={() => router.push(`/${lang}/apps/events/list`)}
                                     fullWidth
                                     sx={{
-                                        minWidth: { xs: '100%', sm: 'auto' },
-                                        fontSize: { xs: '0.875rem', md: '1rem' },
-                                        py: { xs: 1.25, md: 1.5 }
+                                        fontSize: '0.875rem',
+                                        py: 1.25
                                     }}
                                 >
                                     Voltar

@@ -87,6 +87,13 @@ export const listTicketTypes = async (
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
 
+            // Se for erro de token inválido ou não autorizado, disparar evento
+            if (response.status === 401 || errorData.message?.includes('Token inválido') || errorData.message?.includes('token')) {
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('token-expired'))
+                }
+            }
+
             throw new Error(errorData.message || `Erro ao listar tipos de ingresso: ${response.statusText}`);
         }
 
@@ -107,6 +114,13 @@ export const getTicketType = async (id: string): Promise<TicketTypeItem> => {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
+
+            // Se for erro de token inválido ou não autorizado, disparar evento
+            if (response.status === 401 || errorData.message?.includes('Token inválido') || errorData.message?.includes('token')) {
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('token-expired'))
+                }
+            }
 
             throw new Error(errorData.message || `Erro ao obter tipo de ingresso: ${response.statusText}`);
         }
@@ -135,6 +149,12 @@ export const createTicketType = async (
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
 
+            // Se for erro de token inválido ou não autorizado, disparar evento
+            if (response.status === 401 || errorData.message?.includes('Token inválido') || errorData.message?.includes('token')) {
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('token-expired'))
+                }
+            }
 
             // Criar erro customizado com erros de validação
             const error = new Error(
@@ -171,6 +191,12 @@ export const updateTicketType = async (
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
 
+            // Se for erro de token inválido ou não autorizado, disparar evento
+            if (response.status === 401 || errorData.message?.includes('Token inválido') || errorData.message?.includes('token')) {
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('token-expired'))
+                }
+            }
 
             // Criar erro customizado com erros de validação
             const error = new Error(
@@ -203,6 +229,13 @@ export const deleteTicketType = async (id: string): Promise<void> => {
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
 
+            // Se for erro de token inválido ou não autorizado, disparar evento
+            if (response.status === 401 || errorData.message?.includes('Token inválido') || errorData.message?.includes('token')) {
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('token-expired'))
+                }
+            }
+
             throw new Error(errorData.message || `Erro ao deletar tipo de ingresso: ${response.statusText}`);
         }
     } catch (error: any) {
@@ -224,6 +257,13 @@ export const updateTicketTypeStatus = async (
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
+
+            // Se for erro de token inválido ou não autorizado, disparar evento
+            if (response.status === 401 || errorData.message?.includes('Token inválido') || errorData.message?.includes('token')) {
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('token-expired'))
+                }
+            }
 
             throw new Error(errorData.message || `Erro ao atualizar status: ${response.statusText}`);
         }

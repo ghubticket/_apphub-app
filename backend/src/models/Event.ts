@@ -22,6 +22,7 @@ export interface IEvent extends Document {
     squareImage?: string; // 300x300 PNG URL
     tags: string[];
     isActive: boolean;
+    salesClosed: boolean; // Indica se as vendas estão temporariamente desativadas
     deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     createdAt: Date;
     updatedAt: Date;
@@ -169,6 +170,10 @@ const eventSchema = new Schema<IEvent>(
         isActive: {
             type: Boolean,
             default: true,
+        },
+        salesClosed: {
+            type: Boolean,
+            default: false,
         },
         deletedAt: {
             type: Date,

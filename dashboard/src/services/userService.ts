@@ -85,6 +85,14 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
 
+        // Se for erro de token inválido ou não autorizado, disparar evento
+        if (response.status === 401 || errorData.message?.includes('Token inválido') || errorData.message?.includes('token')) {
+            // Disparar evento customizado para o hook de expiração tratar
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('token-expired'))
+            }
+        }
+
         throw new Error(errorData.message || `HTTP ${response.status}`)
     }
 

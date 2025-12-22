@@ -28,10 +28,12 @@ import '@/app/globals.css'
 // Generated Icon CSS Imports
 import '@assets/iconify-icons/generated-icons.css'
 
+// Config Imports
+import appConfig from '@configs/appConfig'
+
 export const metadata = {
-    title: 'Vuexy - MUI Next.js Admin Dashboard Template',
-    description:
-        'Vuexy - MUI Next.js Admin Dashboard Template - is the most developer friendly & highly customizable Admin Dashboard Template based on MUI v5.'
+    title: appConfig.dashboardTitle,
+    description: appConfig.dashboardDescription
 }
 
 const RootLayout = async (props: ChildrenType & { params: Promise<{ lang: Locale }> }) => {

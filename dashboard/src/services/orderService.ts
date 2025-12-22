@@ -137,6 +137,13 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
         if (!response.ok) {
             const error = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
 
+            // Se for erro de token inválido ou não autorizado, disparar evento
+            if (response.status === 401 || error.message?.includes('Token inválido') || error.message?.includes('token')) {
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('token-expired'))
+                }
+            }
+
             throw new Error(error.message || `Erro ${response.status}: ${response.statusText}`);
         }
 

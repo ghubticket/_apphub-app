@@ -51,8 +51,8 @@ const LoginV1 = () => {
             <Logo />
           </Link>
           <div className='flex flex-col gap-1 mbe-6'>
-            <Typography variant='h4'>{`Welcome to ${themeConfig.templateName}! 👋🏻`}</Typography>
-            <Typography>Please sign-in to your account and start the adventure</Typography>
+            <Typography variant='h4'>{`Bem Vindo ao ${themeConfig.templateName}! 👋🏻`}</Typography>
+            <Typography>Seu Painel Administrativo</Typography>
           </div>
           <form noValidate autoComplete='off' onSubmit={e => e.preventDefault()} className='flex flex-col gap-6'>
             <CustomTextField autoFocus fullWidth label='Email or Username' placeholder='Enter your email or username' />

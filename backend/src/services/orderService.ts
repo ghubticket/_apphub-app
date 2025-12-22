@@ -82,6 +82,17 @@ export async function fetchOrderRelatedData(
         };
     }
 
+    // Verificar se as vendas estão encerradas
+    if (event.salesClosed) {
+        return {
+            error: {
+                status: 400,
+                message: 'Vendas encerradas',
+                errors: ['As vendas de ingressos para este evento foram temporariamente encerradas'],
+            },
+        };
+    }
+
     if (!ticketType) {
         return {
             error: {
