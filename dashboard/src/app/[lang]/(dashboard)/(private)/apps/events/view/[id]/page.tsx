@@ -46,6 +46,7 @@ import { useTicketTypes } from '@/hooks/useTicketTypes'
 import type { TicketTypeItem } from '@/services/ticketTypeService'
 import { getAvailableQuantities } from '@/services/reservationService'
 import { getProxiedImageUrl } from '@/utils/imageProxy'
+import EventDetailsTabsEditor from '@/components/events/EventDetailsTabsEditor'
 
 import '@/libs/styles/tiptapEditor.css'
 import dynamic from 'next/dynamic'
@@ -808,14 +809,15 @@ return
                                 </Grid>
                             </Grid>
 
-                            <Typography variant='body2' className='mbe-1 font-bold'>Sobre o Evento</Typography>
-                            <Card className='p-0 border shadow-none'>
-                                <CardContent className='p-0'>
-                                    <EditorToolbar editor={editor} />
-                                    <Divider className='mli-6' />
-                                    <EditorContent editor={editor} className='bs-[250px] overflow-y-auto flex ' />
-                                </CardContent>
-                            </Card>
+                            {/* Detalhes do Evento com Abas */}
+                            <EventDetailsTabsEditor 
+                                eventId={id as string} 
+                                isEditing={true} 
+                                descriptionEditor={editor}
+                                onDescriptionChange={(html) => {
+                                    // O editor já está conectado, não precisa fazer nada aqui
+                                }}
+                            />
 
                             <Grid container spacing={6} className='mbe-6 mbs-6'>
                                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -1380,52 +1382,21 @@ return
                         </Card>
                     </Grid>
 
-                    {/* Descrição */}
-                    {event.description && (
-                        <Grid size={{ xs: 12 }}>
-                            <Card>
-                                <CardHeader title='Descrição' />
-                                <CardContent>
-                                    <Box
-                                        className='ProseMirror'
-                                        sx={{
-                                            outline: 'none',
-                                            minBlockSize: '100px',
-                                            padding: '1.5rem',
-                                            inlineSize: '100%',
-                                            border: '1px solid',
-                                            borderColor: 'divider',
-                                            borderRadius: '4px',
-                                            '& > * + *': {
-                                                marginBlockStart: '0.75em'
-                                            },
-                                            '& ul, & ol': {
-                                                paddingBlock: 0,
-                                                paddingInline: '1rem'
-                                            },
-                                            '& h1, & h2, & h3, & h4, & h5, & h6': {
-                                                lineHeight: 1.1
-                                            },
-                                            '& p': {
-                                                whiteSpace: 'pre-wrap',
-                                                wordBreak: 'break-word',
-                                                margin: 0,
-                                                '& + p': {
-                                                    marginTop: '0.75em'
-                                                }
-                                            },
-                                            '& br': {
-                                                display: 'block',
-                                                content: '""',
-                                                marginTop: '0.5em'
-                                            }
-                                        }}
-                                        dangerouslySetInnerHTML={{ __html: event.description }}
-                                    />
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    )}
+                    {/* Detalhes do Evento (Abas) - Inclui "Sobre o Evento" e demais abas */}
+                    <Grid size={{ xs: 12 }}>
+                        <EventDetailsTabsEditor 
+                            eventId={id as string} 
+                            isEditing={isEditing}
+                            descriptionEditor={isEditing ? editor : null}
+                            descriptionHtml={event.description}
+                            onDescriptionChange={(html) => {
+                                // O editor já está conectado ao formulário principal
+                            }}
+                            onCancel={() => {
+                                setIsEditing(false)
+                            }}
+                        />
+                    </Grid>
 
                     {/* Modal Distribuir Cortesia */}
                     <Dialog open={vipOpen} onClose={() => setVipOpen(false)} fullWidth maxWidth='sm'>

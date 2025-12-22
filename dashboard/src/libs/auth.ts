@@ -70,7 +70,9 @@ export const authOptions: any = {
                         
                         return {
                             ...data.data.user,
-                            accessToken: data.data.accessToken // Incluir o accessToken JWT do backend
+                            accessToken: data.data.accessToken, // Incluir o accessToken JWT do backend
+                            refreshToken: data.data.refreshToken, // Incluir o refreshToken para renovação
+                            sessionId: data.data.sessionId // Incluir o sessionId
                         }
                     }
 
@@ -120,7 +122,7 @@ export const authOptions: any = {
          * the `session()` callback. So we have to add custom parameters in `token`
          * via `jwt()` callback to make them accessible in the `session()` callback
          */
-        async jwt({ token, user }: any) {
+        async jwt({ token, user, trigger }: any) {
             if (user) {
                 /*
                  * For adding custom parameters to user in session, we first need to add those parameters
@@ -131,6 +133,33 @@ export const authOptions: any = {
                 token.id = user.id
                 token.isActive = user.isActive
                 token.accessToken = (user as any).accessToken // Incluir o token JWT
+                token.refreshToken = (user as any).refreshToken // Incluir o refreshToken
+                token.sessionId = (user as any).sessionId // Incluir o sessionId
+            }
+
+            // Se for trigger de update, tentar renovar o token
+            if (trigger === 'update' && token.refreshToken) {
+                try {
+                    const apiUrl = process.env.API_URL || 'http://localhost:3001/api'
+                    const res = await fetch(`${apiUrl}/auth/refresh`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ refreshToken: token.refreshToken })
+                    })
+
+                    const data = await res.json()
+
+                    if (res.status === 200 && data.success && data.data) {
+                        // Atualizar tokens
+                        token.accessToken = data.data.accessToken
+                        token.refreshToken = data.data.refreshToken
+                    }
+                } catch (error) {
+                    console.error('Erro ao renovar token:', error)
+                    // Se falhar, não atualizar o token
+                }
             }
 
             return token
@@ -143,6 +172,8 @@ export const authOptions: any = {
                 session.user.id = token.id || ''
                 session.user.isActive = token.isActive || false
                 session.accessToken = token.accessToken || '' // Incluir o token JWT na sessão
+                session.refreshToken = token.refreshToken || '' // Incluir o refreshToken na sessão
+                session.sessionId = token.sessionId || '' // Incluir o sessionId na sessão
             }
 
             return session

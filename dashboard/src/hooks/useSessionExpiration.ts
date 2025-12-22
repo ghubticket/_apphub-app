@@ -68,7 +68,8 @@ export function useSessionExpiration(): UseSessionExpirationReturn {
 
             // Se expirou completamente, fazer logout
             if (timeUntilExpiration <= 0) {
-                handleLogout()
+                setShowModal(false)
+                signOut({ redirect: true, callbackUrl: '/login' })
             }
         }
 
@@ -78,6 +79,11 @@ export function useSessionExpiration(): UseSessionExpirationReturn {
 
         return () => clearInterval(interval)
     }, [session, sessionStartTime, showModal])
+
+    const handleLogout = useCallback(async () => {
+        setShowModal(false)
+        await signOut({ redirect: true, callbackUrl: '/login' })
+    }, [])
 
     // Timer do modal (countdown)
     useEffect(() => {
@@ -95,20 +101,30 @@ export function useSessionExpiration(): UseSessionExpirationReturn {
         }, 1000)
 
         return () => clearInterval(timer)
-    }, [showModal])
+    }, [showModal, handleLogout])
 
     const extendSession = useCallback(async () => {
-        // Para renovar o token JWT do backend, precisamos fazer login novamente
-        // Redirecionar para login com redirect de volta
-        const currentPath = window.location.pathname
-        const redirectUrl = `/login?redirectTo=${encodeURIComponent(currentPath)}`
-        window.location.href = redirectUrl
-    }, [])
-
-    const handleLogout = useCallback(async () => {
-        setShowModal(false)
-        await signOut({ redirect: true, callbackUrl: '/login' })
-    }, [])
+        try {
+            // Fechar o modal primeiro
+            setShowModal(false)
+            
+            // Tentar renovar o token chamando update() que vai trigger o jwt callback
+            // O jwt callback vai chamar o endpoint /auth/refresh para renovar o token
+            await update()
+            
+            // Resetar o tempo de início da sessão para o tempo atual
+            // Isso efetivamente "renova" a sessão do ponto de vista do cliente
+            setSessionStartTime(Date.now())
+            
+            // Resetar o timer do modal para evitar que ele continue contando
+            setTimeRemaining(MODAL_TIMER_MS)
+            
+        } catch (error) {
+            console.error('Erro ao renovar sessão:', error)
+            // Se falhar, fazer logout
+            await handleLogout()
+        }
+    }, [update, handleLogout])
 
     const logout = useCallback(async () => {
         await handleLogout()

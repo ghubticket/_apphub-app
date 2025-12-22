@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
-import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineUser, HiOutlineHeart, HiOutlineArrowLeft, HiOutlineTicket, HiOutlineArrowRight } from 'react-icons/hi2';
+import { HiOutlineCalendar, HiOutlineMapPin, HiOutlineUser, HiOutlineHeart, HiOutlineArrowLeft, HiOutlineTicket, HiOutlineArrowRight, HiOutlineArrowDownTray } from 'react-icons/hi2';
 import Link from 'next/link';
 import PageContainer from '@/components/shared/PageContainer';
 import EventSelectionSummary from '@/components/tickets/EventSelectionSummary';
+import EventDetailsTabs from '@/components/events/EventDetailsTabs';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import BuyTicketButton from '@/components/shared/BuyTicketButton';
 import StructuredData from '@/components/seo/StructuredData';
@@ -41,6 +42,8 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     const [error, setError] = useState<string | null>(null);
     const [imageError, setImageError] = useState(false);
     const [compactImageError, setCompactImageError] = useState(false);
+    const [eventDetails, setEventDetails] = useState<any>(null);
+    const [eventDetailsLoading, setEventDetailsLoading] = useState(false);
 
     // Ler código de desconto da URL e salvar no sessionStorage
     useEffect(() => {
@@ -88,6 +91,20 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
                 // Não setar erro se não houver ingressos - apenas mostrar mensagem no box
                 setTickets(eventTickets);
+
+                // Buscar detalhes do evento (opcional - não bloqueia se falhar)
+                try {
+                    setEventDetailsLoading(true);
+                    const detailsResponse = await api.get(`/event-details/${eventId}`);
+                    if (detailsResponse.data?.success && detailsResponse.data?.data) {
+                        setEventDetails(detailsResponse.data.data);
+                    }
+                } catch (detailsErr) {
+                    // Erro silencioso - detalhes são opcionais
+                    console.debug('Detalhes do evento não encontrados:', detailsErr);
+                } finally {
+                    setEventDetailsLoading(false);
+                }
             } catch (err: any) {
                 setError(
                     err?.response?.data?.message ??
@@ -304,42 +321,28 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                                 )}
                             </div>
                         </div>
-                      
-                        {/* Seção Sobre */}
-                        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 lg:p-8 ">
-                            <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
-                            <div
-                                className="text-sm text-[#4c4c55] prose prose-sm max-w-none 
-                                    prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
-                                    prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
-                                    prose-strong:text-[#1a1a1d] prose-strong:font-semibold
-                                    prose-ul:text-[#4c4c55] prose-ul:list-disc prose-ul:ml-5 prose-ul:mb-3 prose-ul:space-y-1
-                                    prose-ol:text-[#4c4c55] prose-ol:list-decimal prose-ol:ml-5 prose-ol:mb-3 prose-ol:space-y-1
-                                    prose-li:text-[#4c4c55] prose-li:leading-relaxed"
-                                dangerouslySetInnerHTML={{
-                                    __html: eventData?.description ||
-                                        primaryTicket?.description ||
-                                        'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
-                                }}
-                            />
-                            
-                            {/* Botões de compartilhar */}
-                            <div className="mt-6 flex flex-wrap gap-3">
+
+                        {/* Box de Compartilhar nas Redes Sociais - Abaixo da foto (Desktop) */}
+                        <div className="rounded-3xl border border-[#ded7ca] bg-white p-4">
+                            <p className="text-xs uppercase font-medium text-[#7d796c] mb-3 text-center">
+                                Compartilhar:
+                            </p>
+                            <div className="flex gap-2">
                                 <button
                                     type="button"
                                     onClick={handleShareWhatsApp}
-                                    className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
+                                    className="flex flex-1 justify-center items-center gap-1.5 rounded-full border border-[#25D366] bg-[#25D366] px-3 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
                                 >
-                                    <FaWhatsapp className="text-base" />
-                                    Compartilhar no WhatsApp
+                                    <FaWhatsapp className="text-sm" />
+                                    <span className="hidden sm:inline">WhatsApp</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleShareInstagram}
-                                    className="flex flex-1 justify-center  items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
+                                    className="flex flex-1 justify-center items-center gap-1.5 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-3 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
                                 >
-                                    <FaInstagram className="text-base" />
-                                    Compartilhar no Instagram
+                                    <FaInstagram className="text-sm" />
+                                    <span className="hidden sm:inline">Instagram</span>
                                 </button>
                             </div>
                         </div>
@@ -407,7 +410,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                         </div>
 
                         {/* Foto do Evento - MOBILE: aparece entre informações e ingressos, DESKTOP: hidden (fica na coluna esquerda) */}
-                        <div className="lg:hidden">
+                        <div className="lg:hidden space-y-6">
                             <div className="overflow-hidden rounded-3xl border border-[#ded7ca] bg-white">
                                 <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-[#f5f1e8] to-[#ded7ca] flex items-center justify-center">
                                     {compactImageError || !eventImage ? (
@@ -426,6 +429,31 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                                             onError={() => setCompactImageError(true)}
                                         />
                                     )}
+                                </div>
+                            </div>
+
+                            {/* Box de Compartilhar nas Redes Sociais - Abaixo da foto (Mobile) */}
+                            <div className="rounded-3xl border border-[#ded7ca] bg-white p-4">
+                                <p className="text-xs font-medium text-[#7d796c] mb-3 text-center">
+                                    Compartilhar:
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleShareWhatsApp}
+                                        className="flex flex-1 justify-center items-center gap-1.5 rounded-full border border-[#25D366] bg-[#25D366] px-3 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
+                                    >
+                                        <FaWhatsapp className="text-sm" />
+                                        <span className="hidden sm:inline">WhatsApp</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleShareInstagram}
+                                        className="flex flex-1 justify-center items-center gap-1.5 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-3 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
+                                    >
+                                        <FaInstagram className="text-sm" />
+                                        <span className="hidden sm:inline">Instagram</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -453,104 +481,59 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                             )}
                         </div>
 
-                        {/* Chamada para Seção Sobre - DESKTOP */}
-                        <div className="hidden lg:block">
-                            <Link 
-                                href="/sobre"
-                                className="group block rounded-3xl border border-[#ded7ca] bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] transition-all hover:shadow-[0_30px_60px_-30px_rgba(20,20,32,0.5)] hover:border-[#f97316]/50"
-                            >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-[#f97316] transition-colors">
-                                            Conheça o Vicente
-                                        </h3>
-                                        <p className="text-sm text-gray-300 leading-relaxed mb-4">
-                                            Descubra como nossa plataforma pode transformar a gestão dos seus eventos. Você no comando, sem restrições!
-                                        </p>
-                                        <div className="inline-flex items-center gap-2 text-sm font-semibold text-[#f97316] group-hover:text-[#ea6820] transition-colors">
-                                            Saiba mais
-                                            <HiOutlineArrowRight className="text-base group-hover:translate-x-1 transition-transform" />
-                                        </div>
-                                    </div>
-                                    <div className="flex-shrink-0">
-                                        <div className="w-12 h-12 rounded-full bg-[#f97316]/20 flex items-center justify-center group-hover:bg-[#f97316]/30 transition-colors">
-                                            <span className="text-2xl">🚀</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Link>
-                        </div>
-
-                        {/* Seção Sobre - MOBILE: aparece abaixo dos ingressos, DESKTOP: hidden (fica na coluna esquerda) */}
-                        <div className="lg:hidden">
-                            <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 ">
-                                <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
-                                <div
-                                    className="text-sm text-[#4c4c55] prose prose-sm max-w-none 
-                                        prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
-                                        prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
-                                        prose-strong:text-[#1a1a1d] prose-strong:font-semibold
-                                        prose-ul:text-[#4c4c55] prose-ul:list-disc prose-ul:ml-5 prose-ul:mb-3 prose-ul:space-y-1
-                                        prose-ol:text-[#4c4c55] prose-ol:list-decimal prose-ol:ml-5 prose-ol:mb-3 prose-ol:space-y-1
-                                        prose-li:text-[#4c4c55] prose-li:leading-relaxed"
-                                    dangerouslySetInnerHTML={{
-                                        __html: eventData?.description ||
-                                            primaryTicket?.description ||
-                                            'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
-                                    }}
-                                />
-                                
-                                {/* Botões de compartilhar */}
-                                <div className="mt-6 flex flex-wrap gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={handleShareWhatsApp}
-                                        className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
-                                    >
-                                        <FaWhatsapp className="text-base" />
-                                        Compartilhar no WhatsApp
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleShareInstagram}
-                                        className="flex flex-1 justify-center  items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
-                                    >
-                                        <FaInstagram className="text-base" />
-                                        Compartilhar no Instagram
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Chamada para Seção Sobre - MOBILE */}
-                        <div className="lg:hidden">
-                            <Link 
-                                href="/sobre"
-                                className="group block rounded-3xl border border-[#ded7ca] bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)] transition-all hover:shadow-[0_30px_60px_-30px_rgba(20,20,32,0.5)] hover:border-[#f97316]/50"
-                            >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-[#f97316] transition-colors">
-                                            Conheça o Vicente
-                                        </h3>
-                                        <p className="text-sm text-gray-300 leading-relaxed mb-4">
-                                            Descubra como nossa plataforma pode transformar a gestão dos seus eventos. Você no comando, sem restrições!
-                                        </p>
-                                        <div className="inline-flex items-center gap-2 text-sm font-semibold text-[#f97316] group-hover:text-[#ea6820] transition-colors">
-                                            Saiba mais
-                                            <HiOutlineArrowRight className="text-base group-hover:translate-x-1 transition-transform" />
-                                        </div>
-                                    </div>
-                                    <div className="flex-shrink-0">
-                                        <div className="w-12 h-12 rounded-full bg-[#f97316]/20 flex items-center justify-center group-hover:bg-[#f97316]/30 transition-colors">
-                                            <span className="text-2xl">🚀</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Link>
-                        </div>
+                        
                     </section>
                 </div>
+                <hr />
+                {/* Seção de Informações Gerais (Abas) - 100% da largura, como terceira coluna */}
+                {eventDetails && (
+                    <section className="w-full mt-8 lg:mt-10">
+                        <EventDetailsTabs eventDetails={eventDetails} loading={eventDetailsLoading} />
+                    </section>
+                )}
+
+                {/* Fallback: Seção Sobre caso não tenha eventDetails - 100% da largura */}
+                {!eventDetails && (
+                    <section className="w-full mt-8 lg:mt-10">
+                        <div className="rounded-3xl border border-[#ded7ca] bg-white p-6 lg:p-8">
+                            <h2 className="mb-4 text-lg font-bold text-[#1a1a1d]">Sobre</h2>
+                            <div
+                                className="text-sm text-[#4c4c55] prose prose-sm max-w-none 
+                                    prose-headings:text-[#1a1a1d] prose-headings:font-semibold prose-headings:mb-2 prose-headings:mt-4
+                                    prose-p:text-[#4c4c55] prose-p:mb-3 prose-p:leading-relaxed
+                                    prose-strong:text-[#1a1a1d] prose-strong:font-semibold
+                                    prose-ul:text-[#4c4c55] prose-ul:list-disc prose-ul:ml-5 prose-ul:mb-3 prose-ul:space-y-1
+                                    prose-ol:text-[#4c4c55] prose-ol:list-decimal prose-ol:ml-5 prose-ol:mb-3 prose-ol:space-y-1
+                                    prose-li:text-[#4c4c55] prose-li:leading-relaxed"
+                                dangerouslySetInnerHTML={{
+                                    __html: eventData?.description ||
+                                        primaryTicket?.description ||
+                                        'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
+                                }}
+                            />
+                            
+                            {/* Botões de compartilhar */}
+                            <div className="mt-6 flex flex-wrap gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleShareWhatsApp}
+                                    className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
+                                >
+                                    <FaWhatsapp className="text-base" />
+                                    Compartilhar no WhatsApp
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleShareInstagram}
+                                    className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
+                                >
+                                    <FaInstagram className="text-base" />
+                                    Compartilhar no Instagram
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                )}
             </PageContainer>
         </>
     );

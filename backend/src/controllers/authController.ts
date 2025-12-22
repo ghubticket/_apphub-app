@@ -271,7 +271,7 @@ export const login = async (req: Request, res: Response) => {
         user.lastLogin = new Date();
         await user.save();
 
-        // Gerar access token (15 minutos padrão)
+        // Gerar access token (1 hora para admin no dashboard)
         const accessToken = jwt.sign(
             {
                 userId: String(user._id),
@@ -280,7 +280,7 @@ export const login = async (req: Request, res: Response) => {
                 type: 'access',
             },
             process.env.JWT_SECRET!,
-            { expiresIn: '15m' }
+            { expiresIn: '1h' } // 1 hora para admin
         );
 
         // Gerar refresh token (curto) com rotação
@@ -319,7 +319,7 @@ export const login = async (req: Request, res: Response) => {
                 user: user.toJSON(),
                 accessToken,
                 refreshToken,
-                expiresIn: 900, // 15 minutos em segundos
+                expiresIn: 3600, // 1 hora em segundos
                 sessionId: session._id,
             },
         });
@@ -407,7 +407,7 @@ export const refreshToken = async (req: Request, res: Response) => {
         session.expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES_MS);
         await session.save();
 
-        // Gerar novo access token
+        // Gerar novo access token (1 hora para admin no dashboard)
         const newAccessToken = jwt.sign(
             {
                 userId: String(user._id),
@@ -416,7 +416,7 @@ export const refreshToken = async (req: Request, res: Response) => {
                 type: 'access',
             },
             process.env.JWT_SECRET!,
-            { expiresIn: '15m' }
+            { expiresIn: '1h' } // 1 hora para admin
         );
 
         res.json({
@@ -425,7 +425,7 @@ export const refreshToken = async (req: Request, res: Response) => {
             data: {
                 accessToken: newAccessToken,
                 refreshToken: newRefreshToken,
-                expiresIn: 900, // 15 minutos em segundos
+                expiresIn: 3600, // 1 hora em segundos
             },
         });
     } catch (error: any) {if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {

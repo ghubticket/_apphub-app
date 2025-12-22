@@ -25,6 +25,7 @@ import { getSSLOptions } from './config/ssl';
 import authRoutes from './routes/auth';
 import usersRoutes from './routes/users';
 import eventsRoutes from './routes/events';
+import eventDetailsRoutes from './routes/eventDetails';
 import ticketTypesRoutes from './routes/ticketTypes';
 import ordersRoutes from './routes/orders';
 import catalogRoutes from './routes/catalog';
@@ -626,6 +627,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 // Rotas de eventos
 app.use('/api/events', eventsRoutes);
+// Rotas de detalhes de eventos
+app.use('/api/event-details', eventDetailsRoutes);
 // Rotas de tipos de ingresso (nested em events e standalone)
 app.use('/api/events', ticketTypesRoutes);
 app.use('/api', ticketTypesRoutes);
