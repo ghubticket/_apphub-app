@@ -27,7 +27,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [tickets, setTickets] = useState<TicketProduct[]>([]);
-    const [eventData, setEventData] = useState<{ 
+    const [eventData, setEventData] = useState<{
         description?: string;
         name?: string;
         date?: string;
@@ -188,11 +188,11 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     }, [tickets]);
 
     // Preparar dados para SEO (ANTES de qualquer return)
-    const eventName = useMemo(() => 
-        primaryTicket?.eventName ?? 
-        primaryTicket?.name ?? 
-        eventData?.name ?? 
-        'Evento', 
+    const eventName = useMemo(() =>
+        primaryTicket?.eventName ??
+        primaryTicket?.name ??
+        eventData?.name ??
+        'Evento',
         [primaryTicket, eventData]
     );
     const eventImage = useMemo(() => {
@@ -202,13 +202,13 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
         return undefined;
     }, [primaryTicket, eventData]);
     const eventUrl = useMemo(() => `/eventos/${eventId}`, [eventId]);
-    const eventDate = useMemo(() => 
-        primaryTicket?.eventDateIso || 
-        primaryTicket?.eventDate || 
-        eventData?.date, 
+    const eventDate = useMemo(() =>
+        primaryTicket?.eventDateIso ||
+        primaryTicket?.eventDate ||
+        eventData?.date,
         [primaryTicket, eventData]
     );
-    
+
     const eventDescription = useMemo(() => {
         if (eventData?.description) {
             return eventData.description.replace(/<[^>]*>/g, '').substring(0, 155) + '...';
@@ -217,13 +217,13 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
         const eventLocation = primaryTicket?.location ?? eventData?.location ?? '';
         return `Ingressos para ${eventName}. ${eventDate ? `Data: ${eventDate}.` : ''} ${eventLocation ? `Local: ${eventLocation}.` : ''} Compre agora com ${APP_NAME}!`;
     }, [eventData, eventName, primaryTicket]);
-    
+
     // Structured data para o evento
     const eventStructuredData = useMemo(() => {
         if (!primaryTicket && !eventData) return null;
-        
+
         const location = primaryTicket?.location ?? eventData?.location;
-        
+
         return generateEventStructuredData({
             name: eventName,
             description: eventData?.description?.replace(/<[^>]*>/g, '') || undefined,
@@ -237,7 +237,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
             url: eventUrl,
         });
     }, [primaryTicket, eventData, eventName, eventImage, eventDate, minPrice, eventId, eventUrl]);
-    
+
     // Breadcrumb structured data
     const breadcrumbData = useMemo(() => generateBreadcrumbStructuredData([
         { name: 'Início', url: '/' },
@@ -248,15 +248,15 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     // Mostrar loading enquanto carrega
     if (loading) {
         return (
-            <PageContainer 
-                bgColor="bg-[#f5f1e8]" 
+            <PageContainer
+                bgColor="bg-[#f5f1e8]"
                 paddingTop={5}
                 paddingBottom="pb-8"
                 fullHeight
                 containerClassName="pb-8"
             >
-                <LoadingSpinner 
-                    message="Carregando evento..." 
+                <LoadingSpinner
+                    message="Carregando evento..."
                     submessage="Aguarde enquanto buscamos as informações"
                     fullscreen={false}
                 />
@@ -267,8 +267,8 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
     // Mostrar erro se houver
     if (error) {
         return (
-            <PageContainer 
-                bgColor="bg-[#f5f1e8]" 
+            <PageContainer
+                bgColor="bg-[#f5f1e8]"
                 paddingTop={0}
                 paddingBottom="pb-8"
                 fullHeight
@@ -291,8 +291,8 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
         <>
             {eventStructuredData && <StructuredData data={eventStructuredData} />}
             <StructuredData data={breadcrumbData} />
-            <PageContainer 
-                bgColor="bg-[#f5f1e8]" 
+            <PageContainer
+                bgColor="bg-[#f5f1e8]"
                 paddingTop={{ mobile: 5, desktop: 8 }}
                 paddingBottom="pb-8"
                 containerClassName="pb-8"
@@ -480,11 +480,9 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                                 <EventSelectionSummary tickets={tickets} loading={loading} eventId={eventId} />
                             )}
                         </div>
-
-                        
                     </section>
                 </div>
-               
+
                 {/* Seção de Informações Gerais (Abas) - 100% da largura, como terceira coluna */}
                 {eventDetails && (
                     <section className="w-full mt-8 lg:mt-10">
@@ -511,7 +509,7 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                                         'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
                                 }}
                             />
-                            
+
                             {/* Botões de compartilhar */}
                             <div className="mt-6 flex flex-wrap gap-3">
                                 <button
