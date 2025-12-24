@@ -667,7 +667,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
 
                                 {/* Alerta se já tem VIP */}
                                 {ticket.isVip && hasVipTickets[ticket.id] && (
-                                    <p className="text-[0.75rem] pl-7 pt-1 font-medium text-[#f97316]">
+                                    <p className="text-[0.75rem] pt-1 font-medium text-[#f97316]">
                                         ✅ Ingresso Vip Já Solicitado!
                                     </p>
                                 )}

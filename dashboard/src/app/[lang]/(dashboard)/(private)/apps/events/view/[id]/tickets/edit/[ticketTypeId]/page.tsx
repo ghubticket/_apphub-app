@@ -204,6 +204,16 @@ const EditTicketTypePage = () => {
         setServerError(null)
         
         try {
+            // Validação crítica: não permitir preço zero para tickets não-VIP
+            if (!isVIP && (data.price === 0 || data.price === null || data.price === undefined)) {
+                setError('price', {
+                    type: 'manual',
+                    message: 'Preço não pode ser zero. Para ingressos gratuitos, marque como VIP.',
+                })
+                setServerError('Preço não pode ser zero. Para ingressos gratuitos, marque como VIP.')
+                return
+            }
+
             if (allowInstallments) {
                 if (!maxInstallments || Number(maxInstallments) < 2) {
                     setServerError('Defina pelo menos 2 parcelas máximas para habilitar o parcelamento.')

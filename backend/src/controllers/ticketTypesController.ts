@@ -36,6 +36,17 @@ export const createTicketType = async (req: Request, res: Response) => {
             });
         }
 
+        // Validação crítica: não permitir preço zero para tickets não-VIP
+        if (!isVIP && (price === 0 || price === null || price === undefined)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Preço não pode ser zero. Para ingressos gratuitos, marque como VIP.',
+                errors: {
+                    price: 'Preço não pode ser zero. Para ingressos gratuitos, marque como VIP.',
+                },
+            });
+        }
+
         // Se for VIP, garantir que preço seja 0
         const finalPrice = isVIP ? 0 : price;
 
@@ -311,8 +322,21 @@ export const updateTicketType = async (req: Request, res: Response) => {
             }
         }
 
-        // Se for VIP, garantir que preço seja 0
-        const finalPrice = isVIP !== undefined ? (isVIP ? 0 : price) : ticketType.isVIP ? 0 : price;
+        // Validação crítica: não permitir preço zero para tickets não-VIP
+        const willBeVIP = isVIP !== undefined ? isVIP : ticketType.isVIP;
+        const finalPrice = isVIP !== undefined 
+            ? (isVIP ? 0 : (price !== undefined ? price : ticketType.price))
+            : (ticketType.isVIP ? 0 : (price !== undefined ? price : ticketType.price));
+        
+        if (!willBeVIP && (finalPrice === 0 || finalPrice === null || finalPrice === undefined)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Preço não pode ser zero. Para ingressos gratuitos, marque como VIP.',
+                errors: {
+                    price: 'Preço não pode ser zero. Para ingressos gratuitos, marque como VIP.',
+                },
+            });
+        }
 
         // Atualizar campos
         if (name !== undefined) ticketType.name = name;

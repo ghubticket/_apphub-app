@@ -72,9 +72,13 @@ const ticketTypeSchema = new Schema<ITicketType>(
                     if ((this as any).isVIP && value !== 0) {
                         return false;
                     }
+                    // Se não for VIP, o preço não pode ser 0
+                    if (!(this as any).isVIP && value === 0) {
+                        return false;
+                    }
                     return true;
                 },
-                message: 'Ingressos VIP devem ter preço 0',
+                message: 'Preço não pode ser zero para tickets não-VIP. Para ingressos gratuitos, marque como VIP.',
             },
         },
         isVIP: {
