@@ -162,6 +162,11 @@ interface CreateOrderRequest {
         cpf?: string;
     };
     allowReuse?: boolean;
+    transportOption?: {
+        date: string;
+        attraction: string;
+        departureLocation: string;
+    }; // Opção de transporte selecionada (para tickets de transporte)
 }
 
 // Constantes para timeout de pedidos
@@ -180,7 +185,7 @@ const CHECKOUT_TIMEOUT_MS = CHECKOUT_TIMEOUT_MINUTES * 60 * 1000;
 export const createOrder = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?._id?.toString() || (req as any).user?.id;
-        const { eventId, ticketTypeId, quantity, promoterCode, customerData, allowReuse } =
+        const { eventId, ticketTypeId, quantity, promoterCode, customerData, allowReuse, transportOption } =
             req.body as CreateOrderRequest;
 
         // REFATORADO: Validação de entrada usando serviço
@@ -742,6 +747,8 @@ export const createOrder = async (req: Request, res: Response) => {
                 ipAddress, // IP para detecção de padrões suspeitos
                 cardAttempts: 0,
                 isActive: Boolean(isReallyVIP),
+                // Salvar transportOption no metadata se fornecido
+                metadata: transportOption ? { transportOption } : {},
             });
 
             await order.save();

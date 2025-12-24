@@ -700,9 +700,12 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                     })
                 ) : (
                     <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-6 text-center">
-                        <p className="text-[0.90rem] font-light text-[#4c4c55]">
-                            Vendas não Iniciadas!
-                        </p>
+                        <div className="flex flex-col items-center gap-2">
+                            <HiOutlineTicket className="text-2xl text-[#a38f78]" />
+                            <p className="text-[0.90rem] font-light text-[#4c4c55]">
+                                Vendas não Iniciadas!
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>

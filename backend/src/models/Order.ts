@@ -46,6 +46,7 @@ export interface IOrder extends Document {
     isActive: boolean;
     cardAttempts: number;
     parcelledOrder?: mongoose.Types.ObjectId; // Referência ao ParcelledOrder (se este Order foi criado a partir de um pedido parcelado)
+    metadata?: Record<string, any>; // Metadados adicionais (ex: transportOption para tickets de transporte)
     deletedAt?: Date; // Data de soft delete (para limpeza periódica)
     createdAt: Date;
     updatedAt: Date;
@@ -250,6 +251,10 @@ const orderSchema = new Schema<IOrder>(
             type: Schema.Types.ObjectId,
             ref: 'ParcelledOrder',
             default: null,
+        },
+        metadata: {
+            type: Schema.Types.Mixed,
+            default: {},
         },
         deletedAt: {
             type: Date,

@@ -26,6 +26,25 @@
     </p>
 </div>
 
+{{#if transportInfo}}
+{{#each transportInfo}}
+<div class="info-box" style="background-color: #f0f7ff; border-left: 4px solid #4a90e2; margin-top: 20px;">
+    <h3 style="color: #4a90e2; margin-top: 0;">🚌 Informações de Transporte</h3>
+    <ul style="margin: 0; padding-left: 20px;">
+        {{#if this.date}}
+        <li><strong>Data:</strong> {{this.date}}</li>
+        {{/if}}
+        {{#if this.attraction}}
+        <li><strong>Atração:</strong> {{this.attraction}}</li>
+        {{/if}}
+        {{#if this.departureLocation}}
+        <li><strong>Local de Saída:</strong> {{this.departureLocation}}</li>
+        {{/if}}
+    </ul>
+</div>
+{{/each}}
+{{/if}}
+
 <div class="warning-box">
     <h3>IMPORTANTE</h3>
     <ul>

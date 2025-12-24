@@ -41,10 +41,12 @@ export default function EventDetailsPage() {
 
     const { control, handleSubmit, reset, formState: { errors } } = useForm<EventDetailsItem>({
         defaultValues: {
+            about: { richText: '' },
             packageIncludes: { items: [] },
             transport: { departureLocations: [] },
             attractions: { items: [] },
             pricing: { pricesByLocation: [] },
+            video: { url: '' },
             faq: { items: [] }
         }
     })
@@ -100,11 +102,12 @@ export default function EventDetailsPage() {
                     const response = await eventDetailsService.get(id)
                     if (response.success && response.data) {
                         reset({
+                            about: response.data.about || { richText: '' },
                             packageIncludes: response.data.packageIncludes || { items: [] },
                             transport: response.data.transport || { departureLocations: [] },
                             attractions: response.data.attractions || { items: [] },
                             pricing: response.data.pricing || { pricesByLocation: [] },
-                            video: response.data.video,
+                            video: response.data.video || { url: '' },
                             faq: response.data.faq || { items: [] }
                         })
                     }
@@ -134,51 +137,61 @@ export default function EventDetailsPage() {
             setError(null)
             setSuccess(false)
 
-            // Limpar campos vazios antes de enviar
+            // Salvar TODOS os campos, mesmo que vazios, para garantir que todas as abas sejam salvas
             const cleanedData: any = {}
 
-            if (data.packageIncludes?.items?.length) {
-                cleanedData.packageIncludes = {
-                    title: data.packageIncludes.title || undefined,
-                    items: data.packageIncludes.items.filter(item => item.trim())
+            // Salvar "about" (richText) se existir
+            if (data.about?.richText !== undefined) {
+                cleanedData.about = {
+                    richText: data.about.richText || ''
                 }
             }
 
-            if (data.transport?.departureLocations?.length) {
-                cleanedData.transport = {
-                    transportType: data.transport.transportType || undefined,
-                    returnTime: data.transport.returnTime || undefined,
-                    departureLocations: data.transport.departureLocations.filter(loc => loc.name && loc.address),
-                    includes: data.transport.includes?.filter(item => item.trim()) || undefined
+            // Salvar "packageIncludes" - sempre salvar, mesmo se vazio
+            cleanedData.packageIncludes = {
+                title: data.packageIncludes?.title || undefined,
+                items: (data.packageIncludes?.items || []).filter(item => item.trim())
+            }
+
+            // Salvar "transport" - sempre salvar, mesmo se vazio
+            cleanedData.transport = {
+                transportType: data.transport?.transportType || undefined,
+                returnTime: data.transport?.returnTime || undefined,
+                departureLocations: (data.transport?.departureLocations || []).filter(loc => loc.name && loc.address),
+                includes: (data.transport?.includes || []).filter(item => item.trim()).length > 0 
+                    ? (data.transport?.includes || []).filter(item => item.trim()) 
+                    : undefined
+            }
+
+            // Salvar "attractions" - sempre salvar, mesmo se vazio
+            cleanedData.attractions = {
+                title: data.attractions?.title || undefined,
+                groupedByDate: data.attractions?.groupedByDate || false,
+                items: (data.attractions?.items || []).filter(item => item.name)
+            }
+
+            // Salvar "pricing" - sempre salvar, mesmo se vazio
+            cleanedData.pricing = {
+                title: data.pricing?.title || undefined,
+                generalInfo: data.pricing?.generalInfo || undefined,
+                pixDiscount: data.pricing?.pixDiscount || undefined,
+                pricesByLocation: (data.pricing?.pricesByLocation || []).filter(price => price.locationName)
+            }
+
+            // Salvar "video" - sempre salvar, mesmo se vazio
+            if (data.video) {
+                cleanedData.video = {
+                    url: data.video.url || '',
+                    thumbnail: data.video.thumbnail || undefined,
+                    title: data.video.title || undefined,
+                    description: data.video.description || undefined
                 }
             }
 
-            if (data.attractions?.items?.length) {
-                cleanedData.attractions = {
-                    title: data.attractions.title || undefined,
-                    groupedByDate: data.attractions.groupedByDate || false,
-                    items: data.attractions.items.filter(item => item.name)
-                }
-            }
-
-            if (data.pricing?.pricesByLocation?.length) {
-                cleanedData.pricing = {
-                    title: data.pricing.title || undefined,
-                    generalInfo: data.pricing.generalInfo || undefined,
-                    pixDiscount: data.pricing.pixDiscount || undefined,
-                    pricesByLocation: data.pricing.pricesByLocation.filter(price => price.locationName)
-                }
-            }
-
-            if (data.video?.url) {
-                cleanedData.video = data.video
-            }
-
-            if (data.faq?.items?.length) {
-                cleanedData.faq = {
-                    title: data.faq.title || undefined,
-                    items: data.faq.items.filter(item => item.question && item.answer)
-                }
+            // Salvar "faq" - sempre salvar, mesmo se vazio
+            cleanedData.faq = {
+                title: data.faq?.title || undefined,
+                items: (data.faq?.items || []).filter(item => item.question && item.answer)
             }
 
             await eventDetailsService.upsert(id, cleanedData)
@@ -209,11 +222,13 @@ export default function EventDetailsPage() {
                     title={`Detalhes do Evento: ${eventName}`}
                     action={
                         <Button
-                            variant='outlined'
-                            startIcon={<i className='tabler-arrow-left' />}
-                            onClick={() => router.push(`/apps/events/view/${id}`)}
+                            type='submit'
+                            form='event-details-form'
+                            variant='contained'
+                            disabled={saving}
+                            startIcon={saving ? <CircularProgress size={20} /> : <i className='tabler-device-floppy' />}
                         >
-                            Voltar
+                            {saving ? 'Salvando...' : 'Salvar'}
                         </Button>
                     }
                 />
@@ -230,7 +245,7 @@ export default function EventDetailsPage() {
                         </Alert>
                     )}
 
-                    <form onSubmit={handleSubmit(onSubmit)}>
+                    <form id='event-details-form' onSubmit={handleSubmit(onSubmit)}>
                         <Grid container spacing={4}>
                             {/* Aba: Incluso no Pacote */}
                             <Grid size={12}>
@@ -934,26 +949,6 @@ export default function EventDetailsPage() {
                                 </Accordion>
                             </Grid>
 
-                            {/* Botões de Ação */}
-                            <Grid size={12}>
-                                <Box className='flex justify-end gap-3 mt-4'>
-                                    <Button
-                                        variant='outlined'
-                                        onClick={() => router.push(`/apps/events/view/${id}`)}
-                                        disabled={saving}
-                                    >
-                                        Cancelar
-                                    </Button>
-                                    <Button
-                                        type='submit'
-                                        variant='contained'
-                                        disabled={saving}
-                                        startIcon={saving ? <CircularProgress size={20} /> : <i className='tabler-check' />}
-                                    >
-                                        {saving ? 'Salvando...' : 'Salvar Detalhes'}
-                                    </Button>
-                                </Box>
-                            </Grid>
                         </Grid>
                     </form>
                 </CardContent>

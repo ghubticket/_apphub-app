@@ -226,12 +226,36 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
             }
         });
         
-        // Se não houver datas de transporte, usar a data padrão do evento
+        // Se não houver datas de transporte, usar a data padrão do evento (formatada)
         if (allDates.length === 0) {
-            return primaryTicket?.eventDateIso ||
+            const defaultDate = primaryTicket?.eventDateIso ||
                 primaryTicket?.eventDate ||
                 eventData?.date ||
                 null;
+            
+            if (!defaultDate) return null;
+            
+            // Se já estiver formatada (string com texto legível), retornar como está
+            if (typeof defaultDate === 'string' && !defaultDate.includes('T') && !defaultDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+                return defaultDate;
+            }
+            
+            // Se for ISO string ou formato YYYY-MM-DD, formatar
+            try {
+                const parsed = new Date(defaultDate);
+                if (!isNaN(parsed.getTime())) {
+                    // Usar UTC para evitar mudança de dia por timezone
+                    const day = parsed.getUTCDate();
+                    const month = parsed.getUTCMonth();
+                    const year = parsed.getUTCFullYear();
+                    const localDate = new Date(year, month, day);
+                    return formatDateForDisplay(localDate);
+                }
+            } catch {
+                // Se falhar, retornar como está
+            }
+            
+            return defaultDate;
         }
         
         // Ordenar datas e pegar a primeira e última
@@ -257,10 +281,34 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
             .sort((a, b) => a.getTime() - b.getTime());
         
         if (sortedDates.length === 0) {
-            return primaryTicket?.eventDateIso ||
+            const defaultDate = primaryTicket?.eventDateIso ||
                 primaryTicket?.eventDate ||
                 eventData?.date ||
                 null;
+            
+            if (!defaultDate) return null;
+            
+            // Se já estiver formatada (string com texto legível), retornar como está
+            if (typeof defaultDate === 'string' && !defaultDate.includes('T') && !defaultDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+                return defaultDate;
+            }
+            
+            // Se for ISO string ou formato YYYY-MM-DD, formatar
+            try {
+                const parsed = new Date(defaultDate);
+                if (!isNaN(parsed.getTime())) {
+                    // Usar UTC para evitar mudança de dia por timezone
+                    const day = parsed.getUTCDate();
+                    const month = parsed.getUTCMonth();
+                    const year = parsed.getUTCFullYear();
+                    const localDate = new Date(year, month, day);
+                    return formatDateForDisplay(localDate);
+                }
+            } catch {
+                // Se falhar, retornar como está
+            }
+            
+            return defaultDate;
         }
         
         const firstDate = sortedDates[0];

@@ -21,6 +21,12 @@ export interface TicketConfirmationData {
         qrCode: string; // Base64 data URL
         holderName?: string;
     }>;
+    // Informações de transporte (se aplicável)
+    transportInfo?: Array<{
+        date: string;
+        attraction: string;
+        departureLocation: string;
+    }>;
 }
 
 /**

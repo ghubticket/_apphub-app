@@ -95,7 +95,6 @@ const CreateEventPage = () => {
     const [coverFileError, setCoverFileError] = useState<string | null>(null)
     const [squareFileError, setSquareFileError] = useState<string | null>(null)
     const [date, setDate] = useState<Date | null>(null)
-    const [time, setTime] = useState<Date | null>(null)
     const [submitError, setSubmitError] = useState<string | null>(null)
     const [ufs, setUfs] = useState<UF[]>([])
     const [cities, setCities] = useState<City[]>([])
@@ -237,14 +236,6 @@ return
 
             form.append('date', dateStr)
 
-            // Enviar horário se fornecido
-            if (time) {
-                const hours = String(time.getHours()).padStart(2, '0')
-                const minutes = String(time.getMinutes()).padStart(2, '0')
-
-                form.append('time', `${hours}:${minutes}`)
-            }
-
             // Campos obrigatórios
             form.append('location', data.location.trim())
             form.append('address', data.address.trim())
@@ -298,19 +289,6 @@ return
                                     placeholderText='DD/MM/YYYY'
                                     dateFormat='dd/MM/yyyy'
                                     customInput={<CustomTextField fullWidth label='Data' placeholder='DD/MM/YYYY' />}
-                                />
-                            </Grid>
-                            <Grid size={{ xs: 12, sm: 6 }}>
-                                <AppReactDatepicker
-                                    selected={time ?? undefined}
-                                    onChange={(d: Date | null) => setTime(d)}
-                                    showTimeSelect
-                                    showTimeSelectOnly
-                                    timeIntervals={15}
-                                    timeCaption='Horário'
-                                    dateFormat='HH:mm'
-                                    placeholderText='HH:mm'
-                                    customInput={<CustomTextField fullWidth label='Horário' placeholder='HH:mm' />}
                                 />
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6 }}>

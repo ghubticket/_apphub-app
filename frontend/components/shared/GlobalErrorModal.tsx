@@ -98,11 +98,13 @@ export default function GlobalErrorModal() {
 
     return (
         <div
-            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 transition-all duration-300 ${entering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            className={`fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 transition-all duration-300 ${entering ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
             onClick={hideError}
         >
             <div
                 className={`relative w-full max-w-lg rounded-2xl bg-white shadow-2xl transition-all duration-300 ${activeClass}`}
+                style={{ margin: 'auto' }}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex flex-col items-center gap-6 p-8 text-center">

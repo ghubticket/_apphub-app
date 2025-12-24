@@ -87,7 +87,15 @@ interface EventDetailsTabsEditorProps {
     onDescriptionChange?: (html: string) => void
 }
 
-export default function EventDetailsTabsEditor({ eventId, isEditing = false, onSave, onCancel, descriptionEditor, descriptionHtml, onDescriptionChange }: EventDetailsTabsEditorProps) {
+export default function EventDetailsTabsEditor({ 
+    eventId, 
+    isEditing = false, 
+    onSave, 
+    onCancel, 
+    descriptionEditor, 
+    descriptionHtml, 
+    onDescriptionChange
+}: EventDetailsTabsEditorProps) {
     const router = useRouter()
     const params = useParams()
     const lang = params?.lang as string || 'en'
@@ -246,70 +254,94 @@ export default function EventDetailsTabsEditor({ eventId, isEditing = false, onS
             setError(null)
             setSuccess(false)
 
-            const cleanedData: any = {}
+            // PRIMEIRO: Buscar dados existentes para preservar arrays que não estão sendo editados aqui
+            let existingData: any = {}
+            try {
+                const existingResponse = await eventDetailsService.get(eventId)
+                if (existingResponse.success && existingResponse.data) {
+                    existingData = existingResponse.data
+                }
+            } catch (e) {
+                // Se não houver dados existentes, começar vazio
+                console.warn('Não foi possível carregar dados existentes:', e)
+            }
 
-            // Salvar descrição do evento (Sobre o Evento) no EventDetails
+            // Mesclar dados existentes com novos dados, preservando arrays
+            const cleanedData: any = {
+                // Preservar dados existentes primeiro
+                ...existingData
+            }
+
+            // Salvar descrição do evento (Sobre o Evento) - sempre salvar, mesmo se vazio
             if (descriptionEditor) {
                 const descriptionHtml = descriptionEditor.getHTML()
-                if (descriptionHtml && descriptionHtml.trim() !== '<p></p>') {
-                    cleanedData.about = {
-                        richText: descriptionHtml
-                    }
+                cleanedData.about = {
+                    ...(existingData.about || {}),
+                    richText: (descriptionHtml && descriptionHtml.trim() !== '<p></p>') ? descriptionHtml : ''
                 }
             }
 
-            // Salvar conteúdo dos editores de texto rico
+            // Salvar conteúdo dos editores de texto rico - sempre salvar, mesmo se vazio
+            // MAS preservar arrays existentes (items, departureLocations, etc.)
             if (packageIncludesEditor) {
                 const packageIncludesHtml = packageIncludesEditor.getHTML()
-                if (packageIncludesHtml && packageIncludesHtml.trim() !== '<p></p>') {
-                    cleanedData.packageIncludes = {
-                        richText: packageIncludesHtml
-                    }
+                cleanedData.packageIncludes = {
+                    ...(existingData.packageIncludes || {}),
+                    richText: (packageIncludesHtml && packageIncludesHtml.trim() !== '<p></p>') ? packageIncludesHtml : '',
+                    // Preservar items se existirem
+                    items: existingData.packageIncludes?.items || []
                 }
             }
 
-            // Salvar conteúdo do editor de transporte
+            // Salvar conteúdo do editor de transporte - sempre salvar, mesmo se vazio
+            // MAS preservar arrays existentes (departureLocations, includes, etc.)
             if (transportEditor) {
                 const transportHtml = transportEditor.getHTML()
-                if (transportHtml && transportHtml.trim() !== '<p></p>') {
-                    cleanedData.transport = {
-                        richText: transportHtml
-                    }
+                cleanedData.transport = {
+                    ...(existingData.transport || {}),
+                    richText: (transportHtml && transportHtml.trim() !== '<p></p>') ? transportHtml : '',
+                    // Preservar arrays se existirem
+                    departureLocations: existingData.transport?.departureLocations || [],
+                    includes: existingData.transport?.includes || []
                 }
             }
 
-            // Salvar conteúdo do editor de atrações
+            // Salvar conteúdo do editor de atrações - sempre salvar, mesmo se vazio
+            // MAS preservar arrays existentes (items, etc.)
             if (attractionsEditor) {
                 const attractionsHtml = attractionsEditor.getHTML()
-                if (attractionsHtml && attractionsHtml.trim() !== '<p></p>') {
-                    cleanedData.attractions = {
-                        richText: attractionsHtml
-                    }
+                cleanedData.attractions = {
+                    ...(existingData.attractions || {}),
+                    richText: (attractionsHtml && attractionsHtml.trim() !== '<p></p>') ? attractionsHtml : '',
+                    // Preservar arrays se existirem
+                    items: existingData.attractions?.items || []
                 }
             }
 
-            // Salvar conteúdo do editor de preços
+            // Salvar conteúdo do editor de preços - sempre salvar, mesmo se vazio
+            // MAS preservar arrays existentes (pricesByLocation, etc.)
             if (pricingEditor) {
                 const pricingHtml = pricingEditor.getHTML()
-                if (pricingHtml && pricingHtml.trim() !== '<p></p>') {
-                    cleanedData.pricing = {
-                        richText: pricingHtml
-                    }
+                cleanedData.pricing = {
+                    ...(existingData.pricing || {}),
+                    richText: (pricingHtml && pricingHtml.trim() !== '<p></p>') ? pricingHtml : '',
+                    // Preservar arrays se existirem
+                    pricesByLocation: existingData.pricing?.pricesByLocation || []
                 }
             }
 
-            // Salvar código embed do vídeo
-            if (data.video?.url) {
-                cleanedData.video = {
-                    url: data.video.url // Código iframe ou URL (campo url aceita ambos)
-                }
+            // Salvar código embed do vídeo - sempre salvar, mesmo se vazio
+            cleanedData.video = {
+                ...(existingData.video || {}),
+                url: data.video?.url || existingData.video?.url || ''
             }
 
-            // Salvar FAQ (sanfona)
-            if (data.faq?.items?.length) {
-                cleanedData.faq = {
-                    items: data.faq.items.filter(item => item.question && item.answer)
-                }
+            // Salvar FAQ (sanfona) - usar dados do formulário, mas preservar se não houver no formulário
+            cleanedData.faq = {
+                ...(existingData.faq || {}),
+                items: (data.faq?.items && data.faq.items.length > 0) 
+                    ? data.faq.items.filter(item => item.question && item.answer)
+                    : (existingData.faq?.items || [])
             }
 
             await eventDetailsService.upsert(eventId, cleanedData)
@@ -330,28 +362,62 @@ export default function EventDetailsTabsEditor({ eventId, isEditing = false, onS
                     faq: data.faq || { items: [] }
                 })
 
-                // Atualizar descrição do evento (Sobre o Evento) no editor após salvar
-                if (descriptionEditor) {
-                    const aboutRichText = data.about?.richText
-                    if (aboutRichText) {
-                        setTimeout(() => {
+                // Atualizar TODOS os editores após salvar
+                setTimeout(() => {
+                    // Atualizar descrição do evento (Sobre o Evento) no editor após salvar
+                    if (descriptionEditor) {
+                        const aboutRichText = (data.about as any)?.richText
+                        if (aboutRichText && aboutRichText.trim() !== '<p></p>') {
                             descriptionEditor.commands.setContent(aboutRichText)
-                        }, 200)
-                    } else {
-                        // Se não houver conteúdo, limpar o editor
-                        setTimeout(() => {
+                        } else {
                             descriptionEditor.commands.setContent('')
-                        }, 200)
+                        }
                     }
-                }
+                    
+                    // Atualizar editor de Incluso no Pacote
+                    if (packageIncludesEditor) {
+                        const packageIncludesRichText = (data.packageIncludes as any)?.richText
+                        if (packageIncludesRichText && packageIncludesRichText.trim() !== '<p></p>') {
+                            packageIncludesEditor.commands.setContent(packageIncludesRichText)
+                        } else {
+                            packageIncludesEditor.commands.setContent('')
+                        }
+                    }
+                    
+                    // Atualizar editor de Transporte
+                    if (transportEditor) {
+                        const transportRichText = (data.transport as any)?.richText
+                        if (transportRichText && transportRichText.trim() !== '<p></p>') {
+                            transportEditor.commands.setContent(transportRichText)
+                        } else {
+                            transportEditor.commands.setContent('')
+                        }
+                    }
+                    
+                    // Atualizar editor de Atrações
+                    if (attractionsEditor) {
+                        const attractionsRichText = (data.attractions as any)?.richText
+                        if (attractionsRichText && attractionsRichText.trim() !== '<p></p>') {
+                            attractionsEditor.commands.setContent(attractionsRichText)
+                        } else {
+                            attractionsEditor.commands.setContent('')
+                        }
+                    }
+                    
+                    // Atualizar editor de Preços
+                    if (pricingEditor) {
+                        const pricingRichText = (data.pricing as any)?.richText
+                        if (pricingRichText && pricingRichText.trim() !== '<p></p>') {
+                            pricingEditor.commands.setContent(pricingRichText)
+                        } else {
+                            pricingEditor.commands.setContent('')
+                        }
+                    }
+                }, 200)
             }
             
+            // NÃO sair do modo de edição automaticamente - deixar o usuário continuar editando se quiser
             onSave?.()
-            
-            // Sair do modo de edição após salvar
-            if (onCancel) {
-                onCancel()
-            }
         } catch (err: any) {
             setError(err.message || 'Erro ao salvar detalhes')
         } finally {
@@ -383,7 +449,21 @@ export default function EventDetailsTabsEditor({ eventId, isEditing = false, onS
 
     return (
         <Card>
-            <CardHeader title='Detalhes do Evento' />
+            <CardHeader 
+                title='Detalhes do Evento'
+                action={
+                    isEditing ? (
+                        <Button
+                            onClick={handleSubmit(onSubmit)}
+                            variant='contained'
+                            disabled={saving}
+                            startIcon={saving ? <CircularProgress size={20} /> : <i className='tabler-device-floppy' />}
+                        >
+                            {saving ? 'Salvando...' : 'Salvar'}
+                        </Button>
+                    ) : null
+                }
+            />
             <Divider />
             <Box>
                 <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -813,31 +893,6 @@ export default function EventDetailsTabsEditor({ eventId, isEditing = false, onS
                         </Box>
                     )}
 
-                    {isEditing && (
-                        <Box className='flex justify-end gap-3 mt-4'>
-                            <Button
-                                variant='outlined'
-                                onClick={() => {
-                                    if (onCancel) {
-                                        onCancel()
-                                    } else {
-                                        router.push(`/${lang}/apps/events/view/${eventId}`)
-                                    }
-                                }}
-                                disabled={saving}
-                            >
-                                Voltar
-                            </Button>
-                            <Button
-                                onClick={handleSubmit(onSubmit)}
-                                variant='contained'
-                                disabled={saving}
-                                startIcon={saving ? <CircularProgress size={20} /> : <i className='tabler-check' />}
-                            >
-                                {saving ? 'Salvando...' : 'Salvar Detalhes'}
-                            </Button>
-                        </Box>
-                    )}
                 </CardContent>
             </Box>
         </Card>

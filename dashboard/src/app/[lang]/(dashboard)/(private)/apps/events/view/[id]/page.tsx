@@ -312,7 +312,6 @@ const EventViewPage = () => {
     const [coverFileError, setCoverFileError] = useState<string | null>(null)
     const [squareFileError, setSquareFileError] = useState<string | null>(null)
     const [date, setDate] = useState<Date | null>(null)
-    const [time, setTime] = useState<Date | null>(null)
     const [submitError, setSubmitError] = useState<string | null>(null)
     const [ufs, setUfs] = useState<UF[]>([])
     const [cities, setCities] = useState<City[]>([])
@@ -435,13 +434,6 @@ const EventViewPage = () => {
                         setDate(eventDate)
                     }
 
-                    if (response.data.time) {
-                        const [hours, minutes] = response.data.time.split(':')
-                        const timeDate = new Date()
-
-                        timeDate.setHours(parseInt(hours), parseInt(minutes), 0, 0)
-                        setTime(timeDate)
-                    }
 
                     if (editor && response.data.description) {
                         editor.commands.setContent(response.data.description)
@@ -558,12 +550,6 @@ const EventViewPage = () => {
 
             form.append('date', dateStr)
 
-            if (time) {
-                const hours = String(time.getHours()).padStart(2, '0')
-                const minutes = String(time.getMinutes()).padStart(2, '0')
-
-                form.append('time', `${hours}:${minutes}`)
-            }
 
             form.append('location', data.location.trim())
             form.append('address', data.address.trim())
@@ -648,6 +634,75 @@ const EventViewPage = () => {
                                         )}
                                     />
                                 </Grid>
+                                
+                                {/* Campos de Upload de Imagem */}
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Typography variant='body2' className='mbe-2'>Imagem de Capa (PNG 1200x500) - Opcional</Typography>
+                                    <Button 
+                                        component='label' 
+                                        variant='outlined' 
+                                        fullWidth 
+                                        htmlFor='event-cover-image-edit' 
+                                        color={coverFileError ? 'error' : 'primary'}
+                                    >
+                                        {coverFile ? coverFile.name : event.coverImage ? 'Manter imagem atual' : 'Escolher ficheiro'}
+                                        <input
+                                            hidden
+                                            type='file'
+                                            accept='image/png'
+                                            onChange={e => {
+                                                const file = e.target.files?.[0] || null
+                                                setCoverFile(file)
+                                                setCoverFileError(null)
+                                                if (file) {
+                                                    const error = validateFile(file, 'cover')
+                                                    setCoverFileError(error)
+                                                }
+                                            }}
+                                            id='event-cover-image-edit'
+                                        />
+                                    </Button>
+                                    {coverFileError && (
+                                        <Typography variant='caption' color='error' className='mts-1 mbs-0'>{coverFileError}</Typography>
+                                    )}
+                                    {event.coverImage && !coverFile && (
+                                        <Typography variant='caption' color='text.secondary' className='mts-1 mbs-0'>Deixe em branco para manter a imagem atual</Typography>
+                                    )}
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Typography variant='body2' className='mbe-2'>Imagem Quadrada (PNG 300x300) - Opcional</Typography>
+                                    <Button 
+                                        component='label' 
+                                        variant='outlined' 
+                                        fullWidth 
+                                        htmlFor='event-square-image-edit' 
+                                        color={squareFileError ? 'error' : 'primary'}
+                                    >
+                                        {squareFile ? squareFile.name : event.squareImage ? 'Manter imagem atual' : 'Escolher ficheiro'}
+                                        <input
+                                            hidden
+                                            type='file'
+                                            accept='image/png'
+                                            onChange={e => {
+                                                const file = e.target.files?.[0] || null
+                                                setSquareFile(file)
+                                                setSquareFileError(null)
+                                                if (file) {
+                                                    const error = validateFile(file, 'square')
+                                                    setSquareFileError(error)
+                                                }
+                                            }}
+                                            id='event-square-image-edit'
+                                        />
+                                    </Button>
+                                    {squareFileError && (
+                                        <Typography variant='caption' color='error' className='mts-1 mbs-0'>{squareFileError}</Typography>
+                                    )}
+                                    {event.squareImage && !squareFile && (
+                                        <Typography variant='caption' color='text.secondary' className='mts-1 mbs-0'>Deixe em branco para manter a imagem atual</Typography>
+                                    )}
+                                </Grid>
+                                
                                 <Grid size={{ xs: 12, sm: 6 }}>
                                     <AppReactDatepicker
                                         selected={date ?? undefined}
@@ -658,21 +713,8 @@ const EventViewPage = () => {
                                         dateFormat='dd/MM/yyyy'
                                         customInput={<CustomTextField fullWidth label='Data' placeholder='DD/MM/YYYY' />}
                                     />
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <AppReactDatepicker
-                                        selected={time ?? undefined}
-                                        onChange={(d: Date | null) => setTime(d)}
-                                        showTimeSelect
-                                        showTimeSelectOnly
-                                        timeIntervals={15}
-                                        timeCaption='Horário'
-                                        dateFormat='HH:mm'
-                                        placeholderText='HH:mm'
-                                        customInput={<CustomTextField fullWidth label='Horário' placeholder='HH:mm' />}
-                                    />
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                     <Controller
                                         name='location'
                                         control={control}
@@ -821,68 +863,6 @@ const EventViewPage = () => {
                                 }}
                             />
 
-                            <Grid container spacing={6} className='mbe-6 mbs-6'>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <Typography variant='body2' className='mbe-2'>Imagem de Capa (PNG 1200x500) - Opcional</Typography>
-                                    <Button component='label' variant='outlined' fullWidth htmlFor='event-cover-image-edit' color={coverFileError ? 'error' : 'primary'}>
-                                        {coverFile ? coverFile.name : event.coverImage ? 'Manter imagem atual' : 'Escolher ficheiro'}
-                                        <input
-                                            hidden
-                                            type='file'
-                                            accept='image/png'
-                                            onChange={e => {
-                                                const file = e.target.files?.[0] || null
-
-                                                setCoverFile(file)
-                                                setCoverFileError(null)
-
-                                                if (file) {
-                                                    const error = validateFile(file, 'cover')
-
-                                                    setCoverFileError(error)
-                                                }
-                                            }}
-                                            id='event-cover-image-edit'
-                                        />
-                                    </Button>
-                                    {coverFileError && (
-                                        <Typography variant='caption' color='error' className='mts-1 mbs-0'>{coverFileError}</Typography>
-                                    )}
-                                    {event.coverImage && !coverFile && (
-                                        <Typography variant='caption' color='text.secondary' className='mts-1 mbs-0'>Deixe em branco para manter a imagem atual</Typography>
-                                    )}
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <Typography variant='body2' className='mbe-2'>Imagem Quadrada (PNG 300x300) - Opcional</Typography>
-                                    <Button component='label' variant='outlined' fullWidth htmlFor='event-square-image-edit' color={squareFileError ? 'error' : 'primary'}>
-                                        {squareFile ? squareFile.name : event.squareImage ? 'Manter imagem atual' : 'Escolher ficheiro'}
-                                        <input
-                                            hidden
-                                            type='file'
-                                            accept='image/png'
-                                            onChange={e => {
-                                                const file = e.target.files?.[0] || null
-
-                                                setSquareFile(file)
-                                                setSquareFileError(null)
-
-                                                if (file) {
-                                                    const error = validateFile(file, 'square')
-
-                                                    setSquareFileError(error)
-                                                }
-                                            }}
-                                            id='event-square-image-edit'
-                                        />
-                                    </Button>
-                                    {squareFileError && (
-                                        <Typography variant='caption' color='error' className='mts-1 mbs-0'>{squareFileError}</Typography>
-                                    )}
-                                    {event.squareImage && !squareFile && (
-                                        <Typography variant='caption' color='text.secondary' className='mts-1 mbs-0'>Deixe em branco para manter a imagem atual</Typography>
-                                    )}
-                                </Grid>
-                            </Grid>
 
                             {submitError && (
                                 <Box className='mb-4'>
@@ -890,7 +870,7 @@ const EventViewPage = () => {
                                 </Box>
                             )}
 
-                            <Box className='flex gap-4'>
+                            <Box className='flex gap-4 mt-6'>
                                 <Button type='submit' variant='contained' disabled={isSubmitting} startIcon={<i className='tabler-device-floppy' />}>
                                     {isSubmitting ? 'Salvando...' : 'Salvar'}
                                 </Button>
@@ -1131,12 +1111,6 @@ const EventViewPage = () => {
                                         <Box>
                                             <Typography variant='body2' color='text.secondary' className='mb-1 font-bold'>Data</Typography>
                                             <Typography>{new Date(event.date).toLocaleDateString('pt-BR')}</Typography>
-                                        </Box>
-                                    )}
-                                    {event.time && (
-                                        <Box>
-                                            <Typography variant='body2' color='text.secondary' className='mb-1 font-bold'>Horário</Typography>
-                                            <Typography>{event.time}</Typography>
                                         </Box>
                                     )}
                                     {event.location && (

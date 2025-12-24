@@ -135,6 +135,25 @@ export const createPixPayment = async (req: Request, res: Response) => {
                 });
             }
 
+            // Extrair transportOption do metadata dos cartItems (se houver)
+            let transportOptionMetadata: any = null;
+            for (const item of cartItems) {
+                if (item.metadata?.transportOption) {
+                    try {
+                        const transportOption = typeof item.metadata.transportOption === 'string'
+                            ? JSON.parse(item.metadata.transportOption)
+                            : item.metadata.transportOption;
+                        
+                        if (transportOption.date && transportOption.attraction && transportOption.departureLocation) {
+                            transportOptionMetadata = transportOption;
+                            break; // Pegar o primeiro transportOption encontrado
+                        }
+                    } catch (e) {
+                        // Ignorar erro de parsing
+                    }
+                }
+            }
+
             // Criar pedido real chamando o endpoint /orders internamente
             // Usar a mesma lógica do createOrder mas de forma simplificada
             try {
@@ -154,6 +173,8 @@ export const createPixPayment = async (req: Request, res: Response) => {
                             ? { promoterCode: promoterCode.toUpperCase().trim() }
                             : {}),
                         allowReuse: false, // CRÍTICO: Não reutilizar pedidos existentes ao criar a partir de pedido fake
+                        // Passar transportOption para ser salvo no metadata do Order
+                        transportOption: transportOptionMetadata,
                     },
                     // Garantir que socket existe para evitar erro de remoteAddress
                     socket: req.socket || { remoteAddress: req.ip || 'unknown' },
@@ -207,9 +228,16 @@ export const createPixPayment = async (req: Request, res: Response) => {
                 const createdOrder = orderResponseData.data.order;
                 createdOrderId = createdOrder._id;
 
+                // Se há transportOption, atualizar o metadata do Order
+                if (transportOptionMetadata) {
+                    await Order.findByIdAndUpdate(createdOrderId, {
+                        $set: { 'metadata.transportOption': transportOptionMetadata }
+                    });
+                }
+
                 order = await Order.findById(createdOrderId)
                     .select(
-                        'status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt'
+                        'status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt metadata'
                     )
                     .populate('event', 'name description')
                     .populate('tickets', 'ticketType')
@@ -622,6 +650,25 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 });
             }
 
+            // Extrair transportOption do metadata dos cartItems (se houver)
+            let transportOptionMetadata: any = null;
+            for (const item of cartItems) {
+                if (item.metadata?.transportOption) {
+                    try {
+                        const transportOption = typeof item.metadata.transportOption === 'string'
+                            ? JSON.parse(item.metadata.transportOption)
+                            : item.metadata.transportOption;
+                        
+                        if (transportOption.date && transportOption.attraction && transportOption.departureLocation) {
+                            transportOptionMetadata = transportOption;
+                            break; // Pegar o primeiro transportOption encontrado
+                        }
+                    } catch (e) {
+                        // Ignorar erro de parsing
+                    }
+                }
+            }
+
             // Criar pedido real chamando o endpoint /orders internamente
             try {
                 const createOrderReq = {
@@ -641,6 +688,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
                             ? { promoterCode: promoterCode.toUpperCase().trim() }
                             : {}),
                         allowReuse: false, // CRÍTICO: Não reutilizar pedidos existentes ao criar a partir de pedido fake
+                        // Passar transportOption para ser salvo no metadata do Order
+                        transportOption: transportOptionMetadata,
                     },
                     // Garantir que socket existe para evitar erro de remoteAddress
                     socket: req.socket || { remoteAddress: req.ip || 'unknown' },
@@ -694,9 +743,16 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 const createdOrder = orderResponseData.data.order;
                 createdOrderId = createdOrder._id;
 
+                // Se há transportOption, atualizar o metadata do Order
+                if (transportOptionMetadata) {
+                    await Order.findByIdAndUpdate(createdOrderId, {
+                        $set: { 'metadata.transportOption': transportOptionMetadata }
+                    });
+                }
+
                 order = await Order.findById(createdOrderId)
                     .select(
-                        'status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt cardAttempts'
+                        'status paymentId paymentStatus customer customerData event tickets orderNumber totalAmount expiresAt cardAttempts metadata'
                     )
                     .populate('event', 'name description')
                     .populate('tickets', 'ticketType')
@@ -1285,7 +1341,7 @@ async function sendPaymentApprovedEmail(order: any) {
             .populate('event', 'name date location address')
             .populate('tickets', 'code qrCode ticketType holder')
             .populate('customer', 'name email')
-            .populate('tickets.ticketType', 'name')
+            .populate('tickets.ticketType', 'name isTransport transportOptions')
             .lean();
 
         if (!populatedOrder || !populatedOrder.customer) {return;
@@ -1299,6 +1355,68 @@ async function sendPaymentApprovedEmail(order: any) {
         const ticketsWithQR = tickets.filter((t) => t.qrCode);
 
         if (ticketsWithQR.length === 0) {return;
+        }
+
+        // Verificar se há tickets de transporte e coletar informações
+        const transportTickets = ticketsWithQR.filter((t) => {
+            const ticketType = t.ticketType as any;
+            return ticketType?.isTransport === true;
+        });
+
+        // Coletar informações de transporte dos tickets
+        let transportInfo: Array<{
+            date: string;
+            attraction: string;
+            departureLocation: string;
+        }> = [];
+
+        if (transportTickets.length > 0) {
+            // Buscar informações de transporte
+            // Primeiro, tentar buscar do metadata do Order (transportOption selecionado pelo usuário)
+            const orderDoc = await Order.findById(order._id).select('metadata').lean();
+            const orderMetadata = (orderDoc as any)?.metadata || {};
+            
+            let transportDataFromMetadata: { date: string; attraction: string; departureLocation: string } | null = null;
+            
+            if (orderMetadata.transportOption) {
+                try {
+                    const transportOption = typeof orderMetadata.transportOption === 'string'
+                        ? JSON.parse(orderMetadata.transportOption)
+                        : orderMetadata.transportOption;
+                    
+                    if (transportOption.date && transportOption.attraction && transportOption.departureLocation) {
+                        transportDataFromMetadata = {
+                            date: transportOption.date,
+                            attraction: transportOption.attraction,
+                            departureLocation: transportOption.departureLocation
+                        };
+                    }
+                } catch (e) {
+                    // Ignorar erro de parsing
+                }
+            }
+            
+            // Se encontrou no metadata, usar. Senão, buscar do ticketType (primeira opção disponível)
+            if (transportDataFromMetadata) {
+                transportInfo.push(transportDataFromMetadata);
+            } else {
+                for (const ticket of transportTickets) {
+                    const ticketType = ticket.ticketType as any;
+                    
+                    // Buscar do ticketType (primeira opção disponível)
+                    if (ticketType?.transportOptions && ticketType.transportOptions.length > 0) {
+                        // Pegar a primeira opção disponível
+                        const firstOption = ticketType.transportOptions[0];
+                        if (firstOption && firstOption.date && firstOption.attraction) {
+                            transportInfo.push({
+                                date: firstOption.date || '',
+                                attraction: firstOption.attraction || '',
+                                departureLocation: firstOption.departureLocations?.[0] || 'A confirmar'
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         // Gerar PDF com QR codes
@@ -1352,6 +1470,8 @@ async function sendPaymentApprovedEmail(order: any) {
                 ticketType: ticketsWithQR[0]?.ticketType?.name || 'Ingresso',
                 downloadLink: `${frontendUrl}/dashboard`,
                 qrCodes: qrCodesForEmail,
+                // Incluir informações de transporte se houver tickets de transporte
+                transportInfo: transportInfo.length > 0 ? transportInfo : undefined,
             },
             [
                 {
