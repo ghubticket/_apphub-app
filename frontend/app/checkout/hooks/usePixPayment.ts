@@ -377,6 +377,22 @@ export function usePixPayment(
                 const realOrderId = paymentResult.createdOrderId || orderId;
                 const finalOrderId = realOrderId || orderId;
                 
+                // Criar pacotes de transporte se houver itens de transporte no carrinho
+                if (realOrderId && realOrderId !== orderId) {
+                    try {
+                        const { createTransportPackagesForOrder } = await import('../utils/transportPackageHelper');
+                        const { loadCartItems } = await import('@/lib/cart');
+                        const cartItems = loadCartItems();
+                        const currentCustomerData = customerDataRef.current || customerData;
+                        if (currentCustomerData) {
+                            await createTransportPackagesForOrder(realOrderId, cartItems, currentCustomerData);
+                        }
+                    } catch (transportErr) {
+                        // Não bloquear fluxo se houver erro ao criar pacotes
+                        console.error('[usePixPayment] Erro ao criar pacotes de transporte:', transportErr);
+                    }
+                }
+                
                 if (realOrderId !== orderId && realOrderId) {
                     // CRÍTICO: Atualizar orderIdRef ANTES de iniciar polling para evitar que polling pare
                     orderIdRef.current = realOrderId;

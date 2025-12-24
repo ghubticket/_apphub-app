@@ -7,6 +7,7 @@ import { addCartItem } from '@/lib/cart';
 import type { TicketProduct } from '@/types/ticket';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
+import CustomSelect from '@/components/shared/CustomSelect';
 
 type EventSelectionSummaryProps = {
     tickets?: TicketProduct[];
@@ -25,18 +26,23 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
     const [hasVipTickets, setHasVipTickets] = useState<Record<string, boolean>>({});
     const [isCheckingVipTickets, setIsCheckingVipTickets] = useState(true); // Estado para controlar verificação de VIP
     const [expandedTooltips, setExpandedTooltips] = useState<Record<string, boolean>>({}); // Estado para controlar tooltips expandidos no mobile
+    const [selectedTransportOptions, setSelectedTransportOptions] = useState<Record<string, {
+        date: string;
+        attraction: string;
+        departureLocation: string;
+    }>>({}); // Opção de transporte selecionada por ticket (data + atração + local)
 
     // Ler código de desconto do sessionStorage ou da URL
     useEffect(() => {
         if (typeof window === 'undefined' || !eventId) return;
-        
+
         // Primeiro, tentar ler da URL (mais recente)
         const urlCode = searchParams.get('cd');
         if (urlCode) {
             setAppliedPromoterCode(urlCode.toUpperCase().trim());
             return;
         }
-        
+
         // Se não houver na URL, tentar ler do sessionStorage
         const storageKey = `promoter_code_${eventId}`;
         const savedCode = window.sessionStorage.getItem(storageKey);
@@ -50,7 +56,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
         const checkVipTickets = async () => {
             // CRÍTICO: Marcar como verificando ANTES de qualquer coisa
             setIsCheckingVipTickets(true);
-            
+
             if (!isReady || !isAuthenticated || !user || !eventId || tickets.length === 0) {
                 // Se não está autenticado, limpar estado e marcar como verificado
                 if (!isReady || !isAuthenticated) {
@@ -76,27 +82,27 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
 
                     // Contar quantos tickets VIP deste tipo o usuário já tem
                     let vipCount = 0;
-                    
+
                     orders.forEach((order: any) => {
                         // Verificar se é pedido VIP pago
                         if (order.status !== 'paid' || order.paymentMethod !== 'vip_free') {
                             return;
                         }
-                        
+
                         // Verificar se é do mesmo evento
                         const orderEventId = String(order.event?._id || order.event || '');
                         const ticketEventId = String(ticket.eventId || '');
                         if (orderEventId !== ticketEventId) {
                             return;
                         }
-                        
+
                         // Contar tickets VIP confirmados/usados deste tipo
                         const orderTickets = order.tickets || [];
                         orderTickets.forEach((t: any) => {
                             const tTicketTypeId = String(t.ticketType?._id || t.ticketType || t.ticketTypeId || '');
                             const ticketTypeIdStr = String(ticket.ticketTypeId || '');
-                            
-                            if (tTicketTypeId === ticketTypeIdStr && 
+
+                            if (tTicketTypeId === ticketTypeIdStr &&
                                 (t.status === 'confirmed' || t.status === 'used')) {
                                 vipCount++;
                             }
@@ -224,7 +230,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                 };
 
                 const response = await api.post('/orders', orderPayload);
-                
+
                 // CRÍTICO: Verificar se a resposta é de sucesso
                 if (!response.data?.success) {
                     throw new Error(response.data?.message || 'Erro ao criar pedido');
@@ -249,10 +255,10 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                 const status = error?.response?.status;
                 const errorMessage = error?.response?.data?.message || '';
                 const errorErrors = error?.response?.data?.errors || [];
-                
+
                 // Verificar se é erro de limite excedido ou VIP já solicitado
                 const isLimitError = status === 400 && (
-                    errorMessage.includes('Limite') || 
+                    errorMessage.includes('Limite') ||
                     errorMessage.includes('VIP') ||
                     errorMessage.includes('cortesia') ||
                     errorErrors.some((e: string) => e.includes('Limite') || e.includes('VIP') || e.includes('cortesia'))
@@ -308,6 +314,8 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                 const quantity = getQuantityForTicket(ticket);
 
                 if (quantity > 0 && !ticket.isVip) {
+                    // Validação já feita via isTransportValid - não precisa de alert
+
                     const itemId = ticket.ticketTypeId ?? ticket.id;
                     const maxAllowed = resolveMaxAllowed(ticket);
 
@@ -333,6 +341,19 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                             allowInstallments: ticket.allowInstallments ?? false,
                             minInstallments: ticket.minInstallments ?? null,
                             maxInstallments: ticket.maxInstallments ?? null,
+                            isTransport: ticket.isTransport ?? false,
+                            // Serializar transportOption como JSON string para metadata
+                            ...(ticket.isTransport && selectedTransportOptions[ticket.id] ? {
+                                transportOption: JSON.stringify({
+                                    date: selectedTransportOptions[ticket.id].date,
+                                    attraction: selectedTransportOptions[ticket.id].attraction,
+                                    departureLocation: selectedTransportOptions[ticket.id].departureLocation
+                                })
+                            } : {}),
+                            // Compatibilidade: manter departureLocation para estrutura antiga
+                            departureLocation: ticket.isTransport && !ticket.transportOptions && selectedTransportOptions[ticket.id]?.departureLocation
+                                ? selectedTransportOptions[ticket.id].departureLocation
+                                : undefined,
                         },
                     });
                 }
@@ -343,9 +364,34 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
         } finally {
             setIsProcessing(false);
         }
-    }, [tickets, getQuantityForTicket, resolveMaxAllowed, router, isProcessing]);
+    }, [tickets, getQuantityForTicket, resolveMaxAllowed, router, isProcessing, selectedTransportOptions]);
 
     const hasSelectedTickets = totalTickets > 0;
+
+    // Verificar se todos os tickets de transporte têm data/atração e local selecionados
+    const isTransportValid = useMemo(() => {
+        for (const ticket of tickets) {
+            const quantity = getQuantityForTicket(ticket);
+            if (quantity > 0 && ticket.isTransport) {
+                const selected = selectedTransportOptions[ticket.id];
+                if (ticket.transportOptions && ticket.transportOptions.length > 0) {
+                    // Nova estrutura: precisa de data, atração e local
+                    if (!selected?.date || !selected?.attraction || !selected?.departureLocation) {
+                        return false;
+                    }
+                } else if (ticket.departureLocationId) {
+                    // Estrutura antiga: só precisa de local
+                    if (!selected?.departureLocation) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }, [tickets, getQuantityForTicket, selectedTransportOptions]);
+
+    // Botão só habilitado se tiver tickets selecionados E se todos os transportes estiverem válidos
+    const canProceed = hasSelectedTickets && isTransportValid;
 
     return (
         <aside className="rounded-3xl border border-[#ded7ca] bg-white/95 p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
@@ -381,94 +427,207 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                         const availableStock = ticket.stock ?? undefined;
 
                         const isTooltipExpanded = expandedTooltips[ticket.id] || false;
-                        
+
                         return (
                             <div
                                 key={ticket.id}
                                 className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-3"
                             >
-                                <div className="flex flex-col md:flex-row justify-between gap-3">
-                                    <div className='flex gap-3'>
-                                        {/* Tooltip com informações do ingresso */}
-                                        <div className="relative inline-flex items-center group mt-0.5 mb-0.5">
-                                            <HiOutlineInformationCircle 
-                                                className="text-[1rem] text-[#a38f78] cursor-pointer md:cursor-help hover:text-[#1a1a1d] transition-colors"
-                                                onClick={(e: any) => {
-                                                    e.stopPropagation();
-                                                    setExpandedTooltips((prev) => ({
-                                                        ...prev,
-                                                        [ticket.id]: !prev[ticket.id],
-                                                    }));
-                                                }}
-                                            />
-                                            <div className="absolute top-full left-0 mt-1 hidden md:group-hover:block z-50 pointer-events-none">
-                                                <div className="bg-[#1a1a1d] text-white text-[0.7rem] rounded-lg px-3 py-2 shadow-xl min-w-[300px] max-w-[400px] whitespace-normal">
-                                                    <div className="space-y-1.5">
-                                                        {ticket.description && (
-                                                            <p className="font-medium leading-snug">{ticket.description}</p>
-                                                        )}
-                                                        {availableStock !== undefined && (
-                                                            <p className="text-[#e5e5e5] text-[0.65rem]">
-                                                                Disponível: {availableStock} {availableStock === 1 ? 'ingresso' : 'ingressos'}
-                                                            </p>
-                                                        )}
-                                                        {maxAllowed !== undefined && (
-                                                            <p className="text-[#e5e5e5] text-[0.65rem]">
-                                                                Máximo por pedido: {maxAllowed}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    {/* Seta do tooltip */}
-                                                    <div className="absolute bottom-full left-3 -mb-1">
-                                                        <div className="border-4 border-transparent border-b-[#1a1a1d]"></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
+                                <div className="flex flex-col gap-3">
+                                    {/* Cabeçalho: Nome e Valor */}
+                                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                                         <div className="flex-1 min-w-0">
                                             <p className="text-[1rem] font-semibold text-[#1a1a1d] truncate">
                                                 {ticket.name}
                                             </p>
-
-                                            <p className="text-[0.85rem]  text-[#1a1a1d]">
+                                            <p className="text-[0.85rem] text-[#1a1a1d] mt-1">
                                                 Valor Unitario: {currencyFormatter.format(ticket.price)}
                                             </p>
-
                                         </div>
-                                    </div>
 
-                                    {/* Seletor de quantidade - apenas se NÃO for VIP ou se NÃO tiver VIP já */}
-                                    {!ticket.isVip || !hasVipTickets[ticket.id] ? (
-                                        <div className='flex gap-2 items-center'>
-                                            <div className="flex items-center rounded-[100rem] bg-white px-[0.8rem] py-[0.5rem]">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => updateQuantity(ticket, -1)}
-                                                    disabled={quantity <= 0}
-                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
-                                                >
-                                                    <HiOutlineMinusSmall className="text-sm" />
-                                                </button>
-                                                <span className="min-w-[24px] text-center text-[0.75rem] font-semibold text-[#1a1a1d]">
-                                                    {quantity}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => updateQuantity(ticket, 1)}
-                                                    disabled={isSoldOut || maxReached}
-                                                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
-                                                >
-                                                    <HiOutlinePlusSmall className="text-sm" />
-                                                </button>
+                                        {/* Tooltip e Quantidade - lado direito no desktop, abaixo no mobile */}
+                                        {(!ticket.isVip || !hasVipTickets[ticket.id]) && (
+                                            <div className='flex items-center gap-2 flex-shrink-0 md:flex-shrink-0'>
+                                                {/* Tooltip com informações do ingresso */}
+                                                <div className="relative inline-flex items-center group">
+                                                    <HiOutlineInformationCircle
+                                                        className="text-[1rem] text-[#a38f78] cursor-pointer md:cursor-help hover:text-[#1a1a1d] transition-colors"
+                                                        onClick={(e: any) => {
+                                                            e.stopPropagation();
+                                                            setExpandedTooltips((prev) => ({
+                                                                ...prev,
+                                                                [ticket.id]: !prev[ticket.id],
+                                                            }));
+                                                        }}
+                                                    />
+                                                    {/* Tooltip para desktop (hover) */}
+                                                    <div className="absolute bottom-full right-0 mb-2 hidden md:group-hover:block z-50 pointer-events-none">
+                                                        <div className="bg-[#1a1a1d] text-white text-[0.7rem] rounded-lg px-3 py-2 shadow-xl min-w-[300px] max-w-[400px] whitespace-normal">
+                                                            <div className="space-y-1.5">
+                                                                {ticket.description && (
+                                                                    <p className="font-medium leading-snug">{ticket.description}</p>
+                                                                )}
+                                                                {availableStock !== undefined && (
+                                                                    <p className="text-[#e5e5e5] text-[0.65rem]">
+                                                                        Disponível: {availableStock} {availableStock === 1 ? 'ingresso' : 'ingressos'}
+                                                                    </p>
+                                                                )}
+                                                                {maxAllowed !== undefined && (
+                                                                    <p className="text-[#e5e5e5] text-[0.65rem]">
+                                                                        Máximo por pedido: {maxAllowed}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            {/* Seta do tooltip apontando para baixo */}
+                                                            <div className="absolute top-full right-3 -mt-1">
+                                                                <div className="border-4 border-transparent border-t-[#1a1a1d]"></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {/* Tooltip expandido para mobile (quando clicado) */}
+                                                    {isTooltipExpanded && (
+                                                        <div className="absolute top-full left-0 mt-2 md:hidden z-50 w-[calc(100vw-3rem)] max-w-[400px]">
+                                                            <div className="bg-[#1a1a1d] text-white text-[0.7rem] rounded-lg px-3 py-2 shadow-xl whitespace-normal">
+                                                                <div className="space-y-1.5">
+                                                                    {ticket.description && (
+                                                                        <p className="font-medium leading-snug">{ticket.description}</p>
+                                                                    )}
+                                                                    {availableStock !== undefined && (
+                                                                        <p className="text-[#e5e5e5] text-[0.65rem]">
+                                                                            Disponível: {availableStock} {availableStock === 1 ? 'ingresso' : 'ingressos'}
+                                                                        </p>
+                                                                    )}
+                                                                    {maxAllowed !== undefined && (
+                                                                        <p className="text-[#e5e5e5] text-[0.65rem]">
+                                                                            Máximo por pedido: {maxAllowed}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Seletor de quantidade */}
+                                                <div className="flex items-center rounded-[100rem] bg-white px-[0.8rem] py-[0.5rem]">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateQuantity(ticket, -1)}
+                                                        disabled={quantity <= 0}
+                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    >
+                                                        <HiOutlineMinusSmall className="text-sm" />
+                                                    </button>
+                                                    <span className="min-w-[24px] text-center text-[0.75rem] font-semibold text-[#1a1a1d]">
+                                                        {quantity}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateQuantity(ticket, 1)}
+                                                        disabled={isSoldOut || maxReached}
+                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    >
+                                                        <HiOutlinePlusSmall className="text-sm" />
+                                                    </button>
+                                                </div>
                                             </div>
+                                        )}
+
+                                    </div>
+                                    {/* Seletor de Data/Atração e Local de Embarque para tickets de transporte */}
+                                    {ticket.isTransport && (
+                                        <div className="space-y-2 border-t border-[#e2ddd1] pt-3">
+                                            {/* Usar transportOptions se disponível, senão usar departureLocationId (compatibilidade) */}
+                                            {ticket.transportOptions && ticket.transportOptions.length > 0 ? (
+                                                <>
+                                                    <CustomSelect
+                                                        label="Data e Atração"
+                                                        value={selectedTransportOptions[ticket.id]?.date ? `${selectedTransportOptions[ticket.id].date}|${selectedTransportOptions[ticket.id].attraction}` : ''}
+                                                        onChange={(value) => {
+                                                            const [date, attraction] = value.split('|')
+                                                            setSelectedTransportOptions(prev => ({
+                                                                ...prev,
+                                                                [ticket.id]: {
+                                                                    date: date || '',
+                                                                    attraction: attraction || '',
+                                                                    departureLocation: prev[ticket.id]?.departureLocation || ''
+                                                                }
+                                                            }));
+                                                        }}
+                                                        options={[
+                                                            { value: '', label: 'Selecione a data e atração' },
+                                                            ...ticket.transportOptions.map((opt, idx) => ({
+                                                                value: `${opt.date}|${opt.attraction}`,
+                                                                label: `${opt.date} - ${opt.attraction}`
+                                                            }))
+                                                        ]}
+                                                        placeholder="Selecione a data e atração"
+                                                        required
+                                                    />
+                                                    {selectedTransportOptions[ticket.id]?.date && (
+                                                        <CustomSelect
+                                                            label="Local de Embarque"
+                                                            value={selectedTransportOptions[ticket.id]?.departureLocation || ''}
+                                                            onChange={(value) => {
+                                                                setSelectedTransportOptions(prev => ({
+                                                                    ...prev,
+                                                                    [ticket.id]: {
+                                                                        ...prev[ticket.id],
+                                                                        departureLocation: value
+                                                                    }
+                                                                }));
+                                                            }}
+                                                            options={[
+                                                                { value: '', label: 'Selecione o local de embarque' },
+                                                                ...(ticket.transportOptions
+                                                                    .find(opt => opt.date === selectedTransportOptions[ticket.id]?.date && opt.attraction === selectedTransportOptions[ticket.id]?.attraction)
+                                                                    ?.departureLocations.map((location, idx) => ({
+                                                                        value: location,
+                                                                        label: location
+                                                                    })) || [])
+                                                            ]}
+                                                            placeholder="Selecione o local de embarque"
+                                                            required
+                                                            error={quantity > 0 && !selectedTransportOptions[ticket.id]?.departureLocation}
+                                                            errorMessage={quantity > 0 && !selectedTransportOptions[ticket.id]?.departureLocation ? 'Selecione um local de embarque' : undefined}
+                                                        />
+                                                    )}
+                                                </>
+                                            ) : ticket.departureLocationId ? (
+                                                // Compatibilidade: usar departureLocationId se transportOptions não estiver disponível
+                                                <CustomSelect
+                                                    label="Local de Embarque"
+                                                    value={selectedTransportOptions[ticket.id]?.departureLocation || ''}
+                                                    onChange={(value) => {
+                                                        setSelectedTransportOptions(prev => ({
+                                                            ...prev,
+                                                            [ticket.id]: {
+                                                                date: '',
+                                                                attraction: '',
+                                                                departureLocation: value
+                                                            }
+                                                        }));
+                                                    }}
+                                                    options={[
+                                                        { value: '', label: 'Selecione o local de embarque' },
+                                                        ...ticket.departureLocationId.split(', ').map((location, idx) => ({
+                                                            value: location.trim(),
+                                                            label: location.trim()
+                                                        }))
+                                                    ]}
+                                                    placeholder="Selecione o local de embarque"
+                                                    required
+                                                    error={quantity > 0 && !selectedTransportOptions[ticket.id]?.departureLocation}
+                                                    errorMessage={quantity > 0 && !selectedTransportOptions[ticket.id]?.departureLocation ? 'Selecione um local de embarque' : undefined}
+                                                />
+                                            ) : null}
                                         </div>
-                                    ) : null}
+                                    )}
                                 </div>
-                                
+
                                 {/* Tooltip mobile - só aparece quando clicado no ícone, expandido em 100% */}
                                 {isTooltipExpanded && (
-                                    <div 
+                                    <div
                                         className="mt-3 md:hidden cursor-pointer -mx-4"
                                         onClick={() => {
                                             setExpandedTooltips((prev) => ({
@@ -496,7 +655,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                         </div>
                                     </div>
                                 )}
-                                
+
                                 {/* Alerta VIP com limite por CPF */}
                                 {ticket.isVip && ticket.maxPerCPF && !hasVipTickets[ticket.id] && (
                                     <div className="mt-3 rounded-lg bg-[#f97316]/10 border border-[#f97316]/30 px-3 py-2.5">
@@ -505,14 +664,14 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                         </p>
                                     </div>
                                 )}
-                                
+
                                 {/* Alerta se já tem VIP */}
                                 {ticket.isVip && hasVipTickets[ticket.id] && (
                                     <p className="text-[0.75rem] pl-7 pt-1 font-medium text-[#f97316]">
-                                       ✅ Ingresso Vip Já Solicitado!
-                                </p>
+                                        ✅ Ingresso Vip Já Solicitado!
+                                    </p>
                                 )}
-                                
+
                                 {/* Botão VIP - criar pedido direto - APENAS se NÃO tem VIP E verificação concluída */}
                                 {ticket.isVip && quantity > 0 && !hasVipTickets[ticket.id] && !isCheckingVipTickets && isReady && isAuthenticated && (
                                     <button
@@ -528,7 +687,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                         )}
                                     </button>
                                 )}
-                                
+
                                 {/* Mensagem se não está autenticado e é VIP */}
                                 {ticket.isVip && quantity > 0 && !hasVipTickets[ticket.id] && (!isReady || !isAuthenticated) && (
                                     <div className="mt-3 w-full rounded-full bg-gray-400 px-4 py-2.5 text-[0.75rem] font-semibold uppercase tracking-normal text-white text-center">
@@ -557,7 +716,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                         </p>
                     </div>
                 )}
-                
+
                 <div className="flex items-center justify-between">
                     <span className="font-semibold text-base uppercase tracking-normal text-[#7d796c]">
                         Subtotal
@@ -569,8 +728,8 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
             <button
                 type="button"
                 onClick={handleProceed}
-                disabled={!hasSelectedTickets || isProcessing}
-                className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-normal transition ${hasSelectedTickets && !isProcessing
+                disabled={!canProceed || isProcessing}
+                className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-normal transition ${canProceed && !isProcessing
                     ? 'bg-[#1a1a1d] text-white hover:bg-[#f97316] hover:text-white'
                     : 'cursor-not-allowed bg-[#f3f3f5] text-[#b5b1aa]'
                     }`}

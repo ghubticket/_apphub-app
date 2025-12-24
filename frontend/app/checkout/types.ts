@@ -5,6 +5,7 @@ export type CheckoutCustomerData = {
     email: string;
     cpf: string;
     phone: string;
+    rg?: string; // RG do passageiro (para pacotes de transporte)
     billingStreet?: string;
     billingNumber?: string;
     billingNeighborhood?: string;

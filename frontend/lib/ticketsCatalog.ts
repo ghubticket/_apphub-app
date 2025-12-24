@@ -94,6 +94,13 @@ type RawTicketType = {
     allowInstallments?: boolean;
     minInstallments?: number | null;
     maxInstallments?: number | null;
+    isTransport?: boolean;
+    departureLocationId?: string;
+    transportOptions?: Array<{
+        date: string;
+        attraction: string;
+        departureLocations: string[];
+    }>;
 };
 
 const formatEventDate = (date?: string) => {
@@ -186,6 +193,15 @@ const normalizeTicketType = (
             typeof ticket.minInstallments === 'number' ? ticket.minInstallments : ticket.minInstallments ?? null,
         maxInstallments:
             typeof ticket.maxInstallments === 'number' ? ticket.maxInstallments : ticket.maxInstallments ?? null,
+        isTransport: ticket.isTransport ?? false,
+        departureLocationId: ticket.departureLocationId ?? undefined,
+        transportOptions: ticket.transportOptions && Array.isArray(ticket.transportOptions) && ticket.transportOptions.length > 0
+            ? ticket.transportOptions.map((opt: any) => ({
+                date: opt.date || '',
+                attraction: opt.attraction || '',
+                departureLocations: Array.isArray(opt.departureLocations) ? opt.departureLocations : []
+            }))
+            : undefined,
     };
 
     return normalized;

@@ -12,11 +12,17 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/a
 /**
  * Normaliza URLs de imagens do backend para usar HTTP local
  * Converte https://localhost:3443 para http://localhost:3001
+ * Mantém localhost:3002 se já estiver usando
  */
 function normalizeImageUrl(url: string): string {
     // Converter https://localhost:3443 para http://localhost:3001
     if (url.includes('https://localhost:3443') || url.includes('http://localhost:3443')) {
         return url.replace(/https?:\/\/localhost:3443/, 'http://localhost:3001');
+    }
+    
+    // Se já for localhost:3002, manter como está
+    if (url.includes('localhost:3002')) {
+        return url;
     }
     
     // Se for uma URL relativa que começa com /uploads, adicionar a URL da API

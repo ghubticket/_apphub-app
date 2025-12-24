@@ -25,7 +25,7 @@ import { useCardPayment } from '../hooks/useCardPayment';
 import { usePixPayment } from '../hooks/usePixPayment';
 import { useParcelledOrderPolling } from '../hooks/useParcelledOrderPolling';
 import PaymentSuccessModal from '@/components/shared/PaymentSuccessModal';
-import { clearCartItems, updateCartItemQuantity } from '@/lib/cart';
+import { clearCartItems, updateCartItemQuantity, removeCartItem, loadCartItems } from '@/lib/cart';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { storageHelpers } from '../utils/storageHelpers';
@@ -334,9 +334,15 @@ export function CheckoutLayout() {
     }, [checkoutState]);
 
     const handleRemoveItem = useCallback(async (itemId: string) => {
-        try {
+        // Remover item do carrinho
+        removeCartItem(itemId);
+        
+        // Verificar se o carrinho ficou vazio após remover
+        const remainingItems = loadCartItems();
+        
+        // Se o carrinho ficou vazio, redirecionar para home e limpar tudo
+        if (remainingItems.length === 0) {
             if (order?._id) {
-                // NOVO: Se pedido é fake, não chamar backend
                 const isFakeOrder = order._id.startsWith('fake-');
                 if (!isFakeOrder) {
                     try {
@@ -346,12 +352,34 @@ export function CheckoutLayout() {
                     }
                 }
             }
-
-            orderCleanup.cleanupAll(order?._id || null, { skipBackend: false, redirectTo: '/' });
-        } catch (error: any) {
-            orderCleanup.cleanupAll(order?._id || null, { skipBackend: true, redirectTo: '/' });
+            
+            // Limpar tudo e redirecionar para home
+            orderCleanup.cleanupAll(order?._id || null, { skipBackend: order?._id?.startsWith('fake-') || false, redirectTo: '/' });
+            return;
         }
-    }, [order?._id, orderCleanup]);
+        
+        // Se ainda há itens, apenas limpar o pedido (sem limpar o carrinho, pois já removemos o item)
+        if (order?._id) {
+            const isFakeOrder = order._id.startsWith('fake-');
+            if (!isFakeOrder) {
+                try {
+                    await api.post(`/orders/${order._id}/cancel`);
+                } catch (cancelErr: any) {
+                    // Ignorar erro 404
+                }
+            }
+            
+            // Limpar apenas o pedido (sem limpar carrinho)
+            // Usar clearOrder diretamente em vez de cleanupAll para não limpar o carrinho
+            clearOrder();
+            
+            // Limpar storage relacionado ao pedido (usar a instância já existente)
+            storage.clearOrderRelated();
+        }
+        
+        // Atualizar carrinho para refletir a remoção do item
+        refreshCart();
+    }, [order?._id, orderCleanup, refreshCart, clearOrder, storage]);
 
     const handleCancelOrderAndGoHome = useCallback(async () => {
         orderCleanup.cleanupAll(order?._id || null, { skipBackend: false, redirectTo: '/' });

@@ -14,8 +14,10 @@ const API_DOMAINS = [
     'api.ghubtech.com.br',
     'localhost:3443',
     'localhost:3001',
+    'localhost:3002',
     '127.0.0.1:3443',
-    '127.0.0.1:3001'
+    '127.0.0.1:3001',
+    '127.0.0.1:3002'
 ];
 
 /**
@@ -29,6 +31,9 @@ export function isApiImageUrl(url: string): boolean {
     
     // Verificar se contém algum dos domínios conhecidos
     if (API_DOMAINS.some(domain => url.includes(domain))) return true;
+    
+    // Verificar se é localhost:3002 (backend)
+    if (url.includes('localhost:3002') || url.includes('127.0.0.1:3002')) return true;
     
     // URLs relativas (sem protocolo e sem /) são consideradas da API
     return !url.startsWith('http') && !url.startsWith('/');

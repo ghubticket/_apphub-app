@@ -223,6 +223,23 @@ export function CustomerDataForm({
                         />
                     </div>
                 </label>
+                <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
+                    RG (opcional)
+                    <div className="relative">
+                        <HiOutlineIdentification className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#a38f78]" />
+                        <input
+                            type="text"
+                            value={data.rg || ''}
+                            onChange={isDisabled ? undefined : (event) => onChange('rg', event.target.value)}
+                            {...inputProps}
+                            className={sharedClass}
+                            placeholder="00.000.000-0"
+                        />
+                    </div>
+                    <p className="text-[0.65rem] text-[#7d796c] mt-1">
+                        Necessário apenas para pacotes de transporte
+                    </p>
+                </label>
             </div>
 
             {/* Endereço de cobrança - abaixo dos dados pessoais */}

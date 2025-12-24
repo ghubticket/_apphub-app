@@ -22,6 +22,9 @@ export const createTicketType = async (req: Request, res: Response) => {
             allowInstallments,
             minInstallments,
             maxInstallments,
+            isTransport,
+            departureLocationId,
+            transportOptions,
         } = req.body;
 
         // Verificar se o evento existe
@@ -74,6 +77,17 @@ export const createTicketType = async (req: Request, res: Response) => {
             allowInstallments: !!allowInstallments,
             minInstallments: minInstallments ?? null,
             maxInstallments: maxInstallments ?? null,
+            isTransport: isTransport || false,
+            departureLocationId: departureLocationId || null,
+            transportOptions: transportOptions && Array.isArray(transportOptions) && transportOptions.length > 0 
+                ? transportOptions.map((opt: any) => ({
+                    date: opt.date?.trim() || '',
+                    attraction: opt.attraction?.trim() || '',
+                    departureLocations: Array.isArray(opt.departureLocations) 
+                        ? opt.departureLocations.filter((loc: string) => loc?.trim()).map((loc: string) => loc.trim())
+                        : [],
+                })).filter((opt: any) => opt.date && opt.attraction && opt.departureLocations.length > 0)
+                : undefined,
         });
 
         await ticketType.save();
@@ -166,7 +180,7 @@ export const listTicketTypes = async (req: Request, res: Response) => {
 
         const ticketTypes = await TicketType.find(filter)
             .select(
-                'name description price isVIP lotNumber maxQuantity soldQuantity maxPerPurchase maxPerCPF maxPerEmail salesStart salesEnd isActive createdAt allowInstallments minInstallments maxInstallments'
+                'name description price isVIP lotNumber maxQuantity soldQuantity maxPerPurchase maxPerCPF maxPerEmail salesStart salesEnd isActive createdAt allowInstallments minInstallments maxInstallments isTransport departureLocationId transportOptions'
             )
             .sort({ lotNumber: 1 })
             .populate('event', 'name date')
@@ -252,6 +266,9 @@ export const updateTicketType = async (req: Request, res: Response) => {
             allowInstallments,
             minInstallments,
             maxInstallments,
+            isTransport,
+            departureLocationId,
+            transportOptions,
         } = req.body;
 
         const ticketType = await TicketType.findOne({
@@ -316,6 +333,23 @@ export const updateTicketType = async (req: Request, res: Response) => {
             ticketType.minInstallments = minInstallments ?? null;
         if (maxInstallments !== undefined)
             ticketType.maxInstallments = maxInstallments ?? null;
+        if (isTransport !== undefined)
+            ticketType.isTransport = isTransport || false;
+        if (departureLocationId !== undefined)
+            ticketType.departureLocationId = departureLocationId || null;
+        if (transportOptions !== undefined) {
+            if (transportOptions && Array.isArray(transportOptions) && transportOptions.length > 0) {
+                ticketType.transportOptions = transportOptions.map((opt: any) => ({
+                    date: opt.date?.trim() || '',
+                    attraction: opt.attraction?.trim() || '',
+                    departureLocations: Array.isArray(opt.departureLocations) 
+                        ? opt.departureLocations.filter((loc: string) => loc?.trim()).map((loc: string) => loc.trim())
+                        : [],
+                })).filter((opt: any) => opt.date && opt.attraction && opt.departureLocations.length > 0);
+            } else {
+                ticketType.transportOptions = undefined;
+            }
+        }
 
         await ticketType.save();
 

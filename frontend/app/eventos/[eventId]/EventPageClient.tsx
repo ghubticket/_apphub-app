@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
@@ -202,6 +202,79 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
         return undefined;
     }, [primaryTicket, eventData]);
     const eventUrl = useMemo(() => `/eventos/${eventId}`, [eventId]);
+    // Função auxiliar para formatar data no formato brasileiro
+    const formatDateForDisplay = useCallback((date: Date): string => {
+        return date.toLocaleDateString('pt-BR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }, []);
+    
+    // Calcular intervalo de datas para tickets de transporte
+    const eventDateRange = useMemo(() => {
+        // Coletar todas as datas dos transportOptions de todos os tickets de transporte
+        const allDates: string[] = [];
+        
+        tickets.forEach(ticket => {
+            if (ticket.isTransport && ticket.transportOptions) {
+                ticket.transportOptions.forEach(option => {
+                    if (option.date) {
+                        allDates.push(option.date);
+                    }
+                });
+            }
+        });
+        
+        // Se não houver datas de transporte, usar a data padrão do evento
+        if (allDates.length === 0) {
+            return primaryTicket?.eventDateIso ||
+                primaryTicket?.eventDate ||
+                eventData?.date ||
+                null;
+        }
+        
+        // Ordenar datas e pegar a primeira e última
+        const sortedDates = allDates
+            .map(date => {
+                // Tentar parsear a data (pode estar em formato DD/MM/YYYY ou ISO)
+                let parsed: string;
+                if (date.includes('/')) {
+                    // Formato DD/MM/YYYY -> YYYY-MM-DD
+                    const parts = date.split('/');
+                    if (parts.length === 3) {
+                        const [day, month, year] = parts;
+                        parsed = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    } else {
+                        parsed = date;
+                    }
+                } else {
+                    parsed = date;
+                }
+                return new Date(parsed);
+            })
+            .filter(date => !isNaN(date.getTime()))
+            .sort((a, b) => a.getTime() - b.getTime());
+        
+        if (sortedDates.length === 0) {
+            return primaryTicket?.eventDateIso ||
+                primaryTicket?.eventDate ||
+                eventData?.date ||
+                null;
+        }
+        
+        const firstDate = sortedDates[0];
+        const lastDate = sortedDates[sortedDates.length - 1];
+        
+        // Se houver apenas uma data ou todas as datas são iguais, retornar apenas uma
+        if (firstDate.getTime() === lastDate.getTime()) {
+            return formatDateForDisplay(firstDate);
+        }
+        
+        // Formatar como intervalo "de X até Y"
+        return `de ${formatDateForDisplay(firstDate)} até ${formatDateForDisplay(lastDate)}`;
+    }, [tickets, primaryTicket, eventData, formatDateForDisplay]);
+    
     const eventDate = useMemo(() =>
         primaryTicket?.eventDateIso ||
         primaryTicket?.eventDate ||
@@ -366,10 +439,10 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
 
                         {/* Detalhes do Evento */}
                         <div className="space-y-4 rounded-3xl border border-[#ded7ca] bg-white p-6 shadow-[0_25px_55px_-30px_rgba(20,20,32,0.35)]">
-                            {(primaryTicket?.eventDate || eventData?.date) && (
+                            {eventDateRange && (
                                 <div className="flex items-center gap-3 text-sm text-[#4c4c55]">
                                     <HiOutlineCalendar className="text-lg text-[#a38f78] flex-shrink-0" />
-                                    <span className="text-[#1a1a1d]">{primaryTicket?.eventDate || eventData?.date}</span>
+                                    <span className="text-[#1a1a1d]">{eventDateRange}</span>
                                 </div>
                             )}
 
@@ -509,26 +582,6 @@ export default function EventPageClient({ eventId }: EventPageClientProps) {
                                         'Escolha seu ingresso e garanta sua experiência com poucos cliques.'
                                 }}
                             />
-
-                            {/* Botões de compartilhar */}
-                            <div className="mt-6 flex flex-wrap gap-3">
-                                <button
-                                    type="button"
-                                    onClick={handleShareWhatsApp}
-                                    className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#25D366] bg-[#25D366] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:bg-[#20BA5A] hover:border-[#20BA5A]"
-                                >
-                                    <FaWhatsapp className="text-base" />
-                                    Compartilhar no WhatsApp
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleShareInstagram}
-                                    className="flex flex-1 justify-center items-center gap-2 rounded-full border border-[#E4405F] bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-white transition hover:opacity-90"
-                                >
-                                    <FaInstagram className="text-base" />
-                                    Compartilhar no Instagram
-                                </button>
-                            </div>
                         </div>
                     </section>
                 )}

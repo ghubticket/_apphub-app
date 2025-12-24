@@ -16,6 +16,8 @@ export { default as AuditLog } from './AuditLog';
 export { default as PasswordResetToken } from './PasswordResetToken';
 export { default as ParcelledOrder } from './ParcelledOrder';
 export { default as Parcel } from './Parcel';
+export { default as EventDetails } from './EventDetails';
+export { default as TransportPackage } from './TransportPackage';
 
 // Re-exportar tipos para facilitar importação
 export type { IUser } from './User';
@@ -35,3 +37,5 @@ export type { IAuditLog } from './AuditLog';
 export type { IPasswordResetToken } from './PasswordResetToken';
 export type { IParcelledOrder } from './ParcelledOrder';
 export type { IParcel } from './Parcel';
+export type { IEventDetails } from './EventDetails';
+export type { ITransportPackage } from './TransportPackage';

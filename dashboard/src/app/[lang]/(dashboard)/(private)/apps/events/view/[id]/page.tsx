@@ -71,8 +71,8 @@ const schema = object({
             const num = Number(val)
 
             if (isNaN(num)) return undefined
-            
-return num
+
+            return num
         }),
         number(),
         minValue(0, 'Taxa não pode ser negativa'),
@@ -82,8 +82,8 @@ return num
 
 const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
     if (!editor) return null
-    
-return (
+
+    return (
         <div className='flex flex-wrap gap-x-3 gap-y-1 pbs-6 pbe-4 pli-6'>
             <CustomIconButton {...(editor.isActive('bold') && { color: 'primary' })} variant='tonal' size='small' onClick={() => editor.chain().focus().toggleBold().run()}>
                 <i className={classnames('tabler-bold', { 'text-textSecondary': !editor.isActive('bold') })} />
@@ -135,9 +135,11 @@ const EventViewPage = () => {
     const [vipError, setVipError] = useState<string | null>(null)
 
     const checkEmail = async (email: string) => {
-        if (!email) { setVipUserName(''); 
+        if (!email) {
+            setVipUserName('');
 
-return }
+            return
+        }
 
         try {
             const res = await userService.getAllUsers({ page: 1, limit: 1, search: email })
@@ -169,7 +171,7 @@ return }
     const getLast7DaysLabels = () => {
         const labels: string[] = []
         const now = new Date()
-        
+
         for (let i = 6; i >= 0; i--) {
             const date = new Date(now)
             date.setDate(date.getDate() - i)
@@ -177,7 +179,7 @@ return }
             const month = date.toLocaleDateString('pt-BR', { month: 'short' })
             labels.push(`${day}/${month.substring(0, 3)}`)
         }
-        
+
         return labels
     }
 
@@ -186,16 +188,16 @@ return }
         const fetchAvailableQuantities = async () => {
             if (!id) {
                 setAvailableQuantities({})
-                
-return
+
+                return
             }
 
             // Se não houver tipos de ingressos, definir como vazio
             if (ticketTypes.length === 0) {
                 setAvailableQuantities({})
                 setLoadingReservations(false)
-                
-return
+
+                return
             }
 
             setLoadingReservations(true)
@@ -261,8 +263,8 @@ return
         const totalCapacity = ticketTypes.reduce((sum, tt) => {
             const qty = Number(tt.maxQuantity) || 0
 
-            
-return sum + qty
+
+            return sum + qty
         }, 0)
 
         // Ingressos Vendidos: Soma de todos os ingressos vendidos de todos os tipos
@@ -285,8 +287,8 @@ return sum + qty
                     return sum + Math.max(0, available)
                 }
 
-                
-return sum
+
+                return sum
             }, 0)
         }
 
@@ -400,8 +402,8 @@ return sum
 
         window.addEventListener('resize', updateChartHeight)
 
-        
-return () => {
+
+        return () => {
             clearTimeout(timer)
             window.removeEventListener('resize', updateChartHeight)
             resizeObserver.disconnect()
@@ -466,8 +468,8 @@ return () => {
             return 'Arquivo deve ter no máximo 10MB'
         }
 
-        
-return null
+
+        return null
     }
 
     const onSubmit: SubmitHandler<FormData> = async (data) => {
@@ -480,8 +482,8 @@ return null
 
                 if (coverError) {
                     setCoverFileError(coverError)
-                    
-return
+
+                    return
                 }
             }
 
@@ -490,8 +492,8 @@ return
 
                 if (squareError) {
                     setSquareFileError(squareError)
-                    
-return
+
+                    return
                 }
             }
 
@@ -777,8 +779,8 @@ return
                                                     // Limitar a entrada: não permitir valores maiores que 100
                                                     if (value === '' || value === null || value === undefined) {
                                                         field.onChange('')
-                                                        
-return
+
+                                                        return
                                                     }
 
                                                     const num = Number(value)
@@ -810,9 +812,9 @@ return
                             </Grid>
 
                             {/* Detalhes do Evento com Abas */}
-                            <EventDetailsTabsEditor 
-                                eventId={id as string} 
-                                isEditing={true} 
+                            <EventDetailsTabsEditor
+                                eventId={id as string}
+                                isEditing={true}
                                 descriptionEditor={editor}
                                 onDescriptionChange={(html) => {
                                     // O editor já está conectado, não precisa fazer nada aqui
@@ -920,8 +922,8 @@ return
                             title={event.name}
                             subheader={event.date ? new Date(event.date).toLocaleDateString('pt-BR') : ''}
                             action={
-                                <Box 
-                                    sx={{ 
+                                <Box
+                                    sx={{
                                         display: { xs: 'none', md: 'flex' },
                                         gap: 1.5,
                                         flexWrap: 'wrap',
@@ -984,7 +986,7 @@ return
                                             py: 1.25
                                         }}
                                     >
-                                        {event?.salesClosed ? 'Reativar Vendas' : 'Desativar Vendas Temporariamente'}
+                                        {event?.salesClosed ? 'Reativar Vendas' : 'Encerrar Vendas'}
                                     </Button>
                                     <Button
                                         variant='tonal'
@@ -1062,7 +1064,7 @@ return
                                         py: 1.25
                                     }}
                                 >
-                                    {event?.salesClosed ? 'Reativar Vendas' : 'Desativar Vendas Temporariamente'}
+                                    {event?.salesClosed ? 'Reativar Vendas' : 'Encerrar Vendas'}
                                 </Button>
                                 <Button
                                     variant='tonal'
@@ -1101,11 +1103,15 @@ return
                                         className='w-full h-full object-cover'
                                         style={{ objectFit: 'cover' }}
                                         onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
                                             console.error('[Dashboard] Erro ao carregar imagem do evento:', {
                                                 originalUrl: event.coverImage,
                                                 proxiedUrl: getProxiedImageUrl(event.coverImage),
-                                                error: e
+                                                failedSrc: target?.src || 'unknown',
+                                                eventName: event.name
                                             });
+                                            // Ocultar imagem com erro
+                                            target.style.display = 'none';
                                         }}
                                     />
                                 </Box>
@@ -1369,9 +1375,9 @@ return
                                                     }
                                                 }
                                             }}
-                                            series={[{ 
-                                                name: 'Vendas', 
-                                                data: (apiStats?.revenueByDay && Array.isArray(apiStats.revenueByDay) && apiStats.revenueByDay.length > 0 
+                                            series={[{
+                                                name: 'Vendas',
+                                                data: (apiStats?.revenueByDay && Array.isArray(apiStats.revenueByDay) && apiStats.revenueByDay.length > 0
                                                     ? apiStats.revenueByDay.map((v: any) => Number(v) || 0)
                                                     : [0, 0, 0, 0, 0, 0, 0]) // Fallback com zeros se não houver dados
                                             }]}
@@ -1384,8 +1390,8 @@ return
 
                     {/* Detalhes do Evento (Abas) - Inclui "Sobre o Evento" e demais abas */}
                     <Grid size={{ xs: 12 }}>
-                        <EventDetailsTabsEditor 
-                            eventId={id as string} 
+                        <EventDetailsTabsEditor
+                            eventId={id as string}
                             isEditing={isEditing}
                             descriptionEditor={isEditing ? editor : null}
                             descriptionHtml={event.description}

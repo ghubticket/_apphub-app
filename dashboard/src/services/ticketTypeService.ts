@@ -24,6 +24,13 @@ export interface TicketTypeItem {
     allowInstallments?: boolean;
     minInstallments?: number | null;
     maxInstallments?: number | null;
+    isTransport?: boolean;
+    departureLocationId?: string;
+    transportOptions?: Array<{
+        date: string;
+        attraction: string;
+        departureLocations: string[];
+    }>;
 }
 
 export interface CreateTicketTypeData {
@@ -39,10 +46,19 @@ export interface CreateTicketTypeData {
     allowInstallments?: boolean;
     minInstallments?: number | null;
     maxInstallments?: number | null;
+    isTransport?: boolean;
+    departureLocationId?: string;
+    transportOptions?: Array<{
+        date: string;
+        attraction: string;
+        departureLocations: string[];
+    }>;
 }
 
 export interface UpdateTicketTypeData extends Partial<CreateTicketTypeData> {
     isActive?: boolean;
+    isTransport?: boolean;
+    departureLocationId?: string;
 }
 
 // Helper para obter token de autenticação

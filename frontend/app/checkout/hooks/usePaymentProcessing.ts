@@ -145,10 +145,11 @@ export function usePaymentProcessing({
 
         // NOVO: Se orderId é fake, enviar dados do carrinho e cliente para criar pedido real
         isFakeOrder = orderId.startsWith("fake-");
+        let currentCustomerData: any = null;
         if (isFakeOrder) {
           // Obter dados do carrinho e cliente - tentar múltiplas fontes
           let currentCartItems = (paymentData as any).cartItems;
-          let currentCustomerData = (paymentData as any).customerData;
+          currentCustomerData = (paymentData as any).customerData;
           let currentPromoterCode = (paymentData as any).promoterCode;
 
           // Se não temos dados do paymentData, tentar obter do storage/cart diretamente
@@ -294,6 +295,21 @@ export function usePaymentProcessing({
         if (realOrderId !== orderId && realOrderId) {
           // Atualizar storage com orderId real
           storage.saveOrderId(realOrderId);
+          
+          // Criar pacotes de transporte se houver itens de transporte no carrinho
+          try {
+            const { createTransportPackagesForOrder } = await import('../utils/transportPackageHelper');
+            const { loadCartItems } = await import('@/lib/cart');
+            const cartItems = loadCartItems();
+            // Usar currentCustomerData do escopo superior ou buscar do paymentData
+            const customerDataForTransport = currentCustomerData || (paymentData as any).customerData;
+            if (customerDataForTransport) {
+              await createTransportPackagesForOrder(realOrderId, cartItems, customerDataForTransport);
+            }
+          } catch (transportErr) {
+            // Não bloquear fluxo se houver erro ao criar pacotes
+            console.error('[usePaymentProcessing] Erro ao criar pacotes de transporte:', transportErr);
+          }
         }
 
         // Verificar status do pagamento

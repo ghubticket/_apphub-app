@@ -25,6 +25,15 @@ export interface ITicketType extends Document {
     minInstallments?: number | null;
     maxInstallments?: number | null;
 
+    // Transporte
+    isTransport?: boolean; // Se este tipo de ingresso é para transporte
+    departureLocationId?: string; // ID do local de saída (referência ao EventDetails.transport.departureLocations) - DEPRECATED: usar transportOptions
+    transportOptions?: Array<{
+        date: string; // Data do evento (ISO string ou formato DD/MM/YYYY)
+        attraction: string; // Nome da atração (ex: "Elton John", "Stray Kids")
+        departureLocations: string[]; // Array de locais de saída para esta data
+    }>;
+
     // Virtuals
     availableQuantity: number; // Quantidade disponível
     isSoldOut: boolean; // Se está esgotado
@@ -140,6 +149,43 @@ const ticketTypeSchema = new Schema<ITicketType>(
             default: null,
             min: [1, 'maxInstallments deve ser pelo menos 1'],
             max: [60, 'maxInstallments não pode ser maior que 60'],
+        },
+        isTransport: {
+            type: Boolean,
+            default: false,
+        },
+        departureLocationId: {
+            type: String,
+            default: null,
+            trim: true,
+        },
+        transportOptions: {
+            type: [
+                {
+                    date: {
+                        type: String,
+                        required: true,
+                        trim: true,
+                    },
+                    attraction: {
+                        type: String,
+                        required: true,
+                        trim: true,
+                        maxlength: [200, 'Nome da atração deve ter no máximo 200 caracteres'],
+                    },
+                    departureLocations: {
+                        type: [String],
+                        required: true,
+                        validate: {
+                            validator: function (locations: string[]) {
+                                return locations.length > 0 && locations.every((loc) => loc.trim().length > 0);
+                            },
+                            message: 'Cada data deve ter pelo menos um local de saída',
+                        },
+                    },
+                },
+            ],
+            default: undefined,
         },
         deletedAt: {
             type: Date,

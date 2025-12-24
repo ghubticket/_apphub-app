@@ -26,6 +26,13 @@ export type TicketProduct = {
     allowInstallments?: boolean;
     minInstallments?: number | null;
     maxInstallments?: number | null;
+    isTransport?: boolean;
+    departureLocationId?: string; // DEPRECATED: usar transportOptions
+    transportOptions?: Array<{
+        date: string;
+        attraction: string;
+        departureLocations: string[];
+    }>;
 };
 
 

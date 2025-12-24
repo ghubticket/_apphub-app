@@ -47,6 +47,7 @@ const authenticatedRequest = async (url: string, options: RequestInit = {}) => {
 }
 
 export interface TransportLocation {
+    _id?: string
     name: string
     address: string
     meetingTime: string

@@ -235,48 +235,109 @@ export const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                     const canIncrease = !maxQuantity || item.quantity < maxQuantity;
                     const canDecrease = item.quantity > 1;
 
+                    // Extrair dados de transporte se disponível
+                    let transportInfo = null;
+                    if (item.metadata?.isTransport && item.metadata?.transportOption) {
+                        try {
+                            const transportOption = JSON.parse(item.metadata.transportOption as string);
+                            transportInfo = {
+                                date: transportOption.date,
+                                attraction: transportOption.attraction,
+                                departureLocation: transportOption.departureLocation
+                            };
+                        } catch (e) {
+                            // Fallback para estrutura antiga
+                            if (item.metadata?.departureLocation) {
+                                transportInfo = {
+                                    date: '',
+                                    attraction: '',
+                                    departureLocation: item.metadata.departureLocation as string
+                                };
+                            }
+                        }
+                    } else if (item.metadata?.isTransport && item.metadata?.departureLocation) {
+                        // Compatibilidade: estrutura antiga
+                        transportInfo = {
+                            date: '',
+                            attraction: '',
+                            departureLocation: item.metadata.departureLocation as string
+                        };
+                    }
+
                     return (
-                        <div key={item.id} className="flex items-center bg-slate-100 px-5 py-2 rounded-2xl justify-between gap-4">
-                            <div className="flex items-center gap-3 flex-1">
-                                <HiOutlineTicket className="text-[#7d796c] hidden md:block flex-shrink-0" size={25} />
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-[#1a1a1d]">
-                                        {itemDisplayName}
-                                    </p>
-                                    <p className="text-xs text-[#7d796c]">
-                                        {item.quantity} ingresso{item.quantity > 1 ? 's' : ''} -   {formattedItemPrice}
-                                    </p>
+                        <div key={item.id} className="flex flex-col bg-slate-100 px-5 py-3 rounded-2xl gap-2">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+                                <div className="flex items-center gap-3 flex-1">
+                                    <HiOutlineTicket className="text-[#7d796c] hidden md:block flex-shrink-0" size={25} />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-[#1a1a1d]">
+                                            {itemDisplayName}
+                                        </p>
+                                        <p className="text-xs text-[#7d796c]">
+                                            {item.quantity} ingresso{item.quantity > 1 ? 's' : ''} - {formattedItemPrice}
+                                        </p>
+                                        {/* Exibir dados de transporte se disponível */}
+                                        {transportInfo && (
+                                            <div className="mt-2 space-y-1">
+                                                {transportInfo.date && transportInfo.attraction && (
+                                                    <p className="text-xs text-[#6a6760]">
+                                                        📅 {transportInfo.date} - {transportInfo.attraction}
+                                                    </p>
+                                                )}
+                                                {transportInfo.departureLocation && (
+                                                    <p className="text-xs text-[#6a6760]">
+                                                        🚌 Local de Embarque: {transportInfo.departureLocation}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                {/* Controles de quantidade e remover - abaixo no mobile, ao lado no desktop */}
+                                <div className="flex items-center gap-2 md:flex-shrink-0">
+                                    {/* Controles de quantidade */}
+                                    {onUpdateQuantity && !pixPaymentActive && (
+                                        <div className="flex items-center rounded-[100rem] bg-white px-[0.8rem] py-[0.5rem]">
+                                            <button
+                                                type="button"
+                                                onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                                                disabled={!canDecrease}
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                                                aria-label="Diminuir quantidade"
+                                            >
+                                                <HiOutlineMinusSmall className="text-sm" />
+                                            </button>
+                                            
+                                            <span className="min-w-[24px] text-center text-[0.75rem] font-semibold text-[#1a1a1d]">
+                                                {item.quantity}
+                                            </span>
+                                            
+                                            <button
+                                                type="button"
+                                                onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                                                disabled={!canIncrease}
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
+                                                aria-label="Aumentar quantidade"
+                                            >
+                                                <HiOutlinePlusSmall className="text-sm" />
+                                            </button>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Botão para remover item */}
+                                    {!pixPaymentActive && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onRemoveItem(item.id)}
+                                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-300 text-red-600 transition hover:bg-red-50 hover:border-red-400"
+                                            aria-label="Remover item"
+                                        >
+                                            <HiOutlineTrash className="text-sm" />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                            
-                            {/* Controles de quantidade */}
-                            {onUpdateQuantity && !pixPaymentActive && (
-                                <div className="flex items-center rounded-[100rem] bg-white px-[0.8rem] py-[0.5rem]">
-                                    <button
-                                        type="button"
-                                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                                        disabled={!canDecrease}
-                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
-                                        aria-label="Diminuir quantidade"
-                                    >
-                                        <HiOutlineMinusSmall className="text-sm" />
-                                    </button>
-                                    
-                                    <span className="min-w-[24px] text-center text-[0.75rem] font-semibold text-[#1a1a1d]">
-                                        {item.quantity}
-                                    </span>
-                                    
-                                    <button
-                                        type="button"
-                                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                                        disabled={!canIncrease}
-                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ded7ca] text-[#4c4c55] transition hover:border-[#a38f78] hover:text-black disabled:opacity-40 disabled:cursor-not-allowed"
-                                        aria-label="Aumentar quantidade"
-                                    >
-                                        <HiOutlinePlusSmall className="text-sm" />
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     );
                 })}

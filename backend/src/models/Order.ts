@@ -40,6 +40,7 @@ export interface IOrder extends Document {
         phoneHash?: string; // Hash SHA-256 do telefone para busca eficiente
         cpf?: string;
         cpfHash?: string; // Hash SHA-256 do CPF para busca eficiente
+        rg?: string; // RG do passageiro (criptografado)
     };
     ipAddress?: string; // IP de onde o pedido foi criado (para detecção de padrões suspeitos)
     isActive: boolean;
@@ -222,6 +223,14 @@ const orderSchema = new Schema<IOrder>(
                 type: String,
                 index: true, // Índice para busca eficiente
             },
+            rg: {
+                type: String,
+                trim: true,
+                // IMPORTANTE:
+                // Não aplicar regex de validação aqui, pois o valor pode estar criptografado
+                // (quando ENCRYPTION_KEY está configurada) ou em formato plain (para compatibilidade).
+                // A validação de formato é feita nas camadas de serviço/controlador e no frontend.
+            },
         },
         ipAddress: {
             type: String,
@@ -398,6 +407,13 @@ orderSchema.pre('save', async function (next) {
             }
         }
 
+        // Criptografar RG em customerData se foi modificado e não está criptografado
+        if (this.isModified('customerData.rg') && this.customerData?.rg) {
+            if (!isEncrypted(this.customerData.rg)) {
+                this.customerData.rg = encryptSensitiveData(this.customerData.rg);
+            }
+        }
+
         next();
     } catch (error) {
         next(error as Error);
@@ -461,6 +477,12 @@ orderSchema.post(['find', 'findOne', 'findOneAndUpdate'], function (docs: any) {
                     doc.customerData.phone = decryptSensitiveData(doc.customerData.phone);
                 } catch (error) {}
             }
+            // Descriptografar RG
+            if (doc.customerData.rg && isEncrypted(doc.customerData.rg)) {
+                try {
+                    doc.customerData.rg = decryptSensitiveData(doc.customerData.rg);
+                } catch (error) {}
+            }
             // Não expor hashes
             delete doc.customerData.cpfHash;
             delete doc.customerData.phoneHash;
@@ -484,6 +506,11 @@ orderSchema.methods.toJSON = function () {
                 orderObject.customerData.phone = decryptSensitiveData(
                     orderObject.customerData.phone
                 );
+            } catch (error) {}
+        }
+        if (orderObject.customerData.rg && isEncrypted(orderObject.customerData.rg)) {
+            try {
+                orderObject.customerData.rg = decryptSensitiveData(orderObject.customerData.rg);
             } catch (error) {}
         }
         // Não expor hashes

@@ -14,6 +14,7 @@ import Box from '@mui/material/Box'
 import Alert from '@mui/material/Alert'
 import Switch from '@mui/material/Switch'
 import FormControlLabel from '@mui/material/FormControlLabel'
+import Divider from '@mui/material/Divider'
 
 import { Controller, useForm } from 'react-hook-form'
 import { valibotResolver } from '@hookform/resolvers/valibot'
@@ -22,6 +23,7 @@ import type { SubmitHandler } from 'react-hook-form'
 import type { InferInput } from 'valibot'
 
 import CustomTextField from '@core/components/mui/TextField'
+import IconButton from '@mui/material/IconButton'
 
 import { AdminOnly } from '@/components/RoleGuard'
 import { useTicketTypes } from '@/hooks/useTicketTypes'
@@ -85,6 +87,12 @@ const EditTicketTypePage = () => {
     const [allowInstallments, setAllowInstallments] = useState(false)
     const [minInstallments, setMinInstallments] = useState<number | ''>('')
     const [maxInstallments, setMaxInstallments] = useState<number | ''>('')
+    const [isTransport, setIsTransport] = useState(false)
+    const [transportOptions, setTransportOptions] = useState<Array<{
+        date: string;
+        attraction: string;
+        departureLocations: string[];
+    }>>([{ date: '', attraction: '', departureLocations: [''] }])
 
     const {
         control,
@@ -112,7 +120,7 @@ const EditTicketTypePage = () => {
                 const data = await ticketTypeService.getTicketType(ticketTypeId as string)
 
                 setTicketType(data)
-                setIsVIP(data.isVIP)
+                setIsVIP(data.isVIP || false)
                 setAllowInstallments(!!data.allowInstallments)
                 setMinInstallments(
                     typeof data.minInstallments === 'number' ? data.minInstallments : ''
@@ -120,6 +128,35 @@ const EditTicketTypePage = () => {
                 setMaxInstallments(
                     typeof data.maxInstallments === 'number' ? data.maxInstallments : ''
                 )
+                setIsTransport(!!data.isTransport)
+                // Carregar transportOptions se existir, senão usar departureLocationId (compatibilidade)
+                if (data.transportOptions && Array.isArray(data.transportOptions) && data.transportOptions.length > 0) {
+                    setTransportOptions(data.transportOptions.map(opt => ({
+                        date: opt.date || '',
+                        attraction: opt.attraction || '',
+                        departureLocations: Array.isArray(opt.departureLocations) && opt.departureLocations.length > 0
+                            ? opt.departureLocations
+                            : ['']
+                    })))
+                } else if (data.departureLocationId) {
+                    // Compatibilidade: converter departureLocationId antigo para transportOptions
+                    const locations = typeof data.departureLocationId === 'string'
+                        ? (data.departureLocationId.includes(',') 
+                            ? data.departureLocationId.split(',').map((l: string) => l.trim()).filter((l: string) => l)
+                            : [data.departureLocationId])
+                        : []
+                    if (locations.length > 0) {
+                        setTransportOptions([{
+                            date: '',
+                            attraction: '',
+                            departureLocations: locations
+                        }])
+                    } else {
+                        setTransportOptions([{ date: '', attraction: '', departureLocations: [''] }])
+                    }
+                } else {
+                    setTransportOptions([{ date: '', attraction: '', departureLocations: [''] }])
+                }
 
                 // Preencher formulário
                 reset({
@@ -178,6 +215,29 @@ const EditTicketTypePage = () => {
                 }
             }
 
+            // Validação para transporte
+            if (isTransport) {
+                const validOptions = transportOptions.filter(opt => 
+                    opt.date.trim() && 
+                    opt.attraction.trim() && 
+                    opt.departureLocations.some(loc => loc.trim())
+                )
+                
+                if (validOptions.length === 0) {
+                    setServerError('Adicione pelo menos uma data/atração com locais de saída para o transporte.')
+                    return
+                }
+                
+                // Validar que cada opção tem pelo menos um local válido
+                for (const opt of validOptions) {
+                    const validLocations = opt.departureLocations.filter(loc => loc.trim())
+                    if (validLocations.length === 0) {
+                        setServerError(`A data "${opt.date}" com atração "${opt.attraction}" precisa ter pelo menos um local de saída.`)
+                        return
+                    }
+                }
+            }
+
             const ticketTypeData: UpdateTicketTypeData = {
                 name: data.name,
                 description: data.description || undefined,
@@ -189,6 +249,14 @@ const EditTicketTypePage = () => {
                 allowInstallments,
                 minInstallments: allowInstallments && minInstallments !== '' ? Number(minInstallments) : null,
                 maxInstallments: allowInstallments && maxInstallments !== '' ? Number(maxInstallments) : null,
+                isTransport: isTransport || undefined,
+                transportOptions: isTransport ? transportOptions
+                    .filter(opt => opt.date.trim() && opt.attraction.trim() && opt.departureLocations.some(loc => loc.trim()))
+                    .map(opt => ({
+                        date: opt.date.trim(),
+                        attraction: opt.attraction.trim(),
+                        departureLocations: opt.departureLocations.filter(loc => loc.trim()).map(loc => loc.trim())
+                    })) : undefined,
             }
 
             await updateTicketType(ticketTypeId as string, ticketTypeData)
@@ -320,18 +388,7 @@ const EditTicketTypePage = () => {
                                         />
                                     </Grid>
 
-                                    <Grid size={12}>
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    checked={isVIP}
-                                                    onChange={(e) => setIsVIP(e.target.checked)}
-                                                />
-                                            }
-                                            label='Ingresso VIP (sem valor nem taxa)'
-                                        />
-                                    </Grid>
-
+                                    {/* Preço e Quantidades - Ordem de prioridade */}
                                     <Grid size={{ xs: 12, md: 6 }}>
                                         <Controller
                                             name='price'
@@ -369,25 +426,6 @@ const EditTicketTypePage = () => {
 
                                     <Grid size={{ xs: 12, md: 6 }}>
                                         <Controller
-                                            name='maxPerPurchase'
-                                            control={control}
-                                            render={({ field }) => (
-                                                <CustomTextField
-                                                    {...field}
-                                                    fullWidth
-                                                    type='number'
-                                                    label='Limite por Compra'
-                                                    placeholder='Ex: 5'
-                                                    error={!!errors.maxPerPurchase}
-                                                    helperText={errors.maxPerPurchase?.message || 'Quantidade máxima de ingressos por compra'}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                />
-                                            )}
-                                        />
-                                    </Grid>
-
-                                    <Grid size={{ xs: 12, md: 6 }}>
-                                        <Controller
                                             name='maxQuantity'
                                             control={control}
                                             render={({ field }) => (
@@ -405,53 +443,253 @@ const EditTicketTypePage = () => {
                                         />
                                     </Grid>
 
-                                    <Grid size={12}>
-                                        <Typography variant='h6' sx={{ mt: 4, mb: 2 }}>
-                                            Parcelamento (Pix/Boleto)
-                                        </Typography>
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    checked={allowInstallments}
-                                                    onChange={e => setAllowInstallments(e.target.checked)}
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        <Controller
+                                            name='maxPerPurchase'
+                                            control={control}
+                                            render={({ field }) => (
+                                                <CustomTextField
+                                                    {...field}
+                                                    fullWidth
+                                                    type='number'
+                                                    label='Limite por Compra'
+                                                    placeholder='Ex: 5'
+                                                    error={!!errors.maxPerPurchase}
+                                                    helperText={errors.maxPerPurchase?.message || 'Quantidade máxima de ingressos por compra'}
+                                                    onChange={(e) => field.onChange(Number(e.target.value))}
                                                 />
-                                            }
-                                            label='Permitir compra parcelada para este tipo de ingresso'
+                                            )}
                                         />
                                     </Grid>
 
-                                    {allowInstallments && (
+                                    {/* Opções Especiais - Mostrar apenas se foram selecionadas na criação */}
+                                    {(isVIP || isTransport || allowInstallments) && (
                                         <>
-                                            <Grid size={{ xs: 12, md: 6 }}>
-                                                <CustomTextField
-                                                    fullWidth
-                                                    type='number'
-                                                    label='Parcelas mínimas (opcional)'
-                                                    placeholder='Ex: 3'
-                                                    value={minInstallments}
-                                                    onChange={e => {
-                                                        const v = e.target.value === '' ? '' : Number(e.target.value)
-                                                        setMinInstallments(v)
-                                                    }}
-                                                    inputProps={{ min: 2, max: 60 }}
-                                                    helperText='Número mínimo de parcelas que o cliente pode escolher'
-                                                />
+                                            <Grid size={12}>
+                                                <Divider sx={{ my: 2 }} />
+                                                <Typography variant='subtitle2' color='text.secondary' sx={{ mb: 2 }}>
+                                                    Opções Especiais
+                                                </Typography>
                                             </Grid>
-                                            <Grid size={{ xs: 12, md: 6 }}>
-                                                <CustomTextField
-                                                    fullWidth
-                                                    type='number'
-                                                    label='Parcelas máximas'
-                                                    placeholder='Ex: 12'
-                                                    value={maxInstallments}
-                                                    onChange={e => {
-                                                        const v = e.target.value === '' ? '' : Number(e.target.value)
-                                                        setMaxInstallments(v)
-                                                    }}
-                                                    inputProps={{ min: 2, max: 60 }}
-                                                    helperText='Número máximo de parcelas permitidas neste tipo de ingresso'
-                                                />
-                                            </Grid>
+
+                                            {isVIP && (
+                                                <Grid size={12}>
+                                                    <FormControlLabel
+                                                        control={
+                                                            <Switch
+                                                                checked={isVIP}
+                                                                onChange={(e) => setIsVIP(e.target.checked)}
+                                                            />
+                                                        }
+                                                        label='Ingresso VIP (sem valor nem taxa)'
+                                                    />
+                                                </Grid>
+                                            )}
+
+                                            {isTransport && (
+                                                <>
+                                                    <Grid size={12}>
+                                                        <FormControlLabel
+                                                            control={
+                                                                <Switch
+                                                                    checked={isTransport}
+                                                                    onChange={(e) => setIsTransport(e.target.checked)}
+                                                                />
+                                                            }
+                                                            label='É transporte?'
+                                                        />
+                                                    </Grid>
+                                                    {isTransport && (
+                                                        <Grid size={12}>
+                                                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                                                                <Typography variant="h6">
+                                                                    Opções de Transporte (Datas + Atrações)
+                                                                </Typography>
+                                                                <Button
+                                                                    variant="outlined"
+                                                                    size="small"
+                                                                    startIcon={<i className="tabler-plus" />}
+                                                                    onClick={() => setTransportOptions([...transportOptions, { date: '', attraction: '', departureLocations: [''] }])}
+                                                                >
+                                                                    Adicionar Data/Atração
+                                                                </Button>
+                                                            </Box>
+                                                            
+                                                            {transportOptions.map((option, optionIndex) => (
+                                                                <Card key={optionIndex} variant="outlined" sx={{ mb: 4 }}>
+                                                                    <CardContent sx={{ p: 4 }}>
+                                                                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                                                                            <Typography variant="subtitle1" fontWeight={600}>
+                                                                                Opção {optionIndex + 1}
+                                                                            </Typography>
+                                                                            {transportOptions.length > 1 && (
+                                                                                <IconButton
+                                                                                    size="small"
+                                                                                    color="error"
+                                                                                    onClick={() => {
+                                                                                        const newOptions = transportOptions.filter((_, i) => i !== optionIndex)
+                                                                                        setTransportOptions(newOptions.length > 0 ? newOptions : [{ date: '', attraction: '', departureLocations: [''] }])
+                                                                                    }}
+                                                                                >
+                                                                                    <i className="tabler-trash" />
+                                                                                </IconButton>
+                                                                            )}
+                                                                        </Box>
+                                                                        
+                                                                        <Grid container spacing={3}>
+                                                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                                                <CustomTextField
+                                                                                    fullWidth
+                                                                                    label="Data do Evento"
+                                                                                    placeholder="Ex: 07/09/2026"
+                                                                                    required
+                                                                                    value={option.date}
+                                                                                    onChange={(e) => {
+                                                                                        const newOptions = [...transportOptions]
+                                                                                        newOptions[optionIndex].date = e.target.value
+                                                                                        setTransportOptions(newOptions)
+                                                                                    }}
+                                                                                />
+                                                                            </Grid>
+                                                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                                                <CustomTextField
+                                                                                    fullWidth
+                                                                                    label="Atração"
+                                                                                    placeholder="Ex: Elton John"
+                                                                                    required
+                                                                                    value={option.attraction}
+                                                                                    onChange={(e) => {
+                                                                                        const newOptions = [...transportOptions]
+                                                                                        newOptions[optionIndex].attraction = e.target.value
+                                                                                        setTransportOptions(newOptions)
+                                                                                    }}
+                                                                                />
+                                                                            </Grid>
+                                                                            
+                                                                            <Grid size={12}>
+                                                                                <Divider sx={{ my: 3 }} />
+                                                                                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 3 }}>
+                                                                                    Locais de Embarque
+                                                                                </Typography>
+                                                                                
+                                                                                <Box sx={{ mb: 2 }}>
+                                                                                    {option.departureLocations.map((location, locIndex) => (
+                                                                                        <Box key={locIndex} display="flex" gap={2} mb={3} alignItems="flex-start">
+                                                                                            <CustomTextField
+                                                                                                fullWidth
+                                                                                                label={`Local de Saída ${locIndex + 1}`}
+                                                                                                placeholder='Ex: São Paulo - Metrô Barra Funda'
+                                                                                                required
+                                                                                                value={location}
+                                                                                                onChange={(e) => {
+                                                                                                    const newOptions = [...transportOptions]
+                                                                                                    newOptions[optionIndex].departureLocations[locIndex] = e.target.value
+                                                                                                    setTransportOptions(newOptions)
+                                                                                                }}
+                                                                                            />
+                                                                                            {option.departureLocations.length > 1 && (
+                                                                                                <IconButton
+                                                                                                    size="small"
+                                                                                                    color="error"
+                                                                                                    onClick={() => {
+                                                                                                        const newOptions = [...transportOptions]
+                                                                                                        newOptions[optionIndex].departureLocations = newOptions[optionIndex].departureLocations.filter((_, i) => i !== locIndex)
+                                                                                                        if (newOptions[optionIndex].departureLocations.length === 0) {
+                                                                                                            newOptions[optionIndex].departureLocations = ['']
+                                                                                                        }
+                                                                                                        setTransportOptions(newOptions)
+                                                                                                    }}
+                                                                                                    sx={{ 
+                                                                                                        minWidth: 'auto',
+                                                                                                        width: 32,
+                                                                                                        height: 32,
+                                                                                                        flexShrink: 0,
+                                                                                                        mt: '1rem'
+                                                                                                    }}
+                                                                                                >
+                                                                                                    <i className="tabler-trash" style={{ fontSize: '16px' }} />
+                                                                                                </IconButton>
+                                                                                            )}
+                                                                                        </Box>
+                                                                                    ))}
+                                                                                </Box>
+                                                                                
+                                                                                <Button
+                                                                                    variant="outlined"
+                                                                                    size="small"
+                                                                                    startIcon={<i className="tabler-plus" />}
+                                                                                    onClick={() => {
+                                                                                        const newOptions = [...transportOptions]
+                                                                                        newOptions[optionIndex].departureLocations.push('')
+                                                                                        setTransportOptions(newOptions)
+                                                                                    }}
+                                                                                    sx={{ mt: 1 }}
+                                                                                >
+                                                                                    Adicionar Local
+                                                                                </Button>
+                                                                            </Grid>
+                                                                        </Grid>
+                                                                    </CardContent>
+                                                                </Card>
+                                                            ))}
+                                                        </Grid>
+                                                    )}
+                                                </>
+                                            )}
+
+                                            {allowInstallments && (
+                                                <>
+                                                    <Grid size={12}>
+                                                        <Typography variant='h6' sx={{ mt: 4, mb: 2 }}>
+                                                            Parcelamento (Pix/Boleto)
+                                                        </Typography>
+                                                        <FormControlLabel
+                                                            control={
+                                                                <Switch
+                                                                    checked={allowInstallments}
+                                                                    onChange={e => setAllowInstallments(e.target.checked)}
+                                                                />
+                                                            }
+                                                            label='Permitir compra parcelada para este tipo de ingresso'
+                                                        />
+                                                    </Grid>
+
+                                                    {allowInstallments && (
+                                                        <>
+                                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                                <CustomTextField
+                                                                    fullWidth
+                                                                    type='number'
+                                                                    label='Parcelas mínimas (opcional)'
+                                                                    placeholder='Ex: 3'
+                                                                    value={minInstallments}
+                                                                    onChange={e => {
+                                                                        const v = e.target.value === '' ? '' : Number(e.target.value)
+                                                                        setMinInstallments(v)
+                                                                    }}
+                                                                    inputProps={{ min: 2, max: 60 }}
+                                                                    helperText='Número mínimo de parcelas que o cliente pode escolher'
+                                                                />
+                                                            </Grid>
+                                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                                <CustomTextField
+                                                                    fullWidth
+                                                                    type='number'
+                                                                    label='Parcelas máximas'
+                                                                    placeholder='Ex: 12'
+                                                                    value={maxInstallments}
+                                                                    onChange={e => {
+                                                                        const v = e.target.value === '' ? '' : Number(e.target.value)
+                                                                        setMaxInstallments(v)
+                                                                    }}
+                                                                    inputProps={{ min: 2, max: 60 }}
+                                                                    helperText='Número máximo de parcelas permitidas neste tipo de ingresso'
+                                                                />
+                                                            </Grid>
+                                                        </>
+                                                    )}
+                                                </>
+                                            )}
                                         </>
                                     )}
 

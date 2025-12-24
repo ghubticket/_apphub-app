@@ -19,6 +19,19 @@ export type CartItem = {
   minInstallments?: number | null;
   maxInstallments?: number | null;
   metadata?: Record<string, string | number | boolean | null | undefined>;
+  // Pacotes de transporte
+  isTransportPackage?: boolean;
+  transportPackageData?: {
+    eventDate: string;
+    departureLocation: {
+      name: string;
+      address: string;
+      meetingTime: string;
+      departureTime: string;
+      price?: number;
+    };
+    packageType: string;
+  };
 };
 
 export const CART_STORAGE_KEY = "vicente-cart-items";
