@@ -819,15 +819,38 @@ export async function generatePaymentForParcel(parcelId: string) {
         throw new Error('Evento não encontrado');
     }
 
-    // Por enquanto usamos dados básicos do cliente armazenados na própria ParcelledOrder.metadata
-    const customerName =
-        (parcelledOrder.metadata && parcelledOrder.metadata.customerName) || 'Cliente';
-    const customerEmail =
-        (parcelledOrder.metadata && parcelledOrder.metadata.customerEmail) || 'email@cliente.com';
-    const customerCpf =
-        (parcelledOrder.metadata && parcelledOrder.metadata.customerCpf) || '00000000000';
-    const customerPhone =
-        (parcelledOrder.metadata && parcelledOrder.metadata.customerPhone) || undefined;
+    // Buscar dados do cliente do usuário logado (se disponível) ou do metadata
+    let customerName: string;
+    let customerEmail: string;
+    let customerCpf: string;
+    let customerPhone: string | undefined;
+
+    // Se há customerId, buscar dados do usuário do banco
+    if (parcelledOrder.customer) {
+        const User = (await import('../models/User')).default;
+        const user = await User.findById(parcelledOrder.customer).lean();
+        
+        if (user) {
+            // Usar dados do usuário como prioridade
+            customerName = user.name || (parcelledOrder.metadata?.customerName) || 'Cliente';
+            customerEmail = user.email || (parcelledOrder.metadata?.customerEmail) || 'email@cliente.com';
+            // CPF pode estar criptografado no user, então usar diretamente (o sistema de validação vai lidar)
+            customerCpf = user.cpf || (parcelledOrder.metadata?.customerCpf) || '';
+            customerPhone = user.phone || (parcelledOrder.metadata?.customerPhone) || undefined;
+        } else {
+            // Usuário não encontrado, usar metadata
+            customerName = (parcelledOrder.metadata?.customerName) || 'Cliente';
+            customerEmail = (parcelledOrder.metadata?.customerEmail) || 'email@cliente.com';
+            customerCpf = (parcelledOrder.metadata?.customerCpf) || '';
+            customerPhone = (parcelledOrder.metadata?.customerPhone) || undefined;
+        }
+    } else {
+        // Sem customerId, usar apenas metadata
+        customerName = (parcelledOrder.metadata?.customerName) || 'Cliente';
+        customerEmail = (parcelledOrder.metadata?.customerEmail) || 'email@cliente.com';
+        customerCpf = (parcelledOrder.metadata?.customerCpf) || '';
+        customerPhone = (parcelledOrder.metadata?.customerPhone) || undefined;
+    }
 
     const description = `Parcela ${parcel.sequence + 1}/${parcelledOrder.installmentsCount} - ${
         event.name
