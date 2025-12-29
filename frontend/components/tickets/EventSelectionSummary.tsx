@@ -200,7 +200,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                     newQuantities[t.id] = getQuantityForTicket(t);
                 }
             });
-            
+
             // Atualizar estado imediatamente
             setQuantities(newQuantities);
             clearCartItems();
@@ -222,42 +222,42 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
             if (delta > 0 && maxAllowed !== undefined && current >= maxAllowed) {
                 return;
             }
-            
+
             const next = current + delta;
             const willBeSelected = next > 0;
             const isInstallmentTicket = ticket.allowInstallments === true;
-            
+
             // CRÍTICO: Se está selecionando um ingresso de compra parcelada
             if (willBeSelected && isInstallmentTicket && delta > 0) {
                 // Calcular quantidade final
                 const finalQty = maxAllowed !== undefined && next > maxAllowed ? maxAllowed : Math.max(0, next);
-                
+
                 // Criar novo objeto de quantidades com APENAS o ingresso parcelado
                 // IMPORTANTE: Não usar spread do prev, criar objeto novo vazio
                 const newQuantities: Record<string, number> = {};
                 newQuantities[ticket.id] = finalQty;
-                
+
                 // Atualizar estado IMEDIATAMENTE (síncrono)
                 setQuantities(newQuantities);
-                
+
                 // Limpar carrinho também (pode ter itens de outros eventos ou ingressos já adicionados)
                 clearCartItems();
-                
+
                 // Sempre mostrar alerta quando seleciona compra parcelada
                 setShowInstallmentAlert(true);
-                
+
                 // Retornar ANTES de continuar com a lógica normal - CRÍTICO
                 return;
             }
-            
+
             // Se está tentando selecionar outro ingresso quando já tem um parcelado selecionado
             if (willBeSelected && !isInstallmentTicket && delta > 0) {
                 // OTIMIZADO: Verificar apenas se há ingresso parcelado selecionado (mais eficiente)
-                const hasInstallmentTicket = tickets.some(t => 
-                    t.allowInstallments === true && 
+                const hasInstallmentTicket = tickets.some(t =>
+                    t.allowInstallments === true &&
                     (quantities[t.id] ?? 0) > 0
                 );
-                
+
                 if (hasInstallmentTicket) {
                     // BLOQUEAR COMPLETAMENTE - não permitir selecionar e REMOVER este ingresso
                     // Manter apenas os ingressos parcelados
@@ -276,12 +276,12 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                     return;
                 }
             }
-            
+
             // Se está desmarcando o ingresso parcelado, esconder alerta
             if (isInstallmentTicket && next === 0) {
                 setShowInstallmentAlert(false);
             }
-            
+
             setQuantities((prev) => {
                 const prevValue = prev[ticket.id] ?? 0;
                 const nextValue = prevValue + delta;
@@ -446,7 +446,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
             if (installmentStatus.hasInstallment) {
                 clearCartItems();
             }
-            
+
             // Adicionar todos os ingressos não-VIP com quantidade > 0 ao carrinho
             for (const ticket of tickets) {
                 const quantity = getQuantityForTicket(ticket);
@@ -513,7 +513,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
         for (const ticket of tickets) {
             const quantity = getQuantityForTicket(ticket);
             const selected = selectedTransportOptions[ticket.id];
-            
+
             if (ticket.isTransport) {
                 // Se tem quantidade > 0, deve ter opções válidas
                 if (quantity > 0) {
@@ -529,15 +529,15 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                         }
                     }
                 }
-                
+
                 // CRÍTICO: Se tem opções selecionadas mas quantidade = 0, é inválido
                 // Não faz sentido ter opções selecionadas sem quantidade
                 if (quantity === 0 && selected) {
-                    const hasSelectedOptions = 
-                        (ticket.transportOptions && ticket.transportOptions.length > 0 && 
-                         (selected.date || selected.attraction || selected.departureLocation)) ||
+                    const hasSelectedOptions =
+                        (ticket.transportOptions && ticket.transportOptions.length > 0 &&
+                            (selected.date || selected.attraction || selected.departureLocation)) ||
                         (ticket.departureLocationId && selected.departureLocation);
-                    
+
                     if (hasSelectedOptions) {
                         return false;
                     }
@@ -597,14 +597,19 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                             <p className="text-[1rem] font-semibold text-[#1a1a1d] truncate">
                                                 {ticket.name}
                                             </p>
-                                            <p className="text-[0.85rem] text-[#1a1a1d] mt-1">
-                                                Valor Unitario: {currencyFormatter.format(ticket.price)}
-                                            </p>
-                                            {ticket.lotNumber && (
-                                                <p className="text-[0.85rem] text-[#7d796c] mt-0.5">
-                                                    Lote {ticket.lotNumber}
+
+                                            <div className="flex gap-2">
+                                                {ticket.lotNumber && (
+                                                    <p className="text-[0.85rem] text-[#7d796c] ">
+                                                        Lote {ticket.lotNumber} -
+                                                    </p>
+                                                )}
+
+                                                <p className="text-[0.85rem] text-[#1a1a1d]">
+                                                    Valor Unitario: {currencyFormatter.format(ticket.price)}
                                                 </p>
-                                            )}
+
+                                            </div>
                                         </div>
 
                                         {/* Tooltip e Quantidade - lado direito no desktop, abaixo no mobile */}
@@ -829,7 +834,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
 
                                 {/* Alerta se já tem VIP */}
                                 {ticket.isVip && hasVipTickets[ticket.id] && (
-                                    <p className="text-[0.75rem] pt-1 font-medium text-[#f97316]">
+                                    <p className="text-[0.75rem] pt-3 font-medium text-[#f97316]">
                                         ✅ Ingresso Vip Já Solicitado!
                                     </p>
                                 )}
@@ -881,7 +886,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                         </p>
                     </div>
                 )}
-                
+
                 {/* Mensagem de cupom aplicado */}
                 {appliedPromoterCode && (
                     <div className="mb-3 rounded-lg bg-green-50 border border-green-300 px-3 py-2.5">
