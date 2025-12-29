@@ -507,19 +507,38 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
     const hasSelectedTickets = totalTickets > 0;
 
     // Verificar se todos os tickets de transporte têm data/atração e local selecionados
+    // CRÍTICO: Também verificar se há tickets de transporte com opções selecionadas mas quantidade = 0
+    // Isso evita que o usuário selecione opções sem quantidade e consiga prosseguir
     const isTransportValid = useMemo(() => {
         for (const ticket of tickets) {
             const quantity = getQuantityForTicket(ticket);
-            if (quantity > 0 && ticket.isTransport) {
-                const selected = selectedTransportOptions[ticket.id];
-                if (ticket.transportOptions && ticket.transportOptions.length > 0) {
-                    // Nova estrutura: precisa de data, atração e local
-                    if (!selected?.date || !selected?.attraction || !selected?.departureLocation) {
-                        return false;
+            const selected = selectedTransportOptions[ticket.id];
+            
+            if (ticket.isTransport) {
+                // Se tem quantidade > 0, deve ter opções válidas
+                if (quantity > 0) {
+                    if (ticket.transportOptions && ticket.transportOptions.length > 0) {
+                        // Nova estrutura: precisa de data, atração e local
+                        if (!selected?.date || !selected?.attraction || !selected?.departureLocation) {
+                            return false;
+                        }
+                    } else if (ticket.departureLocationId) {
+                        // Estrutura antiga: só precisa de local
+                        if (!selected?.departureLocation) {
+                            return false;
+                        }
                     }
-                } else if (ticket.departureLocationId) {
-                    // Estrutura antiga: só precisa de local
-                    if (!selected?.departureLocation) {
+                }
+                
+                // CRÍTICO: Se tem opções selecionadas mas quantidade = 0, é inválido
+                // Não faz sentido ter opções selecionadas sem quantidade
+                if (quantity === 0 && selected) {
+                    const hasSelectedOptions = 
+                        (ticket.transportOptions && ticket.transportOptions.length > 0 && 
+                         (selected.date || selected.attraction || selected.departureLocation)) ||
+                        (ticket.departureLocationId && selected.departureLocation);
+                    
+                    if (hasSelectedOptions) {
                         return false;
                     }
                 }
@@ -581,6 +600,11 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                             <p className="text-[0.85rem] text-[#1a1a1d] mt-1">
                                                 Valor Unitario: {currencyFormatter.format(ticket.price)}
                                             </p>
+                                            {ticket.lotNumber && (
+                                                <p className="text-[0.85rem] text-[#7d796c] mt-0.5">
+                                                    Lote {ticket.lotNumber}
+                                                </p>
+                                            )}
                                         </div>
 
                                         {/* Tooltip e Quantidade - lado direito no desktop, abaixo no mobile */}

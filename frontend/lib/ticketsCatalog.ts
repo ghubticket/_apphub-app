@@ -153,11 +153,6 @@ const normalizeTicketType = (
         return null;
     }
 
-    const nameSegments = [ticket.name ?? 'Ingresso'];
-    if (ticket.lotNumber) {
-        nameSegments.push(`Lote ${ticket.lotNumber}`);
-    }
-
     const eventDateIso = event.date ?? undefined;
     const sortTimestamp = event.date ? new Date(event.date).getTime() : undefined;
 
@@ -169,7 +164,7 @@ const normalizeTicketType = (
         eventDate: formatEventDate(event.date),
         eventDateIso,
         location: formatLocation(event),
-        name: nameSegments.join(' • '),
+        name: ticket.name ?? 'Ingresso',
         description: ticket.description || event.description,
         category: ticket.isVIP ? 'VIP' : ticket.name || 'Ingresso',
         lotNumber: ticket.lotNumber,

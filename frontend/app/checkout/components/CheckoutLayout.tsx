@@ -334,7 +334,7 @@ export function CheckoutLayout() {
     }, [checkoutState]);
 
     const handleRemoveItem = useCallback(async (itemId: string) => {
-        // Remover item do carrinho
+        // Apenas remover item do carrinho - NÃO mexer no pedido atual
         removeCartItem(itemId);
         
         // Verificar se o carrinho ficou vazio após remover
@@ -358,28 +358,11 @@ export function CheckoutLayout() {
             return;
         }
         
-        // Se ainda há itens, apenas limpar o pedido (sem limpar o carrinho, pois já removemos o item)
-        if (order?._id) {
-            const isFakeOrder = order._id.startsWith('fake-');
-            if (!isFakeOrder) {
-                try {
-                    await api.post(`/orders/${order._id}/cancel`);
-                } catch (cancelErr: any) {
-                    // Ignorar erro 404
-                }
-            }
-            
-            // Limpar apenas o pedido (sem limpar carrinho)
-            // Usar clearOrder diretamente em vez de cleanupAll para não limpar o carrinho
-            clearOrder();
-            
-            // Limpar storage relacionado ao pedido (usar a instância já existente)
-            storage.clearOrderRelated();
-        }
-        
-        // Atualizar carrinho para refletir a remoção do item
+        // Se ainda há itens, apenas atualizar o carrinho visualmente
+        // O pedido atual (fake ou real) continua existindo
+        // Quando o usuário for pagar, o pedido será criado/atualizado com os itens corretos do carrinho
         refreshCart();
-    }, [order?._id, orderCleanup, refreshCart, clearOrder, storage]);
+    }, [order?._id, orderCleanup, refreshCart]);
 
     const handleCancelOrderAndGoHome = useCallback(async () => {
         orderCleanup.cleanupAll(order?._id || null, { skipBackend: false, redirectTo: '/' });
