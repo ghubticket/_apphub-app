@@ -15,6 +15,7 @@ import {
     getPaymentStatus as getPaymentStatusAction
 } from '@/app/api/payments/actions';
 import { useAuth } from '@/context/AuthContext';
+import CustomSelect from '@/components/shared/CustomSelect';
 
 const CardPaymentFormBrick = dynamic(
     () => import('./CardPaymentFormBrick').then((mod) => ({ default: mod.CardPaymentFormBrick })),
@@ -614,21 +615,17 @@ export function PaymentSection({
 
                                     {/* Mobile: SELECT compacto e legível */}
                                     <div className="block sm:hidden space-y-2">
-                                        <div className="relative">
-                                            <select
-                                                className="w-full appearance-none rounded-full border border-[#ded7ca] bg-[#faf7f0] px-4 py-2.5 pr-10 text-[0.78rem] font-semibold uppercase tracking-normal text-[#4c4c55] focus:border-[#1a1a1d] focus:outline-none"
-                                                value={selectedInstallments ?? ''}
-                                                onChange={(e) => {
-                                                    const value = Number(e.target.value);
-                                                    if (!Number.isNaN(value)) {
-                                                        setSelectedInstallments(value);
-                                                    }
-                                                }}
-                                            >
-                                                <option value="" disabled>
-                                                    Vai pagar em quantas parcelas?
-                                                </option>
-                                                {Array.from(
+                                        <CustomSelect
+                                            value={selectedInstallments?.toString() ?? ''}
+                                            onChange={(value) => {
+                                                const numValue = Number(value);
+                                                if (!Number.isNaN(numValue)) {
+                                                    setSelectedInstallments(numValue);
+                                                }
+                                            }}
+                                            options={[
+                                                { value: '', label: 'Vai pagar em quantas parcelas?' },
+                                                ...Array.from(
                                                     {
                                                         length:
                                                             (resolvedMaxInstallments as number) -
@@ -636,16 +633,14 @@ export function PaymentSection({
                                                             1,
                                                     },
                                                     (_, idx) => (resolvedMinInstallments as number) + idx,
-                                                ).map((qty) => (
-                                                    <option key={qty} value={qty}>
-                                                        {qty}x de R$ {(totalAmount / qty).toFixed(2).replace('.', ',')}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[0.65rem] text-[#7d796c]">
-                                                ▼
-                                            </span>
-                                        </div>
+                                                ).map((qty) => ({
+                                                    value: qty.toString(),
+                                                    label: `${qty}x de R$ ${(totalAmount / qty).toFixed(2).replace('.', ',')}`,
+                                                })),
+                                            ]}
+                                            placeholder="Vai pagar em quantas parcelas?"
+                                            className="text-[0.78rem] font-semibold uppercase tracking-normal"
+                                        />
                                         <p className="text-[11px] text-[#a38f78]">
                                             Valores simulados com os juros da plataforma.
                                         </p>

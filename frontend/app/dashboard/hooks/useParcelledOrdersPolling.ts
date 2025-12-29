@@ -17,6 +17,7 @@ export function useParcelledOrdersPolling({
     const lastParcelStatusesRef = useRef<Map<string, string>>(new Map());
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const isPollingRef = useRef(false);
+    const hasPendingParcelsRef = useRef(false); // Flag para rastrear se há parcelas pendentes
 
     const checkParcelsStatus = useCallback(async () => {
         if (!enabled || isPollingRef.current) return;
@@ -39,6 +40,9 @@ export function useParcelledOrdersPolling({
             const ordersRaw = Array.isArray(data?.orders) ? data.orders : [];
             const parcelsRaw = data?.parcelsByOrder || {};
 
+            // Verificar se há parcelas pendentes
+            let hasPending = false;
+
             // Verificar mudanças de status das parcelas
             Object.keys(parcelsRaw).forEach((orderId) => {
                 const parcels = parcelsRaw[orderId] || [];
@@ -49,6 +53,11 @@ export function useParcelledOrdersPolling({
 
                     const currentStatus = parcel.status || 'pending';
                     const lastStatus = lastParcelStatusesRef.current.get(parcelId);
+
+                    // Verificar se há parcelas pendentes (não pagas)
+                    if (currentStatus !== 'paid' && currentStatus !== 'cancelled') {
+                        hasPending = true;
+                    }
 
                     // Detectar quando uma parcela foi paga
                     if (lastStatus && lastStatus !== 'paid' && currentStatus === 'paid') {
@@ -67,6 +76,26 @@ export function useParcelledOrdersPolling({
                     lastParcelStatusesRef.current.set(parcelId, currentStatus);
                 });
             });
+
+            // Atualizar flag de parcelas pendentes
+            hasPendingParcelsRef.current = hasPending;
+
+            // Se não há mais parcelas pendentes, parar polling
+            if (!hasPending && lastParcelStatusesRef.current.size > 0) {
+                // Verificar se todas as parcelas monitoradas foram pagas
+                const allPaid = Array.from(lastParcelStatusesRef.current.values()).every(
+                    status => status === 'paid' || status === 'cancelled'
+                );
+                
+                if (allPaid) {
+                    // Todas as parcelas foram pagas - parar polling
+                    if (intervalRef.current) {
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                    }
+                    lastParcelStatusesRef.current.clear();
+                }
+            }
         } catch (error) {
             console.error('[ParcelledOrdersPolling] Erro ao verificar status:', error);
         } finally {
@@ -84,11 +113,20 @@ export function useParcelledOrdersPolling({
             return;
         }
 
-        // Primeira verificação imediata
-        checkParcelsStatus();
+        // Primeira verificação imediata para verificar se há parcelas pendentes
+        const initializeAndCheck = async () => {
+            await checkParcelsStatus();
+            
+            // Só iniciar polling se houver parcelas pendentes
+            if (hasPendingParcelsRef.current || lastParcelStatusesRef.current.size > 0) {
+                // Polling periódico apenas se houver parcelas pendentes
+                if (!intervalRef.current) {
+                    intervalRef.current = setInterval(checkParcelsStatus, intervalMs);
+                }
+            }
+        };
 
-        // Polling periódico
-        intervalRef.current = setInterval(checkParcelsStatus, intervalMs);
+        initializeAndCheck();
 
         return () => {
             if (intervalRef.current) {

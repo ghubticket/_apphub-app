@@ -5,6 +5,7 @@ import { HiQuestionMarkCircle, HiClock, HiMail, HiOutlineChevronDown } from 'rea
 import { FaWhatsapp } from 'react-icons/fa';
 import { APP_CONFIG } from '@/lib/config';
 import api from '@/lib/api';
+import CustomSelect from '@/components/shared/CustomSelect';
 
 interface RequestsSectionProps {
     userName?: string;
@@ -165,33 +166,23 @@ export default function RequestsSection({ userName, userEmail }: RequestsSection
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label
-                            htmlFor="category"
-                            className="mb-2 block text-sm font-semibold text-[#1a1a1d]"
-                        >
-                            Categoria
-                        </label>
-                        <select
-                            id="category"
+                        <CustomSelect
+                            label="Categoria"
                             value={formData.category}
-                            onChange={(e) => handleFieldChange('category', e.target.value)}
-                            className={`w-full rounded-xl border bg-white px-4 py-3 text-[#1a1a1d] focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 ${
-                                fieldErrors.category
-                                    ? 'border-rose-500 focus:border-rose-500'
-                                    : 'border-[#ded7ca] focus:border-[#f97316]'
-                            }`}
+                            onChange={(value) => handleFieldChange('category', value)}
+                            options={[
+                                { value: 'general', label: 'Geral' },
+                                { value: 'payment', label: 'Pagamento' },
+                                { value: 'tickets', label: 'Ingressos' },
+                                { value: 'account', label: 'Conta' },
+                                { value: 'technical', label: 'Problema Técnico' },
+                                { value: 'refund', label: 'Reembolso' },
+                            ]}
+                            placeholder="Selecione uma categoria"
                             required
-                        >
-                            <option value="general">Geral</option>
-                            <option value="payment">Pagamento</option>
-                            <option value="tickets">Ingressos</option>
-                            <option value="account">Conta</option>
-                            <option value="technical">Problema Técnico</option>
-                            <option value="refund">Reembolso</option>
-                        </select>
-                        {fieldErrors.category && (
-                            <p className="mt-1 text-sm text-rose-600">{fieldErrors.category}</p>
-                        )}
+                            error={!!fieldErrors.category}
+                            errorMessage={fieldErrors.category}
+                        />
                     </div>
 
                     <div>

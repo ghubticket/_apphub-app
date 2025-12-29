@@ -191,19 +191,26 @@ export function useOrdersPolling({
                     // Primeira verificação imediata
                     checkPendingOrders();
                     // Configurar intervalo (5 segundos, igual ao PIX polling)
-                    pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                    // Só iniciar se não estiver já rodando
+                    if (!pollingIntervalRef.current) {
+                        pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                    }
                 } else {
                     // Não há pedidos pendentes - não iniciar polling
                     setIsPolling(false);
+                    stopPolling();
                 }
             } catch (error) {
                 // Em caso de erro na inicialização, verificar se há pedidos para monitorar
                 // Se não houver, não iniciar polling
                 if (lastOrderStatusesRef.current.size > 0) {
                     setIsPolling(true);
-                    pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                    if (!pollingIntervalRef.current) {
+                        pollingIntervalRef.current = setInterval(checkPendingOrders, 5000);
+                    }
                 } else {
                     setIsPolling(false);
+                    stopPolling();
                 }
             }
         };
