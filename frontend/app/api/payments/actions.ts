@@ -235,19 +235,55 @@ export async function listParcelledOrders(
             ...headers,
         };
 
-        const response = await fetch(`${API_URL}/parcelled-orders`, {
-            method: 'GET',
-            headers: requestHeaders,
-        });
+        // Adicionar timeout e melhor tratamento de erro
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
 
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Erro ao listar pedidos parcelados' }));
-            throw new Error(error.message || 'Erro ao listar pedidos parcelados');
+        try {
+            const response = await fetch(`${API_URL}/parcelled-orders`, {
+                method: 'GET',
+                headers: requestHeaders,
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ message: 'Erro ao listar pedidos parcelados' }));
+                throw new Error(error.message || 'Erro ao listar pedidos parcelados');
+            }
+
+            return await response.json();
+        } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            
+            // Se foi abortado por timeout
+            if (fetchError.name === 'AbortError') {
+                throw new Error('Timeout ao listar pedidos parcelados. Tente novamente.');
+            }
+            
+            // Se foi erro de conexão
+            if (fetchError.code === 'ECONNRESET' || fetchError.message?.includes('ECONNRESET')) {
+                throw new Error('Erro de conexão com o servidor. Verifique se o backend está rodando.');
+            }
+            
+            throw fetchError;
         }
-
-        return await response.json();
     } catch (error: any) {
         console.error('[Server Action] Erro ao listar pedidos parcelados:', error);
+        
+        // Retornar resposta vazia em caso de erro de conexão para não quebrar a UI
+        if (error.message?.includes('conexão') || error.message?.includes('ECONNRESET') || error.message?.includes('fetch failed')) {
+            console.warn('[Server Action] Retornando lista vazia devido a erro de conexão');
+            return {
+                success: true,
+                data: {
+                    orders: [],
+                    parcelsByOrder: {},
+                },
+            };
+        }
+        
         throw error;
     }
 }

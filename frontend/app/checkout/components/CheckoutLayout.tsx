@@ -611,6 +611,26 @@ export function CheckoutLayout() {
         return false;
     }, [cartLoading, orderLoading, order, summarizedCart.length, customerData.name, customerData.email]);
     
+    // CRÍTICO: Se há parcelamento ativo (QR code gerado) e carrinho está vazio,
+    // redirecionar diretamente para dashboard sem mostrar "carrinho vazio"
+    // (similar ao comportamento do PIX)
+    const hasParcelledOrderActive = entryParcelQrCode?.parcelledOrderId;
+    const shouldRedirectToDashboard = summarizedCart.length === 0 && hasParcelledOrderActive;
+    
+    // useEffect deve estar ANTES de qualquer retorno condicional (regra dos hooks do React)
+    useEffect(() => {
+        if (shouldRedirectToDashboard && typeof window !== 'undefined') {
+            storageHelpers.clearActiveOrderId();
+            storageHelpers.clearTimerStartTime();
+            (window as any).__ALLOW_NAVIGATION__ = true;
+            window.onbeforeunload = null;
+            
+            setTimeout(() => {
+                window.location.replace('/dashboard');
+            }, 50);
+        }
+    }, [shouldRedirectToDashboard]);
+    
     // Mostrar loading
     if (shouldShowInitialLoading) {
         return <CheckoutLoadingState 
@@ -637,9 +657,14 @@ export function CheckoutLayout() {
         );
     }
 
-    // Mostrar carrinho vazio
-    if (summarizedCart.length === 0) {
+    // Mostrar carrinho vazio (mas não se há parcelamento ativo - será redirecionado)
+    if (summarizedCart.length === 0 && !hasParcelledOrderActive) {
         return <CheckoutEmptyState />;
+    }
+    
+    // Retornar null enquanto redireciona para dashboard
+    if (shouldRedirectToDashboard) {
+        return null;
     }
 
     return (

@@ -12,6 +12,7 @@ import {
 import type { CheckoutCustomerData } from '../types';
 import { INPUT_BASE_CLASS } from '../constants';
 import { normalizeCpf, formatCpfDisplay, isValidCpf } from '@/utils/sanitize';
+import { validators, type ValidationResult } from '../utils/validationRules';
 
 type CustomerDataFormProps = {
     data: CheckoutCustomerData;
@@ -56,16 +57,41 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
     const [showBillingInfoModal, setShowBillingInfoModal] = useState(false);
     const [billingModalEntering, setBillingModalEntering] = useState(false);
     const [isFetchingCep, setIsFetchingCep] = useState(false);
-    const [cpfError, setCpfError] = useState<string>('');
-    const [nameError, setNameError] = useState<string>('');
-    const [emailError, setEmailError] = useState<string>('');
-    const [phoneError, setPhoneError] = useState<string>('');
-    const [billingStreetError, setBillingStreetError] = useState<string>('');
-    const [billingNumberError, setBillingNumberError] = useState<string>('');
-    const [billingNeighborhoodError, setBillingNeighborhoodError] = useState<string>('');
-    const [billingZipError, setBillingZipError] = useState<string>('');
-    const [billingCityError, setBillingCityError] = useState<string>('');
-    const [billingStateError, setBillingStateError] = useState<string>('');
+    
+    // Consolidar todos os erros em um único objeto
+    const [errors, setErrors] = useState<Record<string, string>>({
+        name: '',
+        email: '',
+        cpf: '',
+        phone: '',
+        billingStreet: '',
+        billingNumber: '',
+        billingNeighborhood: '',
+        billingZip: '',
+        billingCity: '',
+        billingState: '',
+    });
+
+    // Helper para atualizar erro de um campo específico
+    const setFieldError = useCallback((field: string, error: string) => {
+        setErrors(prev => ({ ...prev, [field]: error }));
+    }, []);
+
+    // Helper para limpar erro de um campo específico
+    const clearFieldError = useCallback((field: string) => {
+        setErrors(prev => ({ ...prev, [field]: '' }));
+    }, []);
+
+    // Helper para limpar múltiplos erros de uma vez
+    const clearMultipleErrors = useCallback((fields: string[]) => {
+        setErrors(prev => {
+            const updated = { ...prev };
+            fields.forEach(field => {
+                updated[field] = '';
+            });
+            return updated;
+        });
+    }, []);
 
     // Fechar BillingInfoModal com ESC
     useEffect(() => {
@@ -95,153 +121,99 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
 
     const handleCepBlur = useCallback(() => {
         if (isDisabled || pixPaymentActive) return;
+        
+        // Validar CEP antes de buscar
+        const zipResult = validators.billingZip(data.billingZip || '');
+        if (!zipResult.isValid) {
+            setFieldError('billingZip', zipResult.error);
+            return;
+        }
+
         const digits = (data.billingZip || '').replace(/\D/g, '');
         if (digits.length !== 8) return;
 
-        try {
-            setIsFetchingCep(true);
-            fetch(`https://viacep.com.br/ws/${digits}/json/`)
-                .then((res) => res.json())
-                .then((cepData) => {
-                    if (!cepData || cepData.erro) {
-                        setIsFetchingCep(false);
-                        return;
-                    }
-                    
-                    // Preencher campos e limpar erros automaticamente
-                    if (cepData.logradouro) {
-                        onChange('billingStreet', cepData.logradouro);
-                        setBillingStreetError('');
-                    }
-                    if (cepData.bairro) {
-                        onChange('billingNeighborhood', cepData.bairro);
-                        setBillingNeighborhoodError('');
-                    }
-                    if (cepData.localidade) {
-                        onChange('billingCity', cepData.localidade);
-                        setBillingCityError('');
-                    }
-                    if (cepData.uf) {
-                        onChange('billingState', cepData.uf);
-                        setBillingStateError('');
-                    }
-                })
-                .finally(() => {
-                    setIsFetchingCep(false);
-                });
-        } catch {
+        setIsFetchingCep(true);
+        
+        // Timeout para evitar requisições muito longas
+        const timeoutId = setTimeout(() => {
             setIsFetchingCep(false);
-        }
-    }, [data.billingZip, isDisabled, pixPaymentActive, onChange]);
+            setFieldError('billingZip', 'Tempo limite excedido ao buscar CEP. Tente novamente.');
+        }, 10000); // 10 segundos
+
+        fetch(`https://viacep.com.br/ws/${digits}/json/`)
+            .then((res) => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                return res.json();
+            })
+            .then((cepData) => {
+                clearTimeout(timeoutId);
+                
+                if (!cepData || cepData.erro) {
+                    setFieldError('billingZip', 'CEP não encontrado. Verifique e tente novamente.');
+                    setIsFetchingCep(false);
+                    return;
+                }
+                
+                // Preencher campos e limpar erros automaticamente
+                const fieldsToClear: string[] = ['billingZip'];
+                
+                if (cepData.logradouro) {
+                    onChange('billingStreet', cepData.logradouro);
+                    fieldsToClear.push('billingStreet');
+                }
+                if (cepData.bairro) {
+                    onChange('billingNeighborhood', cepData.bairro);
+                    fieldsToClear.push('billingNeighborhood');
+                }
+                if (cepData.localidade) {
+                    onChange('billingCity', cepData.localidade);
+                    fieldsToClear.push('billingCity');
+                }
+                if (cepData.uf) {
+                    onChange('billingState', cepData.uf);
+                    fieldsToClear.push('billingState');
+                }
+                
+                // Limpar todos os erros dos campos preenchidos
+                clearMultipleErrors(fieldsToClear);
+                setIsFetchingCep(false);
+            })
+            .catch((error) => {
+                clearTimeout(timeoutId);
+                setIsFetchingCep(false);
+                console.error('Erro ao buscar CEP:', error);
+                setFieldError('billingZip', 'Erro ao buscar CEP. Verifique sua conexão e tente novamente.');
+            });
+    }, [data.billingZip, isDisabled, pixPaymentActive, onChange, setFieldError, clearMultipleErrors]);
 
     // Função para validar todos os campos e mostrar erros
     const validateAll = useCallback(() => {
-        let hasError = false;
+        const validationResults: Record<string, ValidationResult> = {
+            name: validators.name(data.name || ''),
+            email: validators.email(data.email || ''),
+            cpf: validators.cpf(data.cpf || ''),
+            phone: validators.phone(data.phone || ''),
+            billingStreet: validators.billingStreet(data.billingStreet || ''),
+            billingNumber: validators.billingNumber(data.billingNumber || ''),
+            billingNeighborhood: validators.billingNeighborhood(data.billingNeighborhood || ''),
+            billingZip: validators.billingZip(data.billingZip || ''),
+            billingCity: validators.billingCity(data.billingCity || ''),
+            billingState: validators.billingState(data.billingState || ''),
+        };
 
-        // Validar nome
-        if (!data.name || !data.name.trim()) {
-            setNameError('Informe o nome completo.');
-            hasError = true;
-        } else if (data.name.trim().length < 3) {
-            setNameError('Nome deve ter pelo menos 3 caracteres.');
-            hasError = true;
-        } else {
-            setNameError('');
-        }
+        // Atualizar todos os erros de uma vez
+        setErrors(prev => {
+            const updated = { ...prev };
+            Object.keys(validationResults).forEach(field => {
+                updated[field] = validationResults[field].error;
+            });
+            return updated;
+        });
 
-        // Validar email
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!data.email || !data.email.trim()) {
-            setEmailError('Informe um e-mail válido.');
-            hasError = true;
-        } else if (!emailRegex.test(data.email.trim())) {
-            setEmailError('E-mail inválido.');
-            hasError = true;
-        } else {
-            setEmailError('');
-        }
-
-        // Validar CPF
-        const cpfValue = data.cpf || '';
-        if (!cpfValue || !cpfValue.trim()) {
-            setCpfError('Informe seu CPF.');
-            hasError = true;
-        } else {
-            const digits = normalizeCpf(cpfValue);
-            if (digits.length !== 11) {
-                setCpfError('CPF deve ter 11 dígitos.');
-                hasError = true;
-            } else if (!isValidCpf(cpfValue)) {
-                setCpfError('CPF inválido. Verifique os dígitos e tente novamente.');
-                hasError = true;
-            } else {
-                setCpfError('');
-            }
-        }
-
-        // Validar telefone
-        const phoneDigits = (data.phone || '').replace(/\D/g, '');
-        if (!data.phone || !data.phone.trim()) {
-            setPhoneError('Informe um telefone válido com DDD.');
-            hasError = true;
-        } else if (phoneDigits.length < 10) {
-            setPhoneError('Telefone deve ter pelo menos 10 dígitos (com DDD).');
-            hasError = true;
-        } else {
-            setPhoneError('');
-        }
-
-        // Validar endereço de cobrança - TODOS obrigatórios
-        if (!data.billingStreet || !data.billingStreet.trim()) {
-            setBillingStreetError('Informe a rua/avenida.');
-            hasError = true;
-        } else {
-            setBillingStreetError('');
-        }
-
-        if (!data.billingNumber || !data.billingNumber.trim()) {
-            setBillingNumberError('Informe o número.');
-            hasError = true;
-        } else {
-            setBillingNumberError('');
-        }
-
-        if (!data.billingNeighborhood || !data.billingNeighborhood.trim()) {
-            setBillingNeighborhoodError('Informe o bairro.');
-            hasError = true;
-        } else {
-            setBillingNeighborhoodError('');
-        }
-
-        const zipDigits = (data.billingZip || '').replace(/\D/g, '');
-        if (!data.billingZip || !data.billingZip.trim()) {
-            setBillingZipError('Informe o CEP.');
-            hasError = true;
-        } else if (zipDigits.length !== 8) {
-            setBillingZipError('CEP deve ter 8 dígitos.');
-            hasError = true;
-        } else {
-            setBillingZipError('');
-        }
-
-        if (!data.billingCity || !data.billingCity.trim()) {
-            setBillingCityError('Informe a cidade.');
-            hasError = true;
-        } else {
-            setBillingCityError('');
-        }
-
-        if (!data.billingState || !data.billingState.trim()) {
-            setBillingStateError('Informe o estado (UF).');
-            hasError = true;
-        } else if (data.billingState.trim().length !== 2) {
-            setBillingStateError('UF deve ter 2 caracteres.');
-            hasError = true;
-        } else {
-            setBillingStateError('');
-        }
-
-        return !hasError;
+        // Retornar true se todos os campos são válidos
+        return Object.values(validationResults).every(result => result.isValid);
     }, [data.name, data.email, data.cpf, data.phone, data.billingStreet, data.billingNumber, data.billingNeighborhood, data.billingZip, data.billingCity, data.billingState]);
 
     // Expor função de validação via ref
@@ -274,28 +246,23 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                             value={data.name}
                             onChange={isDisabled ? undefined : (event) => {
                                 onChange('name', event.target.value);
-                                if (nameError) {
-                                    setNameError('');
+                                if (errors.name) {
+                                    clearFieldError('name');
                                 }
                             }}
                             onBlur={isDisabled ? undefined : () => {
-                                if (!data.name || !data.name.trim()) {
-                                    setNameError('Informe o nome completo.');
-                                } else if (data.name.trim().length < 3) {
-                                    setNameError('Nome deve ter pelo menos 3 caracteres.');
-                                } else {
-                                    setNameError('');
-                                }
+                                const result = validators.name(data.name || '');
+                                setFieldError('name', result.error);
                             }}
                             readOnly={isDisabled}
                             disabled={isDisabled}
                             aria-readonly={isDisabled}
-                            className={`${sharedClass} ${nameError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                            className={`${sharedClass} ${errors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                             placeholder="Como aparece no documento"
                         />
                     </div>
-                    {nameError && (
-                        <span className="text-xs text-red-600 mt-1">{nameError}</span>
+                    {errors.name && (
+                        <span className="text-xs text-red-600 mt-1">{errors.name}</span>
                     )}
                 </label>
                 <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
@@ -307,27 +274,21 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                             value={data.email}
                             onChange={isDisabled ? undefined : (event) => {
                                 onChange('email', event.target.value);
-                                if (emailError) {
-                                    setEmailError('');
+                                if (errors.email) {
+                                    clearFieldError('email');
                                 }
                             }}
                             onBlur={isDisabled ? undefined : () => {
-                                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                                if (!data.email || !data.email.trim()) {
-                                    setEmailError('Informe um e-mail válido.');
-                                } else if (!emailRegex.test(data.email.trim())) {
-                                    setEmailError('E-mail inválido.');
-                                } else {
-                                    setEmailError('');
-                                }
+                                const result = validators.email(data.email || '');
+                                setFieldError('email', result.error);
                             }}
                             {...inputProps}
-                            className={`${sharedClass} ${emailError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                            className={`${sharedClass} ${errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                             placeholder="email@exemplo.com"
                         />
                     </div>
-                    {emailError && (
-                        <span className="text-xs text-red-600 mt-1">{emailError}</span>
+                    {errors.email && (
+                        <span className="text-xs text-red-600 mt-1">{errors.email}</span>
                     )}
                 </label>
                 <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
@@ -347,36 +308,21 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                                 const formatted = formatCpfDisplay(normalized);
                                 onChange('cpf', formatted);
                                 // Limpar erro quando começar a digitar
-                                if (cpfError) {
-                                    setCpfError('');
+                                if (errors.cpf) {
+                                    clearFieldError('cpf');
                                 }
                             }}
-                            onBlur={isDisabled ? undefined : (event) => {
-                                // Validar CPF quando sair do campo
-                                const cpfValue = event.target.value;
-                                if (!cpfValue || !cpfValue.trim()) {
-                                    setCpfError('Informe seu CPF.');
-                                    return;
-                                }
-                                const digits = normalizeCpf(cpfValue);
-                                if (digits.length !== 11) {
-                                    setCpfError('CPF deve ter 11 dígitos.');
-                                    return;
-                                }
-                                if (!isValidCpf(cpfValue)) {
-                                    setCpfError('CPF inválido. Verifique os dígitos e tente novamente.');
-                                    return;
-                                }
-                                // CPF válido, limpar erro
-                                setCpfError('');
+                            onBlur={isDisabled ? undefined : () => {
+                                const result = validators.cpf(data.cpf || '');
+                                setFieldError('cpf', result.error);
                             }}
                             {...inputProps}
-                            className={`${sharedClass} ${cpfError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                            className={`${sharedClass} ${errors.cpf ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                             placeholder="000.000.000-00"
                         />
                     </div>
-                    {cpfError && (
-                        <span className="text-xs text-red-600 mt-1">{cpfError}</span>
+                    {errors.cpf && (
+                        <span className="text-xs text-red-600 mt-1">{errors.cpf}</span>
                     )}
                 </label>
                 <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
@@ -390,27 +336,21 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                             value={data.phone}
                             onChange={isDisabled ? undefined : (event) => {
                                 onChange('phone', event.target.value);
-                                if (phoneError) {
-                                    setPhoneError('');
+                                if (errors.phone) {
+                                    clearFieldError('phone');
                                 }
                             }}
                             onBlur={isDisabled ? undefined : () => {
-                                const phoneDigits = (data.phone || '').replace(/\D/g, '');
-                                if (!data.phone || !data.phone.trim()) {
-                                    setPhoneError('Informe um telefone válido com DDD.');
-                                } else if (phoneDigits.length < 10) {
-                                    setPhoneError('Telefone deve ter pelo menos 10 dígitos (com DDD).');
-                                } else {
-                                    setPhoneError('');
-                                }
+                                const result = validators.phone(data.phone || '');
+                                setFieldError('phone', result.error);
                             }}
                             {...inputProps}
-                            className={`${sharedClass} ${phoneError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                            className={`${sharedClass} ${errors.phone ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                             placeholder="(11) 99999-9999"
                         />
                     </div>
-                    {phoneError && (
-                        <span className="text-xs text-red-600 mt-1">{phoneError}</span>
+                    {errors.phone && (
+                        <span className="text-xs text-red-600 mt-1">{errors.phone}</span>
                     )}
                 </label>
                 <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
@@ -478,24 +418,21 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                                 value={data.billingStreet || ''}
                                 onChange={isDisabled ? undefined : (event) => {
                                     onChange('billingStreet', event.target.value);
-                                    if (billingStreetError) {
-                                        setBillingStreetError('');
+                                    if (errors.billingStreet) {
+                                        clearFieldError('billingStreet');
                                     }
                                 }}
                                 onBlur={isDisabled ? undefined : () => {
-                                    if (!data.billingStreet || !data.billingStreet.trim()) {
-                                        setBillingStreetError('Informe a rua/avenida.');
-                                    } else {
-                                        setBillingStreetError('');
-                                    }
+                                    const result = validators.billingStreet(data.billingStreet || '');
+                                    setFieldError('billingStreet', result.error);
                                 }}
                                 {...inputProps}
-                                className={`${sharedClass} ${billingStreetError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                                className={`${sharedClass} ${errors.billingStreet ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="Ex.: Rua Exemplo"
                             />
                         </div>
-                        {billingStreetError && (
-                            <span className="text-xs text-red-600 mt-1">{billingStreetError}</span>
+                        {errors.billingStreet && (
+                            <span className="text-xs text-red-600 mt-1">{errors.billingStreet}</span>
                         )}
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
@@ -506,24 +443,21 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                                 value={data.billingNumber || ''}
                                 onChange={isDisabled ? undefined : (event) => {
                                     onChange('billingNumber', event.target.value);
-                                    if (billingNumberError) {
-                                        setBillingNumberError('');
+                                    if (errors.billingNumber) {
+                                        clearFieldError('billingNumber');
                                     }
                                 }}
                                 onBlur={isDisabled ? undefined : () => {
-                                    if (!data.billingNumber || !data.billingNumber.trim()) {
-                                        setBillingNumberError('Informe o número.');
-                                    } else {
-                                        setBillingNumberError('');
-                                    }
+                                    const result = validators.billingNumber(data.billingNumber || '');
+                                    setFieldError('billingNumber', result.error);
                                 }}
                                 {...inputProps}
-                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingNumberError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${errors.billingNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="123"
                             />
                         </div>
-                        {billingNumberError && (
-                            <span className="text-xs text-red-600 mt-1">{billingNumberError}</span>
+                        {errors.billingNumber && (
+                            <span className="text-xs text-red-600 mt-1">{errors.billingNumber}</span>
                         )}
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d] md:col-span-2">
@@ -534,24 +468,21 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                                 value={data.billingNeighborhood || ''}
                                 onChange={isDisabled ? undefined : (event) => {
                                     onChange('billingNeighborhood', event.target.value);
-                                    if (billingNeighborhoodError) {
-                                        setBillingNeighborhoodError('');
+                                    if (errors.billingNeighborhood) {
+                                        clearFieldError('billingNeighborhood');
                                     }
                                 }}
                                 onBlur={isDisabled ? undefined : () => {
-                                    if (!data.billingNeighborhood || !data.billingNeighborhood.trim()) {
-                                        setBillingNeighborhoodError('Informe o bairro.');
-                                    } else {
-                                        setBillingNeighborhoodError('');
-                                    }
+                                    const result = validators.billingNeighborhood(data.billingNeighborhood || '');
+                                    setFieldError('billingNeighborhood', result.error);
                                 }}
                                 {...inputProps}
-                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingNeighborhoodError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${errors.billingNeighborhood ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="Seu bairro"
                             />
                         </div>
-                        {billingNeighborhoodError && (
-                            <span className="text-xs text-red-600 mt-1">{billingNeighborhoodError}</span>
+                        {errors.billingNeighborhood && (
+                            <span className="text-xs text-red-600 mt-1">{errors.billingNeighborhood}</span>
                         )}
                     </label>
                 </div>
@@ -566,28 +497,24 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                                 value={data.billingZip || ''}
                                 onChange={isDisabled ? undefined : (event) => {
                                     onChange('billingZip', event.target.value);
-                                    if (billingZipError) {
-                                        setBillingZipError('');
+                                    if (errors.billingZip) {
+                                        clearFieldError('billingZip');
                                     }
                                 }}
                                 onBlur={isDisabled ? undefined : () => {
-                                    const zipDigits = (data.billingZip || '').replace(/\D/g, '');
-                                    if (!data.billingZip || !data.billingZip.trim()) {
-                                        setBillingZipError('Informe o CEP.');
-                                    } else if (zipDigits.length !== 8) {
-                                        setBillingZipError('CEP deve ter 8 dígitos.');
-                                    } else {
-                                        setBillingZipError('');
+                                    const result = validators.billingZip(data.billingZip || '');
+                                    setFieldError('billingZip', result.error);
+                                    if (result.isValid) {
+                                        handleCepBlur();
                                     }
-                                    handleCepBlur();
                                 }}
                                 {...inputProps}
-                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingZipError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${errors.billingZip ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="00000-000"
                             />
                         </div>
-                        {billingZipError && (
-                            <span className="text-xs text-red-600 mt-1">{billingZipError}</span>
+                        {errors.billingZip && (
+                            <span className="text-xs text-red-600 mt-1">{errors.billingZip}</span>
                         )}
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d] md:col-span-2">
@@ -598,24 +525,21 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                                 value={data.billingCity || ''}
                                 onChange={isDisabled ? undefined : (event) => {
                                     onChange('billingCity', event.target.value);
-                                    if (billingCityError) {
-                                        setBillingCityError('');
+                                    if (errors.billingCity) {
+                                        clearFieldError('billingCity');
                                     }
                                 }}
                                 onBlur={isDisabled ? undefined : () => {
-                                    if (!data.billingCity || !data.billingCity.trim()) {
-                                        setBillingCityError('Informe a cidade.');
-                                    } else {
-                                        setBillingCityError('');
-                                    }
+                                    const result = validators.billingCity(data.billingCity || '');
+                                    setFieldError('billingCity', result.error);
                                 }}
                                 {...inputProps}
-                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingCityError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${errors.billingCity ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="São Paulo"
                             />
                         </div>
-                        {billingCityError && (
-                            <span className="text-xs text-red-600 mt-1">{billingCityError}</span>
+                        {errors.billingCity && (
+                            <span className="text-xs text-red-600 mt-1">{errors.billingCity}</span>
                         )}
                     </label>
 
@@ -628,26 +552,21 @@ const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFo
                                 value={data.billingState || ''}
                                 onChange={isDisabled ? undefined : (event) => {
                                     onChange('billingState', event.target.value.toUpperCase());
-                                    if (billingStateError) {
-                                        setBillingStateError('');
+                                    if (errors.billingState) {
+                                        clearFieldError('billingState');
                                     }
                                 }}
                                 onBlur={isDisabled ? undefined : () => {
-                                    if (!data.billingState || !data.billingState.trim()) {
-                                        setBillingStateError('Informe o estado (UF).');
-                                    } else if (data.billingState.trim().length !== 2) {
-                                        setBillingStateError('UF deve ter 2 caracteres.');
-                                    } else {
-                                        setBillingStateError('');
-                                    }
+                                    const result = validators.billingState(data.billingState || '');
+                                    setFieldError('billingState', result.error);
                                 }}
                                 {...inputProps}
-                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingStateError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${errors.billingState ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="SP"
                             />
                         </div>
-                        {billingStateError && (
-                            <span className="text-xs text-red-600 mt-1">{billingStateError}</span>
+                        {errors.billingState && (
+                            <span className="text-xs text-red-600 mt-1">{errors.billingState}</span>
                         )}
                     </label>
                 </div>

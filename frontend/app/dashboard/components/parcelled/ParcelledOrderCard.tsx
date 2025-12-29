@@ -348,7 +348,7 @@ export default function ParcelledOrderCard({
                 {/* Alerta */}
                 {alertMessage && (
                     <div
-                        className={`mb-6 rounded-xl border  p-4 text-sm font-medium ${alertColorClasses[alertColor]}`}
+                        className={`mb-6 rounded-xl border p-4 text-center text-sm font-medium ${alertColorClasses[alertColor]}`}
                     >
                         {alertMessage}
                     </div>

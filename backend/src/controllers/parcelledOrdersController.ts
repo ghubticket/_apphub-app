@@ -57,15 +57,8 @@ export const createParcelledOrder = async (req: Request, res: Response) => {
             });
         }
 
-        if (!customerData || !customerData.name || !customerData.email || !customerData.cpf) {
-            return res.status(400).json({
-                success: false,
-                message: 'Dados do cliente são obrigatórios',
-                errors: ['name, email e cpf são obrigatórios em customerData'],
-            });
-        }
-
-        // Buscar dados relacionados (evento, ticketType, user)
+        // Buscar dados relacionados (evento, ticketType, user) PRIMEIRO
+        // Isso permite usar dados do usuário logado se customerData não for fornecido
         const related = await fetchOrderRelatedData(eventId, ticketTypeId, userId);
         if (related.error) {
             return res.status(related.error.status).json({
@@ -76,6 +69,56 @@ export const createParcelledOrder = async (req: Request, res: Response) => {
         }
 
         const { event, ticketType, user } = related.data!;
+
+        // Usar dados do usuário logado como fallback se customerData não for fornecido
+        // Se o usuário está logado, usar seus dados diretamente do banco; caso contrário, exigir customerData
+        let finalCustomerName: string;
+        let finalCustomerEmail: string;
+        let finalCustomerCpf: string;
+        let finalCustomerPhone: string | undefined;
+        
+        if (user) {
+            // Usuário logado: usar dados do usuário diretamente do banco
+            // O modelo User já descriptografa automaticamente o CPF
+            finalCustomerName = customerData?.name || user.name || '';
+            finalCustomerEmail = customerData?.email || user.email || '';
+            finalCustomerCpf = customerData?.cpf || user.cpf || '';
+            finalCustomerPhone = customerData?.phone || user.phone || undefined;
+        } else {
+            // Usuário não logado: usar dados do payload
+            finalCustomerName = customerData?.name || '';
+            finalCustomerEmail = customerData?.email || '';
+            finalCustomerCpf = customerData?.cpf || '';
+            finalCustomerPhone = customerData?.phone || undefined;
+        }
+
+        // Validar se temos os dados mínimos necessários
+        // Se o usuário está logado, usar dados do banco (já descriptografados)
+        // Se não está logado, exigir todos os dados no payload
+        if (!finalCustomerName || !finalCustomerEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Dados do cliente são obrigatórios',
+                errors: user 
+                    ? ['Nome e e-mail são obrigatórios. Verifique seu cadastro.']
+                    : ['name e email são obrigatórios em customerData. Faça login ou forneça os dados.'],
+            });
+        }
+        
+        // CPF é obrigatório apenas se não estiver logado
+        if (!user && !finalCustomerCpf) {
+            return res.status(400).json({
+                success: false,
+                message: 'Dados do cliente são obrigatórios',
+                errors: ['cpf é obrigatório quando não está logado. Faça login ou forneça customerData com cpf.'],
+            });
+        }
+        
+        // Se usuário está logado mas não tem CPF, ainda permitir (pode ser cadastrado depois)
+        // Mas avisar que CPF é recomendado para validações
+        if (user && !finalCustomerCpf) {
+            console.warn(`[createParcelledOrder] Usuário ${user._id} criando pedido parcelado sem CPF cadastrado`);
+        }
 
         // Verificar se o tipo de ingresso permite parcelamento.
         // Regra: considera parcelamento habilitado se:
@@ -103,8 +146,8 @@ export const createParcelledOrder = async (req: Request, res: Response) => {
             ticketTypeId,
             quantity,
             ticketType,
-            customerData.cpf,
-            customerData.email
+            finalCustomerCpf,
+            finalCustomerEmail
         );
         if (!availability.isValid && availability.error) {
             return res.status(availability.error.status).json({
@@ -125,11 +168,11 @@ export const createParcelledOrder = async (req: Request, res: Response) => {
             eventId,
             ticketTypeId,
             quantity,
-            customerId: user?._id?.toString() || customerData.userId || 'anonymous',
-            customerName: customerData.name,
-            customerEmail: customerData.email,
-            customerCpf: customerData.cpf,
-            customerPhone: customerData.phone,
+            customerId: user?._id?.toString() || 'anonymous',
+            customerName: finalCustomerName,
+            customerEmail: finalCustomerEmail,
+            customerCpf: finalCustomerCpf,
+            customerPhone: finalCustomerPhone,
             paymentType,
             installmentsCount,
             deviceId, // Passar deviceId para createPixPayment

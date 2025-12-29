@@ -10,10 +10,11 @@ import type { UsePixPaymentReturn } from '../hooks/usePixPayment';
 import { clearCartItems } from '@/lib/cart';
 import { storageHelpers } from '../utils/storageHelpers';
 import { getMercadoPagoDeviceId } from '../utils/deviceIdHelper';
-import { 
+import {
     createParcelledOrder as createParcelledOrderAction,
-    getPaymentStatus as getPaymentStatusAction 
+    getPaymentStatus as getPaymentStatusAction
 } from '@/app/api/payments/actions';
+import { useAuth } from '@/context/AuthContext';
 
 const CardPaymentFormBrick = dynamic(
     () => import('./CardPaymentFormBrick').then((mod) => ({ default: mod.CardPaymentFormBrick })),
@@ -90,6 +91,7 @@ export function PaymentSection({
     validateCustomerData,
 }: PaymentSectionProps) {
     const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
+    const { user } = useAuth();
 
     // Log removido para reduzir ruído - só logar em caso de erro
 
@@ -119,9 +121,9 @@ export function PaymentSection({
         if (selectedTab === 'parcel' && finalizeButtonRef.current) {
             // Pequeno delay para garantir que o DOM foi atualizado
             setTimeout(() => {
-                finalizeButtonRef.current?.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'end' 
+                finalizeButtonRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'end'
                 });
             }, 300);
         }
@@ -131,9 +133,9 @@ export function PaymentSection({
     useEffect(() => {
         if (installmentError && finalizeButtonRef.current) {
             setTimeout(() => {
-                finalizeButtonRef.current?.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'center' 
+                finalizeButtonRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
                 });
             }, 100);
         }
@@ -203,21 +205,6 @@ export function PaymentSection({
             return;
         }
 
-        if (!customerName || !customerEmail || !customerCpf) {
-            setInstallmentError('Preencha nome, e-mail e CPF antes de finalizar o parcelamento.');
-            // Scroll até a seção de dados do comprador no mobile
-            setTimeout(() => {
-                const customerFormElement = document.getElementById('customer-data-form');
-                if (customerFormElement) {
-                    customerFormElement.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start' 
-                    });
-                }
-            }, 100);
-            return;
-        }
-
         try {
             setInstallmentLoading(true);
             setInstallmentError(null);
@@ -225,18 +212,13 @@ export function PaymentSection({
             // Obter deviceId do Mercado Pago (necessário para PIX em produção)
             const deviceId = getMercadoPagoDeviceId();
 
+            // Backend usa dados do usuário logado automaticamente, não precisa enviar customerData
             const payload = {
                 eventId: primaryEventId,
                 ticketTypeId: primaryTicketTypeId,
                 quantity: primaryQuantity,
                 installmentsCount: selectedInstallments,
                 paymentType: 'pix' as const,
-                customerData: {
-                    name: customerName,
-                    email: customerEmail,
-                    cpf: customerCpf,
-                    phone: customerPhone,
-                },
                 deviceId, // Incluir deviceId para melhorar rastreamento no Mercado Pago
             };
 
@@ -246,18 +228,17 @@ export function PaymentSection({
                 ticketTypeId: primaryTicketTypeId,
                 quantity: primaryQuantity,
                 installmentsCount: selectedInstallments,
-                customerEmail: customerEmail,
-                customerName: customerName,
                 hasDeviceId: !!deviceId,
                 deviceId: deviceId?.substring(0, 20) + '...', // Log parcial por segurança
+                userId: user?._id || user?.id || 'anonymous', // Log do userId para debug
             });
 
             // Obter token de autenticação
-            const token = localStorage.getItem('accessToken') || 
-                        sessionStorage.getItem('accessToken') || 
-                        localStorage.getItem('token') || 
-                        null;
-            
+            const token = localStorage.getItem('accessToken') ||
+                sessionStorage.getItem('accessToken') ||
+                localStorage.getItem('token') ||
+                null;
+
             // Usar Server Action para criar pedido parcelado (nunca expõe URL da API)
             const response = await createParcelledOrderAction(
                 payload,
@@ -297,7 +278,7 @@ export function PaymentSection({
                 // Usar expiresAt da resposta do backend (já vem do createPixPayment)
                 // Se não vier na resposta, tentar buscar via API como fallback
                 let expiresAt: string | null = entryPixPayment?.expiresAt || null;
-                
+
                 // Fallback: buscar via API se não veio na resposta
                 if (!expiresAt && entryParcel.paymentId) {
                     try {
@@ -305,11 +286,11 @@ export function PaymentSection({
                             paymentId: entryParcel.paymentId,
                         });
                         // Obter token de autenticação
-                        const token = localStorage.getItem('accessToken') || 
-                                    sessionStorage.getItem('accessToken') || 
-                                    localStorage.getItem('token') || 
-                                    null;
-                        
+                        const token = localStorage.getItem('accessToken') ||
+                            sessionStorage.getItem('accessToken') ||
+                            localStorage.getItem('token') ||
+                            null;
+
                         // Usar Server Action para buscar status (nunca expõe URL da API)
                         const paymentStatusResp = await getPaymentStatusAction(
                             entryParcel.paymentId,
@@ -376,7 +357,6 @@ export function PaymentSection({
                     ticketTypeId: primaryTicketTypeId,
                     quantity: primaryQuantity,
                     installmentsCount: selectedInstallments,
-                    customerEmail: customerEmail,
                 },
             });
 
@@ -689,11 +669,10 @@ export function PaymentSection({
                                                         key={qty}
                                                         type="button"
                                                         onClick={() => setSelectedInstallments(qty)}
-                                                        className={`w-full rounded-full border px-4 py-2 text-sm font-light uppercase tracking-normal text-center transition ${
-                                                            isActive
+                                                        className={`w-full rounded-full border px-4 py-2 text-sm font-light uppercase tracking-normal text-center transition ${isActive
                                                                 ? 'border-[#1a1a1d] bg-[#1a1a1d] text-white'
                                                                 : 'border-[#ded7ca] bg-[#faf7f0] text-[#4c4c55] hover:border-[#1a1a1d] hover:bg-[#1a1a1d] hover:text-white'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         {qty}x de{' '}
                                                         <strong className="font-bold">
@@ -797,7 +776,7 @@ export function PaymentSection({
                         <SiPix className="text-base" />
                     </span>
                     <p>
-                        Pagamentos processados pelo Mercado Pago (Checkout Transparente). Ambiente seguro, com antifraude
+                        Pagamentos processados pelo Mercado Pago (Checkout Transparente). <br />Ambiente seguro, com antifraude
                         e 3D Secure quando necessário.
                     </p>
                 </div>

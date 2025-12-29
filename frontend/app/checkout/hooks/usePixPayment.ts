@@ -169,8 +169,22 @@ export function usePixPayment(
                 processingRef.current = false;
                 stopPolling();
             } else {
-                // Novo orderId: resetar apenas se não houver pixResult
-                if (!pixResult) {
+                // Novo orderId: resetar estado de PIX se o orderId anterior tinha PIX ativo
+                // Isso garante que ao criar um novo pedido, o estado de PIX seja limpo
+                const previousOrderId = previousOrderIdRef.current;
+                const hadPixActive = previousOrderId && storage.getPixOrderActive() === previousOrderId;
+                
+                // Se o orderId anterior tinha PIX ativo OU se é um novo pedido fake, resetar tudo
+                if (hadPixActive || orderId.startsWith('fake-')) {
+                    setStatus('idle');
+                    setStatusMessage('');
+                    setPixResult(null);
+                    setPixCopySuccess(false);
+                    setPixExpirationDescription(null);
+                    processingRef.current = false;
+                    stopPolling();
+                } else if (!pixResult) {
+                    // Se não há pixResult ativo, resetar apenas status
                     setStatus((prevStatus) => {
                         if (prevStatus === 'error') {
                             return prevStatus; // Manter erro para exibição
@@ -182,10 +196,9 @@ export function usePixPayment(
                     setPixCopySuccess(false);
                     setPixExpirationDescription(null);
                     processingRef.current = false;
-                    // Só parar polling se não há pixResult ativo
                     stopPolling();
                 }
-                // Se há pixResult ativo, não parar o polling - ele deve continuar verificando
+                // Se há pixResult ativo e não é um novo pedido, não parar o polling
                 
                 setIsCheckoutReady(true);
             }

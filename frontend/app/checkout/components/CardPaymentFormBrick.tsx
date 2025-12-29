@@ -5,6 +5,7 @@ import type { FormEvent } from 'react';
 import { IsolatedCardPaymentBrick } from './IsolatedCardPaymentBrick';
 import PaymentSuccessModal from '@/components/shared/PaymentSuccessModal';
 import PaymentErrorModal from './PaymentErrorModal';
+import { debounce } from '@/utils/debounce';
 
 type PaymentStatusState = 'idle' | 'processing' | 'success' | 'error';
 
@@ -96,6 +97,10 @@ export function CardPaymentFormBrick({
 
         let interceptedButtons = new Set<HTMLButtonElement>();
         let observer: MutationObserver | null = null;
+        let buttonFound = false;
+
+        // Constantes para textos de botões do brick
+        const BRICK_BUTTON_TEXTS = ['pagar', 'pay', 'continuar'] as const;
 
         // Função para encontrar e interceptar o botão do brick
         const interceptBrickButton = (button: HTMLButtonElement) => {
@@ -107,6 +112,7 @@ export function CardPaymentFormBrick({
             // Marcar como interceptado
             interceptedButtons.add(button);
             button.setAttribute('data-intercepted', 'true');
+            buttonFound = true;
 
             // Adicionar listener que intercepta o clique ANTES do brick processar
             const interceptClick = (e: MouseEvent) => {
@@ -137,6 +143,11 @@ export function CardPaymentFormBrick({
 
         // Função para procurar botões do brick
         const findAndInterceptButtons = () => {
+            // Se já encontrou o botão, não precisa procurar novamente
+            if (buttonFound) {
+                return;
+            }
+
             // Procurar o botão dentro do container do brick
             const brickContainer = document.getElementById('mp-brick-persistent-container') || 
                                    document.querySelector('[id*="mp-brick"]') ||
@@ -150,7 +161,8 @@ export function CardPaymentFormBrick({
                     if (btn instanceof HTMLButtonElement && !btn.hasAttribute('data-intercepted')) {
                         // Verificar se o texto do botão indica que é o botão de pagar
                         const buttonText = btn.textContent?.toLowerCase() || '';
-                        if (buttonText.includes('pagar') || buttonText.includes('pay') || buttonText.includes('continuar')) {
+                        const isValidButton = BRICK_BUTTON_TEXTS.some(text => buttonText.includes(text));
+                        if (isValidButton) {
                             interceptBrickButton(btn);
                         }
                     }
@@ -158,25 +170,31 @@ export function CardPaymentFormBrick({
             }
 
             // Fallback: procurar em todo o documento por botões que possam ser do brick
-            const allSubmitButtons = document.querySelectorAll('button[type="submit"]');
-            allSubmitButtons.forEach((btn) => {
-                if (btn instanceof HTMLButtonElement && 
-                    !btn.hasAttribute('data-intercepted') &&
-                    !interceptedButtons.has(btn)) {
-                    const buttonText = btn.textContent?.toLowerCase() || '';
-                    // Verificar se está próximo ao container do brick ou tem características do MP
-                    const isNearBrick = brickContainer && (
-                        brickContainer.contains(btn) || 
-                        btn.closest('[class*="mercadopago"]') ||
-                        btn.closest('[class*="mp-"]')
-                    );
-                    
-                    if (isNearBrick && (buttonText.includes('pagar') || buttonText.includes('pay'))) {
-                        interceptBrickButton(btn);
+            if (!buttonFound) {
+                const allSubmitButtons = document.querySelectorAll('button[type="submit"]');
+                allSubmitButtons.forEach((btn) => {
+                    if (btn instanceof HTMLButtonElement && 
+                        !btn.hasAttribute('data-intercepted') &&
+                        !interceptedButtons.has(btn)) {
+                        const buttonText = btn.textContent?.toLowerCase() || '';
+                        // Verificar se está próximo ao container do brick ou tem características do MP
+                        const isNearBrick = brickContainer && (
+                            brickContainer.contains(btn) || 
+                            btn.closest('[class*="mercadopago"]') ||
+                            btn.closest('[class*="mp-"]')
+                        );
+                        
+                        const isValidButton = BRICK_BUTTON_TEXTS.some(text => buttonText.includes(text));
+                        if (isNearBrick && isValidButton) {
+                            interceptBrickButton(btn);
+                        }
                     }
-                }
-            });
+                });
+            }
         };
+
+        // Debounced version para MutationObserver (evita múltiplas execuções)
+        const debouncedFindAndIntercept = debounce(findAndInterceptButtons, 300);
 
         // Tentar interceptar imediatamente
         findAndInterceptButtons();
@@ -186,9 +204,12 @@ export function CardPaymentFormBrick({
                                document.querySelector('[id*="mp-brick"]') ||
                                document.body;
 
-        if (brickContainer) {
+        if (brickContainer && !buttonFound) {
             observer = new MutationObserver(() => {
-                findAndInterceptButtons();
+                // Só executar se ainda não encontrou o botão
+                if (!buttonFound) {
+                    debouncedFindAndIntercept();
+                }
             });
 
             observer.observe(brickContainer, {
@@ -198,17 +219,11 @@ export function CardPaymentFormBrick({
             });
         }
 
-        // Também tentar periodicamente (fallback caso o observer não capture)
-        const interval = setInterval(() => {
-            findAndInterceptButtons();
-        }, 1000);
-
         // Cleanup
         return () => {
             if (observer) {
                 observer.disconnect();
             }
-            clearInterval(interval);
             interceptedButtons.forEach((btn) => {
                 btn.removeAttribute('data-intercepted');
             });

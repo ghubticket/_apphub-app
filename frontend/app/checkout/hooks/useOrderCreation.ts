@@ -167,6 +167,13 @@ export function useOrderCreation({
                 }
             }
 
+            // CRÍTICO: Limpar flags de PIX anteriores ao criar novo pedido
+            // Isso garante que a modal de alerta funcione corretamente para o novo pedido
+            storage.clearPixOrderActive();
+            if (typeof window !== 'undefined') {
+                (window as any).__ALLOW_NAVIGATION__ = false;
+            }
+
             // NOVO: Criar pedido "fake" local ao invés de chamar backend
             // O pedido real será criado apenas quando PIX for gerado ou cartão for pago
             const firstItem = cartItems[0];

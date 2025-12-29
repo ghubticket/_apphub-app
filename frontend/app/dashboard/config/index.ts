@@ -30,7 +30,7 @@ export const statusConfig: Record<
 > = {
     pending: {
         label: 'Pendente',
-        badgeClass: 'border border-amber-500/30 bg-amber-500/10 text-amber-500',
+        badgeClass: 'border border-amber-200 bg-amber-100 text-amber-800',
     },
     paid: {
         label: 'Pago',
