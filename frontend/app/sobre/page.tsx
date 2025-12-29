@@ -228,13 +228,13 @@ export default function SobrePage() {
                         <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
                             {/* Segurança */}
                             <div id="seguranca" className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
-                                <div className="flex items-start gap-4 mb-6">
+                                <div className="flex items-center md:items-start gap-4 mb-6">
                                     <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                         <HiOutlineShieldCheck className="text-3xl text-[#f97316]" />
                                     </div>
                                     <div>
                                         <h3 className="text-2xl font-bold mb-3">Segurança de Ponta</h3>
-                                        <p className="text-gray-300 leading-relaxed mb-4">
+                                        <p className="text-gray-300 leading-relaxed mb-0">
                                             Proteção completa para seus dados e transações financeiras.
                                         </p>
                                     </div>
@@ -354,7 +354,7 @@ export default function SobrePage() {
 
                             {/* Dashboard */}
                             <div id="dashboard" className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
-                                <div className="flex items-start gap-4 mb-6">
+                                <div className="flex items-center md:items-start gap-4 mb-6">
                                     <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                         <HiOutlineChartBar className="text-3xl text-[#f97316]" />
                                     </div>
@@ -447,7 +447,7 @@ export default function SobrePage() {
 
                             {/* Cupons e Códigos */}
                             <div id="cupons" className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
-                                <div className="flex items-start gap-4 mb-6">
+                                <div className="flex items-center md:items-start gap-4 mb-6">
                                     <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                         <HiOutlineTicket className="text-3xl text-[#f97316]" />
                                     </div>
@@ -538,13 +538,13 @@ export default function SobrePage() {
 
                             {/* SEO */}
                             <div id="seo" className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
-                                <div className="flex items-start gap-4 mb-6">
+                                <div className="flex items-center md:items-start gap-4 mb-6">
                                     <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                         <HiOutlineMagnifyingGlass className="text-3xl text-[#f97316]" />
                                     </div>
                                     <div>
                                         <h3 className="text-2xl font-bold mb-3">SEO Otimizado</h3>
-                                        <p className="text-gray-300 leading-relaxed mb-4">
+                                        <p className="text-gray-300 leading-relaxed mb-0">
                                             Seu evento encontrado facilmente no Google e redes sociais.
                                         </p>
                                     </div>
@@ -642,7 +642,7 @@ export default function SobrePage() {
 
                             {/* Emails Automáticos */}
                             <div id="emails" className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
-                                <div className="flex items-start gap-4 mb-6">
+                                <div className="flex items-center md:items-start gap-4 mb-6">
                                     <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                         <HiOutlineEnvelope className="text-3xl text-[#f97316]" />
                                     </div>
@@ -743,13 +743,13 @@ export default function SobrePage() {
 
                             {/* PDFs Automáticos */}
                             <div id="pdfs" className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
-                                <div className="flex items-start gap-4 mb-6">
+                                <div className="flex items-center md:items-start gap-4 mb-6">
                                     <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                         <HiOutlineDocumentText className="text-3xl text-[#f97316]" />
                                     </div>
                                     <div>
                                         <h3 className="text-2xl font-bold mb-3">PDFs Profissionais</h3>
-                                        <p className="text-gray-300 leading-relaxed mb-4">
+                                        <p className="text-gray-300 leading-relaxed mb-0">
                                             Geração automática de ingressos em PDF de alta qualidade.
                                         </p>
                                     </div>
@@ -879,13 +879,13 @@ export default function SobrePage() {
                             <div className="grid md:grid-cols-2 gap-8">
                                 {/* Disparo WhatsApp */}
                                 <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineChatBubbleLeftRight className="text-3xl text-[#f97316]" />
                                         </div>
                                         <div>
                                             <h3 className="text-2xl font-bold mb-3">Disparo de WhatsApp</h3>
-                                            <p className="text-gray-300 leading-relaxed mb-4">
+                                            <p className="text-gray-300 leading-relaxed mb-0">
                                                 Envie mensagens automáticas para seus clientes via WhatsApp.
                                             </p>
                                         </div>
@@ -920,7 +920,7 @@ export default function SobrePage() {
 
                                 {/* Régua de Email */}
                                 <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineEnvelope className="text-3xl text-[#f97316]" />
                                         </div>
@@ -961,7 +961,7 @@ export default function SobrePage() {
 
                                 {/* Aniversário Automático */}
                                 <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineSparkles className="text-3xl text-[#f97316]" />
                                         </div>
@@ -1002,13 +1002,13 @@ export default function SobrePage() {
 
                                 {/* Gestão de Clientes */}
                                 <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineChartBar className="text-3xl text-[#f97316]" />
                                         </div>
                                         <div>
                                             <h3 className="text-2xl font-bold mb-3">Gestão Completa de Clientes</h3>
-                                            <p className="text-gray-300 leading-relaxed mb-4">
+                                            <p className="text-gray-300 leading-relaxed mb-0">
                                                 Centralize todas as informações dos seus clientes em um só lugar.
                                             </p>
                                         </div>
@@ -1249,13 +1249,13 @@ export default function SobrePage() {
                             <div className="grid md:grid-cols-2 gap-8">
                                 {/* Parcelamento Boleto */}
                                 <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl border-2 border-[#f97316]/20">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineDocumentText className="text-3xl text-[#f97316]" />
                                         </div>
                                         <div>
                                             <h3 className="text-2xl font-bold mb-3">Parcelamento via Boleto</h3>
-                                            <p className="text-gray-300 leading-relaxed mb-4">
+                                            <p className="text-gray-300 leading-relaxed mb-0">
                                                 Seus clientes poderão parcelar compras usando boleto bancário!
                                             </p>
                                         </div>
@@ -1284,7 +1284,7 @@ export default function SobrePage() {
 
                                 {/* PIX Parcelado */}
                                 <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border-2 border-[#f97316]/20">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineCreditCard className="text-3xl text-[#f97316]" />
                                         </div>
@@ -1319,7 +1319,7 @@ export default function SobrePage() {
 
                                 {/* App Mobile */}
                                 <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border-2 border-[#f97316]/20">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <span className="text-3xl">📱</span>
                                         </div>
@@ -1354,13 +1354,13 @@ export default function SobrePage() {
 
                                 {/* Integrações */}
                                 <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl border-2 border-[#f97316]/20">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineBolt className="text-3xl text-[#f97316]" />
                                         </div>
                                         <div>
                                             <h3 className="text-2xl font-bold mb-3">Mais Integrações</h3>
-                                            <p className="text-gray-300 leading-relaxed mb-4">
+                                            <p className="text-gray-300 leading-relaxed mb-0">
                                                 Conecte a Vicente com suas ferramentas favoritas!
                                             </p>
                                         </div>
@@ -1394,7 +1394,7 @@ export default function SobrePage() {
                                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
 
                                     <div className="relative z-10">
-                                        <div className="flex items-start gap-4 mb-6">
+                                        <div className="flex items-center md:items-start gap-4 mb-6">
                                             <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm">
                                                 <HiOutlineUserGroup className="text-3xl text-white" />
                                             </div>

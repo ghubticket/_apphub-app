@@ -355,13 +355,13 @@ export default function VendaParceladaPage() {
                             <div className="grid md:grid-cols-2 gap-8">
                                 {/* Dashboard de Pagamentos */}
                                 <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineChartBar className="text-3xl text-[#f97316]" />
                                         </div>
                                         <div>
                                             <h3 className="text-2xl font-bold mb-3">Dashboard de Pagamentos</h3>
-                                            <p className="text-gray-300 leading-relaxed mb-4">
+                                            <p className="text-gray-300 leading-relaxed mb-0">
                                                 Acompanhe todos os pagamentos em tempo real.
                                             </p>
                                         </div>
@@ -396,7 +396,7 @@ export default function VendaParceladaPage() {
 
                                 {/* Notificações Automáticas */}
                                 <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineBolt className="text-3xl text-[#f97316]" />
                                         </div>
@@ -437,7 +437,7 @@ export default function VendaParceladaPage() {
 
                                 {/* Controle de Vendas */}
                                 <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineDocumentText className="text-3xl text-[#f97316]" />
                                         </div>
@@ -478,13 +478,13 @@ export default function VendaParceladaPage() {
 
                                 {/* Segurança */}
                                 <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineShieldCheck className="text-3xl text-[#f97316]" />
                                         </div>
                                         <div>
                                             <h3 className="text-2xl font-bold mb-3">Segurança Total</h3>
-                                            <p className="text-gray-300 leading-relaxed mb-4">
+                                            <p className="text-gray-300 leading-relaxed mb-0">
                                                 Pagamentos seguros e protegidos via Mercado Pago.
                                             </p>
                                         </div>
@@ -528,7 +528,7 @@ export default function VendaParceladaPage() {
                             <div className="bg-gradient-to-br from-red-50 via-orange-50 to-red-50 rounded-3xl p-8 md:p-12 border-2 border-red-200/50 relative overflow-hidden">
                                 <div className="relative z-10">
                                     <div className="flex items-center gap-3 mb-6">
-                                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                                        <div className="w-20 h-16 md:w-16 md:h-16 bg-red-100 rounded-full flex items-center justify-center">
                                             <HiOutlineXCircle className="text-3xl text-red-600" />
                                         </div>
                                         <h3 className="text-2xl md:text-3xl font-bold text-[#1a1a1d]">
@@ -707,13 +707,13 @@ export default function VendaParceladaPage() {
                             <div className="grid md:grid-cols-2 gap-8 mb-12">
                                 {/* Check-in */}
                                 <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 md:p-10 rounded-3xl shadow-xl">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineQrCode className="text-3xl text-[#f97316]" />
                                         </div>
                                         <div>
                                             <h3 className="text-2xl font-bold mb-3">Check-in Rápido</h3>
-                                            <p className="text-gray-300 leading-relaxed mb-4">
+                                            <p className="text-gray-300 leading-relaxed mb-0">
                                                 Validação instantânea de ingressos na entrada do evento.
                                             </p>
                                         </div>
@@ -748,7 +748,7 @@ export default function VendaParceladaPage() {
 
                                 {/* Checkout */}
                                 <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 md:p-10 rounded-3xl shadow-lg border border-gray-100">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineDevicePhoneMobile className="text-3xl text-[#f97316]" />
                                         </div>
@@ -846,13 +846,13 @@ export default function VendaParceladaPage() {
                             <div className="grid md:grid-cols-3 gap-8 mb-12">
                                 {/* Tipos de Pacotes */}
                                 <div className="bg-gradient-to-br from-[#1a1a1d] to-[#2a2a2d] text-white p-8 rounded-3xl shadow-xl">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineTag className="text-3xl text-[#f97316]" />
                                         </div>
                                         <div>
                                             <h3 className="text-2xl font-bold mb-3">Diferentes Tipos de Pacotes</h3>
-                                            <p className="text-gray-300 leading-relaxed mb-4">
+                                            <p className="text-gray-300 leading-relaxed mb-0">
                                                 Crie quantos pacotes quiser para seu evento.
                                             </p>
                                         </div>
@@ -887,7 +887,7 @@ export default function VendaParceladaPage() {
 
                                 {/* Preços Personalizados */}
                                 <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 rounded-3xl shadow-lg border border-gray-100">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineCreditCard className="text-3xl text-[#f97316]" />
                                         </div>
@@ -928,7 +928,7 @@ export default function VendaParceladaPage() {
 
                                 {/* Controle Total */}
                                 <div className="bg-gradient-to-br from-[#faf7f0] to-white p-8 rounded-3xl shadow-lg border border-gray-100">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-center md:items-start gap-4 mb-6">
                                         <div className="w-14 h-14 bg-[#f97316]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <HiOutlineCog6Tooth className="text-3xl text-[#f97316]" />
                                         </div>

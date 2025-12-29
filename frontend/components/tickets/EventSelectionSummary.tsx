@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { HiOutlineTicket, HiOutlineShoppingCart, HiOutlineMinusSmall, HiOutlinePlusSmall, HiOutlineLockClosed, HiOutlineInformationCircle } from 'react-icons/hi2';
-import { addCartItem } from '@/lib/cart';
+import { addCartItem, clearCartItems } from '@/lib/cart';
 import type { TicketProduct } from '@/types/ticket';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
@@ -31,6 +31,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
         attraction: string;
         departureLocation: string;
     }>>({}); // Opção de transporte selecionada por ticket (data + atração + local)
+    const [showInstallmentAlert, setShowInstallmentAlert] = useState(false); // Alerta para compra parcelada
 
     // Ler código de desconto do sessionStorage ou da URL
     useEffect(() => {
@@ -172,6 +173,47 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
         [quantities, resolveMaxAllowed],
     );
 
+    // Memoizar tickets selecionados para evitar recálculos desnecessários
+    const selectedTickets = useMemo(() => {
+        return tickets.filter(t => {
+            const qty = getQuantityForTicket(t);
+            return qty > 0 && !t.isVip;
+        });
+    }, [tickets, getQuantityForTicket]);
+
+    // Memoizar verificação de ingressos parcelados
+    const installmentStatus = useMemo(() => {
+        const hasInstallment = selectedTickets.some(t => t.allowInstallments === true);
+        const hasNonInstallment = selectedTickets.some(t => t.allowInstallments !== true);
+        return { hasInstallment, hasNonInstallment, hasMix: hasInstallment && hasNonInstallment };
+    }, [selectedTickets]);
+
+    // Verificar se há mistura de ingressos parcelados com normais e mostrar alerta
+    useEffect(() => {
+        // Se houver mistura, REMOVER ingressos não-parcelados automaticamente
+        if (installmentStatus.hasMix) {
+            // CRÍTICO: Remover imediatamente, sem setTimeout
+            const newQuantities: Record<string, number> = {};
+            // Manter APENAS ingressos parcelados
+            selectedTickets.forEach(t => {
+                if (t.allowInstallments === true) {
+                    newQuantities[t.id] = getQuantityForTicket(t);
+                }
+            });
+            
+            // Atualizar estado imediatamente
+            setQuantities(newQuantities);
+            clearCartItems();
+            setShowInstallmentAlert(true);
+        } else if (installmentStatus.hasInstallment && !installmentStatus.hasNonInstallment) {
+            // Se só tem parcelado, também mostrar alerta informativo
+            setShowInstallmentAlert(true);
+        } else {
+            // Se não tem parcelado ou só tem normais, esconder alerta
+            setShowInstallmentAlert(false);
+        }
+    }, [installmentStatus.hasMix, installmentStatus.hasInstallment, installmentStatus.hasNonInstallment, selectedTickets, getQuantityForTicket]);
+
     const updateQuantity = useCallback(
         (ticket: TicketProduct, delta: number) => {
             if (ticket.isVip) return;
@@ -180,19 +222,79 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
             if (delta > 0 && maxAllowed !== undefined && current >= maxAllowed) {
                 return;
             }
+            
+            const next = current + delta;
+            const willBeSelected = next > 0;
+            const isInstallmentTicket = ticket.allowInstallments === true;
+            
+            // CRÍTICO: Se está selecionando um ingresso de compra parcelada
+            if (willBeSelected && isInstallmentTicket && delta > 0) {
+                // Calcular quantidade final
+                const finalQty = maxAllowed !== undefined && next > maxAllowed ? maxAllowed : Math.max(0, next);
+                
+                // Criar novo objeto de quantidades com APENAS o ingresso parcelado
+                // IMPORTANTE: Não usar spread do prev, criar objeto novo vazio
+                const newQuantities: Record<string, number> = {};
+                newQuantities[ticket.id] = finalQty;
+                
+                // Atualizar estado IMEDIATAMENTE (síncrono)
+                setQuantities(newQuantities);
+                
+                // Limpar carrinho também (pode ter itens de outros eventos ou ingressos já adicionados)
+                clearCartItems();
+                
+                // Sempre mostrar alerta quando seleciona compra parcelada
+                setShowInstallmentAlert(true);
+                
+                // Retornar ANTES de continuar com a lógica normal - CRÍTICO
+                return;
+            }
+            
+            // Se está tentando selecionar outro ingresso quando já tem um parcelado selecionado
+            if (willBeSelected && !isInstallmentTicket && delta > 0) {
+                // OTIMIZADO: Verificar apenas se há ingresso parcelado selecionado (mais eficiente)
+                const hasInstallmentTicket = tickets.some(t => 
+                    t.allowInstallments === true && 
+                    (quantities[t.id] ?? 0) > 0
+                );
+                
+                if (hasInstallmentTicket) {
+                    // BLOQUEAR COMPLETAMENTE - não permitir selecionar e REMOVER este ingresso
+                    // Manter apenas os ingressos parcelados
+                    setQuantities((prev) => {
+                        const newQuantities: Record<string, number> = {};
+                        // Manter APENAS ingressos parcelados (otimizado: apenas itera sobre tickets parcelados)
+                        tickets.forEach(t => {
+                            if (t.allowInstallments === true && (prev[t.id] ?? 0) > 0) {
+                                newQuantities[t.id] = prev[t.id];
+                            }
+                        });
+                        return newQuantities;
+                    });
+                    clearCartItems();
+                    setShowInstallmentAlert(true);
+                    return;
+                }
+            }
+            
+            // Se está desmarcando o ingresso parcelado, esconder alerta
+            if (isInstallmentTicket && next === 0) {
+                setShowInstallmentAlert(false);
+            }
+            
             setQuantities((prev) => {
                 const prevValue = prev[ticket.id] ?? 0;
-                const next = prevValue + delta;
-                if (next < 0) {
+                const nextValue = prevValue + delta;
+                if (nextValue < 0) {
                     return { ...prev, [ticket.id]: 0 };
                 }
-                if (maxAllowed !== undefined && next > maxAllowed) {
+                if (maxAllowed !== undefined && nextValue > maxAllowed) {
                     return { ...prev, [ticket.id]: maxAllowed };
                 }
-                return { ...prev, [ticket.id]: next };
+                return { ...prev, [ticket.id]: nextValue };
             });
         },
-        [resolveMaxAllowed, quantities],
+        [resolveMaxAllowed, quantities, tickets],
     );
 
     const handleCreateVipOrder = useCallback(
@@ -298,6 +400,16 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
         return { totalTickets: totalTicketsCalc, totalAmount: totalAmountCalc };
     }, [tickets, getQuantityForTicket]);
 
+    // Filtrar ingressos visíveis: se há ingresso parcelado selecionado, mostrar APENAS parcelados e VIPs
+    // OTIMIZADO: Usa installmentStatus já calculado
+    const visibleTickets = useMemo(() => {
+        // Se há ingresso parcelado selecionado, mostrar APENAS ingressos parcelados e VIPs
+        // Caso contrário, mostrar todos os ingressos
+        return installmentStatus.hasInstallment
+            ? tickets.filter(t => t.allowInstallments === true || t.isVip)
+            : tickets;
+    }, [tickets, installmentStatus.hasInstallment]);
+
     const formattedTotal = useMemo(
         () => currencyFormatter.format(totalAmount),
         [totalAmount, currencyFormatter],
@@ -306,9 +418,35 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
     const handleProceed = useCallback(async () => {
         if (isProcessing) return;
 
+        // OTIMIZADO: Usar installmentStatus já calculado ao invés de recalcular
+        // BLOQUEAR COMPLETAMENTE se houver mistura - NÃO PERMITIR EM HIPÓTESE ALGUMA
+        if (installmentStatus.hasMix) {
+            setShowInstallmentAlert(true);
+            // Remover TODOS os ingressos não-parcelados da seleção imediatamente
+            setQuantities((prev) => {
+                const newQuantities: Record<string, number> = {};
+                // Manter APENAS ingressos parcelados
+                selectedTickets.forEach(t => {
+                    if (t.allowInstallments === true) {
+                        newQuantities[t.id] = getQuantityForTicket(t);
+                    }
+                });
+                return newQuantities;
+            });
+            // Limpar carrinho também
+            clearCartItems();
+            return;
+        }
+
         setIsProcessing(true);
 
         try {
+            // OTIMIZADO: Usar installmentStatus já calculado
+            // Se há ingresso parcelado selecionado, limpar carrinho primeiro
+            if (installmentStatus.hasInstallment) {
+                clearCartItems();
+            }
+            
             // Adicionar todos os ingressos não-VIP com quantidade > 0 ao carrinho
             for (const ticket of tickets) {
                 const quantity = getQuantityForTicket(ticket);
@@ -364,7 +502,7 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
         } finally {
             setIsProcessing(false);
         }
-    }, [tickets, getQuantityForTicket, resolveMaxAllowed, router, isProcessing, selectedTransportOptions]);
+    }, [tickets, getQuantityForTicket, resolveMaxAllowed, router, isProcessing, selectedTransportOptions, installmentStatus, selectedTickets]);
 
     const hasSelectedTickets = totalTickets > 0;
 
@@ -418,8 +556,8 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                     <div className="rounded-2xl border border-[#ede5d8] bg-[#faf7f0] px-4 py-4 text-center text-[0.90rem] text-[#7d796c]">
                         Carregando ingressos...
                     </div>
-                ) : tickets.length > 0 ? (
-                    tickets.map((ticket) => {
+                ) : visibleTickets.length > 0 ? (
+                    visibleTickets.map((ticket) => {
                         const quantity = getQuantityForTicket(ticket);
                         const maxAllowed = resolveMaxAllowed(ticket);
                         const isSoldOut = ticket.stock !== undefined && ticket.stock <= 0;
@@ -711,6 +849,15 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
             </div>
 
             <div className="mt-6 border-t border-[#e2ddd1] pt-4 text-xs text-[#4c4c55]">
+                {/* Alerta de compra parcelada */}
+                {showInstallmentAlert && (
+                    <div className="mb-3 rounded-lg bg-[#f97316]/10 border border-[#f97316]/30 px-3 py-2.5">
+                        <p className="text-sm  text-[#f97316]">
+                            ⚠️ <strong className='font-semibold'>Compra Parcelada</strong> tem um fluxo de pagamento diferente e não pode ser combinada com outros ingressos. Selecione apenas ingressos de compra parcelada ou apenas ingressos normais.
+                        </p>
+                    </div>
+                )}
+                
                 {/* Mensagem de cupom aplicado */}
                 {appliedPromoterCode && (
                     <div className="mb-3 rounded-lg bg-green-50 border border-green-300 px-3 py-2.5">
