@@ -220,7 +220,13 @@ export default function ParcelledOrderCard({
                     token ? { 'Authorization': `Bearer ${token}` } : {}
                 );
 
-                const pixData = response?.data?.pixPayment;
+                // Verificar se houve erro na Server Action
+                if (response?.error || !response?.success) {
+                    const errorMessage = response?.message || 'Erro ao gerar pagamento PIX desta parcela.';
+                    throw new Error(errorMessage);
+                }
+
+                const pixData = response?.data?.pixPayment || response?.pixPayment;
 
                 // Se for entrada, atualizar entryPixInfo
                 if (parcel.sequence === 0) {
@@ -241,8 +247,10 @@ export default function ParcelledOrderCard({
                     }));
                 }
             } catch (error: any) {
+                // Tratar erros de Server Action ou exceções
                 const errorMessage =
                     error?.response?.data?.message ||
+                    error?.data?.message ||
                     error?.message ||
                     'Erro ao gerar pagamento PIX desta parcela.';
 

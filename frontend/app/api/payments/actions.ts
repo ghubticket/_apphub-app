@@ -313,15 +313,32 @@ export async function generateParcelPayment(
             }
         );
 
+        const responseData = await response.json().catch(() => ({}));
+
+        // Se não foi OK, retornar objeto de erro estruturado em vez de lançar exceção
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Erro ao gerar pagamento da parcela' }));
-            throw new Error(error.message || 'Erro ao gerar pagamento da parcela');
+            return {
+                success: false,
+                error: true,
+                message: responseData.message || 'Erro ao gerar pagamento da parcela',
+                statusCode: response.status,
+                data: responseData.data || null,
+                errors: responseData.errors || null,
+            };
         }
 
-        return await response.json();
+        return responseData;
     } catch (error: any) {
         console.error('[Server Action] Erro ao gerar pagamento da parcela:', error);
-        throw error;
+        // Retornar objeto de erro em vez de lançar exceção
+        return {
+            success: false,
+            error: true,
+            message: error.message || 'Erro ao gerar pagamento da parcela',
+            statusCode: 500,
+            data: null,
+            errors: null,
+        };
     }
 }
 
