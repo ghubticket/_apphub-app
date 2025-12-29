@@ -62,9 +62,34 @@ export function useOrdersPolling({
             const pendingOrders = ordersRaw.filter((order: any) => order.status === 'pending');
             const allOrderIds = new Set(ordersRaw.map((order: any) => order._id || order.id).filter(Boolean));
 
-            // Verificar pedidos que estávamos monitorando mas que não aparecem mais na lista
-            // Isso detecta quando um pedido foi pago e saiu da lista de pendentes
+            // PRIMEIRO: Verificar pedidos que estávamos monitorando para detectar mudanças de status
+            // Isso inclui pedidos que mudaram de pending para paid na lista
             const monitoredOrderIds = Array.from(lastOrderStatusesRef.current.keys());
+            
+            // Verificar pedidos que estão na lista mas mudaram de status
+            for (const order of ordersRaw) {
+                const orderId = order._id || order.id;
+                if (!orderId) continue;
+                
+                const previousStatus = lastOrderStatusesRef.current.get(orderId);
+                if (!previousStatus) continue; // Não estávamos monitorando este pedido
+                
+                const currentStatus = order.status || 'pending';
+                
+                // Se mudou de pending para paid, disparar callback
+                if (previousStatus === 'pending' && currentStatus === 'paid') {
+                    const orderWithNumber = {
+                        ...order,
+                        orderNumber: order.orderNumber || order.order_number || orderId,
+                    };
+                    onOrderPaid(orderId, orderWithNumber);
+                    lastOrderStatusesRef.current.delete(orderId);
+                    continue;
+                }
+            }
+            
+            // Verificar pedidos que estávamos monitorando mas que não aparecem mais na lista
+            // Isso detecta quando um pedido foi pago e saiu da lista completamente
             for (const orderId of monitoredOrderIds) {
                 // Se o pedido não está mais na lista de todos os pedidos, verificar individualmente
                 if (!allOrderIds.has(orderId)) {
@@ -108,44 +133,24 @@ export function useOrdersPolling({
                 }
             }
 
-            // CRÍTICO: Se não há pedidos pendentes E não há pedidos sendo monitorados, PARAR polling
-            // Não precisa ficar fazendo requisições quando não há nada para verificar
-            if (pendingOrders.length === 0 && lastOrderStatusesRef.current.size === 0) {
-                // Não há mais pedidos para monitorar - parar polling para economizar recursos
-                stopPolling();
-                return;
-            }
-
-            // Verificar cada pedido pendente - usar dados da lista em vez de buscar individualmente
-            // Só buscar individualmente se o status mudou na lista
+            // Verificar cada pedido pendente - adicionar novos à lista de monitoramento
             for (const order of pendingOrders) {
                 const orderId = order._id || order.id;
                 if (!orderId) continue;
 
-                const previousStatus = lastOrderStatusesRef.current.get(orderId) || 'pending';
-                const currentStatus = order.status || 'pending';
-                
-                // Se o status na lista já mudou para paid, não precisa buscar individualmente
-                if (currentStatus === 'paid' && previousStatus === 'pending') {
-                    const orderWithNumber = {
-                        ...order,
-                        orderNumber: order.orderNumber || order.order_number || orderId,
-                    };
-                    onOrderPaid(orderId, orderWithNumber);
-                    lastOrderStatusesRef.current.delete(orderId);
-                    continue;
-                }
-                
-                // Se ainda está pendente na lista, verificar individualmente apenas se necessário
-                // (evitar buscar todos os pedidos toda vez)
-                if (currentStatus === 'pending') {
-                    // Só buscar individualmente se não temos dados recentes ou se passou muito tempo
-                    // Por enquanto, usar dados da lista e só buscar se realmente necessário
+                // Se não estávamos monitorando, adicionar à lista
+                if (!lastOrderStatusesRef.current.has(orderId)) {
                     lastOrderStatusesRef.current.set(orderId, 'pending');
-                } else if (currentStatus === 'paid') {
-                    // Já estava pago, remover da lista
-                    lastOrderStatusesRef.current.delete(orderId);
                 }
+            }
+
+            // CRÍTICO: Se não há pedidos pendentes E não há pedidos sendo monitorados, PARAR polling
+            // Não precisa ficar fazendo requisições quando não há nada para verificar
+            // IMPORTANTE: Esta verificação deve vir DEPOIS de verificar mudanças de status
+            if (pendingOrders.length === 0 && lastOrderStatusesRef.current.size === 0) {
+                // Não há mais pedidos para monitorar - parar polling para economizar recursos
+                stopPolling();
+                return;
             }
         } catch (error: any) {
             // Em caso de erro, continuar tentando (pode ser temporário)

@@ -164,7 +164,7 @@ export function getOrderAlertMessage(order: ParcelledOrderWithParcels): string |
     if (order.status === 'pending_entry') {
         const entry = getEntryParcel(order.parcels);
         if (entry && isParcelDueSoon(entry)) {
-            return '⚠️ A entrada expira em breve! <br/> Pague agora para não perder seu pedido';
+            return '⚠️ A entrada expira em breve! Pague agora para não perder seu pedido';
         }
         return '⏰ Pague a entrada para efetivar seu pedido e liberar as demais parcelas';
     }

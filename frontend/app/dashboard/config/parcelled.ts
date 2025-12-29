@@ -70,7 +70,7 @@ export const parcelledOrderStatusConfig: Record<
 // Mensagens de alerta para parcelas
 export const parcelAlertMessages = {
     entryPending: '⏰ Pague a entrada até o vencimento para confirmar seu pedido',
-    entryExpiringSoon: '⚠️ A entrada expira em breve! <br/> Pague agora para não perder seu pedido',
+    entryExpiringSoon: '⚠️ A entrada expira em breve! Pague agora para não perder seu pedido',
     parcelOverdue: '⚠️ Parcela(s) em atraso! Pague para não perder seus ingressos',
     aboutToCancel: '🚨 ATENÇÃO! 2 ou mais parcelas atrasadas cancelam o pedido automaticamente',
     completed: '🎉 Parabéns! Todas as parcelas pagas. Seus ingressos estão disponíveis!',

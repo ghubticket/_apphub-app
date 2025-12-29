@@ -458,34 +458,29 @@ export default function ParcelledOrderCard({
 
                             return (
                                 <div key={parcel._id} className="rounded-lg border border-[#ded7ca] bg-white p-4">
-                                    {/* Layout mobile: informações verticais */}
-                                    <div className="flex flex-col md:flex-row justify-between items-center gap-3">
-                                        {/* Cabeçalho: Parcela X/Y */}
-                                        <p className="text-sm font-semibold text-[#1a1a1d]">
-                                            {parcelLabel}
-                                        </p>
+                                    {/* Layout: Parcela, Valor/Vencimento e Botão na mesma linha */}
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                                        {/* Esquerda: Parcela com Valor e Vencimento */}
+                                        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 flex-1">
+                                            <p className="text-sm font-semibold text-[#1a1a1d]">
+                                                {parcelLabel}
+                                            </p>
+                                            <p className="text-base md:text-lg text-[#1a1a1d] leading-tight">
+                                                <span className="font-bold">{currencyFormatter.format(parcel.amount)}</span>
+                                                <span className="font-normal text-[#6a6760]"> - Venc: {dueLabel}</span>
+                                            </p>
+                                        </div>
                                         
-                                        {/* Valor e Vencimento na mesma linha */}
-                                        <p className="text-base md:text-lg text-[#1a1a1d] leading-tight">
-                                            <span className="font-bold">{currencyFormatter.format(parcel.amount)}</span>
-                                            <span className="font-normal text-[#6a6760]"> - Venc: {dueLabel}</span>
-                                        </p>
-                                        
-                                        {/* Status e Botão */}
-                                        <div className="flex flex-col md:flex-row justify-between gap-2 mt-1 w-full md:w-auto">
-                                            {/* Badge de status da parcela */}
+                                        {/* Direita: Status (se pago) ou Botão Gerar PIX */}
+                                        <div className="flex items-center gap-2 w-full md:w-auto">
+                                            {/* Badge de status apenas se pago ou atrasado */}
                                             {parcel.status === 'paid' ? (
                                                 <ParcelStatusBadge status="paid" size="sm" />
                                             ) : parcel.status === 'overdue' ? (
                                                 <ParcelStatusBadge status="overdue" size="sm" />
-                                            ) : (
-                                                <span className="inline-flex text-center items-center gap-1 rounded-full justify-center border border-gray-400/30 bg-gray-400/10 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-normal text-gray-600">
-                                                    <span>📅</span>
-                                                    <span>Aguardando Pagamento</span>
-                                                </span>
-                                            )}
+                                            ) : null}
 
-                                            {/* Botão "GERAR PIX" apenas para parcelas pendentes */}
+                                            {/* Botão "GERAR PIX" apenas para parcelas pendentes (sem badge de aguardando) */}
                                             {canShowButton && (
                                                 <button
                                                     type="button"
