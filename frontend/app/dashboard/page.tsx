@@ -372,6 +372,18 @@ export default function DashboardPage() {
     // Callback quando pedido é pago (detectado via polling)
     const handleOrderPaid = useCallback(
         (orderId: string, order: any) => {
+            // CRÍTICO: Se o Order está vinculado a um ParcelledOrder, NÃO mostrar modal aqui
+            // porque o modal da parcela já foi mostrado pelo handleParcelPaid
+            // Isso evita duplicação de modais quando a última parcela é paga
+            if (order?.parcelledOrder || order?.parcelledOrderId) {
+                // Apenas atualizar a lista, sem mostrar modal
+                setTimeout(() => {
+                    fetchOrders();
+                    fetchParcelledOrders();
+                }, 100);
+                return;
+            }
+
             const orderNumber = order?.orderNumber || order?.order_number || orderId;
 
             setPaidOrderInfo({
@@ -384,7 +396,7 @@ export default function DashboardPage() {
                 fetchOrders();
             }, 100);
         },
-        [fetchOrders],
+        [fetchOrders, fetchParcelledOrders],
     );
 
     // Callback quando parcela é paga (detectado via polling)

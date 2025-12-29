@@ -536,7 +536,7 @@ export default function ParcelledOrderCard({
                                     {/* PIX gerado da parcela (não entrada) */}
                                     {!isEntry && parcelPixInfo[parcel._id] && (parcelPixInfo[parcel._id].qrCode || parcelPixInfo[parcel._id].qrCodeBase64) && (
                                         <div className="mt-3 pt-3 border-t border-emerald-200 rounded-lg bg-emerald-50/30 p-3">
-                                            <div className="mb-3 flex text-center justify-center items-center gap-2">
+                                            <div className="mb-3 flex flex-col md:flex-row text-center justify-center items-center gap-2">
                                                 <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
