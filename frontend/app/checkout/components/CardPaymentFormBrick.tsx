@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import type { FormEvent } from 'react';
 import { IsolatedCardPaymentBrick } from './IsolatedCardPaymentBrick';
 import PaymentSuccessModal from '@/components/shared/PaymentSuccessModal';
@@ -26,6 +26,7 @@ type CardPaymentFormBrickProps = {
     amount: number;
     publicKey: string;
     orderNumber?: string;
+    validateCustomerData?: () => boolean;
 };
 
 export function CardPaymentFormBrick({
@@ -46,6 +47,7 @@ export function CardPaymentFormBrick({
     amount,
     publicKey,
     orderNumber,
+    validateCustomerData,
 }: CardPaymentFormBrickProps) {
     // O Brick isolado gerencia sua própria montagem persistente
     // Este componente apenas gerencia overlay e comunicação
@@ -86,9 +88,150 @@ export function CardPaymentFormBrick({
         }
     }, []);
 
+    // Interceptar botão do brick para validar dados do comprador ANTES do brick validar
+    useEffect(() => {
+        if (!isCheckoutReady || !validateCustomerData) {
+            return;
+        }
+
+        let interceptedButtons = new Set<HTMLButtonElement>();
+        let observer: MutationObserver | null = null;
+
+        // Função para encontrar e interceptar o botão do brick
+        const interceptBrickButton = (button: HTMLButtonElement) => {
+            // Se já foi interceptado, ignorar
+            if (interceptedButtons.has(button)) {
+                return;
+            }
+
+            // Marcar como interceptado
+            interceptedButtons.add(button);
+            button.setAttribute('data-intercepted', 'true');
+
+            // Adicionar listener que intercepta o clique ANTES do brick processar
+            const interceptClick = (e: MouseEvent) => {
+                // Validar dados do comprador ANTES de permitir o submit do brick
+                // A função validateCustomerData já dispara a validação nos campos
+                const isValid = validateCustomerData();
+                if (!isValid) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+
+                    // Mostrar erro e fazer scroll até o formulário de dados do comprador
+                    const customerForm = document.getElementById('customer-data-form');
+                    if (customerForm) {
+                        customerForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+
+                    return false;
+                }
+
+                // Se válido, permitir que o brick continue normalmente
+                return true;
+            };
+
+            // Adicionar listener com capture=true para interceptar ANTES do brick
+            button.addEventListener('click', interceptClick, true);
+        };
+
+        // Função para procurar botões do brick
+        const findAndInterceptButtons = () => {
+            // Procurar o botão dentro do container do brick
+            const brickContainer = document.getElementById('mp-brick-persistent-container') || 
+                                   document.querySelector('[id*="mp-brick"]') ||
+                                   document.querySelector('[class*="mercadopago"]') ||
+                                   document.querySelector('[class*="mp-"]');
+
+            if (brickContainer) {
+                // Procurar por botões de submit dentro do container
+                const buttons = brickContainer.querySelectorAll('button[type="submit"], button[class*="submit"], button[class*="pay"], button[class*="pagar"]');
+                buttons.forEach((btn) => {
+                    if (btn instanceof HTMLButtonElement && !btn.hasAttribute('data-intercepted')) {
+                        // Verificar se o texto do botão indica que é o botão de pagar
+                        const buttonText = btn.textContent?.toLowerCase() || '';
+                        if (buttonText.includes('pagar') || buttonText.includes('pay') || buttonText.includes('continuar')) {
+                            interceptBrickButton(btn);
+                        }
+                    }
+                });
+            }
+
+            // Fallback: procurar em todo o documento por botões que possam ser do brick
+            const allSubmitButtons = document.querySelectorAll('button[type="submit"]');
+            allSubmitButtons.forEach((btn) => {
+                if (btn instanceof HTMLButtonElement && 
+                    !btn.hasAttribute('data-intercepted') &&
+                    !interceptedButtons.has(btn)) {
+                    const buttonText = btn.textContent?.toLowerCase() || '';
+                    // Verificar se está próximo ao container do brick ou tem características do MP
+                    const isNearBrick = brickContainer && (
+                        brickContainer.contains(btn) || 
+                        btn.closest('[class*="mercadopago"]') ||
+                        btn.closest('[class*="mp-"]')
+                    );
+                    
+                    if (isNearBrick && (buttonText.includes('pagar') || buttonText.includes('pay'))) {
+                        interceptBrickButton(btn);
+                    }
+                }
+            });
+        };
+
+        // Tentar interceptar imediatamente
+        findAndInterceptButtons();
+
+        // Usar MutationObserver para detectar quando o botão é adicionado ao DOM
+        const brickContainer = document.getElementById('mp-brick-persistent-container') || 
+                               document.querySelector('[id*="mp-brick"]') ||
+                               document.body;
+
+        if (brickContainer) {
+            observer = new MutationObserver(() => {
+                findAndInterceptButtons();
+            });
+
+            observer.observe(brickContainer, {
+                childList: true,
+                subtree: true,
+                attributes: false,
+            });
+        }
+
+        // Também tentar periodicamente (fallback caso o observer não capture)
+        const interval = setInterval(() => {
+            findAndInterceptButtons();
+        }, 1000);
+
+        // Cleanup
+        return () => {
+            if (observer) {
+                observer.disconnect();
+            }
+            clearInterval(interval);
+            interceptedButtons.forEach((btn) => {
+                btn.removeAttribute('data-intercepted');
+            });
+            interceptedButtons.clear();
+        };
+    }, [isCheckoutReady, validateCustomerData]);
+
     // Handler para submit do Brick
     const handleBrickSubmit = useCallback(
         async (param: any) => {
+            // Validar dados do comprador antes de processar o pagamento
+            // A função validateCustomerData já dispara a validação nos campos
+            if (validateCustomerData) {
+                const isValid = validateCustomerData();
+                if (!isValid) {
+                    // Mostrar erro e fazer scroll até o formulário de dados do comprador
+                    const customerForm = document.getElementById('customer-data-form');
+                    if (customerForm) {
+                        customerForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    return;
+                }
+            }
 
             if (param.token) {
                 // Armazenar token e dados do Brick no form
@@ -133,7 +276,7 @@ export function CardPaymentFormBrick({
             } else {
             }
         },
-        [onSubmit],
+        [onSubmit, validateCustomerData],
     );
 
 

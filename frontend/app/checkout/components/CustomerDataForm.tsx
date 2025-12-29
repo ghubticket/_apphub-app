@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useImperativeHandle, forwardRef } from 'react';
 import {
     HiOutlineEnvelope,
     HiOutlineIdentification,
@@ -23,7 +23,11 @@ type CustomerDataFormProps = {
     pixPaymentActive?: boolean;
 };
 
-export function CustomerDataForm({
+export type CustomerDataFormRef = {
+    validateAll: () => boolean;
+};
+
+const CustomerDataFormComponent = forwardRef<CustomerDataFormRef, CustomerDataFormProps>(({
     data,
     disabled, // eslint-disable-line @typescript-eslint/no-unused-vars
     onChange,
@@ -31,7 +35,7 @@ export function CustomerDataForm({
     showEditToggle, // eslint-disable-line @typescript-eslint/no-unused-vars
     onEditClick, // eslint-disable-line @typescript-eslint/no-unused-vars
     pixPaymentActive = false,
-}: CustomerDataFormProps) {
+}, ref) => {
     // Campos ficam sempre abertos para edição, exceto quando PIX estiver ativo
     const isDisabled = pixPaymentActive ? true : false;
     const sharedClass = `${INPUT_BASE_CLASS} py-3 pl-11 pr-4 ${isDisabled ? 'cursor-not-allowed bg-[#f0ece2] text-[#7d796c]' : ''}`;
@@ -53,6 +57,15 @@ export function CustomerDataForm({
     const [billingModalEntering, setBillingModalEntering] = useState(false);
     const [isFetchingCep, setIsFetchingCep] = useState(false);
     const [cpfError, setCpfError] = useState<string>('');
+    const [nameError, setNameError] = useState<string>('');
+    const [emailError, setEmailError] = useState<string>('');
+    const [phoneError, setPhoneError] = useState<string>('');
+    const [billingStreetError, setBillingStreetError] = useState<string>('');
+    const [billingNumberError, setBillingNumberError] = useState<string>('');
+    const [billingNeighborhoodError, setBillingNeighborhoodError] = useState<string>('');
+    const [billingZipError, setBillingZipError] = useState<string>('');
+    const [billingCityError, setBillingCityError] = useState<string>('');
+    const [billingStateError, setBillingStateError] = useState<string>('');
 
     // Fechar BillingInfoModal com ESC
     useEffect(() => {
@@ -90,18 +103,27 @@ export function CustomerDataForm({
             fetch(`https://viacep.com.br/ws/${digits}/json/`)
                 .then((res) => res.json())
                 .then((cepData) => {
-                    if (!cepData || cepData.erro) return;
+                    if (!cepData || cepData.erro) {
+                        setIsFetchingCep(false);
+                        return;
+                    }
+                    
+                    // Preencher campos e limpar erros automaticamente
                     if (cepData.logradouro) {
                         onChange('billingStreet', cepData.logradouro);
+                        setBillingStreetError('');
                     }
                     if (cepData.bairro) {
                         onChange('billingNeighborhood', cepData.bairro);
+                        setBillingNeighborhoodError('');
                     }
                     if (cepData.localidade) {
                         onChange('billingCity', cepData.localidade);
+                        setBillingCityError('');
                     }
                     if (cepData.uf) {
                         onChange('billingState', cepData.uf);
+                        setBillingStateError('');
                     }
                 })
                 .finally(() => {
@@ -111,6 +133,121 @@ export function CustomerDataForm({
             setIsFetchingCep(false);
         }
     }, [data.billingZip, isDisabled, pixPaymentActive, onChange]);
+
+    // Função para validar todos os campos e mostrar erros
+    const validateAll = useCallback(() => {
+        let hasError = false;
+
+        // Validar nome
+        if (!data.name || !data.name.trim()) {
+            setNameError('Informe o nome completo.');
+            hasError = true;
+        } else if (data.name.trim().length < 3) {
+            setNameError('Nome deve ter pelo menos 3 caracteres.');
+            hasError = true;
+        } else {
+            setNameError('');
+        }
+
+        // Validar email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!data.email || !data.email.trim()) {
+            setEmailError('Informe um e-mail válido.');
+            hasError = true;
+        } else if (!emailRegex.test(data.email.trim())) {
+            setEmailError('E-mail inválido.');
+            hasError = true;
+        } else {
+            setEmailError('');
+        }
+
+        // Validar CPF
+        const cpfValue = data.cpf || '';
+        if (!cpfValue || !cpfValue.trim()) {
+            setCpfError('Informe seu CPF.');
+            hasError = true;
+        } else {
+            const digits = normalizeCpf(cpfValue);
+            if (digits.length !== 11) {
+                setCpfError('CPF deve ter 11 dígitos.');
+                hasError = true;
+            } else if (!isValidCpf(cpfValue)) {
+                setCpfError('CPF inválido. Verifique os dígitos e tente novamente.');
+                hasError = true;
+            } else {
+                setCpfError('');
+            }
+        }
+
+        // Validar telefone
+        const phoneDigits = (data.phone || '').replace(/\D/g, '');
+        if (!data.phone || !data.phone.trim()) {
+            setPhoneError('Informe um telefone válido com DDD.');
+            hasError = true;
+        } else if (phoneDigits.length < 10) {
+            setPhoneError('Telefone deve ter pelo menos 10 dígitos (com DDD).');
+            hasError = true;
+        } else {
+            setPhoneError('');
+        }
+
+        // Validar endereço de cobrança - TODOS obrigatórios
+        if (!data.billingStreet || !data.billingStreet.trim()) {
+            setBillingStreetError('Informe a rua/avenida.');
+            hasError = true;
+        } else {
+            setBillingStreetError('');
+        }
+
+        if (!data.billingNumber || !data.billingNumber.trim()) {
+            setBillingNumberError('Informe o número.');
+            hasError = true;
+        } else {
+            setBillingNumberError('');
+        }
+
+        if (!data.billingNeighborhood || !data.billingNeighborhood.trim()) {
+            setBillingNeighborhoodError('Informe o bairro.');
+            hasError = true;
+        } else {
+            setBillingNeighborhoodError('');
+        }
+
+        const zipDigits = (data.billingZip || '').replace(/\D/g, '');
+        if (!data.billingZip || !data.billingZip.trim()) {
+            setBillingZipError('Informe o CEP.');
+            hasError = true;
+        } else if (zipDigits.length !== 8) {
+            setBillingZipError('CEP deve ter 8 dígitos.');
+            hasError = true;
+        } else {
+            setBillingZipError('');
+        }
+
+        if (!data.billingCity || !data.billingCity.trim()) {
+            setBillingCityError('Informe a cidade.');
+            hasError = true;
+        } else {
+            setBillingCityError('');
+        }
+
+        if (!data.billingState || !data.billingState.trim()) {
+            setBillingStateError('Informe o estado (UF).');
+            hasError = true;
+        } else if (data.billingState.trim().length !== 2) {
+            setBillingStateError('UF deve ter 2 caracteres.');
+            hasError = true;
+        } else {
+            setBillingStateError('');
+        }
+
+        return !hasError;
+    }, [data.name, data.email, data.cpf, data.phone, data.billingStreet, data.billingNumber, data.billingNeighborhood, data.billingZip, data.billingCity, data.billingState]);
+
+    // Expor função de validação via ref
+    useImperativeHandle(ref, () => ({
+        validateAll,
+    }), [validateAll]);
 
     return (
         <div id="customer-data-form" className="relative rounded-3xl border border-[#ded7ca] bg-white p-6">
@@ -135,14 +272,31 @@ export function CustomerDataForm({
                         <input
                             type="text"
                             value={data.name}
-                            onChange={isDisabled ? undefined : (event) => onChange('name', event.target.value)}
+                            onChange={isDisabled ? undefined : (event) => {
+                                onChange('name', event.target.value);
+                                if (nameError) {
+                                    setNameError('');
+                                }
+                            }}
+                            onBlur={isDisabled ? undefined : () => {
+                                if (!data.name || !data.name.trim()) {
+                                    setNameError('Informe o nome completo.');
+                                } else if (data.name.trim().length < 3) {
+                                    setNameError('Nome deve ter pelo menos 3 caracteres.');
+                                } else {
+                                    setNameError('');
+                                }
+                            }}
                             readOnly={isDisabled}
                             disabled={isDisabled}
                             aria-readonly={isDisabled}
-                            className={sharedClass}
+                            className={`${sharedClass} ${nameError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                             placeholder="Como aparece no documento"
                         />
                     </div>
+                    {nameError && (
+                        <span className="text-xs text-red-600 mt-1">{nameError}</span>
+                    )}
                 </label>
                 <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     E-mail
@@ -151,12 +305,30 @@ export function CustomerDataForm({
                         <input
                             type="email"
                             value={data.email}
-                            onChange={isDisabled ? undefined : (event) => onChange('email', event.target.value)}
+                            onChange={isDisabled ? undefined : (event) => {
+                                onChange('email', event.target.value);
+                                if (emailError) {
+                                    setEmailError('');
+                                }
+                            }}
+                            onBlur={isDisabled ? undefined : () => {
+                                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                if (!data.email || !data.email.trim()) {
+                                    setEmailError('Informe um e-mail válido.');
+                                } else if (!emailRegex.test(data.email.trim())) {
+                                    setEmailError('E-mail inválido.');
+                                } else {
+                                    setEmailError('');
+                                }
+                            }}
                             {...inputProps}
-                            className={sharedClass}
+                            className={`${sharedClass} ${emailError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                             placeholder="email@exemplo.com"
                         />
                     </div>
+                    {emailError && (
+                        <span className="text-xs text-red-600 mt-1">{emailError}</span>
+                    )}
                 </label>
                 <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     CPF
@@ -216,12 +388,30 @@ export function CustomerDataForm({
                             inputMode="tel"
                             pattern="[0-9]*"
                             value={data.phone}
-                            onChange={isDisabled ? undefined : (event) => onChange('phone', event.target.value)}
+                            onChange={isDisabled ? undefined : (event) => {
+                                onChange('phone', event.target.value);
+                                if (phoneError) {
+                                    setPhoneError('');
+                                }
+                            }}
+                            onBlur={isDisabled ? undefined : () => {
+                                const phoneDigits = (data.phone || '').replace(/\D/g, '');
+                                if (!data.phone || !data.phone.trim()) {
+                                    setPhoneError('Informe um telefone válido com DDD.');
+                                } else if (phoneDigits.length < 10) {
+                                    setPhoneError('Telefone deve ter pelo menos 10 dígitos (com DDD).');
+                                } else {
+                                    setPhoneError('');
+                                }
+                            }}
                             {...inputProps}
-                            className={sharedClass}
+                            className={`${sharedClass} ${phoneError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                             placeholder="(11) 99999-9999"
                         />
                     </div>
+                    {phoneError && (
+                        <span className="text-xs text-red-600 mt-1">{phoneError}</span>
+                    )}
                 </label>
                 <label className="flex flex-col gap-2 text-sm md:text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                     RG (opcional)
@@ -243,14 +433,24 @@ export function CustomerDataForm({
             </div>
 
             {/* Endereço de cobrança - abaixo dos dados pessoais */}
-            <div className="mt-6 border-t border-dashed border-[#ede5d8] pt-4">
+            <div className="mt-6 border-t border-dashed border-[#ede5d8] pt-4 relative">
+                {/* Loading overlay quando está buscando CEP */}
+                {isFetchingCep && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg z-10 flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-2">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#a38f78] border-t-transparent" />
+                            <p className="text-xs text-[#7d796c]">Buscando endereço...</p>
+                        </div>
+                    </div>
+                )}
+                
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-5 md:pb-6">
                     <div>
                         <p className="text-xs pb-1 font-semibold uppercase tracking-normal text-[#1a1a1d]">
                             Endereço de cobrança
                         </p>
                         <p className="text-[0.65rem] leading-none text-[#7d796c]">
-                            Opcional, mas ajuda o Mercado Pago a aprovar seu pagamento com mais segurança.
+                            Todos os campos são obrigatórios para pagamento com cartão.
                         </p>
                     </div>
                     <button
@@ -276,12 +476,27 @@ export function CustomerDataForm({
                             <input
                                 type="text"
                                 value={data.billingStreet || ''}
-                                onChange={isDisabled ? undefined : (event) => onChange('billingStreet', event.target.value)}
+                                onChange={isDisabled ? undefined : (event) => {
+                                    onChange('billingStreet', event.target.value);
+                                    if (billingStreetError) {
+                                        setBillingStreetError('');
+                                    }
+                                }}
+                                onBlur={isDisabled ? undefined : () => {
+                                    if (!data.billingStreet || !data.billingStreet.trim()) {
+                                        setBillingStreetError('Informe a rua/avenida.');
+                                    } else {
+                                        setBillingStreetError('');
+                                    }
+                                }}
                                 {...inputProps}
-                                className={sharedClass}
+                                className={`${sharedClass} ${billingStreetError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="Ex.: Rua Exemplo"
                             />
                         </div>
+                        {billingStreetError && (
+                            <span className="text-xs text-red-600 mt-1">{billingStreetError}</span>
+                        )}
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
                         Número
@@ -289,12 +504,27 @@ export function CustomerDataForm({
                             <input
                                 type="text"
                                 value={data.billingNumber || ''}
-                                onChange={isDisabled ? undefined : (event) => onChange('billingNumber', event.target.value)}
+                                onChange={isDisabled ? undefined : (event) => {
+                                    onChange('billingNumber', event.target.value);
+                                    if (billingNumberError) {
+                                        setBillingNumberError('');
+                                    }
+                                }}
+                                onBlur={isDisabled ? undefined : () => {
+                                    if (!data.billingNumber || !data.billingNumber.trim()) {
+                                        setBillingNumberError('Informe o número.');
+                                    } else {
+                                        setBillingNumberError('');
+                                    }
+                                }}
                                 {...inputProps}
-                                className={sharedClass.replace('pl-11', 'pl-4')}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingNumberError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="123"
                             />
                         </div>
+                        {billingNumberError && (
+                            <span className="text-xs text-red-600 mt-1">{billingNumberError}</span>
+                        )}
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d] md:col-span-2">
                         Bairro
@@ -302,12 +532,27 @@ export function CustomerDataForm({
                             <input
                                 type="text"
                                 value={data.billingNeighborhood || ''}
-                                onChange={isDisabled ? undefined : (event) => onChange('billingNeighborhood', event.target.value)}
+                                onChange={isDisabled ? undefined : (event) => {
+                                    onChange('billingNeighborhood', event.target.value);
+                                    if (billingNeighborhoodError) {
+                                        setBillingNeighborhoodError('');
+                                    }
+                                }}
+                                onBlur={isDisabled ? undefined : () => {
+                                    if (!data.billingNeighborhood || !data.billingNeighborhood.trim()) {
+                                        setBillingNeighborhoodError('Informe o bairro.');
+                                    } else {
+                                        setBillingNeighborhoodError('');
+                                    }
+                                }}
                                 {...inputProps}
-                                className={sharedClass.replace('pl-11', 'pl-4')}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingNeighborhoodError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="Seu bairro"
                             />
                         </div>
+                        {billingNeighborhoodError && (
+                            <span className="text-xs text-red-600 mt-1">{billingNeighborhoodError}</span>
+                        )}
                     </label>
                 </div>
 
@@ -319,13 +564,31 @@ export function CustomerDataForm({
                                 type="text"
                                 inputMode="numeric"
                                 value={data.billingZip || ''}
-                                onChange={isDisabled ? undefined : (event) => onChange('billingZip', event.target.value)}
-                                onBlur={handleCepBlur}
+                                onChange={isDisabled ? undefined : (event) => {
+                                    onChange('billingZip', event.target.value);
+                                    if (billingZipError) {
+                                        setBillingZipError('');
+                                    }
+                                }}
+                                onBlur={isDisabled ? undefined : () => {
+                                    const zipDigits = (data.billingZip || '').replace(/\D/g, '');
+                                    if (!data.billingZip || !data.billingZip.trim()) {
+                                        setBillingZipError('Informe o CEP.');
+                                    } else if (zipDigits.length !== 8) {
+                                        setBillingZipError('CEP deve ter 8 dígitos.');
+                                    } else {
+                                        setBillingZipError('');
+                                    }
+                                    handleCepBlur();
+                                }}
                                 {...inputProps}
-                                className={sharedClass.replace('pl-11', 'pl-4')}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingZipError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="00000-000"
                             />
                         </div>
+                        {billingZipError && (
+                            <span className="text-xs text-red-600 mt-1">{billingZipError}</span>
+                        )}
                     </label>
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d] md:col-span-2">
                         Cidade
@@ -333,12 +596,27 @@ export function CustomerDataForm({
                             <input
                                 type="text"
                                 value={data.billingCity || ''}
-                                onChange={isDisabled ? undefined : (event) => onChange('billingCity', event.target.value)}
+                                onChange={isDisabled ? undefined : (event) => {
+                                    onChange('billingCity', event.target.value);
+                                    if (billingCityError) {
+                                        setBillingCityError('');
+                                    }
+                                }}
+                                onBlur={isDisabled ? undefined : () => {
+                                    if (!data.billingCity || !data.billingCity.trim()) {
+                                        setBillingCityError('Informe a cidade.');
+                                    } else {
+                                        setBillingCityError('');
+                                    }
+                                }}
                                 {...inputProps}
-                                className={sharedClass.replace('pl-11', 'pl-4')}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingCityError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="São Paulo"
                             />
                         </div>
+                        {billingCityError && (
+                            <span className="text-xs text-red-600 mt-1">{billingCityError}</span>
+                        )}
                     </label>
 
                     <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d]">
@@ -348,12 +626,29 @@ export function CustomerDataForm({
                                 type="text"
                                 maxLength={2}
                                 value={data.billingState || ''}
-                                onChange={isDisabled ? undefined : (event) => onChange('billingState', event.target.value.toUpperCase())}
+                                onChange={isDisabled ? undefined : (event) => {
+                                    onChange('billingState', event.target.value.toUpperCase());
+                                    if (billingStateError) {
+                                        setBillingStateError('');
+                                    }
+                                }}
+                                onBlur={isDisabled ? undefined : () => {
+                                    if (!data.billingState || !data.billingState.trim()) {
+                                        setBillingStateError('Informe o estado (UF).');
+                                    } else if (data.billingState.trim().length !== 2) {
+                                        setBillingStateError('UF deve ter 2 caracteres.');
+                                    } else {
+                                        setBillingStateError('');
+                                    }
+                                }}
                                 {...inputProps}
-                                className={sharedClass.replace('pl-11', 'pl-4')}
+                                className={`${sharedClass.replace('pl-11', 'pl-4')} ${billingStateError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                                 placeholder="SP"
                             />
                         </div>
+                        {billingStateError && (
+                            <span className="text-xs text-red-600 mt-1">{billingStateError}</span>
+                        )}
                     </label>
                 </div>
             </div>
@@ -404,5 +699,9 @@ export function CustomerDataForm({
             )}
         </div>
     );
-}
+});
+
+CustomerDataFormComponent.displayName = 'CustomerDataForm';
+
+export const CustomerDataForm = CustomerDataFormComponent;
 

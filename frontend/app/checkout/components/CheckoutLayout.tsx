@@ -5,7 +5,7 @@ import Container from '@/components/shared/Container';
 import { CheckoutHeader } from './CheckoutHeader';
 import { CheckoutTimer } from './CheckoutTimer';
 import { CheckoutCartSummary } from './CheckoutCartSummary';
-import { CustomerDataForm } from './CustomerDataForm';
+import { CustomerDataForm, type CustomerDataFormRef } from './CustomerDataForm';
 import { PaymentSection } from './PaymentSection';
 import { OrderRestoreModal } from './OrderRestoreModal';
 import { OrderExitWarningModal } from './OrderExitWarningModal';
@@ -45,7 +45,7 @@ export function CheckoutLayout() {
     const { summarizedCart, totalAmount, totalTickets, loading: cartLoading, refreshCart } = useCheckoutCart();
 
     // Carregar dados do comprador
-    const { customerData, handleChange: handleCustomerChange } = useCheckoutCustomer();
+    const { customerData, handleChange: handleCustomerChange, validateCustomerData } = useCheckoutCustomer();
 
     // Estado para código de promotor aplicado
     const [promoterCode, setPromoterCode] = useState<string | null>(null);
@@ -195,6 +195,20 @@ export function CheckoutLayout() {
     });
 
     const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+    const customerFormRef = useRef<CustomerDataFormRef>(null);
+
+    // Função para validar dados do comprador usando o ref do formulário
+    const validateCustomerDataForm = useCallback(() => {
+        if (customerFormRef.current) {
+            return customerFormRef.current.validateAll();
+        }
+        // Fallback: usar a validação do hook se o ref não estiver disponível
+        if (validateCustomerData) {
+            const result = validateCustomerData();
+            return result.valid;
+        }
+        return false;
+    }, [validateCustomerData]);
 
     // Order cleanup hook
     const orderCleanup = useOrderCleanup({
@@ -692,6 +706,7 @@ export function CheckoutLayout() {
                                 customerName={customerData.name}
                                 customerCpf={customerData.cpf}
                                 customerPhone={customerData.phone}
+                                validateCustomerData={validateCustomerDataForm}
                             />
                         ) : (
                             <>
@@ -709,15 +724,19 @@ export function CheckoutLayout() {
                                     pendingPromoterCode={order?._id?.startsWith('fake-') ? promoterCode : null}
                                 />
 
-                                <CustomerDataForm
-                                    data={customerData}
-                                    disabled={!isEditingCustomer}
-                                    onChange={handleCustomerChange}
-                                    docTypeReady={true}
-                                    showEditToggle
-                                    onEditClick={() => setIsEditingCustomer((prev) => !prev)}
-                                    pixPaymentActive={isPixActive}
-                                />
+                                {/* Box de dados do comprador só aparece quando CARTÃO está selecionado */}
+                                {checkoutState.selectedTab === 'card' && (
+                                    <CustomerDataForm
+                                        ref={customerFormRef}
+                                        data={customerData}
+                                        disabled={!isEditingCustomer}
+                                        onChange={handleCustomerChange}
+                                        docTypeReady={true}
+                                        showEditToggle
+                                        onEditClick={() => setIsEditingCustomer((prev) => !prev)}
+                                        pixPaymentActive={isPixActive}
+                                    />
+                                )}
                             </>
                         )}
                     </section>
@@ -747,6 +766,7 @@ export function CheckoutLayout() {
                                 customerName={customerData.name}
                                 customerCpf={customerData.cpf}
                                 customerPhone={customerData.phone}
+                                validateCustomerData={validateCustomerDataForm}
                             />
                         </section>
                     )}

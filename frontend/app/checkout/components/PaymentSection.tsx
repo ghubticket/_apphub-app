@@ -62,6 +62,7 @@ interface PaymentSectionProps {
     customerPhone?: string;
     entryParcelQrCode?: EntryParcelQrCode | null;
     onEntryParcelQrCodeChange?: (data: EntryParcelQrCode | null) => void;
+    validateCustomerData?: () => boolean;
 }
 
 export function PaymentSection({
@@ -86,6 +87,7 @@ export function PaymentSection({
     customerPhone,
     entryParcelQrCode,
     onEntryParcelQrCodeChange,
+    validateCustomerData,
 }: PaymentSectionProps) {
     const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
 
@@ -434,6 +436,7 @@ export function PaymentSection({
                             maxAttemptsReached={cardPayment.maxAttemptsReached}
                             onStartNewOrder={onCancelOrder} // Usar mesmo handler que cancela e vai para home
                             orderNumber={orderNumber}
+                            validateCustomerData={validateCustomerData}
                             onNavigateTodashboard={() => {
                                 // CRÍTICO: Limpar todo o estado do checkout antes de redirecionar
                                 // Isso garante que não haja dados residuais após o pagamento aprovado
