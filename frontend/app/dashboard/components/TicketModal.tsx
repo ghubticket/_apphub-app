@@ -177,7 +177,7 @@ export default function TicketModal({
                                             )}
                                             {/* Mostrar informações de transporte apenas se este ticket for de transporte */}
                                             {isTicketTransport && ticketTransportInfo && (
-                                                <div className="mt-3 rounded-lg border border-[#ded7ca] bg-[#f5f1e8]/50 p-3 text-left space-y-1">
+                                                <div className="mt-3 text-center rounded-lg border border-[#ded7ca] bg-[#f5f1e8]/50 p-3 space-y-1">
                                                     <p className="text-xs font-semibold text-[#1a1a1d]">Informações de Transporte:</p>
                                                     {ticketTransportInfo.attraction && (
                                                         <p className="text-xs text-[#6a6760]">

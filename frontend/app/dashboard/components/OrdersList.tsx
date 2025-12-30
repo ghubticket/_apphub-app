@@ -310,6 +310,16 @@ export default function OrdersList({
                                         // Obter tipo de ingresso do primeiro ticket
                                         const firstTicket = order.tickets?.[0];
                                         const ticketTypeName = firstTicket?.ticketType?.name || 'Ingresso';
+                                        const isTransport = firstTicket?.ticketType?.isTransport || false;
+                                        
+                                        // Obter informações de transporte (prioridade: metadata > ticketType)
+                                        const transportOption = order.metadata?.transportOption;
+                                        const transportInfo = transportOption || 
+                                            (isTransport && firstTicket?.ticketType?.transportOptions?.[0] ? {
+                                                date: firstTicket.ticketType.transportOptions[0].date,
+                                                attraction: firstTicket.ticketType.transportOptions[0].attraction,
+                                                departureLocation: firstTicket.ticketType.transportOptions[0].departureLocations?.[0] || 'A confirmar'
+                                            } : null);
 
                                         return (
                                             <div
@@ -329,13 +339,29 @@ export default function OrdersList({
                                                             a venda, e é intransferível.
                                                         </p>
                                                     ) : (
-                                                        <p className="text-xs font-medium text-[#4c4c55] mt-1">
-                                                            {ticketTypeName} x {order.totalTickets} ingresso
-                                                            {order.totalTickets > 1 ? 's' : ''} •{' '}
-                                                            {currencyFormatter.format(
-                                                                order.totalAmount,
+                                                        <>
+                                                            <p className="text-xs font-medium text-[#4c4c55] mt-1">
+                                                                {ticketTypeName} x {order.totalTickets} ingresso
+                                                                {order.totalTickets > 1 ? 's' : ''} •{' '}
+                                                                {currencyFormatter.format(
+                                                                    order.totalAmount,
+                                                                )}
+                                                            </p>
+                                                            {transportInfo && (
+                                                                <div className="text-xs text-[#7d796c] mt-2 space-y-0.5">
+                                                                    <p className="font-medium text-[#1a1a1d]">Transporte:</p>
+                                                                    {transportInfo.attraction && (
+                                                                        <p>Atração: {transportInfo.attraction}</p>
+                                                                    )}
+                                                                    {transportInfo.date && (
+                                                                        <p>Data: {transportInfo.date}</p>
+                                                                    )}
+                                                                    {transportInfo.departureLocation && (
+                                                                        <p>Local de saída: {transportInfo.departureLocation}</p>
+                                                                    )}
+                                                                </div>
                                                             )}
-                                                        </p>
+                                                        </>
                                                     )}
                                                 </div>
                                             </div>
