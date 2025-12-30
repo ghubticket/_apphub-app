@@ -78,19 +78,12 @@ export default function TicketModal({
         : 'Data a definir';
     const eventLocation = order.event?.location || order.event?.address || '';
     
-    // Obter tipo de ingresso e informações de transporte do primeiro ticket
+    // Obter tipo de ingresso do primeiro ticket (para título)
     const firstTicket = order.tickets[0];
     const ticketTypeName = firstTicket?.ticketType?.name || 'Ingresso';
-    const isTransport = firstTicket?.ticketType?.isTransport || false;
     
-    // Obter informações de transporte (prioridade: metadata > ticketType)
+    // Obter informações de transporte do metadata (prioridade: metadata > ticketType)
     const transportOption = order.metadata?.transportOption;
-    const transportInfo = transportOption || 
-        (isTransport && firstTicket?.ticketType?.transportOptions?.[0] ? {
-            date: firstTicket.ticketType.transportOptions[0].date,
-            attraction: firstTicket.ticketType.transportOptions[0].attraction,
-            departureLocation: firstTicket.ticketType.transportOptions[0].departureLocations?.[0] || 'A confirmar'
-        } : null);
 
     const formatCurrency = (value?: number) =>
         typeof value === 'number'
@@ -134,6 +127,19 @@ export default function TicketModal({
                                 const ticketUsed = ticket.status === 'used';
                                 const ticketPrice = formatCurrency(ticket.price);
                                 const currentTicketType = ticket.ticketType?.name || ticketTypeName;
+                                
+                                // Verificar se ESTE ticket específico é de transporte
+                                const isTicketTransport = ticket.ticketType?.isTransport || false;
+                                
+                                // Obter informações de transporte apenas se este ticket for de transporte
+                                const ticketTransportInfo = isTicketTransport ? (
+                                    transportOption || 
+                                    (ticket.ticketType?.transportOptions?.[0] ? {
+                                        date: ticket.ticketType.transportOptions[0].date,
+                                        attraction: ticket.ticketType.transportOptions[0].attraction,
+                                        departureLocation: ticket.ticketType.transportOptions[0].departureLocations?.[0] || 'A confirmar'
+                                    } : null)
+                                ) : null;
 
                                 return (
                                     <div
@@ -169,22 +175,23 @@ export default function TicketModal({
                                                     Código: {ticket.code}
                                                 </p>
                                             )}
-                                            {transportInfo && (
+                                            {/* Mostrar informações de transporte apenas se este ticket for de transporte */}
+                                            {isTicketTransport && ticketTransportInfo && (
                                                 <div className="mt-3 rounded-lg border border-[#ded7ca] bg-[#f5f1e8]/50 p-3 text-left space-y-1">
                                                     <p className="text-xs font-semibold text-[#1a1a1d]">Informações de Transporte:</p>
-                                                    {transportInfo.attraction && (
+                                                    {ticketTransportInfo.attraction && (
                                                         <p className="text-xs text-[#6a6760]">
-                                                            <span className="font-medium">Atração:</span> {transportInfo.attraction}
+                                                            <span className="font-medium">Atração:</span> {ticketTransportInfo.attraction}
                                                         </p>
                                                     )}
-                                                    {transportInfo.date && (
+                                                    {ticketTransportInfo.date && (
                                                         <p className="text-xs text-[#6a6760]">
-                                                            <span className="font-medium">Data:</span> {transportInfo.date}
+                                                            <span className="font-medium">Data:</span> {ticketTransportInfo.date}
                                                         </p>
                                                     )}
-                                                    {transportInfo.departureLocation && (
+                                                    {ticketTransportInfo.departureLocation && (
                                                         <p className="text-xs text-[#6a6760]">
-                                                            <span className="font-medium">Local de saída:</span> {transportInfo.departureLocation}
+                                                            <span className="font-medium">Local de saída:</span> {ticketTransportInfo.departureLocation}
                                                         </p>
                                                     )}
                                                 </div>

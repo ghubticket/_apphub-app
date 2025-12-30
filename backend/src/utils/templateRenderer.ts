@@ -20,13 +20,23 @@ const replaceVariables = (html: string, variables: Record<string, any>): string 
             return array
                 .map((item: any, index: number) => {
                     let itemContent = content;
-                    // Substituir {{this.propriedade}} com valores do item
+                    
+                    // PRIMEIRO: Processar condicionais {{#if this.propriedade}} dentro do loop
+                    itemContent = itemContent.replace(
+                        /\{\{#if\s+this\.(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+                        (_match: string, prop: string, conditionalContent: string) => {
+                            return item[prop] ? conditionalContent : '';
+                        }
+                    );
+                    
+                    // SEGUNDO: Substituir {{this.propriedade}} com valores do item
                     itemContent = itemContent.replace(
                         /\{\{this\.(\w+)\}\}/g,
                         (m: string, prop: string) => {
                             return item[prop] || '';
                         }
                     );
+                    
                     // Substituir {{@index}} com o índice
                     itemContent = itemContent.replace(/\{\{@index\}\}/g, String(index));
                     return itemContent;
@@ -42,6 +52,7 @@ const replaceVariables = (html: string, variables: Record<string, any>): string 
     }
 
     // Remover blocos condicionais não preenchidos {{#if var}}...{{/if}}
+    // Isso processa condicionais simples (não dentro de loops)
     result = result.replace(
         /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
         (match, varName, content) => {

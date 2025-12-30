@@ -17,8 +17,14 @@ interface TicketPDFData {
         qrCode: string; // Base64 data URL
         ticketType: string;
         holderName?: string;
+        isTransport?: boolean; // Indica se este ticket é de transporte
+        transportInfo?: { // Informações de transporte específicas deste ticket
+            date: string;
+            attraction: string;
+            departureLocation: string;
+        };
     }>;
-    transportInfo?: Array<{
+    transportInfo?: Array<{ // DEPRECATED: manter para compatibilidade, mas usar transportInfo do ticket
         date: string;
         attraction: string;
         departureLocation: string;
@@ -134,32 +140,37 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
 
                 doc.moveDown(1);
 
-                // Informações de transporte (se aplicável)
-                if (data.transportInfo && data.transportInfo.length > 0) {
-                    const transport = data.transportInfo[0]; // Usar primeira informação de transporte
+                // Informações de transporte (apenas se este ticket for de transporte)
+                // Prioridade: transportInfo do ticket > transportInfo global (deprecated)
+                const ticketTransportInfo = ticket.transportInfo || 
+                    (ticket.isTransport && data.transportInfo && data.transportInfo.length > 0 
+                        ? data.transportInfo[0] 
+                        : null);
+                
+                if (ticket.isTransport && ticketTransportInfo) {
                     doc.fontSize(11)
                         .fillColor('#000000')
                         .text('Informações de Transporte:', { align: 'center' });
                     doc.moveDown(0.3);
                     
-                    if (transport.attraction) {
+                    if (ticketTransportInfo.attraction) {
                         doc.fontSize(10)
                             .fillColor('#333333')
-                            .text(`Atração: ${transport.attraction}`, { align: 'center' });
+                            .text(`Atração: ${ticketTransportInfo.attraction}`, { align: 'center' });
                         doc.moveDown(0.3);
                     }
                     
-                    if (transport.date) {
+                    if (ticketTransportInfo.date) {
                         doc.fontSize(10)
                             .fillColor('#333333')
-                            .text(`Data: ${transport.date}`, { align: 'center' });
+                            .text(`Data: ${ticketTransportInfo.date}`, { align: 'center' });
                         doc.moveDown(0.3);
                     }
                     
-                    if (transport.departureLocation) {
+                    if (ticketTransportInfo.departureLocation) {
                         doc.fontSize(10)
                             .fillColor('#333333')
-                            .text(`Local de saída: ${transport.departureLocation}`, { align: 'center' });
+                            .text(`Local de saída: ${ticketTransportInfo.departureLocation}`, { align: 'center' });
                         doc.moveDown(0.3);
                     }
                     

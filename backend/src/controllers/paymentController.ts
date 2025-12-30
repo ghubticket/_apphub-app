@@ -1409,77 +1409,77 @@ async function sendPaymentApprovedEmail(order: any) {
             return;
         }
 
-        // Verificar se há tickets de transporte e coletar informações
-        const transportTickets = ticketsWithQR.filter((t) => {
-            const ticketType = t.ticketType as any;
-            return ticketType?.isTransport === true;
-        });
+        // Buscar informações de transporte do metadata do Order (transportOption selecionado pelo usuário)
+        const orderDoc = await Order.findById(order._id).select('metadata').lean();
+        const orderMetadata = (orderDoc as any)?.metadata || {};
 
-        // Coletar informações de transporte dos tickets
-        let transportInfo: Array<{
+        let transportDataFromMetadata: {
             date: string;
             attraction: string;
             departureLocation: string;
-        }> = [];
+        } | null = null;
 
-        if (transportTickets.length > 0) {
-            // Buscar informações de transporte
-            // Primeiro, tentar buscar do metadata do Order (transportOption selecionado pelo usuário)
-            const orderDoc = await Order.findById(order._id).select('metadata').lean();
-            const orderMetadata = (orderDoc as any)?.metadata || {};
+        if (orderMetadata.transportOption) {
+            try {
+                const transportOption =
+                    typeof orderMetadata.transportOption === 'string'
+                        ? JSON.parse(orderMetadata.transportOption)
+                        : orderMetadata.transportOption;
 
-            let transportDataFromMetadata: {
+                if (
+                    transportOption.date &&
+                    transportOption.attraction &&
+                    transportOption.departureLocation
+                ) {
+                    transportDataFromMetadata = {
+                        date: transportOption.date,
+                        attraction: transportOption.attraction,
+                        departureLocation: transportOption.departureLocation,
+                    };
+                }
+            } catch (e) {
+                // Ignorar erro de parsing
+            }
+        }
+
+        // Preparar tickets com informações de transporte apenas para tickets de transporte
+        const ticketsForPDF = ticketsWithQR.map((t) => {
+            const ticketType = t.ticketType as any;
+            const isTransport = ticketType?.isTransport === true;
+            
+            let transportInfo: {
                 date: string;
                 attraction: string;
                 departureLocation: string;
-            } | null = null;
+            } | undefined = undefined;
 
-            if (orderMetadata.transportOption) {
-                try {
-                    const transportOption =
-                        typeof orderMetadata.transportOption === 'string'
-                            ? JSON.parse(orderMetadata.transportOption)
-                            : orderMetadata.transportOption;
-
-                    if (
-                        transportOption.date &&
-                        transportOption.attraction &&
-                        transportOption.departureLocation
-                    ) {
-                        transportDataFromMetadata = {
-                            date: transportOption.date,
-                            attraction: transportOption.attraction,
-                            departureLocation: transportOption.departureLocation,
+            // Se for ticket de transporte, buscar informações
+            if (isTransport) {
+                // Prioridade: metadata > ticketType
+                if (transportDataFromMetadata) {
+                    transportInfo = transportDataFromMetadata;
+                } else if (ticketType?.transportOptions && ticketType.transportOptions.length > 0) {
+                    const firstOption = ticketType.transportOptions[0];
+                    if (firstOption && firstOption.date && firstOption.attraction) {
+                        transportInfo = {
+                            date: firstOption.date || '',
+                            attraction: firstOption.attraction || '',
+                            departureLocation:
+                                firstOption.departureLocations?.[0] || 'A confirmar',
                         };
                     }
-                } catch (e) {
-                    // Ignorar erro de parsing
                 }
             }
 
-            // Se encontrou no metadata, usar. Senão, buscar do ticketType (primeira opção disponível)
-            if (transportDataFromMetadata) {
-                transportInfo.push(transportDataFromMetadata);
-            } else {
-                for (const ticket of transportTickets) {
-                    const ticketType = ticket.ticketType as any;
-
-                    // Buscar do ticketType (primeira opção disponível)
-                    if (ticketType?.transportOptions && ticketType.transportOptions.length > 0) {
-                        // Pegar a primeira opção disponível
-                        const firstOption = ticketType.transportOptions[0];
-                        if (firstOption && firstOption.date && firstOption.attraction) {
-                            transportInfo.push({
-                                date: firstOption.date || '',
-                                attraction: firstOption.attraction || '',
-                                departureLocation:
-                                    firstOption.departureLocations?.[0] || 'A confirmar',
-                            });
-                        }
-                    }
-                }
-            }
-        }
+            return {
+                code: t.code,
+                qrCode: t.qrCode,
+                ticketType: ticketType?.name || 'Ingresso',
+                holderName: (t.holder as any)?.name || customer.name,
+                isTransport,
+                transportInfo,
+            };
+        });
 
         // Gerar PDF com QR codes
         const pdfBuffer = await generateTicketPDF({
@@ -1491,14 +1491,7 @@ async function sendPaymentApprovedEmail(order: any) {
             },
             orderNumber: populatedOrder.orderNumber,
             customerName: customer.name,
-            tickets: ticketsWithQR.map((t) => ({
-                code: t.code,
-                qrCode: t.qrCode,
-                ticketType: (t.ticketType as any)?.name || 'Ingresso',
-                holderName: (t.holder as any)?.name || customer.name,
-            })),
-            // Incluir informações de transporte se houver
-            transportInfo: transportInfo.length > 0 ? transportInfo : undefined,
+            tickets: ticketsForPDF,
         });
 
         // Formatar data do evento
@@ -1510,6 +1503,38 @@ async function sendPaymentApprovedEmail(order: any) {
             hour: '2-digit',
             minute: '2-digit',
         });
+
+        // Verificar se há tickets de transporte para incluir no email
+        const transportTickets = ticketsWithQR.filter((t) => {
+            const ticketType = t.ticketType as any;
+            return ticketType?.isTransport === true;
+        });
+
+        // Coletar informações de transporte para o email (apenas se houver tickets de transporte)
+        let transportInfoForEmail: Array<{
+            date: string;
+            attraction: string;
+            departureLocation: string;
+        }> = [];
+
+        if (transportTickets.length > 0 && transportDataFromMetadata) {
+            transportInfoForEmail.push(transportDataFromMetadata);
+        } else if (transportTickets.length > 0) {
+            // Buscar do primeiro ticket de transporte
+            const firstTransportTicket = transportTickets[0];
+            const ticketType = firstTransportTicket.ticketType as any;
+            if (ticketType?.transportOptions && ticketType.transportOptions.length > 0) {
+                const firstOption = ticketType.transportOptions[0];
+                if (firstOption && firstOption.date && firstOption.attraction) {
+                    transportInfoForEmail.push({
+                        date: firstOption.date || '',
+                        attraction: firstOption.attraction || '',
+                        departureLocation:
+                            firstOption.departureLocations?.[0] || 'A confirmar',
+                    });
+                }
+            }
+        }
 
         // Preparar QR codes para exibição no email
         const qrCodesForEmail = ticketsWithQR.map((t) => ({
@@ -1537,8 +1562,8 @@ async function sendPaymentApprovedEmail(order: any) {
                     'Ingresso',
                 downloadLink: `${frontendUrl}/dashboard`,
                 qrCodes: qrCodesForEmail,
-                // Incluir informações de transporte se houver tickets de transporte
-                transportInfo: transportInfo.length > 0 ? transportInfo : undefined,
+                // Incluir informações de transporte apenas se houver tickets de transporte
+                transportInfo: transportInfoForEmail.length > 0 ? transportInfoForEmail : undefined,
             },
             [
                 {
