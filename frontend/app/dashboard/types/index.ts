@@ -19,6 +19,16 @@ export type OrderTicketSummary = {
     status?: string;
     qrCode?: string | null;
     price?: number;
+    ticketType?: {
+        _id?: string;
+        name?: string;
+        isTransport?: boolean;
+        transportOptions?: Array<{
+            date: string;
+            attraction: string;
+            departureLocations: string[];
+        }>;
+    };
 };
 
 export type OrderEventSummary = {
@@ -58,6 +68,13 @@ export type OrderSummary = {
     event?: OrderEventSummary | null;
     tickets: OrderTicketSummary[];
     pixInfo?: PixInfo;
+    metadata?: {
+        transportOption?: {
+            date?: string;
+            attraction?: string;
+            departureLocation?: string;
+        };
+    };
 };
 
 export type OrderGroup = {

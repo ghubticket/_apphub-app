@@ -186,16 +186,15 @@ export function PixPaymentSection({
                         <div className="flex flex-col w-full items-center justify-center gap-3 pt-2">
                             <button
                                 type="button"
-                                className="inline-flex w-full items-center justify-center rounded-full border border-[#1a1a1d] px-6 py-3 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                className={`inline-flex w-full items-center justify-center rounded-full border px-6 py-3 text-xs font-semibold uppercase tracking-normal transition ${
+                                    pixCopySuccess
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border-[#1a1a1d] text-[#1a1a1d] hover:border-[#f97316] hover:text-[#f97316]'
+                                }`}
                                 onClick={onCopyCode}
                             >
-                                Copiar código
+                                {pixCopySuccess ? 'Código copiado!' : 'Copiar código'}
                             </button>
-                            {pixCopySuccess ? (
-                                <span className="w-full rounded-full border border-emerald-200 bg-emerald-50 px-6 py-3 text-xs font-semibold uppercase tracking-normal text-center text-emerald-700">
-                                    Código copiado!
-                                </span>
-                            ) : null}
                         </div>
 
                             {/* Box verde de status - movido para baixo */}

@@ -18,6 +18,11 @@ interface TicketPDFData {
         ticketType: string;
         holderName?: string;
     }>;
+    transportInfo?: Array<{
+        date: string;
+        attraction: string;
+        departureLocation: string;
+    }>;
 }
 
 /**
@@ -127,7 +132,41 @@ export async function generateTicketPDF(data: TicketPDFData): Promise<Buffer> {
                     .fillColor('#666666')
                     .text(`Código: ${ticket.code}`, { align: 'center' });
 
-                doc.moveDown(1.5);
+                doc.moveDown(1);
+
+                // Informações de transporte (se aplicável)
+                if (data.transportInfo && data.transportInfo.length > 0) {
+                    const transport = data.transportInfo[0]; // Usar primeira informação de transporte
+                    doc.fontSize(11)
+                        .fillColor('#000000')
+                        .text('Informações de Transporte:', { align: 'center' });
+                    doc.moveDown(0.3);
+                    
+                    if (transport.attraction) {
+                        doc.fontSize(10)
+                            .fillColor('#333333')
+                            .text(`Atração: ${transport.attraction}`, { align: 'center' });
+                        doc.moveDown(0.3);
+                    }
+                    
+                    if (transport.date) {
+                        doc.fontSize(10)
+                            .fillColor('#333333')
+                            .text(`Data: ${transport.date}`, { align: 'center' });
+                        doc.moveDown(0.3);
+                    }
+                    
+                    if (transport.departureLocation) {
+                        doc.fontSize(10)
+                            .fillColor('#333333')
+                            .text(`Local de saída: ${transport.departureLocation}`, { align: 'center' });
+                        doc.moveDown(0.3);
+                    }
+                    
+                    doc.moveDown(1);
+                }
+
+                doc.moveDown(0.5);
 
                 // Instruções
                 doc.fontSize(9)

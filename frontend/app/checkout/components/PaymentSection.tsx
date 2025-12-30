@@ -541,9 +541,13 @@ export function PaymentSection({
                                                 setTimeout(() => setPixCodeCopied(false), 2000);
                                             }
                                         }}
-                                        className="inline-flex w-full items-center justify-center rounded-full border border-[#1a1a1d] px-4 py-2 text-xs font-semibold uppercase tracking-normal text-[#1a1a1d] transition hover:border-[#f97316] hover:text-[#f97316]"
+                                        className={`inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-normal transition ${
+                                            pixCodeCopied
+                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                : 'border-[#1a1a1d] text-[#1a1a1d] hover:border-[#f97316] hover:text-[#f97316]'
+                                        }`}
                                     >
-                                        {pixCodeCopied ? '✓ Código copiado!' : 'Copiar código'}
+                                        {pixCodeCopied ? 'Código copiado!' : 'Copiar código'}
                                     </button>
                                 </div>
                             </div>

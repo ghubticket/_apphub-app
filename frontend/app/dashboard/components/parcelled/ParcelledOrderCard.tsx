@@ -412,9 +412,13 @@ export default function ParcelledOrderCard({
                                     <button
                                         type="button"
                                         onClick={() => onPixCodeCopy(`entry-${order._id}`, entryPixInfo.qrCode!)}
-                                        className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
+                                        className={`rounded-lg border px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+                                            pixCodeCopied[`entry-${order._id}`]
+                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                : 'border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                        }`}
                                     >
-                                        {pixCodeCopied[`entry-${order._id}`] ? '✓ Copiado!' : 'Copiar'}
+                                        {pixCodeCopied[`entry-${order._id}`] ? 'Código copiado!' : 'Copiar código'}
                                     </button>
                                 </div>
                             </div>
@@ -577,9 +581,13 @@ export default function ParcelledOrderCard({
                                                         <button
                                                             type="button"
                                                             onClick={() => onPixCodeCopy(`parcel-${parcel._id}`, parcelPixInfo[parcel._id].qrCode!)}
-                                                            className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
+                                                            className={`rounded-lg border px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+                                                                pixCodeCopied[`parcel-${parcel._id}`]
+                                                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                    : 'border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                                            }`}
                                                         >
-                                                            {pixCodeCopied[`parcel-${parcel._id}`] ? '✓ Copiado!' : 'Copiar'}
+                                                            {pixCodeCopied[`parcel-${parcel._id}`] ? 'Código copiado!' : 'Copiar código'}
                                                         </button>
                                                     </div>
                                                 </div>

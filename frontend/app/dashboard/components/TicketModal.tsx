@@ -77,6 +77,20 @@ export default function TicketModal({
           })
         : 'Data a definir';
     const eventLocation = order.event?.location || order.event?.address || '';
+    
+    // Obter tipo de ingresso e informações de transporte do primeiro ticket
+    const firstTicket = order.tickets[0];
+    const ticketTypeName = firstTicket?.ticketType?.name || 'Ingresso';
+    const isTransport = firstTicket?.ticketType?.isTransport || false;
+    
+    // Obter informações de transporte (prioridade: metadata > ticketType)
+    const transportOption = order.metadata?.transportOption;
+    const transportInfo = transportOption || 
+        (isTransport && firstTicket?.ticketType?.transportOptions?.[0] ? {
+            date: firstTicket.ticketType.transportOptions[0].date,
+            attraction: firstTicket.ticketType.transportOptions[0].attraction,
+            departureLocation: firstTicket.ticketType.transportOptions[0].departureLocations?.[0] || 'A confirmar'
+        } : null);
 
     const formatCurrency = (value?: number) =>
         typeof value === 'number'
@@ -119,6 +133,7 @@ export default function TicketModal({
                                 const ticketConfirmed = ticket.status === 'confirmed';
                                 const ticketUsed = ticket.status === 'used';
                                 const ticketPrice = formatCurrency(ticket.price);
+                                const currentTicketType = ticket.ticketType?.name || ticketTypeName;
 
                                 return (
                                     <div
@@ -140,6 +155,38 @@ export default function TicketModal({
                                             ) : (
                                                 <div className="flex h-64 w-64 items-center justify-center rounded-2xl border border-dashed border-[#ded7ca] bg-[#f5f1e8]/70 px-6 text-center text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7d796c]">
                                                     Aguardando confirmação do pagamento
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Informações do ingresso */}
+                                        <div className="w-full space-y-2 px-4">
+                                            <p className="text-sm font-semibold text-[#1a1a1d]">
+                                                Tipo: {currentTicketType}
+                                            </p>
+                                            {ticket.code && (
+                                                <p className="text-xs text-[#6a6760]">
+                                                    Código: {ticket.code}
+                                                </p>
+                                            )}
+                                            {transportInfo && (
+                                                <div className="mt-3 rounded-lg border border-[#ded7ca] bg-[#f5f1e8]/50 p-3 text-left space-y-1">
+                                                    <p className="text-xs font-semibold text-[#1a1a1d]">Informações de Transporte:</p>
+                                                    {transportInfo.attraction && (
+                                                        <p className="text-xs text-[#6a6760]">
+                                                            <span className="font-medium">Atração:</span> {transportInfo.attraction}
+                                                        </p>
+                                                    )}
+                                                    {transportInfo.date && (
+                                                        <p className="text-xs text-[#6a6760]">
+                                                            <span className="font-medium">Data:</span> {transportInfo.date}
+                                                        </p>
+                                                    )}
+                                                    {transportInfo.departureLocation && (
+                                                        <p className="text-xs text-[#6a6760]">
+                                                            <span className="font-medium">Local de saída:</span> {transportInfo.departureLocation}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

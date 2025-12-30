@@ -651,28 +651,6 @@ export default function EventSelectionSummary({ tickets = [], loading = false, e
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    {/* Tooltip expandido para mobile (quando clicado) */}
-                                                    {isTooltipExpanded && (
-                                                        <div className="absolute top-full left-0 mt-2 md:hidden z-50 w-[calc(100vw-3rem)] max-w-[400px]">
-                                                            <div className="bg-[#1a1a1d] text-white text-[0.7rem] rounded-lg px-3 py-2 shadow-xl whitespace-normal">
-                                                                <div className="space-y-1.5">
-                                                                    {ticket.description && (
-                                                                        <p className="font-medium leading-snug">{ticket.description}</p>
-                                                                    )}
-                                                                    {availableStock !== undefined && (
-                                                                        <p className="text-[#e5e5e5] text-[0.65rem]">
-                                                                            Disponível: {availableStock} {availableStock === 1 ? 'ingresso' : 'ingressos'}
-                                                                        </p>
-                                                                    )}
-                                                                    {maxAllowed !== undefined && (
-                                                                        <p className="text-[#e5e5e5] text-[0.65rem]">
-                                                                            Máximo por pedido: {maxAllowed}
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                 </div>
 
                                                 {/* Seletor de quantidade */}

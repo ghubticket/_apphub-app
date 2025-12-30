@@ -695,6 +695,43 @@ export async function syncParcelFromMercadoPago(input: SyncParcelPaymentInput) {
                             const ticketsWithQR = tickets.filter((t: any) => t.qrCode);
 
                             if (ticketsWithQR.length > 0) {
+                                // Coletar informações de transporte (se aplicável)
+                                let transportInfo: Array<{
+                                    date: string;
+                                    attraction: string;
+                                    departureLocation: string;
+                                }> = [];
+                                
+                                if (ticketType?.isTransport) {
+                                    // Buscar do metadata primeiro (se fornecido na compra)
+                                    const transportOption = parcelledOrder.metadata?.transportOption;
+                                    if (transportOption && typeof transportOption === 'object') {
+                                        const transportData = typeof transportOption === 'string' 
+                                            ? JSON.parse(transportOption) 
+                                            : transportOption;
+                                        
+                                        if (transportData.date && transportData.attraction && transportData.departureLocation) {
+                                            transportInfo.push({
+                                                date: transportData.date,
+                                                attraction: transportData.attraction,
+                                                departureLocation: transportData.departureLocation,
+                                            });
+                                        }
+                                    }
+                                    
+                                    // Se não encontrou no metadata, buscar do ticketType (primeira opção disponível)
+                                    if (transportInfo.length === 0 && ticketType.transportOptions && ticketType.transportOptions.length > 0) {
+                                        const firstOption = ticketType.transportOptions[0];
+                                        if (firstOption && firstOption.date && firstOption.attraction) {
+                                            transportInfo.push({
+                                                date: firstOption.date || '',
+                                                attraction: firstOption.attraction || '',
+                                                departureLocation: firstOption.departureLocations?.[0] || 'A confirmar'
+                                            });
+                                        }
+                                    }
+                                }
+                                
                                 // Gerar PDF com QR codes
                                 const pdfBuffer = await generateTicketPDF({
                                     event: {
@@ -711,6 +748,8 @@ export async function syncParcelFromMercadoPago(input: SyncParcelPaymentInput) {
                                         ticketType: ticketType?.name || 'Ingresso',
                                         holderName: t.holder?.name || customerName,
                                     })),
+                                    // Incluir informações de transporte se houver
+                                    transportInfo: transportInfo.length > 0 ? transportInfo : undefined,
                                 });
 
                                 const completionDate = new Date().toLocaleDateString('pt-BR', {

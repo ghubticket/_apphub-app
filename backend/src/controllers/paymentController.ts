@@ -1435,6 +1435,8 @@ async function sendPaymentApprovedEmail(order: any) {
                 ticketType: (t.ticketType as any)?.name || 'Ingresso',
                 holderName: (t.holder as any)?.name || customer.name,
             })),
+            // Incluir informações de transporte se houver
+            transportInfo: transportInfo.length > 0 ? transportInfo : undefined,
         });
 
         // Formatar data do evento

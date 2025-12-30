@@ -373,6 +373,20 @@ export default function OrdersList({
                 const isVipOrder = order.paymentMethod === 'vip_free' || order.totalAmount === 0;
                 const isExpanded = expandedOrderId === order._id;
 
+                // Obter tipo de ingresso do primeiro ticket
+                const firstTicket = order.tickets[0];
+                const ticketTypeName = firstTicket?.ticketType?.name || 'Ingresso';
+                const isTransport = firstTicket?.ticketType?.isTransport || false;
+                
+                // Obter informações de transporte (prioridade: metadata > ticketType)
+                const transportOption = order.metadata?.transportOption;
+                const transportInfo = transportOption || 
+                    (isTransport && firstTicket?.ticketType?.transportOptions?.[0] ? {
+                        date: firstTicket.ticketType.transportOptions[0].date,
+                        attraction: firstTicket.ticketType.transportOptions[0].attraction,
+                        departureLocation: firstTicket.ticketType.transportOptions[0].departureLocations?.[0] || 'A confirmar'
+                    } : null);
+
                 return (
                     <article
                         key={order._id}
@@ -402,6 +416,25 @@ export default function OrdersList({
                                         {eventDate ? `${eventDate}` : 'Data a confirmar'}
                                         {eventLocation ? ` • ${eventLocation}` : ''}
                                     </p>
+                                    {ticketTypeName && (
+                                        <p className="text-xs font-medium text-[#1a1a1d] mt-1">
+                                            Tipo: {ticketTypeName}
+                                        </p>
+                                    )}
+                                    {transportInfo && (
+                                        <div className="text-xs text-[#7d796c] mt-1 space-y-0.5">
+                                            <p className="font-medium text-[#1a1a1d]">Transporte:</p>
+                                            {transportInfo.attraction && (
+                                                <p>Atração: {transportInfo.attraction}</p>
+                                            )}
+                                            {transportInfo.date && (
+                                                <p>Data: {transportInfo.date}</p>
+                                            )}
+                                            {transportInfo.departureLocation && (
+                                                <p>Local de saída: {transportInfo.departureLocation}</p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-10 w-full md:w-auto">
                                     {isVipOrder ? (
@@ -552,11 +585,15 @@ export default function OrdersList({
                                                                         '',
                                                                 )
                                                             }
-                                                            className="rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-200"
+                                                            className={`rounded-lg border px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+                                                                pixCodeCopied[`order-${order._id}`]
+                                                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                    : 'border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                                            }`}
                                                         >
                                                             {pixCodeCopied[`order-${order._id}`]
-                                                                ? '✓ Código copiado!'
-                                                                : 'Copiar'}
+                                                                ? 'Código copiado!'
+                                                                : 'Copiar código'}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -607,6 +644,25 @@ export default function OrdersList({
                                     <p className="mt-1 text-xs font-medium tracking-normal text-[#6a6760]">
                                         {ticketsConfirmed} confirmados
                                     </p>
+                                    {ticketTypeName && (
+                                        <p className="mt-1 text-xs font-medium text-[#1a1a1d]">
+                                            Tipo: {ticketTypeName}
+                                        </p>
+                                    )}
+                                    {transportInfo && (
+                                        <div className="mt-2 text-xs text-[#6a6760] space-y-0.5">
+                                            <p className="font-medium text-[#1a1a1d]">Transporte:</p>
+                                            {transportInfo.attraction && (
+                                                <p>Atração: {transportInfo.attraction}</p>
+                                            )}
+                                            {transportInfo.date && (
+                                                <p>Data: {transportInfo.date}</p>
+                                            )}
+                                            {transportInfo.departureLocation && (
+                                                <p>Local de saída: {transportInfo.departureLocation}</p>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <button
                                         type="button"
