@@ -140,11 +140,16 @@ export const createPixPayment = async (req: Request, res: Response) => {
             for (const item of cartItems) {
                 if (item.metadata?.transportOption) {
                     try {
-                        const transportOption = typeof item.metadata.transportOption === 'string'
-                            ? JSON.parse(item.metadata.transportOption)
-                            : item.metadata.transportOption;
-                        
-                        if (transportOption.date && transportOption.attraction && transportOption.departureLocation) {
+                        const transportOption =
+                            typeof item.metadata.transportOption === 'string'
+                                ? JSON.parse(item.metadata.transportOption)
+                                : item.metadata.transportOption;
+
+                        if (
+                            transportOption.date &&
+                            transportOption.attraction &&
+                            transportOption.departureLocation
+                        ) {
                             transportOptionMetadata = transportOption;
                             break; // Pegar o primeiro transportOption encontrado
                         }
@@ -231,7 +236,7 @@ export const createPixPayment = async (req: Request, res: Response) => {
                 // Se há transportOption, atualizar o metadata do Order
                 if (transportOptionMetadata) {
                     await Order.findByIdAndUpdate(createdOrderId, {
-                        $set: { 'metadata.transportOption': transportOptionMetadata }
+                        $set: { 'metadata.transportOption': transportOptionMetadata },
                     });
                 }
 
@@ -324,15 +329,15 @@ export const createPixPayment = async (req: Request, res: Response) => {
         }
 
         // Montar endereço de cobrança opcional (não persistido em banco)
-        const billingAddressFromBody = (req.body && (req.body.billingAddress || req.body.billing_address)) || null;
-        const billingAddress =
-            billingAddressFromBody || {
-                street_name: req.body?.billingStreet,
-                street_number: req.body?.billingNumber,
-                zip_code: req.body?.billingZip,
-                city: req.body?.billingCity,
-                state: req.body?.billingState,
-            };
+        const billingAddressFromBody =
+            (req.body && (req.body.billingAddress || req.body.billing_address)) || null;
+        const billingAddress = billingAddressFromBody || {
+            street_name: req.body?.billingStreet,
+            street_number: req.body?.billingNumber,
+            zip_code: req.body?.billingZip,
+            city: req.body?.billingCity,
+            state: req.body?.billingState,
+        };
 
         // Criar pagamento PIX
         const pixPayment = await paymentService.createPixPayment(
@@ -610,14 +615,13 @@ export const createCardPayment = async (req: Request, res: Response) => {
         // Capturar endereço de cobrança enviado pelo frontend (não persistido em banco)
         const billingAddressFromBody =
             (req.body && (req.body.billingAddress || req.body.billing_address)) || null;
-        const billingAddress =
-            billingAddressFromBody || {
-                street_name: req.body?.billingStreet,
-                street_number: req.body?.billingNumber,
-                zip_code: req.body?.billingZip,
-                city: req.body?.billingCity,
-                state: req.body?.billingState,
-            };
+        const billingAddress = billingAddressFromBody || {
+            street_name: req.body?.billingStreet,
+            street_number: req.body?.billingNumber,
+            zip_code: req.body?.billingZip,
+            city: req.body?.billingCity,
+            state: req.body?.billingState,
+        };
 
         // NOVO: Se orderId começa com "fake-", criar pedido real primeiro
         if (orderId.startsWith('fake-')) {
@@ -655,11 +659,16 @@ export const createCardPayment = async (req: Request, res: Response) => {
             for (const item of cartItems) {
                 if (item.metadata?.transportOption) {
                     try {
-                        const transportOption = typeof item.metadata.transportOption === 'string'
-                            ? JSON.parse(item.metadata.transportOption)
-                            : item.metadata.transportOption;
-                        
-                        if (transportOption.date && transportOption.attraction && transportOption.departureLocation) {
+                        const transportOption =
+                            typeof item.metadata.transportOption === 'string'
+                                ? JSON.parse(item.metadata.transportOption)
+                                : item.metadata.transportOption;
+
+                        if (
+                            transportOption.date &&
+                            transportOption.attraction &&
+                            transportOption.departureLocation
+                        ) {
                             transportOptionMetadata = transportOption;
                             break; // Pegar o primeiro transportOption encontrado
                         }
@@ -746,7 +755,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 // Se há transportOption, atualizar o metadata do Order
                 if (transportOptionMetadata) {
                     await Order.findByIdAndUpdate(createdOrderId, {
-                        $set: { 'metadata.transportOption': transportOptionMetadata }
+                        $set: { 'metadata.transportOption': transportOptionMetadata },
                     });
                 }
 
@@ -983,7 +992,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
 
             for (const ticket of tickets) {
                 // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
-                if (String(ticket.order) !== String(order._id)) {continue;
+                if (String(ticket.order) !== String(order._id)) {
+                    continue;
                 }
 
                 if (ticket.status === 'pending') {
@@ -1111,7 +1121,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
 
         const interpretMessage = (msg: string) => {
             const normalized = msg.toLowerCase().trim();
-            
+
             // Filtrar mensagens em inglês genéricas que não devem ser exibidas
             const englishGenericMessages = [
                 'the following transactions failed',
@@ -1119,7 +1129,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 '^transaction failed$',
                 '^payment failed$',
             ];
-            
+
             for (const pattern of englishGenericMessages) {
                 const regex = new RegExp(pattern, 'i');
                 if (regex.test(normalized)) {
@@ -1138,32 +1148,43 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 // Tentar primeiro com status "failed"
                 let statusInfo = getPaymentStatusInfo('failed', statusDetail);
                 // Se não encontrou ou é mensagem genérica, tentar com "rejected"
-                if (!statusInfo || statusInfo.userMessage.includes('Status desconhecido') || statusInfo.userMessage.includes(statusDetail)) {
+                if (
+                    !statusInfo ||
+                    statusInfo.userMessage.includes('Status desconhecido') ||
+                    statusInfo.userMessage.includes(statusDetail)
+                ) {
                     statusInfo = getPaymentStatusInfo('rejected', statusDetail);
                 }
-                
+
                 // Se encontrou uma mensagem traduzida válida, usar ela
-                if (statusInfo && statusInfo.userMessage && 
+                if (
+                    statusInfo &&
+                    statusInfo.userMessage &&
                     !statusInfo.userMessage.includes('Status desconhecido') &&
-                    !statusInfo.userMessage.toLowerCase().includes(statusDetail.toLowerCase())) {
+                    !statusInfo.userMessage.toLowerCase().includes(statusDetail.toLowerCase())
+                ) {
                     appendFriendly(statusInfo.userMessage);
                     return true;
                 }
             }
-            
+
             // Tentar extrair status_detail diretamente da string (caso o regex não tenha capturado)
             // Buscar por padrões conhecidos de status_detail na mensagem
             const directStatusMatch = normalized.match(/:\s*([a-z_0-9]+)$/i);
             if (directStatusMatch && directStatusMatch[1]) {
                 const statusDetail = directStatusMatch[1].trim();
-                if (statusDetail.length > 3 && statusDetail !== 'failed') { // Ignorar "failed" genérico
+                if (statusDetail.length > 3 && statusDetail !== 'failed') {
+                    // Ignorar "failed" genérico
                     let statusInfo = getPaymentStatusInfo('failed', statusDetail);
                     if (!statusInfo || statusInfo.userMessage.includes('Status desconhecido')) {
                         statusInfo = getPaymentStatusInfo('rejected', statusDetail);
                     }
-                    if (statusInfo && statusInfo.userMessage && 
+                    if (
+                        statusInfo &&
+                        statusInfo.userMessage &&
                         !statusInfo.userMessage.includes('Status desconhecido') &&
-                        !statusInfo.userMessage.toLowerCase().includes(statusDetail.toLowerCase())) {
+                        !statusInfo.userMessage.toLowerCase().includes(statusDetail.toLowerCase())
+                    ) {
                         appendFriendly(statusInfo.userMessage);
                         return true;
                     }
@@ -1173,13 +1194,23 @@ export const createCardPayment = async (req: Request, res: Response) => {
             // Tentar extrair status_detail de outras formas
             // Verificar se a mensagem contém algum status_detail conhecido
             const knownStatusDetails = [
-                'high_risk', 'rejected_by_issuer', 'insufficient_amount', 
-                'bad_filled_card_data', 'invalid_card_token', 'max_attempts_exceeded',
-                'card_disabled', 'required_call_for_authorize', 'processing_error',
-                'invalid_installments', 'pending_challenge', '3ds_challenge_expired',
-                '3ds_challenge_failed', 'cc_rejected_high_risk', 'cc_rejected_insufficient_amount'
+                'high_risk',
+                'rejected_by_issuer',
+                'insufficient_amount',
+                'bad_filled_card_data',
+                'invalid_card_token',
+                'max_attempts_exceeded',
+                'card_disabled',
+                'required_call_for_authorize',
+                'processing_error',
+                'invalid_installments',
+                'pending_challenge',
+                '3ds_challenge_expired',
+                '3ds_challenge_failed',
+                'cc_rejected_high_risk',
+                'cc_rejected_insufficient_amount',
             ];
-            
+
             for (const statusDetail of knownStatusDetails) {
                 if (normalized.includes(statusDetail)) {
                     const statusInfo = getPaymentStatusInfo('failed', statusDetail);
@@ -1201,7 +1232,7 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 );
                 return true;
             }
-            
+
             return false;
         };
 
@@ -1214,8 +1245,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
                     'failed',
                     'transaction failed',
                     'payment failed',
-                ].some(pattern => normalized === pattern);
-                
+                ].some((pattern) => normalized === pattern);
+
                 if (!shouldIgnore) {
                     // Tentar ver se contém algum padrão de payment ID que podemos ignorar
                     const isPaymentIdPattern = /^[a-z0-9]{20,}:/.test(normalized);
@@ -1227,14 +1258,16 @@ export const createCardPayment = async (req: Request, res: Response) => {
         });
 
         const uniqueFriendly = Array.from(new Set(friendlyMessages));
-        
+
         // Garantir que há pelo menos uma mensagem amigável em português
         if (uniqueFriendly.length === 0) {
-            uniqueFriendly.push('Não foi possível processar o pagamento. Verifique os dados do cartão e tente novamente.');
+            uniqueFriendly.push(
+                'Não foi possível processar o pagamento. Verifique os dados do cartão e tente novamente.'
+            );
         }
-        
+
         // Filtrar mensagens em inglês genéricas que possam ter passado
-        const filteredFriendly = uniqueFriendly.filter(msg => {
+        const filteredFriendly = uniqueFriendly.filter((msg) => {
             const normalized = msg.toLowerCase().trim();
             const englishPatterns = [
                 'the following transactions failed',
@@ -1242,30 +1275,36 @@ export const createCardPayment = async (req: Request, res: Response) => {
                 '^transaction failed$',
                 '^payment failed$',
             ];
-            return !englishPatterns.some(pattern => {
+            return !englishPatterns.some((pattern) => {
                 const regex = new RegExp(pattern, 'i');
                 return regex.test(normalized);
             });
         });
-        
-        errorMessage = filteredFriendly[0] || uniqueFriendly[0] || 'Não foi possível processar o pagamento. Tente novamente.';
 
-        if (!messages.length || messages.every(m => {
-            const norm = String(m).toLowerCase().trim();
-            return ['the following transactions failed', 'failed'].includes(norm);
-        })) {
+        errorMessage =
+            filteredFriendly[0] ||
+            uniqueFriendly[0] ||
+            'Não foi possível processar o pagamento. Tente novamente.';
+
+        if (
+            !messages.length ||
+            messages.every((m) => {
+                const norm = String(m).toLowerCase().trim();
+                return ['the following transactions failed', 'failed'].includes(norm);
+            })
+        ) {
             messages = filteredFriendly.length > 0 ? filteredFriendly : uniqueFriendly;
         }
 
         // Variável para armazenar o número de tentativas atualizado para retornar no response
         let finalCardAttempts = currentAttempts;
-        
+
         if (order) {
             try {
                 const previousAttempts = order.cardAttempts || 0;
                 const newAttempts = previousAttempts + 1;
                 const maxAttempts = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
-                
+
                 // CRÍTICO: Guardar o valor atualizado para retornar na resposta
                 finalCardAttempts = newAttempts;
 
@@ -1282,7 +1321,8 @@ export const createCardPayment = async (req: Request, res: Response) => {
                     updateData.status = 'failed';
                     updateData.isActive = false;
                     updateData.paymentStatusDetail = 'max_attempts';
-                    updateData.paymentMessage = 'Você excedeu o número máximo de tentativas para este pedido.';
+                    updateData.paymentMessage =
+                        'Você excedeu o número máximo de tentativas para este pedido.';
                     updateData.paymentAdminMessage = 'Limite de tentativas excedido (cartão).';
                 } else {
                     // Manter pending para permitir nova tentativa
@@ -1315,15 +1355,19 @@ export const createCardPayment = async (req: Request, res: Response) => {
         // Determinar status HTTP baseado em se esgotou tentativas
         // Se esgotou tentativas, retornar 429 (Too Many Requests) para indicar limite excedido
         const httpStatus = finalCardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS ? 429 : 400;
-        
+
         return res.status(httpStatus).json({
             success: false,
-            message: finalCardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS
-                ? 'Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido para tentar novamente.'
-                : errorMessage,
-            errors: finalCardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS
-                ? ['Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido.']
-                : uniqueFriendly,
+            message:
+                finalCardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS
+                    ? 'Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido para tentar novamente.'
+                    : errorMessage,
+            errors:
+                finalCardAttempts >= MAX_CARD_PAYMENT_ATTEMPTS
+                    ? [
+                          'Você excedeu o número máximo de tentativas para este pedido. Inicie um novo pedido.',
+                      ]
+                    : uniqueFriendly,
             errorDetails: errorDetails, // Incluir detalhes completos do erro
             cardAttempts: finalCardAttempts, // Retornar o valor atualizado após incremento
             maxCardAttempts: MAX_CARD_PAYMENT_ATTEMPTS,
@@ -1339,12 +1383,19 @@ async function sendPaymentApprovedEmail(order: any) {
         // Popular dados necessários
         const populatedOrder = await Order.findById(order._id)
             .populate('event', 'name date location address')
-            .populate('tickets', 'code qrCode ticketType holder')
+            .populate({
+                path: 'tickets',
+                select: 'code qrCode ticketType holder',
+                populate: {
+                    path: 'ticketType',
+                    select: 'name isTransport transportOptions',
+                },
+            })
             .populate('customer', 'name email')
-            .populate('tickets.ticketType', 'name isTransport transportOptions')
             .lean();
 
-        if (!populatedOrder || !populatedOrder.customer) {return;
+        if (!populatedOrder || !populatedOrder.customer) {
+            return;
         }
 
         const event = populatedOrder.event as any;
@@ -1354,7 +1405,8 @@ async function sendPaymentApprovedEmail(order: any) {
         // Filtrar apenas tickets com QR code (confirmados)
         const ticketsWithQR = tickets.filter((t) => t.qrCode);
 
-        if (ticketsWithQR.length === 0) {return;
+        if (ticketsWithQR.length === 0) {
+            return;
         }
 
         // Verificar se há tickets de transporte e coletar informações
@@ -1375,34 +1427,43 @@ async function sendPaymentApprovedEmail(order: any) {
             // Primeiro, tentar buscar do metadata do Order (transportOption selecionado pelo usuário)
             const orderDoc = await Order.findById(order._id).select('metadata').lean();
             const orderMetadata = (orderDoc as any)?.metadata || {};
-            
-            let transportDataFromMetadata: { date: string; attraction: string; departureLocation: string } | null = null;
-            
+
+            let transportDataFromMetadata: {
+                date: string;
+                attraction: string;
+                departureLocation: string;
+            } | null = null;
+
             if (orderMetadata.transportOption) {
                 try {
-                    const transportOption = typeof orderMetadata.transportOption === 'string'
-                        ? JSON.parse(orderMetadata.transportOption)
-                        : orderMetadata.transportOption;
-                    
-                    if (transportOption.date && transportOption.attraction && transportOption.departureLocation) {
+                    const transportOption =
+                        typeof orderMetadata.transportOption === 'string'
+                            ? JSON.parse(orderMetadata.transportOption)
+                            : orderMetadata.transportOption;
+
+                    if (
+                        transportOption.date &&
+                        transportOption.attraction &&
+                        transportOption.departureLocation
+                    ) {
                         transportDataFromMetadata = {
                             date: transportOption.date,
                             attraction: transportOption.attraction,
-                            departureLocation: transportOption.departureLocation
+                            departureLocation: transportOption.departureLocation,
                         };
                     }
                 } catch (e) {
                     // Ignorar erro de parsing
                 }
             }
-            
+
             // Se encontrou no metadata, usar. Senão, buscar do ticketType (primeira opção disponível)
             if (transportDataFromMetadata) {
                 transportInfo.push(transportDataFromMetadata);
             } else {
                 for (const ticket of transportTickets) {
                     const ticketType = ticket.ticketType as any;
-                    
+
                     // Buscar do ticketType (primeira opção disponível)
                     if (ticketType?.transportOptions && ticketType.transportOptions.length > 0) {
                         // Pegar a primeira opção disponível
@@ -1411,7 +1472,8 @@ async function sendPaymentApprovedEmail(order: any) {
                             transportInfo.push({
                                 date: firstOption.date || '',
                                 attraction: firstOption.attraction || '',
-                                departureLocation: firstOption.departureLocations?.[0] || 'A confirmar'
+                                departureLocation:
+                                    firstOption.departureLocations?.[0] || 'A confirmar',
                             });
                         }
                     }
@@ -1469,7 +1531,10 @@ async function sendPaymentApprovedEmail(order: any) {
                 eventLocation: event.location,
                 eventAddress: event.address,
                 totalTickets: ticketsWithQR.length,
-                ticketType: ticketsWithQR[0]?.ticketType?.name || 'Ingresso',
+                ticketType:
+                    (ticketsWithQR[0]?.ticketType as any)?.name ||
+                    ticketsWithQR[0]?.ticketType?.name ||
+                    'Ingresso',
                 downloadLink: `${frontendUrl}/dashboard`,
                 qrCodes: qrCodesForEmail,
                 // Incluir informações de transporte se houver tickets de transporte
@@ -1498,7 +1563,8 @@ async function sendPaymentRejectedEmailHelper(order: any, rejectionReason?: stri
             .populate('customer', 'name email')
             .lean();
 
-        if (!populatedOrder || !populatedOrder.customer) {return;
+        if (!populatedOrder || !populatedOrder.customer) {
+            return;
         }
 
         const event = populatedOrder.event as any;
@@ -1513,7 +1579,8 @@ async function sendPaymentRejectedEmailHelper(order: any, rejectionReason?: stri
             minute: '2-digit',
         });
 
-        const frontendUrl = process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
+        const frontendUrl =
+            process.env.FRONTEND_URL || process.env.DASHBOARD_URL || 'http://localhost:3000';
         await sendPaymentRejectedEmail(customer.email, {
             customerName: customer.name,
             orderNumber: populatedOrder.orderNumber,
@@ -1631,7 +1698,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     // Fallback: buscar do MP se webhook não enviou dados completos
                     orderInfo = (await paymentService.getOrderById(mpOrderId)) as any;
 
-                    if (!orderInfo) {return;
+                    if (!orderInfo) {
+                        return;
                     }
 
                     paymentInfo = orderInfo.transactions?.payments?.[0];
@@ -1659,12 +1727,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     orderInfo.external_reference ||
                     orderInfo.metadata?.order_id;
 
-                if (!orderId) {return;
+                if (!orderId) {
+                    return;
                 }
 
                 const order = await Order.findOne({ _id: orderId, deletedAt: null });
 
-                if (!paymentInfo) {return;
+                if (!paymentInfo) {
+                    return;
                 }
 
                 // Obter informações completas do status (uma vez só) – antes de sincronizar/parar
@@ -1684,7 +1754,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     transactionAmount: paymentInfo.transaction_amount,
                 });
 
-                if (!order) {return;
+                if (!order) {
+                    return;
                 }
 
                 // Guardar status anterior para evitar disparar e-mail/aprovação duplicados
@@ -1693,7 +1764,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 // CRÍTICO: Se o pedido já está pago e o webhook está sendo reprocessado,
                 // e o status do MP também é pago, não precisa fazer nada
                 if (wasPaidBefore && action === 'order.processed') {
-                    if (statusInfo.internalStatus === 'paid') {return;
+                    if (statusInfo.internalStatus === 'paid') {
+                        return;
                     }
                 }
 
@@ -1783,7 +1855,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                             order: order._id,
                             deletedAt: null,
                         }).select('_id code qrCode status ticketType holder price order');
-                        
+
                         // Atualizar order.tickets se encontrou tickets
                         if (tickets.length > 0) {
                             order.tickets = tickets.map((t: any) => t._id);
@@ -1793,7 +1865,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                     for (const ticket of tickets) {
                         // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
-                        if (String(ticket.order) !== String(order._id)) {continue;
+                        if (String(ticket.order) !== String(order._id)) {
+                            continue;
                         }
 
                         if (ticket.status === 'pending' && !ticket.qrCode) {
@@ -1854,7 +1927,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
             // Buscar informações do pagamento
             const paymentInfo = (await paymentService.getPaymentById(paymentId)) as any;
 
-            if (!paymentInfo) {return;
+            if (!paymentInfo) {
+                return;
             }
 
             // Sempre sincronizar com engine de parcelas (se aplicável)
@@ -1869,12 +1943,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
             // Buscar pedido pelo external_reference (fluxo normal)
             const orderId = paymentInfo.external_reference || paymentInfo.metadata?.order_id;
 
-            if (!orderId) {return;
+            if (!orderId) {
+                return;
             }
 
             const order = await Order.findOne({ _id: orderId, deletedAt: null });
 
-            if (!order) {return;
+            if (!order) {
+                return;
             }
 
             // Guardar status anterior para evitar disparar e-mail/aprovação duplicados
@@ -1962,7 +2038,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                         order: order._id,
                         deletedAt: null,
                     }).select('_id code qrCode status ticketType holder price order');
-                    
+
                     // Atualizar order.tickets se encontrou tickets
                     if (tickets.length > 0) {
                         order.tickets = tickets.map((t: any) => t._id);
@@ -1972,7 +2048,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
                 for (const ticket of tickets) {
                     // VALIDAÇÃO EXTRA: garantir que o ticket realmente pertence ao pedido
-                    if (String(ticket.order) !== String(order._id)) {continue;
+                    if (String(ticket.order) !== String(order._id)) {
+                        continue;
                     }
 
                     if (ticket.status === 'pending' && !ticket.qrCode) {
@@ -2039,19 +2116,19 @@ export const getPaymentStatus = async (req: Request, res: Response) => {
             // Se falhar, pode ser um pagamento criado via Orders API
             // Verificar se existe um Parcel com esse paymentId
             const parcel = await Parcel.findOne({ paymentId }).lean();
-            
+
             if (parcel && parcel.paymentOrderId) {
                 // É um pagamento de Orders API (parcelamento)
                 isOrdersApi = true;
-                
+
                 // Buscar a order via Orders API usando o paymentOrderId salvo
                 try {
                     const mpOrder = await paymentService.getOrderById(parcel.paymentOrderId);
-                    
+
                     // Encontrar o payment dentro da order que corresponde ao paymentId
                     const payments = mpOrder?.transactions?.payments || [];
                     const matchingPayment = payments.find((p: any) => p.id === paymentId);
-                    
+
                     if (matchingPayment) {
                         // Construir objeto similar ao Payment API para manter compatibilidade
                         paymentInfo = {

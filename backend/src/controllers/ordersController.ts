@@ -1790,9 +1790,15 @@ export const getOrderById = async (req: Request, res: Response) => {
                             try {
                                 const populatedOrder = await Order.findById(orderDoc._id)
                                     .populate('event', 'name date location address')
-                                    .populate('tickets', 'code qrCode ticketType holder')
+                                    .populate({
+                                        path: 'tickets',
+                                        select: 'code qrCode ticketType holder',
+                                        populate: {
+                                            path: 'ticketType',
+                                            select: 'name isTransport transportOptions',
+                                        },
+                                    })
                                     .populate('customer', 'name email')
-                                    .populate('tickets.ticketType', 'name')
                                     .lean();
 
                                 if (populatedOrder && populatedOrder.customer) {
