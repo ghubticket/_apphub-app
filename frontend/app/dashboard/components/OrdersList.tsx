@@ -307,6 +307,10 @@ export default function OrdersList({
                                             order.paymentMethod === 'vip_free' ||
                                             order.totalAmount === 0;
 
+                                        // Obter tipo de ingresso do primeiro ticket
+                                        const firstTicket = order.tickets?.[0];
+                                        const ticketTypeName = firstTicket?.ticketType?.name || 'Ingresso';
+
                                         return (
                                             <div
                                                 key={order._id}
@@ -326,7 +330,7 @@ export default function OrdersList({
                                                         </p>
                                                     ) : (
                                                         <p className="text-xs font-medium text-[#4c4c55] mt-1">
-                                                            {order.totalTickets} ingresso
+                                                            {ticketTypeName} x {order.totalTickets} ingresso
                                                             {order.totalTickets > 1 ? 's' : ''} •{' '}
                                                             {currencyFormatter.format(
                                                                 order.totalAmount,
