@@ -63,17 +63,16 @@ const consoleFormat = format.combine(
 // Transports
 const transports: winston.transport[] = [];
 
-// Console transport - DESABILITADO (Sentry faz todo o monitoramento)
-// Não logar em nenhum ambiente - Sentry captura tudo
-// Descomente apenas se precisar de debug emergencial
-// if (process.env.ENABLE_CONSOLE_LOGS === 'true') {
-//   transports.push(
-//     new winston.transports.Console({
-//       format: customFormat,
-//       level: 'error', // Apenas erros críticos
-//     })
-//   );
-// }
+// Console transport - Habilitar apenas se explicitamente solicitado ou em desenvolvimento
+// Em produção, usar apenas se ENABLE_CONSOLE_LOGS estiver definido
+if (NODE_ENV === 'development' || process.env.ENABLE_CONSOLE_LOGS === 'true') {
+  transports.push(
+    new winston.transports.Console({
+      format: NODE_ENV === 'development' ? consoleFormat : customFormat,
+      level: NODE_ENV === 'development' ? 'debug' : 'info',
+    })
+  );
+}
 
 // File transport para produção (opcional)
 if (NODE_ENV === 'production' && process.env.LOG_FILE_PATH) {
@@ -84,6 +83,19 @@ if (NODE_ENV === 'production' && process.env.LOG_FILE_PATH) {
       level: 'info',
       maxsize: 10485760, // 10MB
       maxFiles: 5,
+    })
+  );
+}
+
+// CRÍTICO: Sempre ter pelo menos um transporte para evitar o erro do Winston
+// Se não há transportes configurados, usar um console silencioso em produção
+// ou console normal em desenvolvimento
+if (transports.length === 0) {
+  transports.push(
+    new winston.transports.Console({
+      format: NODE_ENV === 'development' ? consoleFormat : customFormat,
+      level: NODE_ENV === 'production' ? 'warn' : 'debug', // Em produção, apenas warnings e erros
+      silent: NODE_ENV === 'production' && process.env.ENABLE_CONSOLE_LOGS !== 'true', // Silenciar em produção se não habilitado
     })
   );
 }

@@ -449,14 +449,14 @@ app.use(
                 // Sem origin (ex: requisições do mesmo domínio, mobile apps)
                 return callback(null, true);
             }
-            
+
             const normalizedOrigin = normalizeOrigin(origin);
-            
-            // Log para debug em produção
-            if ((process.env.NODE_ENV || 'development') === 'production') {
+
+            // Log apenas em desenvolvimento (debug não é necessário em produção)
+            if ((process.env.NODE_ENV || 'development') !== 'production') {
                 logger.debug(`[CORS] Verificando origin: ${origin} -> ${normalizedOrigin}`);
             }
-            
+
             if (allowedOrigins.includes(normalizedOrigin)) {
                 return callback(null, true);
             }
@@ -466,7 +466,9 @@ app.use(
             if (vicenteAppRegex.test(normalizedOrigin)) {
                 if (!warnedCorsOrigins.has(normalizedOrigin)) {
                     warnedCorsOrigins.add(normalizedOrigin);
-                    logger.info(`[CORS] Permitindo origin vicente.app: ${normalizedOrigin} (original: ${origin})`);
+                    logger.info(
+                        `[CORS] Permitindo origin vicente.app: ${normalizedOrigin} (original: ${origin})`
+                    );
                 }
                 return callback(null, true);
             }
@@ -784,11 +786,11 @@ app.use((req: Request, res: Response) => {
             url: req.url,
             headers: {
                 'content-type': req.headers['content-type'],
-                'authorization': req.headers.authorization ? 'present' : 'missing',
+                authorization: req.headers.authorization ? 'present' : 'missing',
             },
         });
     }
-    
+
     res.status(404).json({
         success: false,
         message: 'Rota não encontrada',
@@ -805,7 +807,7 @@ const startServer = async () => {
         // Logs básicos para garantir que apareçam
         console.log('🔌 Iniciando servidor...');
         logger.info('🔌 Iniciando servidor...');
-        
+
         // Conectar ao banco de dados
         console.log('📦 Conectando ao banco de dados...');
         logger.info('📦 Conectando ao banco de dados...');
@@ -829,7 +831,9 @@ const startServer = async () => {
         const useHttps = sslOptions !== null && !isRailway;
 
         // Iniciar servidor
-        console.log(`🔧 Configurando servidor (HTTPS: ${useHttps}, Porta: ${useHttps ? httpsPort : PORT})...`);
+        console.log(
+            `🔧 Configurando servidor (HTTPS: ${useHttps}, Porta: ${useHttps ? httpsPort : PORT})...`
+        );
         if (useHttps) {
             // Servidor HTTPS
             const httpsServer = https.createServer(sslOptions!, app);
