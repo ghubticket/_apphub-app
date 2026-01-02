@@ -252,6 +252,11 @@ const verticalMenuData = (dictionary: Awaited<ReturnType<typeof getDictionary>>)
         ]
       },
       {
+        label: dictionary['navigation'].audit,
+        icon: 'tabler-file-text',
+        href: '/apps/audit/list'
+      },
+      {
         label: dictionary['navigation'].rolesPermissions,
         icon: 'tabler-lock',
         children: [

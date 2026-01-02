@@ -9,6 +9,7 @@ import { sendCourtesyTicketEmail } from '../services/emailTemplates';
 import { generateTicketPDF } from '../services/pdfService';
 import { isR2Configured } from '../services/r2Service';
 import { captureControllerError } from '../utils/sentryErrorHandler';
+import { logAudit, createAuditContextFromRequest } from '../services/auditService';
 
 // Helpers to build public URL for uploaded files
 function fileUrl(req: Request, filename?: string | null) {
@@ -113,6 +114,37 @@ export const createEvent = async (req: Request, res: Response) => {
             organizer: req.user?._id,
             coverImage: getImageUrl(req, coverFile),
             squareImage: getImageUrl(req, squareFile),
+        });
+
+        // Registrar auditoria
+        const auditContext = createAuditContextFromRequest(req);
+        logAudit({
+            entityType: 'Event',
+            entityId: String(event._id),
+            action: 'create',
+            performedBy: auditContext.performedBy,
+            performedByRole: auditContext.performedByRole,
+            changes: [
+                {
+                    field: 'name',
+                    oldValue: null,
+                    newValue: event.name,
+                },
+                {
+                    field: 'date',
+                    oldValue: null,
+                    newValue: event.date,
+                },
+                {
+                    field: 'location',
+                    oldValue: null,
+                    newValue: event.location,
+                },
+            ],
+            metadata: {
+                ...auditContext,
+                eventName: event.name,
+            },
         });
 
         res.status(201).json({ success: true, message: 'Evento criado com sucesso', data: event });
@@ -291,6 +323,9 @@ export const updateEvent = async (req: Request, res: Response) => {
             updates.platformFeePercentage = num;
         }
 
+        // Buscar evento antes de atualizar para registrar mudanças
+        const oldEvent = await Event.findById(req.params.id).lean();
+        
         const event = await Event.findOneAndUpdate(
             {
                 _id: req.params.id,
@@ -301,6 +336,28 @@ export const updateEvent = async (req: Request, res: Response) => {
         );
         if (!event)
             return res.status(404).json({ success: false, message: 'Evento não encontrado' });
+
+        // Registrar auditoria
+        const auditContext = createAuditContextFromRequest(req);
+        const changes = Object.keys(updates).map((key) => ({
+            field: key,
+            oldValue: oldEvent ? (oldEvent as any)[key] : null,
+            newValue: (event as any)[key],
+        }));
+
+        logAudit({
+            entityType: 'Event',
+            entityId: String(event._id),
+            action: 'update',
+            performedBy: auditContext.performedBy,
+            performedByRole: auditContext.performedByRole,
+            changes,
+            metadata: {
+                ...auditContext,
+                eventName: event.name,
+            },
+        });
+
         res.json({ success: true, message: 'Evento atualizado com sucesso', data: event });
     } catch (error: any) {
         // Se for erro de validação, não enviar ao Sentry

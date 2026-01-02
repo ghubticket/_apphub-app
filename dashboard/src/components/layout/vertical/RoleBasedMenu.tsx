@@ -90,6 +90,12 @@ export const RoleBasedMenu = ({ dictionary }: RoleBasedMenuProps) => {
                     >
                         Financeiro
                     </MenuItem>
+                    <MenuItem
+                        href={`/${locale}/apps/audit/list`}
+                        icon={<i className="tabler-file-text" />}
+                    >
+                        Auditoria
+                    </MenuItem>
                 </MenuSection>
             )}
 

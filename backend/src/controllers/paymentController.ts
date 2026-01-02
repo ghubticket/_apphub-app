@@ -15,6 +15,7 @@ import {
 } from '../services/emailTemplates';
 import { generateTicketPDF } from '../services/pdfService';
 import { captureControllerError } from '../utils/sentryErrorHandler';
+import { logAudit, createAuditContextFromRequest } from '../services/auditService';
 
 const MAX_CARD_PAYMENT_ATTEMPTS = Number(process.env.PAYMENT_MAX_CARD_ATTEMPTS || 3);
 
@@ -427,6 +428,38 @@ export const createPixPayment = async (req: Request, res: Response) => {
 
         // Atualizar pedido usando findByIdAndUpdate (order vem de .lean())
         await Order.findByIdAndUpdate(order._id, updateData, { new: true });
+
+        // Registrar auditoria
+        const auditContext = createAuditContextFromRequest(req);
+        logAudit({
+            entityType: 'Order',
+            entityId: String(order._id),
+            action: 'payment_update',
+            performedBy: auditContext.performedBy,
+            performedByRole: auditContext.performedByRole,
+            changes: [
+                {
+                    field: 'paymentMethod',
+                    oldValue: null,
+                    newValue: 'pix',
+                },
+                {
+                    field: 'paymentStatus',
+                    oldValue: null,
+                    newValue: pixPayment.status,
+                },
+                {
+                    field: 'status',
+                    oldValue: order.status,
+                    newValue: isPaid ? 'paid' : 'pending',
+                },
+            ],
+            metadata: {
+                ...auditContext,
+                paymentId: pixPayment.paymentId,
+                orderNumber: order.orderNumber,
+            },
+        });
 
         // REFATORADO: Não criar reservas separadas - o pedido PENDING já funciona como reserva
         // O pedido já tem expiresAt ajustado acima e bloqueia estoque (soldQuantity++)
@@ -1028,6 +1061,38 @@ export const createCardPayment = async (req: Request, res: Response) => {
         }
 
         await Order.findByIdAndUpdate(order._id, { $set: baseOrderUpdate }, { new: true });
+
+        // Registrar auditoria
+        const auditContext = createAuditContextFromRequest(req);
+        logAudit({
+            entityType: 'Order',
+            entityId: String(order._id),
+            action: 'payment_update',
+            performedBy: auditContext.performedBy,
+            performedByRole: auditContext.performedByRole,
+            changes: [
+                {
+                    field: 'paymentMethod',
+                    oldValue: null,
+                    newValue: 'credit_card',
+                },
+                {
+                    field: 'paymentStatus',
+                    oldValue: null,
+                    newValue: cardPayment.status,
+                },
+                {
+                    field: 'status',
+                    oldValue: order.status,
+                    newValue: baseOrderUpdate.status || 'pending',
+                },
+            ],
+            metadata: {
+                ...auditContext,
+                paymentId: cardPayment.paymentId,
+                orderNumber: order.orderNumber,
+            },
+        });
 
         return res.json({
             success: true,
@@ -1914,7 +1979,38 @@ export const handleWebhook = async (req: Request, res: Response) => {
                     await sendPaymentRejectedEmailHelper(order, statusInfo.userMessage);
                 }
 
+                const oldStatus = order.status;
                 await order.save();
+
+                // Registrar auditoria de atualização via webhook
+                logAudit({
+                    entityType: 'Order',
+                    entityId: String(order._id),
+                    action: 'payment_update',
+                    performedBy: undefined, // Webhook é executado pelo sistema
+                    performedByRole: 'SYSTEM',
+                    changes: [
+                        {
+                            field: 'status',
+                            oldValue: oldStatus,
+                            newValue: order.status,
+                        },
+                        {
+                            field: 'paymentStatus',
+                            oldValue: order.paymentStatus,
+                            newValue: paymentStatus,
+                        },
+                    ],
+                    metadata: {
+                        ipAddress: req.ip || 'webhook',
+                        userAgent: req.get('user-agent') || 'webhook',
+                        paymentId: paymentInfo.id,
+                        paymentStatus: paymentStatus,
+                        orderNumber: order.orderNumber,
+                        webhookType: type,
+                        webhookAction: action,
+                    },
+                });
 
                 // Marcar webhook como processado
                 try {

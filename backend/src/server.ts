@@ -38,6 +38,7 @@ import parcelledOrdersRoutes from './routes/parcelledOrders';
 import newsletterRoutes from './routes/newsletter';
 import supportRoutes from './routes/support';
 import transportPackagesRoutes from './routes/transportPackages';
+import auditRoutes from './routes/audit';
 import { startWebhookWorker } from './services/webhookProcessorService';
 import { startOrderExpirationScheduler } from './services/orderExpirationService';
 import { startParcelledOrderSchedulers } from './services/parcelledOrderService';
@@ -653,6 +654,8 @@ app.use('/api/novidades', newsletterRoutes);
 app.use('/api/support', supportRoutes);
 // Rotas de pacotes de transporte
 app.use('/api/transport-packages', transportPackagesRoutes);
+// Rotas de auditoria
+app.use('/api/audit-logs', auditRoutes);
 
 // Rotas de health check
 app.use('/api/health', healthRoutes);

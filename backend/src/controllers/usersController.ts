@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { User } from '../models';
 import ValidationAttempt from '../models/ValidationAttempt';
 import { captureControllerError } from '../utils/sentryErrorHandler';
+import { logAudit, createAuditContextFromRequest } from '../services/auditService';
 
 /**
  * Lista usuários suspeitos (com tentativas suspeitas)
@@ -97,6 +98,7 @@ export const toggleSuspicious = async (req: Request, res: Response) => {
             });
         }
 
+        const oldIsSuspicious = user.isSuspicious;
         user.isSuspicious = isSuspicious !== undefined ? isSuspicious : !user.isSuspicious;
         if (reason) {
             user.suspiciousReason = reason;
@@ -106,6 +108,33 @@ export const toggleSuspicious = async (req: Request, res: Response) => {
         }
 
         await user.save();
+
+        // Registrar auditoria
+        const auditContext = createAuditContextFromRequest(req);
+        logAudit({
+            entityType: 'User',
+            entityId: String(user._id),
+            action: 'update',
+            performedBy: auditContext.performedBy,
+            performedByRole: auditContext.performedByRole,
+            changes: [
+                {
+                    field: 'isSuspicious',
+                    oldValue: oldIsSuspicious,
+                    newValue: user.isSuspicious,
+                },
+                {
+                    field: 'suspiciousReason',
+                    oldValue: user.suspiciousReason,
+                    newValue: reason || user.suspiciousReason,
+                },
+            ],
+            metadata: {
+                ...auditContext,
+                userEmail: user.email,
+                userName: user.name,
+            },
+        });
 
         res.json({
             success: true,
@@ -155,6 +184,7 @@ export const toggleBlacklist = async (req: Request, res: Response) => {
             });
         }
 
+        const oldIsBlacklisted = user.isBlacklisted;
         user.isBlacklisted = isBlacklisted !== undefined ? isBlacklisted : !user.isBlacklisted;
         if (reason) {
             user.blacklistReason = reason;
@@ -168,6 +198,33 @@ export const toggleBlacklist = async (req: Request, res: Response) => {
         }
 
         await user.save();
+
+        // Registrar auditoria
+        const auditContext = createAuditContextFromRequest(req);
+        logAudit({
+            entityType: 'User',
+            entityId: String(user._id),
+            action: 'update',
+            performedBy: auditContext.performedBy,
+            performedByRole: auditContext.performedByRole,
+            changes: [
+                {
+                    field: 'isBlacklisted',
+                    oldValue: oldIsBlacklisted,
+                    newValue: user.isBlacklisted,
+                },
+                {
+                    field: 'blacklistReason',
+                    oldValue: user.blacklistReason,
+                    newValue: reason || user.blacklistReason,
+                },
+            ],
+            metadata: {
+                ...auditContext,
+                userEmail: user.email,
+                userName: user.name,
+            },
+        });
 
         res.json({
             success: true,
